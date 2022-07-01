@@ -108,12 +108,12 @@ export const initNavigationMenu = (liElement: HTMLElement) => {
         label: window.siyuan.languages.export,
         icon: "iconUpload",
         click: () => {
-            showMessage(window.siyuan.languages.exporting, -1);
+            const msgId = showMessage(window.siyuan.languages.exporting, -1);
             fetchPost("/api/export/batchExportMd", {
                 notebook: notebookId,
                 path: "/"
             }, response => {
-                hideMessage();
+                hideMessage(msgId);
                 window.open(response.data.zip);
             });
         }
@@ -236,10 +236,8 @@ export const initFileMenu = (notebookId: string, pathString: string, id: string,
             label: window.siyuan.languages.openBy,
             submenu: openSubmenus,
         }).element);
-        if (!window.siyuan.config.readonly) {
-            window.siyuan.menus.menu.append(exportMd(id));
-        }
     }
+    window.siyuan.menus.menu.append(exportMd(id));
     return window.siyuan.menus.menu;
 };
 

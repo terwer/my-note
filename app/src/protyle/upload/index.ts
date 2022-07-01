@@ -17,7 +17,6 @@ export class Upload {
 }
 
 const validateFile = (protyle: IProtyle, files: File[]) => {
-    hideMessage();
     const uploadFileList = [];
     let errorTip = "";
     let uploadingStr = "";
@@ -66,12 +65,12 @@ const validateFile = (protyle: IProtyle, files: File[]) => {
             uploadingStr += `<li>${filename} ${window.siyuan.languages.uploading}</li>`;
         }
     }
-
+    let msgId;
     if (errorTip !== "" || uploadingStr !== "") {
-        showMessage(`<ul>${errorTip}${uploadingStr}</ul>`);
+        msgId = showMessage(`<ul>${errorTip}${uploadingStr}</ul>`);
     }
 
-    return uploadFileList;
+    return {files: uploadFileList, msgId};
 };
 
 const genUploadedLabel = (responseText: string, protyle: IProtyle) => {
@@ -94,12 +93,10 @@ const genUploadedLabel = (responseText: string, protyle: IProtyle) => {
 
     if (errorTip) {
         showMessage(errorTip);
-    } else {
-        hideMessage();
     }
 
     let succFileText = "";
-    const keys =  Object.keys(response.data.succMap);
+    const keys = Object.keys(response.data.succMap);
     keys.forEach((key, index) => {
         const path = response.data.succMap[key];
         const lastIndex = key.lastIndexOf(".");
@@ -133,11 +130,12 @@ const genUploadedLabel = (responseText: string, protyle: IProtyle) => {
 };
 
 export const uploadLocalFiles = (files: string[], protyle: IProtyle) => {
-    showMessage(window.siyuan.languages.uploading, 0);
+    const msgId = showMessage(window.siyuan.languages.uploading, 0);
     fetchPost("/api/asset/insertLocalAssets", {
         assetPaths: files,
         id: protyle.block.rootID
     }, (response) => {
+        hideMessage(msgId);
         genUploadedLabel(JSON.stringify(response), protyle);
     });
 };
@@ -189,7 +187,7 @@ export const uploadFiles = (protyle: IProtyle, files: FileList | DataTransferIte
     const editorElement = protyle.wysiwyg.element;
 
     const validateResult = validateFile(protyle, fileList);
-    if (validateResult.length === 0) {
+    if (validateResult.files.length === 0) {
         if (element) {
             element.value = "";
         }
@@ -203,8 +201,8 @@ export const uploadFiles = (protyle: IProtyle, files: FileList | DataTransferIte
         formData.append(key, extraData[key]);
     }
 
-    for (let i = 0, iMax = validateResult.length; i < iMax; i++) {
-        formData.append(protyle.options.upload.fieldName, validateResult[i]);
+    for (let i = 0, iMax = validateResult.files.length; i < iMax; i++) {
+        formData.append(protyle.options.upload.fieldName, validateResult.files[i]);
     }
     formData.append("id", protyle.block.rootID);
     const xhr = new XMLHttpRequest();
@@ -226,6 +224,7 @@ export const uploadFiles = (protyle: IProtyle, files: FileList | DataTransferIte
                 return;
             }
             if (xhr.status === 200) {
+                hideMessage(validateResult.msgId);
                 if (protyle.options.upload.success) {
                     protyle.options.upload.success(editorElement, xhr.responseText);
                 } else if (successCB) {

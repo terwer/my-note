@@ -126,7 +126,7 @@ const getExportPath = (option: { type: string, id: string }, pdfOption?: PrintTo
             properties: ["showOverwriteConfirmation"],
         }).then((result: SaveDialogReturnValue) => {
             if (!result.canceled) {
-                showMessage(window.siyuan.languages.exporting, -1);
+                const msgId = showMessage(window.siyuan.languages.exporting, -1);
                 let url = "/api/export/exportHTML";
                 if (option.type === "htmlmd") {
                     url = "/api/export/exportMdHTML";
@@ -139,9 +139,9 @@ const getExportPath = (option: { type: string, id: string }, pdfOption?: PrintTo
                     savePath: result.filePath
                 }, exportResponse => {
                     if (option.type === "word") {
-                        afterExport(result.filePath);
+                        afterExport(result.filePath, msgId);
                     } else {
-                        onExport(exportResponse, result.filePath, option.type, pdfOption, removeAssets);
+                        onExport(exportResponse, result.filePath, option.type, pdfOption, removeAssets, msgId);
                     }
                 });
             }
@@ -149,7 +149,7 @@ const getExportPath = (option: { type: string, id: string }, pdfOption?: PrintTo
     });
 };
 
-const onExport = (data: IWebSocketData, filePath: string, type: string, pdfOptions?: PrintToPDFOptions, removeAssets?: boolean) => {
+const onExport = (data: IWebSocketData, filePath: string, type: string, pdfOptions?: PrintToPDFOptions, removeAssets?: boolean, msgId?: string) => {
     let themeName = window.siyuan.config.appearance.themeLight;
     let mode = 0;
     if (["html", "htmlmd"].includes(type) && window.siyuan.config.appearance.mode === 1) {
@@ -318,7 +318,7 @@ pre code {
                             id: data.data.id,
                             path: pdfFilePath
                         }, () => {
-                            afterExport(pdfFilePath);
+                            afterExport(pdfFilePath, msgId);
                             if (removeAssets) {
                                 const removePromise = (dir: string) => {
                                     return new Promise(function (resolve) {
@@ -342,18 +342,18 @@ pre code {
                         });
                         win.destroy();
                     }).catch((error: string) => {
-                        showMessage("Export PDF error:" + error, 0);
+                        showMessage("Export PDF error:" + error, 0, "error", msgId);
                         win.destroy();
                     });
                 } catch (e) {
-                    showMessage("Export PDF error:" + e + ". Export HTML and use Chrome's printing function to convert to PDF", 0);
+                    showMessage("Export PDF error:" + e + ". Export HTML and use Chrome's printing function to convert to PDF", 0, "error", msgId);
                 }
             }, Math.min(timeout, 10000));
         });
     } else {
         const htmlPath = path.join(filePath, "index.html");
         fs.writeFileSync(htmlPath, html);
-        afterExport(htmlPath);
+        afterExport(htmlPath, msgId);
     }
 };
 /// #endif

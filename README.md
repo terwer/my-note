@@ -10,7 +10,7 @@ Build Your Eternal Digital Garden
 </p>
 
 <p align="center">
-<a href="https://github.com/siyuan-note/siyuan/blob/master/README_zh_CN.md">中文</a>
+<a href="README_zh_CN.md">中文</a>
 </p>
 
 ## 💡 Introduction
@@ -78,8 +78,8 @@ Cloud services require a paid subscription.
 
 ## 🗺️ Roadmap
 
-* [SiYuan development plan and progress](https://github.com/siyuan-note/siyuan/projects)
-* [SiYuan Change logs](https://github.com/siyuan-note/siyuan/blob/master/CHANGE_LOGS.md)
+* [SiYuan development plan and progress](https://github.com/orgs/siyuan-note/projects/1)
+* [SiYuan Change logs](CHANGELOG.md)
 
 ## 🛠️ Download Setup
 
@@ -148,9 +148,23 @@ To get the latest Insider Preview, please send an email with your GitHub login n
 
 ## 🏘️ Community
 
-* [Issues](https://github.com/siyuan-note/siyuan/issues)
+* [Issues](https://github.com/siyuan-note/siyuan/issues) Official support channels
+* [Discord](https://discord.com/invite/bzfCBwMzdP) A community built by enthusiastic users
+* [Awesome SiYuan](https://github.com/siyuan-note/awesome) Resources organized by enthusiastic users
 
 ## ❓ FAQ
+
+### Is SiYuan right for me? Or how should I choose note-taking software?
+
+This question varies from person to person and is difficult to answer uniformly. If you're not sure if Siyuan is right for you, here are some suggestions:
+
+* If you need to frequently share notes or edit collaboratively with others, and need the data table function, it is recommended to use:
+
+  * [Notion - One workspace. Every team.](https://www.notion.so/)
+* If you like to use plain text Markdown files to store your notes, it is recommended to use:
+
+  * [Obsidian - A second brain, for you, forever.](https://obsidian.md/)
+  * [Logseq - A privacy-first, open-source knowledge base](https://logseq.com/)
 
 ### How does SiYuan store data?
 
@@ -167,16 +181,13 @@ The data is saved in the workspace folder (the default is in the user's home dir
 SiYuan is completely open source, and contributions are welcome:
 
 * [User Interface and Kernel](https://github.com/siyuan-note/siyuan)
-* [User Guide](https://github.com/siyuan-note/user-guide-en_US)
-* [Appearance](https://github.com/siyuan-note/appearance)
-* [Data Parser](https://github.com/88250/protyle)
-* [Editor Engine](https://github.com/88250/lute)
-* [End-to-end encryption](https://github.com/siyuan-note/encryption)
+* [User Guide](https://github.com/siyuan-note/user-guide-en_US) and [Appearance](https://github.com/siyuan-note/appearance)
+* [Data Parser](https://github.com/88250/protyle) and [Editor Engine](https://github.com/88250/lute)
+* [End-to-end encryption](https://github.com/siyuan-note/encryption) and [Data repo](https://github.com/siyuan-note/dejavu)
 * [Chrome Clipping Extension](https://github.com/siyuan-note/siyuan-chrome)
-* [Android](https://github.com/siyuan-note/siyuan-android)
-* [iOS](https://github.com/siyuan-note/siyuan-ios)
+* [Android](https://github.com/siyuan-note/siyuan-android) and [iOS](https://github.com/siyuan-note/siyuan-ios)
 
-For more details, please refer to [Development Guide](https://github.com/siyuan-note/siyuan/blob/master/DEV.md).
+For more details, please refer to [Development Guide](https://github.com/siyuan-note/siyuan/blob/master/.github/CONTRIBUTING.md).
 
 ### Is there any note for deleting docs?
 
@@ -194,16 +205,34 @@ Fold the heading and move it later.
 
 Click at the beginning, hold down <kbd>Shift</kbd> and click at the end after scrolling the page.
 
-### How to adjust table rows and columns?
+### How to do find and replace?
 
-There is an operation entry in the block icon menu of the table block.
+Press <kbd>Ctrl+R</kbd> after selecting the keyword in the editor.
+
+### What if some blocks (such as paragraph blocks in list items) cannot find the block icon?
+
+The first sub-block under the list item is the block icon omitted. You can move the cursor into this block and trigger its block menu with <kbd>Ctrl+/</kbd> .
+
+### How to share notes?
+
+* Export and import `.sy.zip` package
+* Via network hosting
+* Export and import Markdown
+* <kbd>Export Preview</kbd> to copy to third-party online services
+
+The first two methods can guarantee the original semantics of the data.
 
 ### How to use a third-party sync disk for data synchronization?
 
 * Please only synchronize the `workspace/data/`, do not synchronize the entire workspace
 * Please suspend third-party synchronization during the operation of SiYuan, otherwise data may be damaged. For details, please refer to [here](https://ld246.com/article/1626537583158)
-* The data folder path on the Android is `internal storage device/Android/data/org.b3log.siyuan/files/siyuan/data/`, which is a private path of the application and cannot be read by other programs and can only be copied manually
+* The data folder path on the Android is `Internal storage device/Android/data/org.b3log.siyuan/files/siyuan/data/`, which is a private path of the application and cannot be read by other programs and can only be copied manually
 * There is a conflict between third-party synchronization and SiYuan synchronization, please do not use at the same time
+
+In addition, you can consider manually exporting and importing Data to achieve data synchronization:
+
+* Desktop: <kbd>Settings</kbd> - <kbd>Export</kbd> - <kbd>Export Data</kbd> / <kbd>Import Data</kbd>
+* Mobile: <kbd>Right column</kbd> - <kbd>About</kbd> - <kbd>Export Data</kbd> / <kbd>Import Data</kbd>
 
 ### What should I do if I forget the end-to-end password?
 
@@ -215,25 +244,9 @@ If it is a mobile-end, uninstall and reinstall it (note: When the mobile-endunin
 
 ### Do I need to pay for it?
 
-Local functions are completely free to use, [Cloud services](https://b3log.org/siyuan/pricing.html) requires annual subscription, price is $72/year。
+Local functions are completely free to use, [Cloud services](https://b3log.org/siyuan/en/pricing.html) requires annual subscription, price is $72/year。
 
 Users in non-Mainland China regions should not pay for subscriptions, because SiYuan Cloud Server cannot guarantee availability in non-Mainland China regions.
-
-## 💌 Participate in contribution
-
-SiYuan is completely open source, and contributions are welcome:
-
-* [User Interface and Kernel](https://github.com/siyuan-note/siyuan)
-* [User Guide](https://github.com/siyuan-note/user-guide-en_US)
-* [Appearance](https://github.com/siyuan-note/appearance)
-* [Data Parser](https://github.com/88250/protyle)
-* [Editor Engine](https://github.com/88250/lute)
-* [End-to-end encryption](https://github.com/siyuan-note/encryption)
-* [Chrome Clipping Extension](https://github.com/siyuan-note/siyuan-chrome)
-* [Android](https://github.com/siyuan-note/siyuan-android)
-* [iOS](https://github.com/siyuan-note/siyuan-ios)
-
-For more details, please refer to [Development Guide](https://github.com/siyuan-note/siyuan/blob/master/DEV.md).
 
 ## 🙏 Acknowledgement
 
@@ -261,6 +274,7 @@ SiYuan is made possible by the following open source projects.
 * [https://github.com/facette/natsort](https://github.com/facette/natsort) `BSD-3-Clause License`
 * [https://github.com/flopp/go-findfont](https://github.com/flopp/go-findfont) `MIT License`
 * [https://github.com/fsnotify/fsnotify](https://github.com/fsnotify/fsnotify) `BSD-3-Clause License`
+* [https://github.com/gabriel-vasile/mimetype](https://github.com/gabriel-vasile/mimetype) `MIT License`
 * [https://github.com/gin-contrib/cors](https://github.com/gin-contrib/cors) `MIT License`
 * [https://github.com/gin-contrib/gzip](https://github.com/gin-contrib/gzip) `MIT License`
 * [https://github.com/gin-contrib/sessions](https://github.com/gin-contrib/sessions) `MIT License`
@@ -274,6 +288,7 @@ SiYuan is made possible by the following open source projects.
 * [https://github.com/panjf2000/ants](https://github.com/panjf2000/ants) `MIT License`
 * [https://github.com/patrickmn/go-cache](https://github.com/patrickmn/go-cache) `MIT License`
 * [https://github.com/radovskyb/watcher](https://github.com/radovskyb/watcher) `BSD-3-Clause License`
+* [https://github.com/siyuan-note/dejavu](https://github.com/siyuan-note/dejavu) `Mulan PSL v2`
 * [https://github.com/siyuan-note/encryption](https://github.com/siyuan-note/encryption) `Mulan PSL v2`
 * [https://github.com/vmihailenco/msgpack](https://github.com/vmihailenco/msgpack) `BSD-2-Clause License`
 * [https://github.com/xrash/smetrics](https://github.com/xrash/smetrics) `MIT License`

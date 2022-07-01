@@ -11,7 +11,7 @@ import {
 import {newFile} from "./newFile";
 import {Constants} from "../constants";
 import {openSetting} from "../config";
-import {getDockByType, getInstanceById, setPanelFocus} from "../layout/util";
+import {exportLayout, getDockByType, getInstanceById, setPanelFocus} from "../layout/util";
 import {Tab} from "../layout/Tab";
 import {Editor} from "../editor";
 import {setEditMode} from "../protyle/util/setEditMode";
@@ -24,7 +24,7 @@ import {goBack, goForward} from "./backForward";
 import {onGet} from "../protyle/util/onGet";
 import {getDisplayName, getNotebookName, movePathTo} from "./pathName";
 import {confirmDialog} from "../dialog/confirmDialog";
-import {openFileById} from "../editor/util";
+import {deleteFile, openFileById} from "../editor/util";
 import {getAllDocks, getAllModels, getAllTabs} from "../layout/getAll";
 import {openGlobalSearch} from "../search/util";
 import {getColIndex} from "../protyle/util/table";
@@ -247,8 +247,10 @@ export const globalShortcut = () => {
             return;
         }
         if (matchHotKey(window.siyuan.config.keymap.general.lockScreen.custom, event)) {
-            fetchPost("/api/system/logoutAuth", {}, () => {
-                window.location.href = "/";
+            exportLayout(false, () => {
+                fetchPost("/api/system/logoutAuth", {}, () => {
+                    window.location.href = "/";
+                });
             });
             event.preventDefault();
             return;
@@ -498,7 +500,11 @@ export const globalShortcut = () => {
 
     window.addEventListener("click", (event: MouseEvent & { target: HTMLElement }) => {
         if (!window.siyuan.menus.menu.element.contains(event.target) && !hasClosestByAttribute(event.target, "data-menu", "true")) {
-            window.siyuan.menus.menu.remove();
+            if (getSelection().rangeCount > 0 && window.siyuan.menus.menu.element.contains(getSelection().getRangeAt(0).startContainer)) {
+                // https://ld246.com/article/1654567749834/comment/1654589171218#comments
+            } else {
+                window.siyuan.menus.menu.remove();
+            }
         }
         if (!hasClosestByClassName(event.target, "pdf__outer")) {
             document.querySelectorAll(".pdf__util").forEach(item => {
@@ -642,6 +648,18 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
         return false;
     }
     const files = dockFile.data.file as Files;
+    if (matchHotKey(window.siyuan.config.keymap.general.selectOpen1.custom, event)) {
+        event.preventDefault();
+        const element = document.querySelector(".layout__wnd--active > .layout-tab-bar > .item--focus") ||
+            document.querySelector(".layout-tab-bar > .item--focus");
+        if (element) {
+            const tab = getInstanceById(element.getAttribute("data-id")) as Tab;
+            if (tab && tab.model instanceof Editor) {
+                files.selectItem(tab.model.editor.protyle.notebookId, tab.model.editor.protyle.path);
+            }
+        }
+        return;
+    }
     if (!files.element.previousElementSibling.classList.contains("block__icons--active")) {
         return false;
     }
@@ -713,7 +731,30 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
         event.preventDefault();
         return true;
     }
-    if (event.key === "ArrowDown") {
+    if ((event.key === "ArrowRight" && !liElement.querySelector(".b3-list-item__arrow--open") && !liElement.querySelector(".b3-list-item__toggle").classList.contains("fn__hidden")) ||
+        (event.key === "ArrowLeft" && liElement.querySelector(".b3-list-item__arrow--open"))) {
+        files.getLeaf(liElement, notebookId);
+        event.preventDefault();
+        return true;
+    }
+    const fileRect = files.element.getBoundingClientRect();
+    if (event.key === "ArrowLeft") {
+        let parentElement = liElement.parentElement.previousElementSibling;
+        if (parentElement) {
+            if (parentElement.tagName !== "LI") {
+                parentElement = files.element.querySelector(".b3-list-item");
+            }
+            liElement.classList.remove("b3-list-item--focus");
+            parentElement.classList.add("b3-list-item--focus");
+            const parentRect = parentElement.getBoundingClientRect();
+            if (parentRect.top < fileRect.top || parentRect.bottom > fileRect.bottom) {
+                parentElement.scrollIntoView(parentRect.top < fileRect.top);
+            }
+        }
+        event.preventDefault();
+        return true;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowRight") {
         let nextElement = liElement;
         while (nextElement) {
             if (nextElement.nextElementSibling) {
@@ -734,6 +775,10 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
         if (nextElement.classList.contains("b3-list-item")) {
             liElement.classList.remove("b3-list-item--focus");
             nextElement.classList.add("b3-list-item--focus");
+            const nextRect = nextElement.getBoundingClientRect();
+            if (nextRect.top < fileRect.top || nextRect.bottom > fileRect.bottom) {
+                nextElement.scrollIntoView(nextRect.top < fileRect.top);
+            }
         }
         event.preventDefault();
         return true;
@@ -760,32 +805,17 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
         if (previousElement.classList.contains("b3-list-item")) {
             liElement.classList.remove("b3-list-item--focus");
             previousElement.classList.add("b3-list-item--focus");
+            const previousRect = previousElement.getBoundingClientRect();
+            if (previousRect.top < fileRect.top || previousRect.bottom > fileRect.bottom) {
+                previousElement.scrollIntoView(previousRect.top < fileRect.top);
+            }
         }
-        event.preventDefault();
-        return true;
-    }
-    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-        files.getLeaf(liElement, notebookId);
         event.preventDefault();
         return true;
     }
     if (event.key === "Delete" || (event.key === "Backspace" && isMac())) {
         if (isFile) {
-            fetchPost("/api/block/getDocInfo", {
-                id: getDisplayName(pathString, true, true)
-            }, (response) => {
-                const name = getDisplayName(liElement.getAttribute("data-name"), false, true);
-                let tip = `${window.siyuan.languages.confirmDelete} <b>${name}</b>?`;
-                if (response.data.subFileCount > 0) {
-                    tip = `${window.siyuan.languages.confirmDelete} <b>${name}</b> ${window.siyuan.languages.andSubFile.replace("x", response.data.subFileCount)}?`;
-                }
-                confirmDialog(window.siyuan.languages.delete, tip, () => {
-                    fetchPost("/api/filetree/removeDoc", {
-                        notebook: notebookId,
-                        path: pathString
-                    });
-                });
-            });
+            deleteFile(notebookId, pathString, getDisplayName(liElement.getAttribute("data-name"), false, true));
         } else {
             confirmDialog(window.siyuan.languages.delete,
                 `${window.siyuan.languages.confirmDelete} <b>${Lute.EscapeHTMLStr(getNotebookName(notebookId))}</b>?`, () => {

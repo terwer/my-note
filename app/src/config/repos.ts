@@ -42,8 +42,10 @@ const getCloudList = (reload = false) => {
 
 const renderCloudBackup = () => {
     fetchPost("/api/cloud/getCloudSpace", {}, (response) => {
+        repos.element.querySelector("#reposLoading").classList.add("fn__none");
         if (response.code === 1) {
             repos.element.querySelector("#reposData").innerHTML = response.msg;
+            return;
         } else {
             repos.element.querySelector("#reposData").innerHTML = `<div class="fn__flex">
     <div class="fn__flex-1">
@@ -118,7 +120,6 @@ const renderCloudBackup = () => {
 </div>`;
         }
         repos.element.querySelector("#reposBackup").innerHTML = actionHTML;
-        repos.element.querySelector("#reposLoading").classList.add("fn__none");
     });
 };
 
@@ -157,20 +158,29 @@ const setE2eePassword = () => {
     const dialog = new Dialog({
         title: window.siyuan.languages.changeE2EEPasswd,
         content: `<div class="b3-dialog__content">
-    <label class="fn__flex">
-        <div class="fn__flex-1">
-            ${window.siyuan.languages.defaultPassword}
-        </div>
-        <span class="fn__space"></span>
-        <input class="b3-switch fn__flex-center" checked type="checkbox">
+    <ul class="b3-list b3-list--background">
+        <li class="b3-list-item b3-list-item--hide-action" data-type="default">
+            <input type="radio" name="mode" class="fn__flex-center">
+            <div class="fn__space"></div>
+            <span class="b3-list-item__text">${window.siyuan.languages.defaultPassword}</span>
+            <span class="b3-list-item__action"><svg class="svg fn__flex-center ft__on-surface"><use xlink:href="#iconRight"></use></svg></span>
+        </li>
+        <li class="b3-list-item b3-list-item--hide-action" data-type="custom">
+            <input type="radio" name="mode" class="fn__flex-center">
+            <div class="fn__space"></div>
+            <span class="b3-list-item__text">${window.siyuan.languages.customPassword}</span>
+            <span class="b3-list-item__action"><svg class="svg fn__flex-center ft__on-surface"><use xlink:href="#iconRight"></use></svg></span>
+        </li>
+    </ul>
+    <div class="fn__none ft__error" data-type="default">
+        <button class="b3-button b3-button--outline"><svg><use xlink:href="#iconLeft"></use></svg>${window.siyuan.languages.back}</button>
         <div class="fn__hr"></div>
-    </label>
-    <div class="b3-label__text ft__error">${window.siyuan.languages.defaultPasswordTip}</div>
-    <div class="fn__none">
-        <div class="fn__hr--b"></div>
-        ${window.siyuan.languages.customPassword}
+        ${window.siyuan.languages.defaultPasswordTip}
+    </div>
+    <div class="fn__none" data-type="custom">
+        <button class="b3-button b3-button--outline"><svg><use xlink:href="#iconLeft"></use></svg>${window.siyuan.languages.back}</button>
         <div class="fn__hr"></div>
-        <input class="b3-text-field fn__block">
+        <input class="b3-text-field fn__block" placeholder="${window.siyuan.languages.customPassword}">
         <div class="fn__hr"></div>
         <div class="b3-label__text ft__error">${window.siyuan.languages.changeE2EEPasswdTip}</div>
     </div>
@@ -181,19 +191,27 @@ const setE2eePassword = () => {
 </div>`,
         width: isMobile() ? "80vw" : "520px",
     });
-    const switchElement = dialog.element.querySelector(".b3-switch") as HTMLInputElement;
-    const inputElement = dialog.element.querySelector(".b3-text-field") as HTMLInputElement;
-    const btnsElement = dialog.element.querySelectorAll(".b3-button");
-    switchElement.addEventListener("change", () => {
-        if (switchElement.checked) {
-            inputElement.parentElement.classList.add("fn__none");
-            inputElement.parentElement.previousElementSibling.classList.remove("fn__none");
-        } else {
-            inputElement.parentElement.classList.remove("fn__none");
-            inputElement.parentElement.previousElementSibling.classList.add("fn__none");
-            inputElement.focus();
+    dialog.element.querySelector(".b3-dialog__content").addEventListener("click", (event) => {
+        let target = event.target as HTMLElement;
+        while (target && !target.classList.contains("b3-dialog__content")) {
+            if (target.classList.contains("b3-list-item")) {
+                target.parentElement.classList.add("fn__none");
+                if (target.getAttribute("data-type") === "default") {
+                    target.parentElement.nextElementSibling.classList.remove("fn__none");
+                } else {
+                    target.parentElement.nextElementSibling.nextElementSibling.classList.remove("fn__none");
+                }
+                break;
+            } else if (target.classList.contains("b3-button--outline")) {
+                target.parentElement.classList.add("fn__none");
+                dialog.element.querySelector(".b3-list").classList.remove("fn__none");
+                break;
+            }
+            target = target.parentElement;
         }
     });
+    const btnsElement = dialog.element.querySelectorAll(".b3-dialog__action .b3-button");
+    const inputElement = dialog.element.querySelector(".b3-text-field") as HTMLInputElement;
     inputElement.addEventListener("keydown", (event) => {
         if (event.isComposing) {
             event.preventDefault();
@@ -213,11 +231,16 @@ const setE2eePassword = () => {
         dialog.destroy();
     });
     btnsElement[1].addEventListener("click", () => {
+        if (!dialog.element.querySelector(".b3-list").classList.contains("fn__none")) {
+            showMessage(window.siyuan.languages.plsChoose);
+            return;
+        }
+        const mode = dialog.element.querySelector('div[data-type="default"]').classList.contains("fn__none") ? 1 : 0;
         fetchPost("/api/system/setE2EEPasswd", {
             e2eePasswd: inputElement.value,
-            mode: switchElement.checked ? 0 : 1,//0：内置密码; 1：自定义密码
+            mode    //0：内置密码; 1：自定义密码
         }, () => {
-            window.siyuan.config.e2eePasswdMode = switchElement.checked ? 0 : 1;
+            window.siyuan.config.e2eePasswdMode = mode;
             dialog.destroy();
             const updateElement = repos.element.querySelector("#updatePassword").parentElement;
             updateElement.classList.add("fn__none");
@@ -305,7 +328,16 @@ export const repos = {
         return `<div><div style="position: fixed;width: 800px;height: 434px;box-sizing: border-box;text-align: center;display: flex;align-items: center;justify-content: center;z-index: 1;" id="reposLoading">
     <img src="/stage/loading-pure.svg">
 </div>
-<div id="reposData" class="b3-label"></div>
+<div id="reposData" class="b3-label">
+    <div class="fn__flex">
+        <div class="fn__flex-1">
+            ${window.siyuan.languages.cloudStorage}
+        </div>
+        <div class="fn__flex-1">
+            ${window.siyuan.languages.trafficStat}
+        </div>
+    </div>
+</div>
 ${passwordHTML}
 <label class="fn__flex b3-label">
     <div class="fn__flex-1">
@@ -314,6 +346,17 @@ ${passwordHTML}
     </div>
     <span class="fn__space"></span>
     <input type="checkbox" id="reposCloudSyncSwitch"${window.siyuan.config.sync.enabled ? " checked='checked'" : ""} class="b3-switch fn__flex-center">
+</label>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.syncMode}
+        <div class="b3-label__text">${window.siyuan.languages.syncModeTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <select id="syncMode" class="b3-select fn__flex-center fn__size200">
+        <option value="1" ${window.siyuan.config.sync.mode === 1 ? "selected" : ""}>${window.siyuan.languages.syncMode1}</option>
+        <option value="2" ${window.siyuan.config.sync.mode === 2 ? "selected" : ""}>${window.siyuan.languages.syncMode2}</option>
+    </select>
 </label>
 <div class="b3-label">
     <div class="fn__flex">
@@ -325,7 +368,8 @@ ${passwordHTML}
     </div>
     <div id="reposCloudSyncList" class="fn__none config-repos__sync"><img style="margin: 0 auto;display: block;" src="/stage/loading-pure.svg"></div>
 </div>
-<div id="reposBackup" class="b3-label"></div></div>`;
+<div id="reposBackup" class="b3-label">${window.siyuan.languages.cloudBackup}</div>
+</div>`;
     },
     bindEvent: () => {
         if (needSubscribe("")) {
@@ -348,6 +392,17 @@ ${passwordHTML}
                     switchElement.checked = false;
                 } else {
                     window.siyuan.config.sync.enabled = switchElement.checked;
+                }
+            });
+        });
+        const syncModeElement = repos.element.querySelector("#syncMode") as HTMLSelectElement;
+        syncModeElement.addEventListener("change", () => {
+            fetchPost("/api/sync/setSyncMode", {mode: parseInt(syncModeElement.value, 10)}, (response) => {
+                if (response.code === 1) {
+                    showMessage(response.msg);
+                    syncModeElement.value = "1";
+                } else {
+                    window.siyuan.config.sync.mode = parseInt(syncModeElement.value, 10);
                 }
             });
         });

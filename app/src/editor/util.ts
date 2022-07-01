@@ -30,6 +30,7 @@ import {
 import {getPreviousHeading} from "../protyle/wysiwyg/getBlock";
 import {lockFile, setTitle} from "../dialog/processSystem";
 import {zoomOut} from "../menus/protyle";
+import {confirmDialog} from "../dialog/confirmDialog";
 
 export const openOutline = (protyle: IProtyle) => {
     const outlinePanel = getAllModels().outline.find(item => {
@@ -440,21 +441,26 @@ const updateOutline = (models: IModels, protyle: IProtyle, reload = false) => {
                 id: blockId,
             }, response => {
                 item.update(response, blockId);
-                if (protyle && getSelection().rangeCount > 0) {
-                    const startContainer = getSelection().getRangeAt(0).startContainer;
-                    if (protyle.wysiwyg.element.contains(startContainer)) {
-                        const currentElement = hasClosestByAttribute(startContainer, "data-node-id", null);
-                        if (currentElement) {
-                            if (currentElement.getAttribute("data-type") === "NodeHeading") {
-                                item.setCurrent(currentElement.getAttribute("data-node-id"));
-                            } else {
-                                const headingElement = getPreviousHeading(currentElement);
-                                if (headingElement) {
-                                    item.setCurrent(headingElement.getAttribute("data-node-id"));
+                if (protyle) {
+                    item.updateDocTitle(protyle.background.ial);
+                    if (getSelection().rangeCount > 0) {
+                        const startContainer = getSelection().getRangeAt(0).startContainer;
+                        if (protyle.wysiwyg.element.contains(startContainer)) {
+                            const currentElement = hasClosestByAttribute(startContainer, "data-node-id", null);
+                            if (currentElement) {
+                                if (currentElement.getAttribute("data-type") === "NodeHeading") {
+                                    item.setCurrent(currentElement.getAttribute("data-node-id"));
+                                } else {
+                                    const headingElement = getPreviousHeading(currentElement);
+                                    if (headingElement) {
+                                        item.setCurrent(headingElement.getAttribute("data-node-id"));
+                                    }
                                 }
                             }
                         }
                     }
+                } else {
+                    item.updateDocTitle();
                 }
             });
             return;
@@ -534,3 +540,27 @@ export const openBy = (url: string, type: "folder" | "app") => {
     }
     /// #endif
 };
+
+export const deleteFile = (notebookId: string, pathString: string, name: string) => {
+    if (window.siyuan.config.fileTree.removeDocWithoutConfirm) {
+        fetchPost("/api/filetree/removeDoc", {
+            notebook: notebookId,
+            path: pathString
+        });
+        return;
+    }
+    fetchPost("/api/block/getDocInfo", {
+        id: getDisplayName(pathString, true, true)
+    }, (response) => {
+        let tip = `${window.siyuan.languages.confirmDelete} <b>${name}</b>?`;
+        if (response.data.subFileCount > 0) {
+            tip = `${window.siyuan.languages.confirmDelete} <b>${name}</b> ${window.siyuan.languages.andSubFile.replace("x", response.data.subFileCount)}?`;
+        }
+        confirmDialog(window.siyuan.languages.delete, tip, () => {
+            fetchPost("/api/filetree/removeDoc", {
+                notebook: notebookId,
+                path: pathString
+            });
+        });
+    });
+}

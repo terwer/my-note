@@ -18,7 +18,7 @@ export const initConfigSearch = (element: HTMLElement) => {
         ]),
 
         // 文档树
-        getLang(["selectOpen", "fileTree", "fileTree2",
+        getLang(["selectOpen", "fileTree", "fileTree2", "fileTree3", "fileTree4",
             "fileTree5", "fileTree6", "fileTree7", "fileTree8", "fileTree12", "fileTree13", "fileTree15", "fileTree16", "fileTree17"]),
 
         // 图片
@@ -45,7 +45,7 @@ export const initConfigSearch = (element: HTMLElement) => {
             "doc", "headings", "list1", "listItem", "code", "math", "table", "quote", "superBlock", "paragraph"]),
 
         // 快捷键
-        getLang(["keymap"].concat(Object.keys(Constants.SIYUAN_KEYMAP.general))
+        getLang(["keymap", "keymapTip2"].concat(Object.keys(Constants.SIYUAN_KEYMAP.general))
             .concat(Object.keys(Constants.SIYUAN_KEYMAP.editor.general))
             .concat(Object.keys(Constants.SIYUAN_KEYMAP.editor.heading))
             .concat(Object.keys(Constants.SIYUAN_KEYMAP.editor.insert))
@@ -59,12 +59,12 @@ export const initConfigSearch = (element: HTMLElement) => {
 
         // 账号
         getLang(["accountTip", "accountName", "password", "captcha", "forgetPassword", "login", "register", "twoFactorCaptcha",
-            "account1", "account2", "account5", "account7", "networkProxy"]),
+            "account1", "account2", "account5", "networkProxy"]),
 
         // 关于
         getLang(["about", "about1", "about2", "about3", "about4", "about5", "about6", "about7", "about8",
             "about11", "about12", "about13", "about14", "about15", "about16",
-            "slogan", "currentVer", "checkUpdate", "updatePath"]),
+            "slogan", "currentVer", "checkUpdate", "updatePath", "snapshotPassword"]),
     ];
     const inputElement = element.querySelector(".b3-form__icon input") as HTMLInputElement;
     if (window.siyuan.config.system.container !== "ios") {

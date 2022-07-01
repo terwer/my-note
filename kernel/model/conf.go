@@ -34,8 +34,8 @@ import (
 	"github.com/88250/lute"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/getsentry/sentry-go"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/conf"
-	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
@@ -70,6 +70,7 @@ type AppConf struct {
 	Search         *conf.Search     `json:"search"`         // 搜索配置
 	Stat           *conf.Stat       `json:"stat"`           // 统计
 	Api            *conf.API        `json:"api"`            // API
+	Repo           *conf.Repo       `json:"repo"`           // 数据仓库
 	Newbie         bool             `json:"newbie"`         // 是否是安装后第一次启动
 }
 
@@ -214,9 +215,16 @@ func InitConf() {
 			util.LogErrorf("create sync dir [%s] failed: %s", Conf.Sync.GetSaveDir(), err)
 		}
 	}
+	if 0 == Conf.Sync.Mode {
+		Conf.Sync.Mode = 1
+	}
 
 	if nil == Conf.Api {
 		Conf.Api = conf.NewAPI()
+	}
+
+	if nil == Conf.Repo {
+		Conf.Repo = conf.NewRepo()
 	}
 
 	if 1440 < Conf.Editor.GenerateHistoryInterval {
@@ -378,7 +386,7 @@ func (conf *AppConf) Save() {
 
 	newData, _ := gulu.JSON.MarshalIndentJSON(Conf, "", "  ")
 	confPath := filepath.Join(util.ConfDir, "conf.json")
-	oldData, err := filesys.NoLockFileRead(confPath)
+	oldData, err := filelock.NoLockFileRead(confPath)
 	if nil != err {
 		conf.save0(newData)
 		return
@@ -393,7 +401,7 @@ func (conf *AppConf) Save() {
 
 func (conf *AppConf) save0(data []byte) {
 	confPath := filepath.Join(util.ConfDir, "conf.json")
-	if err := filesys.LockFileWrite(confPath, data); nil != err {
+	if err := filelock.LockFileWrite(confPath, data); nil != err {
 		util.LogFatalf("write conf [%s] failed: %s", confPath, err)
 	}
 }
@@ -534,6 +542,7 @@ func clearWorkspaceTemp() {
 	os.RemoveAll(filepath.Join(util.TempDir, "bazaar"))
 	os.RemoveAll(filepath.Join(util.TempDir, "export"))
 	os.RemoveAll(filepath.Join(util.TempDir, "import"))
+	os.RemoveAll(filepath.Join(util.WorkspaceDir, "incremental")) // `工作空间/incremental/` 文件夹移动到 `工作空间/temp/incremental/` https://github.com/siyuan-note/siyuan/issues/5119
 
 	tmps, err := filepath.Glob(filepath.Join(util.TempDir, "*.tmp"))
 	if nil != err {

@@ -1,5 +1,5 @@
 import {openSearch} from "../search/spread";
-import {exportLayout, JSONToLayout, resizeTabs} from "../layout/util";
+import {exportLayout, JSONToLayout, resizeDrag, resizeTabs} from "../layout/util";
 import {hotKey2Electron, updateHotkeyTip} from "../protyle/util/compatibility";
 /// #if !BROWSER
 import {ipcRenderer} from "electron";
@@ -20,6 +20,7 @@ import {getOpenNotebookCount} from "./pathName";
 import {openFileById} from "../editor/util";
 import {focusByRange} from "../protyle/util/selection";
 import {exitSiYuan} from "../dialog/processSystem";
+import {openSetting} from "../config";
 
 const matchKeymap = (keymap: Record<string, IKeymapItem>, key1: "general" | "editor", key2?: "general" | "insert" | "heading" | "list" | "table") => {
     if (key1 === "general") {
@@ -142,6 +143,7 @@ export const onGetConfig = () => {
         window.clearTimeout(resizeTimeout);
         resizeTimeout = window.setTimeout(() => {
             resizeTabs();
+            resizeDrag();
         }, 200);
     });
 
@@ -164,10 +166,10 @@ const initBar = () => {
 </div>
 <div id="barDock" class="toolbar__item b3-tooltips b3-tooltips__s${window.siyuan.config.readonly ? " fn__none" : ""}" aria-label="${window.siyuan.config.uiLayout.hideDock ? window.siyuan.languages.showDock : window.siyuan.languages.hideDock}">
     <svg>
-        <use xlink:href="#${window.siyuan.config.uiLayout.hideDock ? "iconRestore" : "iconMax"}"></use>
+        <use xlink:href="#${window.siyuan.config.uiLayout.hideDock ? "iconDock" : "iconHideDock"}"></use>
     </svg>
 </div>
-<div id="barThemeMode" class="toolbar__item b3-tooltips b3-tooltips__se${window.siyuan.config.appearance.mode === 1 ? " toolbar__item--active" : ""}" aria-label="${window.siyuan.languages.darkMode}">
+<div id="barThemeMode" class="toolbar__item b3-tooltips b3-tooltips__se${window.siyuan.config.appearance.mode === 1 ? " toolbar__item--active" : ""}" aria-label="${window.siyuan.config.appearance.mode === 1 ? window.siyuan.languages.themeLight : window.siyuan.languages.themeDark}">
     <svg>
         <use xlink:href="#iconMoon"></use>
     </svg>
@@ -193,7 +195,7 @@ const initBar = () => {
     </svg>
 </button>
 <div class="fn__flex-1 fn__ellipsis" id="drag"><span class="fn__none">开发版，使用前请进行备份 Development version, please backup before use</span></div>
-<div class="fn__flex" style="top: -1px;z-index: 302;right: -1px;position: relative;" id="windowControls"></div>`;
+<div class="fn__flex" style="top: -1px;z-index: 502;right: -1px;position: relative;" id="windowControls"></div>`;
     document.getElementById("barBack").addEventListener("click", () => {
         goBack();
     });
@@ -224,8 +226,10 @@ const initBar = () => {
         }
         if (barThemeModeElement.classList.contains("toolbar__item--active")) {
             barThemeModeElement.classList.remove("toolbar__item--active");
+            barThemeModeElement.setAttribute("aria-label", window.siyuan.languages.themeDark);
         } else {
             barThemeModeElement.classList.add("toolbar__item--active");
+            barThemeModeElement.setAttribute("aria-label", window.siyuan.languages.themeLight);
         }
         barThemeModeElement.setAttribute("disabled", "disabled");
         fetchPost("/api/system/setAppearanceMode", {
@@ -246,12 +250,12 @@ const initBar = () => {
     const barDockElement = document.getElementById("barDock");
     const useElement = document.querySelector("#barDock use");
     barDockElement.addEventListener("click", () => {
-        const dockIsShow = useElement.getAttribute("xlink:href") === "#iconMax";
+        const dockIsShow = useElement.getAttribute("xlink:href") === "#iconHideDock";
         if (dockIsShow) {
-            useElement.setAttribute("xlink:href", "#iconRestore");
+            useElement.setAttribute("xlink:href", "#iconDock");
             barDockElement.setAttribute("aria-label", window.siyuan.languages.showDock);
         } else {
-            useElement.setAttribute("xlink:href", "#iconMax");
+            useElement.setAttribute("xlink:href", "#iconHideDock");
             barDockElement.setAttribute("aria-label", window.siyuan.languages.hideDock);
         }
         document.querySelectorAll(".dock").forEach(item => {
@@ -266,6 +270,10 @@ const initBar = () => {
             }
         });
         resizeTabs();
+    });
+    document.getElementById("toolbarVIP").addEventListener("click", (event) => {
+        const dialogSetting = openSetting();
+        dialogSetting.element.querySelector('.b3-tab-bar [data-name="account"]').dispatchEvent(new CustomEvent("click"));
     });
     document.getElementById("barDailyNote").addEventListener("click", (event) => {
         if (getOpenNotebookCount() < 2) {
@@ -381,7 +389,7 @@ const initWindow = () => {
     </svg>
 </div>
 <div aria-label="${window.siyuan.languages.max}" class="b3-tooltips b3-tooltips__sw toolbar__item toolbar__item--win" id="maxWindow">
-    <svg>
+    <svg style="height: 11px">
         <use xlink:href="#iconMax"></use>
     </svg>
 </div>

@@ -28,8 +28,8 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/88250/protyle"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/conf"
-	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -50,9 +50,6 @@ func generateDocHistory() {
 	}
 
 	WaitForWritingFiles()
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
 	for _, box := range Conf.GetOpenedBoxes() {
 		box.generateDocHistory0()
 	}
@@ -136,7 +133,7 @@ func GetDocHistoryContent(historyPath string) (content string, err error) {
 		return
 	}
 
-	data, err := filesys.NoLockFileRead(historyPath)
+	data, err := filelock.NoLockFileRead(historyPath)
 	if nil != err {
 		util.LogErrorf("read file [%s] failed: %s", historyPath, err)
 		return
@@ -158,33 +155,33 @@ func RollbackDocHistory(boxID, historyPath string) (err error) {
 	}
 
 	WaitForWritingFiles()
-	syncLock.Lock()
+	writingDataLock.Lock()
 
 	srcPath := historyPath
 	var destPath string
 	baseName := filepath.Base(historyPath)
 	id := strings.TrimSuffix(baseName, ".sy")
 
-	filesys.ReleaseFileLocks(filepath.Join(util.DataDir, boxID))
+	filelock.ReleaseFileLocks(filepath.Join(util.DataDir, boxID))
 	workingDoc := treenode.GetBlockTree(id)
 	if nil != workingDoc {
 		if err = os.RemoveAll(filepath.Join(util.DataDir, boxID, workingDoc.Path)); nil != err {
-			syncLock.Unlock()
+			writingDataLock.Unlock()
 			return
 		}
 	}
 
 	destPath, err = getRollbackDockPath(boxID, historyPath)
 	if nil != err {
-		syncLock.Unlock()
+		writingDataLock.Unlock()
 		return
 	}
 
 	if err = gulu.File.Copy(srcPath, destPath); nil != err {
-		syncLock.Unlock()
+		writingDataLock.Unlock()
 		return
 	}
-	syncLock.Unlock()
+	writingDataLock.Unlock()
 
 	RefreshFileTree()
 	IncWorkspaceDataVer()
@@ -246,8 +243,8 @@ func RollbackNotebookHistory(historyPath string) (err error) {
 }
 
 type History struct {
-	Time  string         `json:"time"`
-	Items []*HistoryItem `json:"items"`
+	HCreated string         `json:"hCreated"`
+	Items    []*HistoryItem `json:"items"`
 }
 
 type HistoryItem struct {
@@ -288,7 +285,7 @@ func GetDocHistory(boxID string) (ret []*History, err error) {
 				return nil
 			}
 
-			data, err := filesys.NoLockFileRead(path)
+			data, err := filelock.NoLockFileRead(path)
 			if nil != err {
 				util.LogErrorf("read file [%s] failed: %s", path, err)
 				return nil
@@ -326,8 +323,8 @@ func GetDocHistory(boxID string) (ret []*History, err error) {
 		}
 
 		ret = append(ret, &History{
-			Time:  t,
-			Items: docs,
+			HCreated: t,
+			Items:    docs,
 		})
 
 		count++
@@ -337,7 +334,7 @@ func GetDocHistory(boxID string) (ret []*History, err error) {
 	}
 
 	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].Time > ret[j].Time
+		return ret[i].HCreated > ret[j].HCreated
 	})
 	return
 }
@@ -381,7 +378,7 @@ func GetNotebookHistory() (ret []*History, err error) {
 		}
 
 		ret = append(ret, &History{
-			Time: t,
+			HCreated: t,
 			Items: []*HistoryItem{
 				{
 					Title: c.Name,
@@ -397,7 +394,7 @@ func GetNotebookHistory() (ret []*History, err error) {
 	}
 
 	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].Time > ret[j].Time
+		return ret[i].HCreated > ret[j].HCreated
 	})
 	return
 }
@@ -456,8 +453,8 @@ func GetAssetsHistory() (ret []*History, err error) {
 		}
 
 		ret = append(ret, &History{
-			Time:  t,
-			Items: assets,
+			HCreated: t,
+			Items:    assets,
 		})
 
 		historyCount++
@@ -467,7 +464,7 @@ func GetAssetsHistory() (ret []*History, err error) {
 	}
 
 	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].Time > ret[j].Time
+		return ret[i].HCreated > ret[j].HCreated
 	})
 	return
 }
@@ -492,7 +489,7 @@ func (box *Box) generateDocHistory0() {
 		}
 
 		var data []byte
-		if data, err = filesys.NoLockFileRead(file); err != nil {
+		if data, err = filelock.NoLockFileRead(file); err != nil {
 			util.LogErrorf("generate history failed: %s", err)
 			return
 		}

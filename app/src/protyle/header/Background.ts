@@ -2,9 +2,8 @@ import {hasClosestByClassName} from "../util/hasClosest";
 import {getRandom, isMobile} from "../../util/functions";
 import {hideElements} from "../ui/hideElements";
 import {uploadFiles} from "../upload";
-import {hideMessage} from "../../dialog/message";
 import {fetchPost} from "../../util/fetch";
-import {getRandomEmoji, openEmojiPanel, unicode2Emoji, updateFileTreeEmoji} from "../../emoji";
+import {getRandomEmoji, openEmojiPanel, unicode2Emoji, updateFileTreeEmoji, updateOutlineEmoji} from "../../emoji";
 import {upDownHint} from "../../util/upDownHint";
 import {setPosition} from "../../util/setPosition";
 import {openGlobalSearch} from "../../search/util";
@@ -81,7 +80,6 @@ export class Background {
             uploadFiles(protyle, event.target.files, event.target, (responseText) => {
                 const response = JSON.parse(responseText);
                 const style = `background-image:url(${response.data.succMap[Object.keys(response.data.succMap)[0]]})`;
-                hideMessage();
                 this.ial["title-img"] = Lute.EscapeHTMLStr(style);
                 this.render(this.ial, protyle.block.rootID);
                 fetchPost("/api/attr/setBlockAttrs", {
@@ -232,11 +230,14 @@ export class Background {
                         this.ial.icon = emoji;
                         this.render(this.ial, protyle.block.rootID);
                         updateFileTreeEmoji(emoji, protyle.block.rootID);
+                        updateOutlineEmoji(emoji);
                         fetchPost("/api/attr/setBlockAttrs", {
                             id: protyle.block.rootID,
                             attrs: {"icon": emoji}
                         });
-                        protyle.model.parent.setDocIcon(emoji);
+                        if (protyle.model) {
+                            protyle.model.parent.setDocIcon(emoji);
+                        }
                     }
                     event.preventDefault();
                     event.stopPropagation();

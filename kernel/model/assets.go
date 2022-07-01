@@ -34,7 +34,8 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
-	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/gabriel-vasile/mimetype"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/search"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
@@ -68,6 +69,7 @@ func NetImg2LocalAssets(rootID string) (err error) {
 	}
 
 	var files int
+	msgId := gulu.Rand.String(7)
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if !entering {
 			return ast.WalkContinue
@@ -77,7 +79,18 @@ func NetImg2LocalAssets(rootID string) (err error) {
 			dest := linkDest.Tokens
 			if !sql.IsAssetLinkDest(dest) && (bytes.HasPrefix(bytes.ToLower(dest), []byte("https://")) || bytes.HasPrefix(bytes.ToLower(dest), []byte("http://"))) {
 				u := string(dest)
-				util.PushMsg(fmt.Sprintf(Conf.Language(119), u), 15000)
+				if strings.Contains(u, "qpic.cn") {
+					// 微信图片拉取改进 https://github.com/siyuan-note/siyuan/issues/5052
+					if strings.Contains(u, "http://") {
+						u = strings.Replace(u, "http://", "https://", 1)
+					}
+					if strings.HasSuffix(u, "/0") {
+						u = strings.Replace(u, "/0", "/640", 1)
+					} else if strings.Contains(u, "/0?") {
+						u = strings.Replace(u, "/0?", "/640?", 1)
+					}
+				}
+				util.PushUpdateMsg(msgId, fmt.Sprintf(Conf.Language(119), u), 15000)
 				request := util.NewBrowserRequest(Conf.System.NetworkProxy.String())
 				resp, reqErr := request.Get(u)
 				if nil != reqErr {
@@ -106,6 +119,11 @@ func NetImg2LocalAssets(rootID string) (err error) {
 				name, _ = url.PathUnescape(name)
 				ext := path.Ext(name)
 				if "" == ext {
+					if mtype := mimetype.Detect(data); nil != mtype {
+						ext = mtype.Extension()
+					}
+				}
+				if "" == ext {
 					contentType := resp.Header.Get("Content-Type")
 					exts, _ := mime.ExtensionsByType(contentType)
 					if 0 < len(exts) {
@@ -129,16 +147,15 @@ func NetImg2LocalAssets(rootID string) (err error) {
 		}
 		return ast.WalkContinue
 	})
-
 	if 0 < files {
-		util.PushMsg(Conf.Language(113), 5000)
+		util.PushUpdateMsg(msgId, Conf.Language(113), 7000)
 		if err = writeJSONQueue(tree); nil != err {
 			return
 		}
 		sql.WaitForWritingDatabase()
-		util.PushMsg(fmt.Sprintf(Conf.Language(120), files), 5000)
+		util.PushUpdateMsg(msgId, fmt.Sprintf(Conf.Language(120), files), 5000)
 	} else {
-		util.PushMsg(Conf.Language(121), 3000)
+		util.PushUpdateMsg(msgId, Conf.Language(121), 3000)
 	}
 	return
 }
@@ -353,8 +370,11 @@ func saveWorkspaceAssets(assets []string) {
 }
 
 func RemoveUnusedAssets() (ret []string) {
-	util.PushMsg(Conf.Language(100), 30*1000)
-	defer util.PushMsg(Conf.Language(99), 3000)
+	msgId := util.PushMsg(Conf.Language(100), 30*1000)
+	defer func() {
+		util.PushClearMsg(msgId)
+		util.PushMsg(Conf.Language(99), 3000)
+	}()
 
 	ret = []string{}
 	unusedAssets := UnusedAssets()
@@ -426,21 +446,33 @@ func UnusedAssets() (ret []string) {
 	if nil != err {
 		return
 	}
+	luteEngine := NewLute()
 	for _, notebook := range notebooks {
-		notebookAbsPath := filepath.Join(util.DataDir, notebook.ID)
-		trees := loadTrees(notebookAbsPath)
 		dests := map[string]bool{}
-		for _, tree := range trees {
-			for _, d := range assetsLinkDestsInTree(tree) {
-				dests[d] = true
-			}
 
-			if titleImgPath := treenode.GetDocTitleImgPath(tree.Root); "" != titleImgPath {
-				// 题头图计入
-				if !sql.IsAssetLinkDest([]byte(titleImgPath)) {
+		// 分页加载，优化清理未引用资源内存占用 https://github.com/siyuan-note/siyuan/issues/5200
+		pages := pagedPaths(filepath.Join(util.DataDir, notebook.ID), 32)
+		for _, paths := range pages {
+			var trees []*parse.Tree
+			for _, localPath := range paths {
+				tree, loadTreeErr := loadTree(localPath, luteEngine)
+				if nil != loadTreeErr {
 					continue
 				}
-				dests[titleImgPath] = true
+				trees = append(trees, tree)
+			}
+			for _, tree := range trees {
+				for _, d := range assetsLinkDestsInTree(tree) {
+					dests[d] = true
+				}
+
+				if titleImgPath := treenode.GetDocTitleImgPath(tree.Root); "" != titleImgPath {
+					// 题头图计入
+					if !sql.IsAssetLinkDest([]byte(titleImgPath)) {
+						continue
+					}
+					dests[titleImgPath] = true
+				}
 			}
 		}
 
@@ -530,7 +562,11 @@ func assetsLinkDestsInTree(tree *parse.Tree) (ret []string) {
 			ret = append(ret, dest)
 		} else {
 			if ast.NodeWidget == n.Type {
-				dataAssets := n.IALAttr("data-assets")
+				dataAssets := n.IALAttr("custom-data-assets")
+				if "" == dataAssets {
+					// 兼容两种属性名 custom-data-assets 和 data-assets https://github.com/siyuan-note/siyuan/issues/4122#issuecomment-1154796568
+					dataAssets = n.IALAttr("data-assets")
+				}
 				if "" == dataAssets || !isRelativePath([]byte(dataAssets)) {
 					return ast.WalkContinue
 				}
@@ -647,7 +683,7 @@ func copyDocAssetsToDataAssets(boxID, parentDocPath string) {
 }
 
 func copyAssetsToDataAssets(rootPath string) {
-	filesys.ReleaseFileLocks(rootPath)
+	filelock.ReleaseFileLocks(rootPath)
 
 	var assetsDirPaths []string
 	filepath.Walk(rootPath, func(path string, info fs.FileInfo, err error) error {

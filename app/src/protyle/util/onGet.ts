@@ -7,7 +7,7 @@ import {fetchPost} from "../../util/fetch";
 import {processRender} from "./processCode";
 import {highlightRender} from "../markdown/highlightRender";
 import {blockRender} from "../markdown/blockRender";
-import {highlightById, scrollCenter} from "../../util/highlightById";
+import {highlightById} from "../../util/highlightById";
 import {pushBack} from "../../util/backForward";
 import {focusBlock} from "./selection";
 import {hasClosestByAttribute, hasClosestByClassName} from "./hasClosest";
@@ -117,7 +117,6 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
     if (protyle.options.render.scroll) {
         protyle.scroll.update(protyle.block.blockCount, protyle);
     }
-
     if (options.action.includes(Constants.CB_GET_HL)) {
         preventScroll(protyle); // 搜索页签滚动会导致再次请求
         const hlElement = highlightById(protyle, protyle.block.id, true);
@@ -141,8 +140,10 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
             if (!options.action.includes(Constants.CB_GET_UNUNDO)) {
                 pushBack(protyle, undefined, focusElement);
             }
+            focusElement.scrollIntoView();
+            // 减少抖动 https://ld246.com/article/1654263598088
             setTimeout(() => {
-                scrollCenter(protyle, focusElement, true);
+                focusElement.scrollIntoView();
             }, Constants.TIMEOUT_BLOCKLOAD);
         } else {
             focusBlock(protyle.wysiwyg.element.firstElementChild);
@@ -172,6 +173,24 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
             item.classList.add("def--mark");
         });
         protyle.options.defId = undefined;
+    }
+    // https://ld246.com/article/1653639418266
+    if (protyle.element.classList.contains("block__edit") && (protyle.element.nextElementSibling || protyle.element.previousElementSibling)) {
+        protyle.element.style.minHeight = Math.min(30 + protyle.wysiwyg.element.clientHeight, window.innerHeight / 3) + "px";
+    }
+    // 屏幕太高的页签 https://github.com/siyuan-note/siyuan/issues/5018
+    if (!protyle.scroll.element.classList.contains("fn__none") &&
+        protyle.wysiwyg.element.lastElementChild.getAttribute("data-eof") !== "true" &&
+        protyle.contentElement.scrollHeight > 0 && // 没有激活的页签 https://github.com/siyuan-note/siyuan/issues/5255
+        protyle.contentElement.scrollHeight <= protyle.contentElement.clientHeight) {
+        fetchPost("/api/filetree/getDoc", {
+            id: protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),
+            mode: 2,
+            k: protyle.options.key || "",
+            size: Constants.SIZE_GET,
+        }, getResponse => {
+            onGet(getResponse, protyle, [Constants.CB_GET_APPEND, Constants.CB_GET_UNCHANGEID]);
+        });
     }
     if (options.action.includes(Constants.CB_GET_APPEND) || options.action.includes(Constants.CB_GET_BEFORE)) {
         return;

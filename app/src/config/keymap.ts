@@ -1,8 +1,9 @@
 import {hotKey2Electron, isCtrl, isMac, updateHotkeyTip} from "../protyle/util/compatibility";
 import {Constants} from "../constants";
-import {hideMessage, showMessage} from "../dialog/message";
+import {showMessage} from "../dialog/message";
 import {fetchPost} from "../util/fetch";
 import {ipcRenderer} from "electron";
+import {exportLayout} from "../layout/util";
 
 export const keymap = {
     element: undefined as Element,
@@ -31,12 +32,26 @@ export const keymap = {
         return `<div class="fn__flex b3-label">
     <span class="fn__flex-center">${window.siyuan.languages.keymapTip}</span>
     <span class="fn__flex-1"></span>
+    <button id="keymapRefreshBtn" class="b3-button b3-button--outline fn__flex-center fn__size200">
+        <svg><use xlink:href="#iconRefresh"></use></svg>
+        ${window.siyuan.languages.refresh}
+    </button>
+</div>
+<div class="fn__flex b3-label">
+    <span class="fn__flex-center">${window.siyuan.languages.keymapTip2}</span>
+    <span class="fn__flex-1"></span>
+    <span class="fn__space"></span>
     <button id="keymapResetBtn" class="b3-button b3-button--outline fn__flex-center fn__size200">
         <svg><use xlink:href="#iconUndo"></use></svg>
         ${window.siyuan.languages.reset}
     </button>
 </div>
 <div class="b3-label file-tree config-keymap" id="keymapList">
+    <label class="b3-form__icon" style="display:block;">
+        <svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg>
+        <input id="keymapInput" class="b3-form__icon-input b3-text-field fn__block" placeholder="${window.siyuan.languages.search}">
+    </label>
+    <div class="fn__hr"></div>
     <ul class="b3-list b3-list--background">
         <li class="b3-list-item toggle" style="padding-left: 0">
             <span class="b3-list-item__toggle" style="padding-left: 8px"><svg class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg></span>
@@ -93,7 +108,7 @@ export const keymap = {
     },
     _setkeymap() {
         const data: IKeymap = Object.assign({}, Constants.SIYUAN_KEYMAP);
-        keymap.element.querySelectorAll("input").forEach((item) => {
+        keymap.element.querySelectorAll("ul input").forEach((item) => {
             const keys = item.getAttribute("data-key").split(Constants.ZWSP);
             if (keys[0] === "general") {
                 data[keys[0]][keys[1]].custom = item.getAttribute("data-value");
@@ -110,7 +125,30 @@ export const keymap = {
             /// #endif
         });
     },
+    _search(value: string) {
+        keymap.element.querySelectorAll("#keymapList .b3-list-item--hide-action > .b3-list-item__text").forEach(item => {
+            if (item.textContent.toLowerCase().indexOf(value.toLowerCase()) > -1 || value === "") {
+                item.parentElement.classList.remove("fn__none");
+                item.parentElement.parentElement.classList.remove("fn__none");
+            } else {
+                item.parentElement.classList.add("fn__none");
+            }
+        });
+    },
     bindEvent() {
+        keymap.element.querySelector("#keymapRefreshBtn").addEventListener("click", () => {
+            exportLayout(true);
+        });
+        const searchElement = keymap.element.querySelector("#keymapInput") as HTMLInputElement;
+        this.element.addEventListener("compositionend", () => {
+            keymap._search(searchElement.value);
+        });
+        searchElement.addEventListener("input", (event: InputEvent) => {
+            if (event.isComposing) {
+                return;
+            }
+            keymap._search(searchElement.value);
+        });
         keymap.element.querySelector("#keymapResetBtn").addEventListener("click", () => {
             window.siyuan.config.keymap = Constants.SIYUAN_KEYMAP;
             fetchPost("/api/setting/setKeymap", {
@@ -156,11 +194,10 @@ export const keymap = {
             }
         });
         let timeout: number;
-        keymapListElement.querySelectorAll("input").forEach(item => {
-            item.addEventListener("keydown", function (event) {
+        keymapListElement.querySelectorAll("ul input").forEach(item => {
+            item.addEventListener("keydown", function (event: KeyboardEvent) {
                 event.stopPropagation();
                 event.preventDefault();
-                hideMessage();
                 let keymapStr = "";
                 if (event.ctrlKey && !event.metaKey && isMac()) {
                     keymapStr += "⌃";
@@ -194,7 +231,7 @@ export const keymap = {
                         keymapStr += "⌦";
                     } else if (event.altKey) {
                         const codeKey = event.code.substr(event.code.length - 1, 1).toUpperCase();
-                        if (event.key === "Enter") {
+                        if (event.key === "Enter" || (event.key.startsWith("F") && event.key.length > 1)) {
                             keymapStr += event.key;
                         } else if (event.code === "Period") {
                             keymapStr += ".";
@@ -227,11 +264,11 @@ export const keymap = {
                     }
 
                     if (["⌘", "⇧", "⌥", "⌃"].includes(keymapStr.substr(keymapStr.length - 1, 1)) ||
-                        ["⌘S", "⌘A", "⌘X", "⌘C", "⌘V", "⌘/", "⌘↑", "⌘↓", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⇧⌘⇥", "⌃⇥", "⌃⌘⇥", "⇧⌘→", "⇧⌘←", "⌘Home", "⌘End", "⇧Enter", "Enter", "PageUp", "PageDown", "⌫", "⌦", "F9"].includes(keymapStr)) {
+                        ["⌘S", "⌘A", "⌘X", "⌘C", "⌘V", "⌘/", "⌘↑", "⌘↓", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⇧⌘⇥", "⌃⇥", "⌃⌘⇥", "⇧⌘→", "⇧⌘←", "⌘Home", "⌘End", "⇧↩", "↩", "PageUp", "PageDown", "⌫", "⌦", "F9"].includes(keymapStr)) {
                         showMessage(tip + "] " + window.siyuan.languages.invalid);
                         return;
                     }
-                    const hasConflict = Array.from(keymap.element.querySelectorAll("input")).find(inputItem => {
+                    const hasConflict = Array.from(keymap.element.querySelectorAll("ul input")).find(inputItem => {
                         if (!inputItem.isSameNode(this) && inputItem.getAttribute("data-value") === keymapStr) {
                             const inputValueList = inputItem.getAttribute("data-key").split(Constants.ZWSP);
                             if (inputValueList[1] === "list") {

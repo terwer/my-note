@@ -4,7 +4,7 @@ import {openSetting} from "../config";
 /// #if !BROWSER
 import {getCurrentWindow} from "@electron/remote";
 /// #endif
-import {getDockByType} from "../layout/util";
+import {exportLayout, getDockByType} from "../layout/util";
 import {fetchPost} from "../util/fetch";
 import {getAllDocks} from "../layout/getAll";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
@@ -53,8 +53,10 @@ export const initToolbarMore = () => {
         accelerator: window.siyuan.config.keymap.general.lockScreen.custom,
         label: window.siyuan.languages.lockScreen,
         click: () => {
-            fetchPost("/api/system/logoutAuth", {}, () => {
-                window.location.href = "/";
+            exportLayout(false, () => {
+                fetchPost("/api/system/logoutAuth", {}, () => {
+                    window.location.href = "/";
+                });
             });
         }
     }).element);

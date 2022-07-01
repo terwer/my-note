@@ -17,6 +17,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
@@ -26,7 +27,7 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
-	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -198,6 +199,9 @@ func getFullHPathByID(c *gin.Context) {
 
 	arg, ok := util.JsonArg(c, ret)
 	if !ok {
+		return
+	}
+	if nil == arg["id"] {
 		return
 	}
 
@@ -589,7 +593,7 @@ func getDoc(c *gin.Context) {
 	}
 
 	blockCount, content, parentID, parent2ID, rootID, typ, eof, boxID, docPath, err := model.GetDoc(id, index, keyword, mode, size)
-	if filesys.ErrUnableLockFile == err {
+	if errors.Is(err, filelock.ErrUnableLockFile) {
 		ret.Code = 2
 		ret.Data = id
 		return

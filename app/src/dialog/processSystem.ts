@@ -84,8 +84,8 @@ export const kernelError = () => {
 export const exitSiYuan = () => {
     fetchPost("/api/system/exit", {force: false}, (response) => {
         if (response.code === 1) {
-            showMessage(response.msg, response.data.closeTimeout, "error");
-            const buttonElement = document.querySelector("#message button");
+            const msgId = showMessage(response.msg, response.data.closeTimeout, "error");
+            const buttonElement = document.querySelector(`#message [data-id="${msgId}"] button`);
             if (buttonElement) {
                 buttonElement.addEventListener("click", () => {
                     fetchPost("/api/system/exit", {force: true}, () => {
@@ -213,11 +213,11 @@ export const setTitle = (title: string) => {
         const versionTitle = title + " v" + Constants.SIYUAN_VERSION;
         document.title = versionTitle;
         dragElement.textContent = versionTitle;
-        dragElement.setAttribute("title", versionTitle)
+        dragElement.setAttribute("title", versionTitle);
     } else {
         document.title = title + " - " + window.siyuan.languages.siyuanNote + " v" + Constants.SIYUAN_VERSION;
         dragElement.textContent = title;
-        dragElement.setAttribute("title", title)
+        dragElement.setAttribute("title", title);
     }
 };
 

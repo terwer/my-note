@@ -70,6 +70,7 @@ func InitDatabase(forceRebuild bool) (err error) {
 	if gulu.File.IsExist(util.DBPath) {
 		if err = removeDatabaseFile(); nil != err {
 			util.LogErrorf("remove database file [%s] failed: %s", util.DBPath, err)
+			util.PushClearProgress()
 			return
 		}
 	}
@@ -578,7 +579,7 @@ func buildSpanFromNode(n *ast.Node, tree *parse.Tree, rootID, boxID, p string) (
 
 		var src []byte
 		for _, attr := range nodes[0].Attr {
-			if "src" == attr.Key || "data-assets" == attr.Key {
+			if "src" == attr.Key || "data-assets" == attr.Key || "custom-data-assets" == attr.Key {
 				src = gulu.Str.ToBytes(attr.Val)
 				break
 			}

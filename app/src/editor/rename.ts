@@ -1,4 +1,4 @@
-import {hideMessage, showMessage} from "../dialog/message";
+import {showMessage} from "../dialog/message";
 import {Dialog} from "../dialog";
 import {focusByRange} from "../protyle/util/selection";
 import {hasClosestBlock} from "../protyle/util/hasClosest";
@@ -11,7 +11,6 @@ import {fetchPost} from "../util/fetch";
 import {escapeHtml} from "../util/escape";
 
 export const validateName = (name: string) => {
-    hideMessage();
     if (/\r\n|\r|\n|\u2028|\u2029|\t|\//.test(name)) {
         showMessage(window.siyuan.languages.fileNameRule);
         return false;
@@ -20,7 +19,7 @@ export const validateName = (name: string) => {
 };
 
 export const replaceFileName = (name: string) => {
-    return name.replace(/\r\n|\r|\n|\u2028|\u2029|\t|\//g, "").trim();
+    return name.replace(/\r\n|\r|\n|\u2028|\u2029|\t|\//g, "");
 };
 
 export const rename = (options: {
@@ -131,7 +130,7 @@ export const newFileBySelect = (fileName: string, protyle: IProtyle) => {
     const id = Lute.NewNodeID();
     fetchPost("/api/filetree/createDoc", {
         notebook: protyle.notebookId,
-        path: pathPosix().join(getDisplayName(protyle.path, false, true), id+ ".sy"),
+        path: pathPosix().join(getDisplayName(protyle.path, false, true), id + ".sy"),
         title: fileName,
         md: ""
     }, () => {

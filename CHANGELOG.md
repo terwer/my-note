@@ -1,3 +1,248 @@
+## v2.0.22 / 2022-06-19
+
+### 改进功能
+
+* [弹出的编辑框（如公式/Mindmap 等）支持撤销和重做](https://github.com/siyuan-note/siyuan/issues/5203)
+* [重置数据仓库](https://github.com/siyuan-note/siyuan/issues/5212)
+* [嵌入块添加 Alt/Shift/Ctrl 点击](https://github.com/siyuan-note/siyuan/issues/5216)
+* [全局关系图中将标签链接到文档块上](https://github.com/siyuan-note/siyuan/issues/5218)
+* [添加文档树 `删除文档时不需要确认` 选项 ](https://github.com/siyuan-note/siyuan/issues/5225)
+* [移动端超级块中表格改进](https://github.com/siyuan-note/siyuan/issues/5227)
+* [快捷键支持 Alt+F1-F12](https://github.com/siyuan-note/siyuan/issues/5230)
+* [快捷键提示中 Enter 修改为 ↩](https://github.com/siyuan-note/siyuan/issues/5231)
+* [关闭分屏页签后光标消失](https://github.com/siyuan-note/siyuan/issues/5237)
+
+### 开发重构
+
+* [数据仓库索引 `Index` 不再加密](https://github.com/siyuan-note/siyuan/issues/5229)
+
+### 修复缺陷
+
+* [移动端菜单遮住左右侧栏](https://github.com/siyuan-note/siyuan/issues/5217)
+* [复制数据仓库密钥错误](https://github.com/siyuan-note/siyuan/issues/5226)
+* [折叠标题跨层级展开问题](https://github.com/siyuan-note/siyuan/issues/5232)
+* [文档标题编辑粘贴内容后不会进行修改](https://github.com/siyuan-note/siyuan/issues/5233)
+* [在提及中搜索不到结果问题](https://github.com/siyuan-note/siyuan/issues/5236)
+
+## v2.0.21 / 2022-06-17
+
+### 改进功能
+
+* [改进上下键遇到折叠的超级块和引述块时的交互](https://github.com/siyuan-note/siyuan/issues/3913)
+* [拖拽/删除后形成超级块下仅有一个块时取消该超级块](https://github.com/siyuan-note/siyuan/issues/4653)
+* [书签面板添加 `删除` 按钮用于删除书签组](https://github.com/siyuan-note/siyuan/issues/5155)
+* [云端同步时自动创建数据快照](https://github.com/siyuan-note/siyuan/issues/5161)
+* [希望修改公式时可以做到无鼠标操作](https://github.com/siyuan-note/siyuan/issues/5185)
+* [潜在的文件锁问题](https://github.com/siyuan-note/siyuan/issues/5191)
+* [改进云端同步和备份文件读写健壮性](https://github.com/siyuan-note/siyuan/issues/5196)
+* [优化清理未引用资源内存占用](https://github.com/siyuan-note/siyuan/issues/5200)
+* [代码块末尾向后删除改进](https://github.com/siyuan-note/siyuan/issues/5215)
+* [Added multi-arch support for Docker image](https://github.com/siyuan-note/siyuan/pull/5221)
+* [桌面端顶栏加入订阅试用图标](https://github.com/siyuan-note/siyuan/issues/5222)
+
+### 修复缺陷
+
+* [Android 端无法复制数据仓库密钥](https://github.com/siyuan-note/siyuan/issues/5198)
+* [下载云端备份报错](https://github.com/siyuan-note/siyuan/issues/5201)
+* [编辑文档标题时空格和置空问题](https://github.com/siyuan-note/siyuan/issues/5202)
+* [重命名书签后属性面板中的书签属性没有更改](https://github.com/siyuan-note/siyuan/issues/5207)
+* [列表项回车断开触发状态异常](https://github.com/siyuan-note/siyuan/issues/5208)
+
+## v2.0.20 / 2022-06-15
+
+### 改进功能
+
+* [支持空列表项回车断开](https://github.com/siyuan-note/siyuan/issues/3804)
+* [数据快照](https://github.com/siyuan-note/siyuan/issues/5159)
+* [数据快照回滚](https://github.com/siyuan-note/siyuan/issues/5160)
+* [支持表格内容全部居中](https://github.com/siyuan-note/siyuan/issues/5163)
+* [悬浮窗最小高度调整](https://github.com/siyuan-note/siyuan/issues/5167)
+* [数据快照密钥初始化](https://github.com/siyuan-note/siyuan/issues/5173)
+* [改进端到端密码设置交互](https://github.com/siyuan-note/siyuan/issues/5176)
+* [列出 `在浏览器上使用` 的 IP 中默认加入 `127.0.0.1`](https://github.com/siyuan-note/siyuan/issues/5177)
+* [文档标题右键菜单修改为文本复制、粘贴、删除、全选和剪切](https://github.com/siyuan-note/siyuan/issues/5188)
+
+### 修复缺陷
+
+* [清理未引用资源时未忽略 `custom-data-assets` 属性定义的资源文件](https://github.com/siyuan-note/siyuan/issues/4122)
+* [有序列表项缩放后，在末尾插入行会状态异常](https://github.com/siyuan-note/siyuan/issues/5168)
+* [快捷键无法更改](https://github.com/siyuan-note/siyuan/issues/5172)
+* [查找替换文档名以后动态引用锚文本未跟随改变](https://github.com/siyuan-note/siyuan/issues/5175)
+* [Windows 端右上角的按钮会因为窗口压缩而消失](https://github.com/siyuan-note/siyuan/issues/5180)
+* [云端收集箱 SSRF（服务端请求伪造）漏洞](https://github.com/siyuan-note/siyuan/issues/5183)
+
+## v2.0.19 / 2022-06-12
+
+### 改进功能
+
+* [快捷键设置支持搜索](https://github.com/siyuan-note/siyuan/issues/4808)
+* [改进网络图片转换本地图片消息提示](https://github.com/siyuan-note/siyuan/issues/5131)
+* [为图片右键菜单添加剪切功能](https://github.com/siyuan-note/siyuan/issues/5132)
+* [文档图标区分是否存在子文档](https://github.com/siyuan-note/siyuan/issues/5135)
+* [更新节点 `updated` 时不再更新子节点 `updated`](https://github.com/siyuan-note/siyuan/issues/5138)
+* [补全光标在标题位置时缺失的快捷键](https://github.com/siyuan-note/siyuan/issues/5145)
+* [表头右键隐藏删除行菜单](https://github.com/siyuan-note/siyuan/issues/5153)
+* [右上角最大化/最小化/关闭这一组图标大小不协调](https://github.com/siyuan-note/siyuan/issues/5158)
+
+### 修复缺陷
+
+* [第一次同步数据时报错 `index.json` 找不到](https://github.com/siyuan-note/siyuan/issues/5133)
+* [任务列表项完成状态改变以后 `updated` 字段没有更新](https://github.com/siyuan-note/siyuan/issues/5136)
+* [顶部工具栏切换明暗模式的提示语有误](https://github.com/siyuan-note/siyuan/issues/5139)
+* [移动端更换 Emoji 后文档树没有更新](https://github.com/siyuan-note/siyuan/issues/5143)
+* [移动端删除打开的文档应关闭编辑器](https://github.com/siyuan-note/siyuan/issues/5144)
+* [导入包含 `.` 的 Markdown 文件夹问题](https://github.com/siyuan-note/siyuan/issues/5148)
+* [鉴权页关闭窗口失效](https://github.com/siyuan-note/siyuan/issues/5149)
+* [移动端预览页面新建文档失败](https://github.com/siyuan-note/siyuan/issues/5150)
+* [使用 Ctrl+A 选中块时菜单栏状态没有体现](https://github.com/siyuan-note/siyuan/issues/5154)
+* [划选图片后不应出现文本工具栏](https://github.com/siyuan-note/siyuan/issues/5157)
+* [悬浮窗中点击菜单后 Ctrl+X 无效](https://github.com/siyuan-note/siyuan/issues/5162)
+
+## v2.0.18 / 2022-06-08
+
+### 改进功能
+
+* [`定位打开的文档` 增加快捷键](https://github.com/siyuan-note/siyuan/issues/4844)
+* [文档树面板左右键优化](https://github.com/siyuan-note/siyuan/issues/4852)
+* [屏幕太长导致无法动态加载且无动态滚动条](https://github.com/siyuan-note/siyuan/issues/5018)
+* [快速连击使用模板时是在斜线的下一行出现](https://github.com/siyuan-note/siyuan/issues/5083)
+* [云端同步上传大量文件时不新增通知](https://github.com/siyuan-note/siyuan/issues/5112)
+* [菜单中划选输入框超出菜单范围会导致菜单消失](https://github.com/siyuan-note/siyuan/issues/5122)
+* [改进全局搜索多个关键字命中时高亮片段](https://github.com/siyuan-note/siyuan/issues/5124)
+* [块引搜索结果高亮片段改进](https://github.com/siyuan-note/siyuan/issues/5125)
+
+### 开发重构
+
+* [`工作空间/incremental/` 文件夹移动到 `工作空间/temp/incremental/`](https://github.com/siyuan-note/siyuan/issues/5119)
+
+### 修复缺陷
+
+* [多级标题折叠后上级块引浮窗中未折叠](https://github.com/siyuan-note/siyuan/issues/4997)
+* [移动端没有通知消息时消息清除按钮未隐藏](https://github.com/siyuan-note/siyuan/issues/5111)
+* [全局关系图不显示](https://github.com/siyuan-note/siyuan/issues/5114)
+* [大纲行级元素渲染问题](https://github.com/siyuan-note/siyuan/issues/5115)
+* [移动端点击账号刷新失效](https://github.com/siyuan-note/siyuan/issues/5118)
+* [无法导出 `.sy.zip` 和 Markdown](https://github.com/siyuan-note/siyuan/issues/5120)
+* [云端同步下载文件时断点续传失效](https://github.com/siyuan-note/siyuan/issues/5123)
+* [英文单引号无法搜索](https://github.com/siyuan-note/siyuan/issues/5126)
+* [同一文档分屏后大纲定位问题](https://github.com/siyuan-note/siyuan/issues/5127)
+
+## v2.0.17 / 2022-06-06
+
+### 改进功能
+
+* [消息提示支持显示多条](https://github.com/siyuan-note/siyuan/issues/4875)
+* [移动端支持数据历史](https://github.com/siyuan-note/siyuan/issues/4993)
+* [删除、剪切和移动聚焦的列表项后返回上一层](https://github.com/siyuan-note/siyuan/issues/5016)
+* [优化浮窗加载个数](https://github.com/siyuan-note/siyuan/issues/5024)
+* [不使用原生 Emoji 的情况下文档内表情提示和最终输入结果保持一致](https://github.com/siyuan-note/siyuan/issues/5039)
+* [支持学生优惠订阅](https://github.com/siyuan-note/siyuan/issues/5071)
+* [大纲面板和大纲页签改进](https://github.com/siyuan-note/siyuan/issues/5087)
+* [为桌面端添加 `同步模式` 选择](https://github.com/siyuan-note/siyuan/issues/5089)
+* [改进云端同步目录名称校验](https://github.com/siyuan-note/siyuan/issues/5090)
+* [优化云端同步上传资源占用和耗时](https://github.com/siyuan-note/siyuan/issues/5093)
+* [大纲点击跳转时会先跳转到文档开始](https://github.com/siyuan-note/siyuan/issues/5094)
+* [提供消息提示推送 API 接口](https://github.com/siyuan-note/siyuan/issues/5102)
+
+### 修复缺陷
+
+* [浏览器网页图片和文字直接拖入编辑器报错](https://github.com/siyuan-note/siyuan/issues/5084)
+* [导出预览模式更多菜单按钮位置异常](https://github.com/siyuan-note/siyuan/issues/5088)
+* [云端备份下载恢复报错](https://github.com/siyuan-note/siyuan/issues/5101)
+* [嵌入块中禁止拖拽列表圆点](https://github.com/siyuan-note/siyuan/issues/5104)
+* [历史数据无法切换笔记本](https://github.com/siyuan-note/siyuan/issues/5107)
+* [大纲文档图标不跟随文档切换而切换](https://github.com/siyuan-note/siyuan/issues/5108)
+* [标题下有代码块时剪切标题后撤掉导致状态异常](https://github.com/siyuan-note/siyuan/issues/5110)
+
+## v2.0.16 / 2022-06-02
+
+### 改进功能
+
+* [免费提供一个月的订阅试用](https://github.com/siyuan-note/siyuan/issues/4186)
+* [代码块横向滚动条改进](https://github.com/siyuan-note/siyuan/issues/4985)
+* [`Echarts` 图表块无法渲染 3D 图表](https://github.com/siyuan-note/siyuan/issues/4992)
+* [桌面端资源文件链接支持菜单操作](https://github.com/siyuan-note/siyuan/issues/4998)
+* [断网时能够暂停云端同步](https://github.com/siyuan-note/siyuan/issues/5035)
+* [更换隐藏/显示停靠栏图标](https://github.com/siyuan-note/siyuan/issues/5037)
+* [为 Mermaid 添加支持 HTML 标签功能](https://github.com/siyuan-note/siyuan/issues/5074)
+* [升级 Mermaid](https://github.com/siyuan-note/siyuan/issues/5077)
+
+### 开发重构
+
+* [chore: update eslint deps](https://github.com/siyuan-note/siyuan/pull/5072)
+* [chore: deprecate `node-sass`](https://github.com/siyuan-note/siyuan/pull/5075)
+
+### 移除功能
+
+* [付费订阅不再支持退款](https://github.com/siyuan-note/siyuan/issues/5031)
+
+### 修复缺陷
+
+* [移动端导入大于 32M 的 Data 包失败](https://github.com/siyuan-note/siyuan/issues/5067)
+* [代码块语言选择列表覆盖在设置页面上](https://github.com/siyuan-note/siyuan/issues/5069)
+* [Android 端状态栏在明亮模式下不正确](https://github.com/siyuan-note/siyuan/issues/5070)
+* [过早提示订阅即将过期](https://github.com/siyuan-note/siyuan/issues/5081)
+
+## v2.0.15 / 2022-06-01
+
+### 改进功能
+
+* [Docker 和移动端支持导出模版、Markdown 压缩包和 `.sy.zip` 数据包](https://github.com/siyuan-note/siyuan/issues/4947)
+* [云端数据同步时降低交互阻塞时间](https://github.com/siyuan-note/siyuan/issues/4984)
+* [书签面板 Emoji 和折叠问题](https://github.com/siyuan-note/siyuan/issues/5017)
+* [通过 GitHub Actions 实现每日构建](https://github.com/siyuan-note/siyuan/issues/5033)
+* [桌面端托盘图标菜单加入菜单项](https://github.com/siyuan-note/siyuan/issues/5046)
+* [桌面端 `设置` - `账号` 中增加订阅续订入口](https://github.com/siyuan-note/siyuan/issues/5050)
+* [改进 `网络图片转换为本地图片` 微信图片拉取](https://github.com/siyuan-note/siyuan/issues/5052)
+* [改进 `网络图片转换为本地图片` 文件名后缀](https://github.com/siyuan-note/siyuan/issues/5053)
+* [同步下载支持断点续传](https://github.com/siyuan-note/siyuan/issues/5056)
+* [每次打开帮助文档时自动检查版本更新并提醒](https://github.com/siyuan-note/siyuan/issues/5057)
+* [开放 insider 内部预览版本仓库](https://github.com/siyuan-note/siyuan/issues/5060)
+* [新增内核启动参数 `mode`](https://github.com/siyuan-note/siyuan/issues/5064)
+* [改进移动端打开引用缩放逻辑和桌面端一致](https://github.com/siyuan-note/siyuan/issues/5065)
+
+### 文档相关
+
+* [修改隐私政策](https://github.com/siyuan-note/siyuan/issues/5043)
+* [使用 GitHub Projects 描绘路线图](https://github.com/siyuan-note/siyuan/issues/5061)
+
+### 开发重构
+
+* [前端使用 `pnpm` 管理构建](https://github.com/siyuan-note/siyuan/issues/5059)
+
+### 修复缺陷
+
+* [一级标题被面包屑强制省略两个汉字](https://github.com/siyuan-note/siyuan/issues/5044)
+* [单元格所在行有跨行的单元格时禁止删除行](https://github.com/siyuan-note/siyuan/issues/5045)
+* [标题中设置字体颜色问题](https://github.com/siyuan-note/siyuan/issues/5047)
+* [打开页签时应跳过钉住的页签](https://github.com/siyuan-note/siyuan/issues/5048)
+* [关闭页签后大纲没有刷新](https://github.com/siyuan-note/siyuan/issues/5051)
+
+## v2.0.14 / 2022-05-29
+
+### 改进功能
+
+* [光标在文档标题位置时可使用快捷键唤出大纲、反链和关系图面板](https://github.com/siyuan-note/siyuan/issues/4999)
+* [大纲面板加入文档标题](https://github.com/siyuan-note/siyuan/issues/5011)
+* [完整开源界面和内核](https://github.com/siyuan-note/siyuan/issues/5013)
+* [面包屑继续改进 ](https://github.com/siyuan-note/siyuan/issues/5019)
+* [插入较大的资源文件时内存占用较大](https://github.com/siyuan-note/siyuan/issues/5023)
+* [桌面端托盘图标菜单加入 `Hide Window`](https://github.com/siyuan-note/siyuan/issues/5025)
+* [锚文本修改后 `Enter` 可退出修改层并跳转到锚文本末尾](https://github.com/siyuan-note/siyuan/issues/5036)
+
+### 文档相关
+
+* [公开内置密钥算法](https://github.com/siyuan-note/siyuan/issues/5012)
+* [修改用户协议](https://github.com/siyuan-note/siyuan/issues/5015)
+
+### 修复缺陷
+
+* [文档标题处粘贴内容会选中粘贴的内容](https://github.com/siyuan-note/siyuan/issues/5006)
+* [标题存在字体颜色时大纲面板异常](https://github.com/siyuan-note/siyuan/issues/5009)
+* [`网络图片转换为本地图片` 链接参数处理异常](https://github.com/siyuan-note/siyuan/issues/5014)
+* [表格内颜色字体不能换行](https://github.com/siyuan-note/siyuan/issues/5029)
+* [文档树拖拽子文档后排序不正确](https://github.com/siyuan-note/siyuan/issues/5034)
+
 ## v2.0.13 / 2022-05-25
 
 ### 改进功能

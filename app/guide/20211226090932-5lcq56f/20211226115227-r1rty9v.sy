@@ -5,9 +5,277 @@
 		"icon": "2753",
 		"id": "20211226115227-r1rty9v",
 		"title": "常見問題",
-		"updated": "20220526112913"
+		"updated": "20220619172140"
 	},
 	"Children": [
+		{
+			"ID": "20220617163143-ll48882",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20220617163143-ll48882",
+				"updated": "20220617163143"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "思源適合我嗎？或者說我應該如何選擇筆記軟件？"
+				}
+			]
+		},
+		{
+			"ID": "20220617163143-zbzzz1r",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20220617163143-zbzzz1r",
+				"updated": "20220617192529"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "這個問題因人而異，很難統一回答。如果你不太確定思源是否適合你，請看如下建議："
+				}
+			]
+		},
+		{
+			"ID": "20220617163143-o484ebi",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20220617163143-o484ebi",
+				"updated": "20220617163143"
+			},
+			"Children": [
+				{
+					"ID": "20220617163143-a73q1jr",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220617163143-a73q1jr",
+						"updated": "20220617163143"
+					},
+					"Children": [
+						{
+							"ID": "20220617163143-i3g0j10",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220617163143-i3g0j10",
+								"updated": "20220617163143"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "如果你需要經常分享筆記或者與別人協作編輯，並且需要數據表格功能，推薦使用："
+								}
+							]
+						},
+						{
+							"ID": "20220617163143-aigdp01",
+							"Type": "NodeList",
+							"ListData": {},
+							"Properties": {
+								"id": "20220617163143-aigdp01",
+								"updated": "20220617163143"
+							},
+							"Children": [
+								{
+									"ID": "20220617163143-qunk4my",
+									"Type": "NodeListItem",
+									"ListData": {
+										"BulletChar": 42,
+										"Marker": "Kg=="
+									},
+									"Properties": {
+										"id": "20220617163143-qunk4my",
+										"updated": "20220617163143"
+									},
+									"Children": [
+										{
+											"ID": "20220617163143-hrayads",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220617163143-hrayads",
+												"updated": "20220617163143"
+											},
+											"Children": [
+												{
+													"Type": "NodeLink",
+													"Data": "span",
+													"Children": [
+														{
+															"Type": "NodeOpenBracket"
+														},
+														{
+															"Type": "NodeLinkText",
+															"Data": "Notion - One workspace. Every team."
+														},
+														{
+															"Type": "NodeCloseBracket"
+														},
+														{
+															"Type": "NodeOpenParen"
+														},
+														{
+															"Type": "NodeLinkDest",
+															"Data": "https://www.notion.so/"
+														},
+														{
+															"Type": "NodeCloseParen"
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20220617163143-gp5qfnm",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220617163143-gp5qfnm",
+						"updated": "20220617163143"
+					},
+					"Children": [
+						{
+							"ID": "20220617163143-bubrjeu",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220617163143-bubrjeu",
+								"updated": "20220617163143"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "如果你喜歡使用純文本 Markdown 文件存儲筆記，推薦使用："
+								}
+							]
+						},
+						{
+							"ID": "20220617163143-jc0lhj6",
+							"Type": "NodeList",
+							"ListData": {},
+							"Properties": {
+								"id": "20220617163143-jc0lhj6",
+								"updated": "20220617163143"
+							},
+							"Children": [
+								{
+									"ID": "20220617163143-3sav6iq",
+									"Type": "NodeListItem",
+									"ListData": {
+										"BulletChar": 42,
+										"Marker": "Kg=="
+									},
+									"Properties": {
+										"id": "20220617163143-3sav6iq",
+										"updated": "20220617163143"
+									},
+									"Children": [
+										{
+											"ID": "20220617163143-km573gv",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220617163143-km573gv",
+												"updated": "20220617163143"
+											},
+											"Children": [
+												{
+													"Type": "NodeLink",
+													"Data": "span",
+													"Children": [
+														{
+															"Type": "NodeOpenBracket"
+														},
+														{
+															"Type": "NodeLinkText",
+															"Data": "Obsidian - A second brain, for you, forever."
+														},
+														{
+															"Type": "NodeCloseBracket"
+														},
+														{
+															"Type": "NodeOpenParen"
+														},
+														{
+															"Type": "NodeLinkDest",
+															"Data": "https://obsidian.md/"
+														},
+														{
+															"Type": "NodeCloseParen"
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20220617163143-pjo4rjf",
+									"Type": "NodeListItem",
+									"ListData": {
+										"BulletChar": 42,
+										"Marker": "Kg=="
+									},
+									"Properties": {
+										"id": "20220617163143-pjo4rjf",
+										"updated": "20220617163143"
+									},
+									"Children": [
+										{
+											"ID": "20220617163143-ojllks9",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220617163143-ojllks9",
+												"updated": "20220617163143"
+											},
+											"Children": [
+												{
+													"Type": "NodeLink",
+													"Data": "span",
+													"Children": [
+														{
+															"Type": "NodeOpenBracket"
+														},
+														{
+															"Type": "NodeLinkText",
+															"Data": "Logseq - A privacy-first, open-source knowledge base"
+														},
+														{
+															"Type": "NodeCloseBracket"
+														},
+														{
+															"Type": "NodeOpenParen"
+														},
+														{
+															"Type": "NodeLinkDest",
+															"Data": "https://logseq.com/"
+														},
+														{
+															"Type": "NodeCloseParen"
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
 		{
 			"ID": "20211226115356-hp36u1f",
 			"Type": "NodeHeading",
@@ -432,7 +700,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20220526112905-4lumsx2",
-				"updated": "20220526112905"
+				"updated": "20220615152136"
 			},
 			"Children": [
 				{
@@ -502,7 +770,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20220526112905-ofq01hk",
-								"updated": "20220526112905"
+								"updated": "20220615152032"
 							},
 							"Children": [
 								{
@@ -530,31 +798,11 @@
 											"Type": "NodeCloseParen"
 										}
 									]
-								}
-							]
-						}
-					]
-				},
-				{
-					"ID": "20220526112905-rfll5uu",
-					"Type": "NodeListItem",
-					"ListData": {
-						"BulletChar": 42,
-						"Marker": "Kg=="
-					},
-					"Properties": {
-						"id": "20220526112905-rfll5uu",
-						"updated": "20220526112905"
-					},
-					"Children": [
-						{
-							"ID": "20220526112905-5m9urij",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20220526112905-5m9urij",
-								"updated": "20220526112905"
-							},
-							"Children": [
+								},
+								{
+									"Type": "NodeText",
+									"Data": "和"
+								},
 								{
 									"Type": "NodeLink",
 									"Data": "span",
@@ -602,7 +850,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20220526112905-lg3tfv2",
-								"updated": "20220526112905"
+								"updated": "20220615152035"
 							},
 							"Children": [
 								{
@@ -630,31 +878,11 @@
 											"Type": "NodeCloseParen"
 										}
 									]
-								}
-							]
-						}
-					]
-				},
-				{
-					"ID": "20220526112905-vjd528r",
-					"Type": "NodeListItem",
-					"ListData": {
-						"BulletChar": 42,
-						"Marker": "Kg=="
-					},
-					"Properties": {
-						"id": "20220526112905-vjd528r",
-						"updated": "20220526112905"
-					},
-					"Children": [
-						{
-							"ID": "20220526112905-lpkpu0e",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20220526112905-lpkpu0e",
-								"updated": "20220526112905"
-							},
-							"Children": [
+								},
+								{
+									"Type": "NodeText",
+									"Data": "和"
+								},
 								{
 									"Type": "NodeLink",
 									"Data": "span",
@@ -702,7 +930,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20220526112905-idr2lmn",
-								"updated": "20220526112905"
+								"updated": "20220615152127"
 							},
 							"Children": [
 								{
@@ -725,6 +953,36 @@
 										{
 											"Type": "NodeLinkDest",
 											"Data": "https://github.com/siyuan-note/encryption"
+										},
+										{
+											"Type": "NodeCloseParen"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": "和"
+								},
+								{
+									"Type": "NodeLink",
+									"Data": "span",
+									"Children": [
+										{
+											"Type": "NodeOpenBracket"
+										},
+										{
+											"Type": "NodeLinkText",
+											"Data": "數據倉庫"
+										},
+										{
+											"Type": "NodeCloseBracket"
+										},
+										{
+											"Type": "NodeOpenParen"
+										},
+										{
+											"Type": "NodeLinkDest",
+											"Data": "https://github.com/siyuan-note/dejavu"
 										},
 										{
 											"Type": "NodeCloseParen"
@@ -794,7 +1052,7 @@
 					},
 					"Properties": {
 						"id": "20220526112905-myxxgda",
-						"updated": "20220526112905"
+						"updated": "20220615152136"
 					},
 					"Children": [
 						{
@@ -802,7 +1060,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20220526112905-9l7ydfc",
-								"updated": "20220526112905"
+								"updated": "20220615152136"
 							},
 							"Children": [
 								{
@@ -830,31 +1088,11 @@
 											"Type": "NodeCloseParen"
 										}
 									]
-								}
-							]
-						}
-					]
-				},
-				{
-					"ID": "20220526112905-wjwu4d0",
-					"Type": "NodeListItem",
-					"ListData": {
-						"BulletChar": 42,
-						"Marker": "Kg=="
-					},
-					"Properties": {
-						"id": "20220526112905-wjwu4d0",
-						"updated": "20220526112905"
-					},
-					"Children": [
-						{
-							"ID": "20220526112905-5vtl4ff",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20220526112905-5vtl4ff",
-								"updated": "20220526112905"
-							},
-							"Children": [
+								},
+								{
+									"Type": "NodeText",
+									"Data": "和 "
+								},
 								{
 									"Type": "NodeLink",
 									"Data": "span",
@@ -918,7 +1156,7 @@
 						},
 						{
 							"Type": "NodeLinkDest",
-							"Data": "https://github.com/siyuan-note/siyuan/blob/master/DEV_zh_CN.md"
+							"Data": "https://github.com/siyuan-note/siyuan/blob/master/.github/CONTRIBUTING_zh_CN.md"
 						},
 						{
 							"Type": "NodeCloseParen"
@@ -1141,31 +1379,51 @@
 			]
 		},
 		{
-			"ID": "20211226115356-f9knemj",
+			"ID": "20220611225324-5aq5cr9",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20211226115356-f9knemj",
-				"updated": "20211225214824"
+				"id": "20220611225324-5aq5cr9",
+				"updated": "20220611225324"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "如何調整表格行列？"
+					"Data": "如何進行查找替換？"
 				}
 			]
 		},
 		{
-			"ID": "20211226115356-9rj1muh",
+			"ID": "20220611225324-nrh7eyp",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20211226115356-9rj1muh",
-				"updated": "20211228130709"
+				"id": "20220611225324-nrh7eyp",
+				"updated": "20220611225324"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "表格塊的塊標菜單中有作業入口。"
+					"Data": "編輯器中選擇關鍵字後按下 "
+				},
+				{
+					"Type": "NodeKbd",
+					"Data": "kbd",
+					"Children": [
+						{
+							"Type": "NodeKbdOpenMarker"
+						},
+						{
+							"Type": "NodeText",
+							"Data": "Ctrl+R"
+						},
+						{
+							"Type": "NodeKbdCloseMarker"
+						}
+					]
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
 				}
 			]
 		},
@@ -1219,144 +1477,190 @@
 			]
 		},
 		{
-			"ID": "20220421192606-o093rti",
+			"ID": "20220615153430-zg69bjz",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20220421192606-o093rti",
-				"updated": "20220421192606"
+				"id": "20220615153430-zg69bjz",
+				"updated": "20220615153430"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "如何搜索包含符號的內容？"
+					"Data": "如何分享筆記？"
 				}
 			]
 		},
 		{
-			"ID": "20220421192606-fmhxfvg",
+			"ID": "20220615153430-3fw6dhu",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20220615153430-3fw6dhu",
+				"updated": "20220615153430"
+			},
+			"Children": [
+				{
+					"ID": "20220615153430-jw52uvw",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220615153430-jw52uvw",
+						"updated": "20220615153430"
+					},
+					"Children": [
+						{
+							"ID": "20220615153430-samxogn",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220615153430-samxogn",
+								"updated": "20220615153430"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "導出導入 "
+								},
+								{
+									"Type": "NodeCodeSpan",
+									"Data": "code",
+									"Children": [
+										{
+											"Type": "NodeCodeSpanOpenMarker"
+										},
+										{
+											"Type": "NodeCodeSpanContent",
+											"Data": ".sy.zip"
+										},
+										{
+											"Type": "NodeCodeSpanCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " 數據包"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20220615153430-ossmtlg",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220615153430-ossmtlg",
+						"updated": "20220615153430"
+					},
+					"Children": [
+						{
+							"ID": "20220615153430-lpurhd3",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220615153430-lpurhd3",
+								"updated": "20220615153430"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "通過網絡伺服"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20220615153430-ia2p1ra",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220615153430-ia2p1ra",
+						"updated": "20220615153430"
+					},
+					"Children": [
+						{
+							"ID": "20220615153430-d6ghger",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220615153430-d6ghger",
+								"updated": "20220615153430"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "導出導入 Markdown"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20220615153430-f4ehaey",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220615153430-f4ehaey",
+						"updated": "20220615153430"
+					},
+					"Children": [
+						{
+							"ID": "20220615153430-fhmqpyu",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220615153430-fhmqpyu",
+								"updated": "20220615153430"
+							},
+							"Children": [
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "導出預覽"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " 中復製到第三方在線服務"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20220615153430-15kn96y",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20220421192606-fmhxfvg",
-				"updated": "20220421192629"
+				"id": "20220615153430-15kn96y",
+				"updated": "20220615153430"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "如果需要搜索包含符號（ "
-				},
-				{
-					"Type": "NodeCodeSpan",
-					"Data": "code",
-					"Children": [
-						{
-							"Type": "NodeCodeSpanOpenMarker"
-						},
-						{
-							"Type": "NodeCodeSpanContent",
-							"Data": "-"
-						},
-						{
-							"Type": "NodeCodeSpanCloseMarker"
-						}
-					]
-				},
-				{
-					"Type": "NodeText",
-					"Data": "、"
-				},
-				{
-					"Type": "NodeCodeSpan",
-					"Data": "code",
-					"Children": [
-						{
-							"Type": "NodeCodeSpanOpenMarker"
-						},
-						{
-							"Type": "NodeCodeSpanContent",
-							"Data": "*"
-						},
-						{
-							"Type": "NodeCodeSpanCloseMarker"
-						}
-					]
-				},
-				{
-					"Type": "NodeText",
-					"Data": " 等）的內容，需要使用 "
-				},
-				{
-					"Type": "NodeCodeSpan",
-					"Data": "code",
-					"Children": [
-						{
-							"Type": "NodeCodeSpanOpenMarker"
-						},
-						{
-							"Type": "NodeCodeSpanContent",
-							"Data": "\""
-						},
-						{
-							"Type": "NodeCodeSpanCloseMarker"
-						}
-					]
-				},
-				{
-					"Type": "NodeText",
-					"Data": " 包裹關鍵字，比如 "
-				},
-				{
-					"Type": "NodeCodeSpan",
-					"Data": "code",
-					"Children": [
-						{
-							"Type": "NodeCodeSpanOpenMarker"
-						},
-						{
-							"Type": "NodeCodeSpanContent",
-							"Data": "\"-siyuan\""
-						},
-						{
-							"Type": "NodeCodeSpanCloseMarker"
-						}
-					]
-				},
-				{
-					"Type": "NodeText",
-					"Data": "。具體細節請參考"
-				},
-				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20220415232129-shpzg6r"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "查詢語法"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
-				},
-				{
-					"Type": "NodeText",
-					"Data": "。"
+					"Data": "前兩種方式可以保證數據原始語義。"
 				}
 			]
 		},
@@ -1506,7 +1810,15 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "Android 端資料文件夾路徑為 "
+									"Data": "Android 端"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "資料文件"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "夾路徑為 "
 								},
 								{
 									"Type": "NodeCodeSpan",
@@ -1553,6 +1865,239 @@
 								{
 									"Type": "NodeText",
 									"Data": "第三方同步和思源同步存在沖突，切勿同時使用"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20220619172140-6g8du8b",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20220619172140-6g8du8b",
+				"updated": "20220619172140"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "另外，可以考慮手動導出導入 Data 實現數據同步："
+				}
+			]
+		},
+		{
+			"ID": "20220619172140-cq7i3di",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20220619172140-cq7i3di",
+				"updated": "20220619172140"
+			},
+			"Children": [
+				{
+					"ID": "20220619172140-8tsb58k",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220619172140-8tsb58k",
+						"updated": "20220619172140"
+					},
+					"Children": [
+						{
+							"ID": "20220619172140-fk0wiay",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220619172140-fk0wiay",
+								"updated": "20220619172140"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "桌面端："
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "設置"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "導出"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "導出 Data"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " / "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "導入 Data"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20220619172140-s4joicq",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20220619172140-s4joicq",
+						"updated": "20220619172140"
+					},
+					"Children": [
+						{
+							"ID": "20220619172140-9qv0epp",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20220619172140-9qv0epp",
+								"updated": "20220619172140"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "移動端："
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "右側欄"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "關於"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "導出 Data"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " / "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "導入 Data"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
 								}
 							]
 						}

@@ -40,7 +40,7 @@ import (
 	"github.com/88250/pdfcpu/pkg/pdfcpu"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/emirpasic/gods/stacks/linkedliststack"
-	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
@@ -74,8 +74,9 @@ func ExportDataInFolder(exportFolder string) (err error) {
 	util.PushEndlessProgress(Conf.Language(65))
 	defer util.ClearPushProgress(100)
 
-	syncLock.Lock()
-	defer syncLock.Unlock()
+	WaitForWritingFiles()
+	writingDataLock.Lock()
+	defer writingDataLock.Unlock()
 
 	exportFolder = filepath.Join(exportFolder, util.CurrentTimeSecondsStr())
 	err = exportData(exportFolder)
@@ -89,8 +90,9 @@ func ExportData() (zipPath string) {
 	util.PushEndlessProgress(Conf.Language(65))
 	defer util.ClearPushProgress(100)
 
-	syncLock.Lock()
-	defer syncLock.Unlock()
+	WaitForWritingFiles()
+	writingDataLock.Lock()
+	defer writingDataLock.Unlock()
 
 	baseFolderName := "data-" + util.CurrentTimeSecondsStr()
 	exportFolder := filepath.Join(util.TempDir, "export", baseFolderName)
@@ -110,7 +112,10 @@ func exportData(exportFolder string) (err error) {
 		return
 	}
 
-	filesys.ReleaseAllFileLocks()
+	err = filelock.ReleaseAllFileLocks()
+	if nil != err {
+		return
+	}
 
 	data := filepath.Join(util.WorkspaceDir, "data")
 	if err = stableCopy(data, exportFolder); nil != err {
@@ -657,7 +662,7 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 	// 按文件夹结构复制选择的树
 	for _, tree := range trees {
 		readPath := filepath.Join(util.DataDir, tree.Box, tree.Path)
-		data, readErr := filesys.NoLockFileRead(readPath)
+		data, readErr := filelock.NoLockFileRead(readPath)
 		if nil != readErr {
 			util.LogErrorf("read file [%s] failed: %s", readPath, readErr)
 			continue
@@ -679,7 +684,7 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 	// 引用树放在导出文件夹根路径下
 	for treeID, tree := range refTrees {
 		readPath := filepath.Join(util.DataDir, tree.Box, tree.Path)
-		data, readErr := filesys.NoLockFileRead(readPath)
+		data, readErr := filelock.NoLockFileRead(readPath)
 		if nil != readErr {
 			util.LogErrorf("read file [%s] failed: %s", readPath, readErr)
 			continue

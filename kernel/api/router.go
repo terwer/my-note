@@ -54,6 +54,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/account/checkActivationcode", model.CheckAuth, checkActivationcode)
 	ginServer.Handle("POST", "/api/account/useActivationcode", model.CheckAuth, useActivationcode)
 	ginServer.Handle("POST", "/api/account/deactivate", model.CheckAuth, deactivateUser)
+	ginServer.Handle("POST", "/api/account/startFreeTrial", model.CheckAuth, startFreeTrial)
 
 	ginServer.Handle("POST", "/api/notebook/lsNotebooks", model.CheckAuth, lsNotebooks)
 	ginServer.Handle("POST", "/api/notebook/openNotebook", model.CheckAuth, openNotebook)
@@ -102,6 +103,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/outline/getDocOutline", model.CheckAuth, getDocOutline)
 	ginServer.Handle("POST", "/api/bookmark/getBookmark", model.CheckAuth, getBookmark)
 	ginServer.Handle("POST", "/api/bookmark/renameBookmark", model.CheckAuth, renameBookmark)
+	ginServer.Handle("POST", "/api/bookmark/removeBookmark", model.CheckAuth, removeBookmark)
 	ginServer.Handle("POST", "/api/tag/getTag", model.CheckAuth, getTag)
 	ginServer.Handle("POST", "/api/tag/renameTag", model.CheckAuth, renameTag)
 	ginServer.Handle("POST", "/api/tag/removeTag", model.CheckAuth, removeTag)
@@ -162,6 +164,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/backup/removeCloudBackup", model.CheckAuth, model.CheckReadonly, removeCloudBackup)
 
 	ginServer.Handle("POST", "/api/sync/setSyncEnable", model.CheckAuth, setSyncEnable)
+	ginServer.Handle("POST", "/api/sync/setSyncMode", model.CheckAuth, setSyncMode)
 	ginServer.Handle("POST", "/api/sync/setCloudSyncDir", model.CheckAuth, setCloudSyncDir)
 	ginServer.Handle("POST", "/api/sync/createCloudSyncDir", model.CheckAuth, model.CheckReadonly, createCloudSyncDir)
 	ginServer.Handle("POST", "/api/sync/removeCloudSyncDir", model.CheckAuth, model.CheckReadonly, removeCloudSyncDir)
@@ -243,4 +246,14 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/bazaar/installBazaarTheme", model.CheckAuth, installBazaarTheme)
 	ginServer.Handle("POST", "/api/bazaar/uninstallBazaarTheme", model.CheckAuth, uninstallBazaarTheme)
 	ginServer.Handle("POST", "/api/bazaar/getBazaarPackageREAME", model.CheckAuth, getBazaarPackageREAME)
+
+	ginServer.Handle("POST", "/api/repo/initRepoKey", model.CheckAuth, initRepoKey)
+	ginServer.Handle("POST", "/api/repo/resetRepo", model.CheckAuth, resetRepo)
+	ginServer.Handle("POST", "/api/repo/importRepoKey", model.CheckAuth, importRepoKey)
+	ginServer.Handle("POST", "/api/repo/indexRepo", model.CheckAuth, indexRepo)
+	ginServer.Handle("POST", "/api/repo/checkoutRepo", model.CheckAuth, checkoutRepo)
+	ginServer.Handle("POST", "/api/repo/getRepoIndexLogs", model.CheckAuth, getRepoIndexLogs)
+
+	ginServer.Handle("POST", "/api/notification/pushMsg", model.CheckAuth, pushMsg)
+	ginServer.Handle("POST", "/api/notification/pushErrMsg", model.CheckAuth, pushErrMsg)
 }

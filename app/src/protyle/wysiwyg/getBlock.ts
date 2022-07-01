@@ -139,6 +139,7 @@ export const getTopAloneElement = (topSourceElement: Element) => {
             } else if (topSourceElement.parentElement.getAttribute("data-type") === "NodeListItem" && topSourceElement.parentElement.childElementCount === 3) {
                 topSourceElement = topSourceElement.parentElement;
             } else {
+                topSourceElement = getTopAloneElement(topSourceElement);
                 break;
             }
         }
@@ -162,18 +163,6 @@ export const hasPreviousSibling = (element: Node) => {
     let previousSibling = element.previousSibling;
     while (previousSibling) {
         if (previousSibling.textContent === "" && previousSibling.nodeType === 3) {
-            previousSibling = previousSibling.previousSibling;
-        } else {
-            return previousSibling;
-        }
-    }
-    return false;
-};
-
-export const hasPrevious = (element: Node) => {
-    let previousSibling = element.previousSibling;
-    while (previousSibling) {
-        if (previousSibling.textContent === "") {
             previousSibling = previousSibling.previousSibling;
         } else {
             return previousSibling;

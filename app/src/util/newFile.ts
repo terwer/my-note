@@ -7,6 +7,7 @@ import {fetchPost} from "./fetch";
 import {getDisplayName, getOpenNotebookCount, pathPosix} from "./pathName";
 import {openFileById} from "../editor/util";
 import {Constants} from "../constants";
+import {isMobile} from "./functions";
 
 export const newFile = (notebookId?: string, currentPath?: string, open?: boolean) => {
     if (getOpenNotebookCount() === 0) {
@@ -53,10 +54,10 @@ export const newFile = (notebookId?: string, currentPath?: string, open?: boolea
         fetchPost("/api/filetree/createDoc", {
             notebook: notebookId,
             path: pathPosix().join(getDisplayName(currentPath, false, true), id + ".sy"),
-            title: data.data.name || window.siyuan.languages.untitled,
+            title: data.data.name || "Untitled",
             md: "",
         }, () => {
-            if (open) {
+            if (open && !isMobile()) {
                 openFileById({id, hasContext: true, action: [Constants.CB_GET_HL]});
             }
         });

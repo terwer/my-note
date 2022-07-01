@@ -18,6 +18,7 @@ package util
 
 import (
 	"math/rand"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -34,7 +35,12 @@ func BootMobile(container, appDir, workspaceDir, nativeLibDir, privateDataDir, l
 	WorkspaceDir = workspaceDir
 	ConfDir = filepath.Join(workspaceDir, "conf")
 	DataDir = filepath.Join(workspaceDir, "data")
+	RepoDir = filepath.Join(WorkspaceDir, "repo")
 	TempDir = filepath.Join(workspaceDir, "temp")
+	osTmpDir := filepath.Join(TempDir, "os")
+	os.RemoveAll(osTmpDir)
+	os.MkdirAll(osTmpDir, 0755)
+	os.Setenv("TMPDIR", osTmpDir)
 	DBPath = filepath.Join(TempDir, DBName)
 	BlockTreePath = filepath.Join(TempDir, "blocktree.msgpack")
 	AndroidNativeLibDir = nativeLibDir

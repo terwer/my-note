@@ -15,6 +15,7 @@ import {getDisplayName} from "../../util/pathName";
 import {genEmptyElement} from "../../block/util";
 import {updateListOrder} from "../wysiwyg/list";
 import {escapeHtml} from "../../util/escape";
+import {zoomOut} from "../../menus/protyle";
 
 export const hintSlash = (key: string, protyle: IProtyle) => {
     const allList: IHintData[] = [{
@@ -327,7 +328,7 @@ export const hintRef = (key: string, protyle: IProtyle, isQuick = false): IHintD
     <svg class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${iconName}"></use></svg>
     <span class="b3-list-item__text">${item.content}</span>
 </div>
-<div class="b3-list-item__meta">${item.hPath}</div>`,
+<div class="b3-list-item__meta">${escapeHtml(item.hPath)}</div>`,
             });
         });
         if (isQuick) {
@@ -480,6 +481,10 @@ export const hintMoveBlock = (pathString: string, sourceElements: Element[], pro
                 data: item.outerHTML
             });
         });
+    } else if (protyle.block.showAll && parentElement.classList.contains("protyle-wysiwyg") && parentElement.childElementCount === 0) {
+        setTimeout(() => {
+            zoomOut(protyle, protyle.block.parent2ID, protyle.block.parent2ID);
+        }, Constants.TIMEOUT_INPUT * 2 + 100);
     } else if (parentElement.classList.contains("protyle-wysiwyg") && parentElement.innerHTML === "" &&
         !hasClosestByClassName(parentElement, "block__edit", true) &&
         protyle.block.id === protyle.block.rootID) {

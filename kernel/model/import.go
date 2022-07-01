@@ -39,6 +39,7 @@ import (
 	"github.com/88250/lute/parse"
 	"github.com/88250/protyle"
 	"github.com/mattn/go-zglob"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
@@ -250,10 +251,10 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 		}
 	}
 
-	syncLock.Lock()
-	defer syncLock.Unlock()
+	writingDataLock.Lock()
+	defer writingDataLock.Unlock()
 
-	filesys.ReleaseAllFileLocks()
+	filelock.ReleaseAllFileLocks()
 
 	var baseTargetPath string
 	if "/" == toPath {
@@ -279,7 +280,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 	}
 
 	IncWorkspaceDataVer()
-	refreshFileTree()
+	RefreshFileTree()
 	return
 }
 
@@ -327,10 +328,10 @@ func ImportData(zipPath string) (err error) {
 		return errors.New("write conf.json failed")
 	}
 
-	syncLock.Lock()
-	defer syncLock.Unlock()
+	writingDataLock.Lock()
+	defer writingDataLock.Unlock()
 
-	filesys.ReleaseAllFileLocks()
+	filelock.ReleaseAllFileLocks()
 	tmpDataPath := filepath.Dir(filepath.Dir(confPath))
 	if err = stableCopy(tmpDataPath, util.DataDir); nil != err {
 		util.LogErrorf("copy data dir from [%s] to [%s] failed: %s", tmpDataPath, util.DataDir, err)
@@ -339,7 +340,7 @@ func ImportData(zipPath string) (err error) {
 	}
 
 	IncWorkspaceDataVer()
-	refreshFileTree()
+	RefreshFileTree()
 	return
 }
 
@@ -347,10 +348,9 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 	util.PushEndlessProgress(Conf.Language(73))
 
 	WaitForWritingFiles()
-	syncLock.Lock()
-	defer syncLock.Unlock()
+	writingDataLock.Lock()
+	defer writingDataLock.Unlock()
 
-	box := Conf.Box(boxID)
 	var baseHPath, baseTargetPath, boxLocalPath string
 	if "/" == toPath {
 		baseHPath = "/"
@@ -367,12 +367,6 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 	boxLocalPath = filepath.Join(util.DataDir, boxID)
 
 	if gulu.File.IsDir(localPath) {
-		folderName := filepath.Base(localPath)
-		p := path.Join(toPath, folderName)
-		if box.Exist(p) {
-			return errors.New(Conf.Language(1))
-		}
-
 		// 收集所有资源文件
 		assets := map[string]string{}
 		filepath.Walk(localPath, func(currentPath string, info os.FileInfo, walkErr error) error {
@@ -407,9 +401,12 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 			}
 
 			var tree *parse.Tree
-
-			ext := path.Ext(info.Name())
-			title := strings.TrimSuffix(info.Name(), ext)
+			var ext string
+			title := info.Name()
+			if !info.IsDir() {
+				ext = path.Ext(info.Name())
+				title = strings.TrimSuffix(info.Name(), ext)
+			}
 			id := ast.NewNodeID()
 
 			curRelPath := filepath.ToSlash(strings.TrimPrefix(currentPath, localPath))
@@ -510,7 +507,7 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 		}
 
 		IncWorkspaceDataVer()
-		refreshFileTree()
+		RefreshFileTree()
 	} else { // 导入单个文件
 		fileName := filepath.Base(localPath)
 		if !strings.HasSuffix(fileName, ".md") && !strings.HasSuffix(fileName, ".markdown") {

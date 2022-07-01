@@ -4,11 +4,14 @@ import {isMobile} from "./functions";
 
 export const processMessage = (response: IWebSocketData) => {
     if ("msg" === response.cmd) {
-        showMessage(response.msg, response.data.closeTimeout, response.code === 0 ? "info" : "error");
+        showMessage(response.msg, response.data.closeTimeout, response.code === 0 ? "info" : "error", response.data.id);
         return false;
     }
     if ("cmsg" === response.cmd) {
-        hideMessage();
+        hideMessage(response.data.id);
+        return false;
+    }
+    if ("cprogress" === response.cmd) {
         const progressElement = document.getElementById("progress");
         if (progressElement) {
             progressElement.remove();

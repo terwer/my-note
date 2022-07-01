@@ -48,6 +48,7 @@ export class Menu {
     public remove() {
         this.element.innerHTML = "";
         this.element.classList.add("fn__none");
+        this.element.style.zIndex = "";
     }
 
     public append(element?: HTMLElement) {
@@ -77,7 +78,7 @@ export class MenuItem {
         }
         this.element.classList.add("b3-menu__item");
         if (options.current) {
-            this.element.classList.add("b3-menu__item--current");
+            this.element.classList.add("b3-menu__item--selected");
         }
         if (options.click) {
             this.element.addEventListener(getEventName(), (event) => {

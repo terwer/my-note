@@ -2,7 +2,7 @@
 
 echo 'Building UI'
 cd app
-npm install && npm run build
+pnpm install && pnpm run build
 cd ..
 
 echo 'Cleaning Builds'
@@ -20,16 +20,16 @@ export CGO_ENABLED=1
 
 export GOOS=darwin
 export GOARCH=amd64
-go build --tags fts5 -v -o "app/kernel-darwin/SiYuan-Kernel" -ldflags "-s -w" .
+go build --tags fts5 -v -o "../app/kernel-darwin/SiYuan-Kernel" -ldflags "-s -w" .
 
 export GOOS=darwin
 export GOARCH=arm64
-go build --tags fts5 -v -o "app/kernel-darwin-arm64/SiYuan-Kernel" -ldflags "-s -w" .
+go build --tags fts5 -v -o "../app/kernel-darwin-arm64/SiYuan-Kernel" -ldflags "-s -w" .
 cd ..
 
 echo 'Building Electron'
 cd app
-npm run dist-darwin
+pnpm run dist-darwin
 echo 'Building Electron arm64'
-npm run dist-darwin-arm64
+pnpm run dist-darwin-arm64
 cd ..

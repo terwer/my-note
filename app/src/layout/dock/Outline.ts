@@ -10,11 +10,13 @@ import {openFileById, updateBacklinkGraph} from "../../editor/util";
 import {Constants} from "../../constants";
 import {focusBlock} from "../../protyle/util/selection";
 import {pushBack} from "../../util/backForward";
+import {escapeHtml} from "../../util/escape";
+import {unicode2Emoji} from "../../emoji";
 
 export class Outline extends Model {
     private tree: Tree;
     public element: HTMLElement;
-    private headerElement: HTMLElement;
+    public headerElement: HTMLElement;
     public type: "pin" | "local";
     public blockId: string;
     private openNodes: { [key: string]: string[] } = {};
@@ -45,10 +47,9 @@ export class Outline extends Model {
                             if (this.type === "local" && this.blockId === data.data.id) {
                                 this.parent.updateTitle(data.data.title);
                             } else {
-                                fetchPost("/api/outline/getDocOutline", {
-                                    id: this.blockId,
-                                }, response => {
-                                    this.update(response);
+                                this.updateDocTitle({
+                                    title: data.data.title,
+                                    icon: Constants.ZWSP
                                 });
                             }
                             break;
@@ -84,6 +85,7 @@ export class Outline extends Model {
     <span class="${this.type === "local" ? "fn__none " : ""}fn__space"></span>
     <span data-type="min" class="${this.type === "local" ? "fn__none " : ""}block__icon b3-tooltips b3-tooltips__sw" aria-label="${window.siyuan.languages.min} ${updateHotkeyTip(window.siyuan.config.keymap.general.closeTab.custom)}"><svg><use xlink:href='#iconMin'></use></svg></span>
 </div>
+<div class="b3-list-item"></div>
 <div class="fn__flex-1"></div>`;
         this.element = options.tab.panelElement.lastElementChild as HTMLElement;
         this.headerElement = options.tab.panelElement.firstElementChild as HTMLElement;
@@ -93,7 +95,7 @@ export class Outline extends Model {
             click: (element: HTMLElement) => {
                 const models = getAllModels();
                 models.editor.find(item => {
-                    if (this.blockId === item.editor.protyle.block.rootID) {
+                    if (this.blockId === item.editor.protyle.block.rootID && !item.element.classList.contains("fn__none")) {
                         const id = element.getAttribute("data-node-id");
                         const targetElement = item.editor.protyle.wysiwyg.element.querySelector(`[data-node-id="${id}"]`);
                         if (targetElement) {
@@ -117,7 +119,7 @@ export class Outline extends Model {
         });
         // 为了快捷键的 dispatch
         options.tab.panelElement.querySelector('[data-type="collapse"]').addEventListener("click", () => {
-            this.tree.collapseAll(true);
+            this.tree.collapseAll();
         });
         options.tab.panelElement.querySelector('[data-type="expand"]').addEventListener("click", (event: MouseEvent & { target: Element }) => {
             const iconElement = hasClosestByClassName(event.target, "block__icon");
@@ -146,6 +148,15 @@ export class Outline extends Model {
                             getDockByType("outline").toggleModel("outline");
                             break;
                     }
+                    break;
+                } else if (target.isSameNode(this.headerElement.nextElementSibling) || target.classList.contains("block__icons")) {
+                    getAllModels().editor.find(item => {
+                        if (this.blockId === item.editor.protyle.block.rootID) {
+                            item.editor.protyle.contentElement.scrollTop = 0;
+                            return true;
+                        }
+                    });
+                    break;
                 }
                 target = target.parentElement;
             }
@@ -159,6 +170,23 @@ export class Outline extends Model {
 
         if (this.type === "pin") {
             setPanelFocus(options.tab.panelElement.firstElementChild);
+        }
+    }
+
+    public updateDocTitle(ial?: IObject) {
+        if (this.type === "pin") {
+            if (ial) {
+                let iconHTML = `<span class="b3-list-item__graphic">${unicode2Emoji(ial.icon || Constants.SIYUAN_IMAGE_FILE)}</span>`;
+                if (ial.icon === Constants.ZWSP && this.headerElement.nextElementSibling.firstElementChild) {
+                    iconHTML = this.headerElement.nextElementSibling.firstElementChild.outerHTML;
+                }
+                this.headerElement.nextElementSibling.innerHTML = `${iconHTML}
+<span class="b3-list-item__text">${escapeHtml(ial.title)}</span>`;
+                this.headerElement.nextElementSibling.setAttribute("title", ial.title);
+            } else {
+                this.headerElement.nextElementSibling.innerHTML = "";
+                this.headerElement.nextElementSibling.removeAttribute("title");
+            }
         }
     }
 
@@ -198,11 +226,12 @@ export class Outline extends Model {
         }
         if (currentElement) {
             currentElement.classList.add("b3-list-item--focus");
-            const titleHeight = this.headerElement.clientHeight;
-            if (currentElement.offsetTop - titleHeight < this.element.scrollTop) {
-                this.element.scrollTop = currentElement.offsetTop - titleHeight;
-            } else if (currentElement.offsetTop - this.element.clientHeight - titleHeight + currentElement.clientHeight > this.element.scrollTop) {
-                this.element.scrollTop = currentElement.offsetTop - this.element.clientHeight - titleHeight + currentElement.clientHeight;
+            const currentRect = currentElement.getBoundingClientRect();
+            const scrollRect = this.element.getBoundingClientRect();
+            if (currentRect.top < scrollRect.top) {
+                currentElement.scrollIntoView();
+            } else if (currentRect.bottom > scrollRect.bottom) {
+                currentElement.scrollIntoView(false);
             }
         }
     }

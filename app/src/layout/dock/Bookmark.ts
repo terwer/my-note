@@ -77,15 +77,19 @@ export class Bookmark extends Model {
             element: this.element.lastElementChild as HTMLElement,
             data: null,
             click(element: HTMLElement) {
-                openFileById({
-                    id: element.getAttribute("data-node-id"),
-                    hasContext: true,
-                    action: [Constants.CB_GET_FOCUS]
+                const id = element.getAttribute("data-node-id");
+                fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
+                    openFileById({
+                        id,
+                        hasContext: !foldResponse.data,
+                        action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS],
+                    });
                 });
             },
             rightClick: (element: HTMLElement, event: MouseEvent) => {
                 window.siyuan.menus.menu.remove();
-                if (!element.getAttribute("data-node-id")) {
+                const id = element.getAttribute("data-node-id");
+                if (!id) {
                     window.siyuan.menus.menu.append(new MenuItem({
                         label: window.siyuan.languages.rename,
                         click: () => {
@@ -120,13 +124,14 @@ export class Bookmark extends Model {
                             });
                         }
                     }).element);
-                } else {
-                    window.siyuan.menus.menu.append(new MenuItem({
-                        icon: "iconTrashcan",
-                        label: window.siyuan.languages.remove,
-                        click: () => {
-                            confirmDialog(window.siyuan.languages.delete, `${window.siyuan.languages.confirmDelete} <b>${escapeHtml(element.parentElement.previousElementSibling.querySelector(".b3-list-item__text").textContent)}</b>?`, () => {
-                                const id = element.getAttribute("data-node-id");
+                }
+                window.siyuan.menus.menu.append(new MenuItem({
+                    icon: "iconTrashcan",
+                    label: window.siyuan.languages.remove,
+                    click: () => {
+                        const bookmark = (id ? element.parentElement.previousElementSibling : element).querySelector(".b3-list-item__text").textContent;
+                        confirmDialog(window.siyuan.languages.delete, `${window.siyuan.languages.confirmDelete} <b>${escapeHtml(bookmark)}</b>?`, () => {
+                            if (id) {
                                 fetchPost("/api/attr/setBlockAttrs", {id, attrs: {bookmark: ""}}, () => {
                                     this.update();
                                 });
@@ -137,10 +142,14 @@ export class Bookmark extends Model {
                                         bookmarkElement.remove();
                                     }
                                 });
-                            });
-                        }
-                    }).element);
-                }
+                            } else {
+                                fetchPost("/api/bookmark/removeBookmark", {bookmark}, () => {
+                                    this.update();
+                                });
+                            }
+                        });
+                    }
+                }).element);
                 window.siyuan.menus.menu.popup({x: event.clientX, y: event.clientY});
             },
             ctrlClick(element: HTMLElement) {

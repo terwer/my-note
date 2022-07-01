@@ -32,8 +32,41 @@ export const selectAll = (protyle: IProtyle, nodeElement: Element, range: Range)
         } else {
             position = getSelectionOffset(editElement, nodeElement, range);
             if (position.start !== 0 || position.end !== editElement.textContent.length) {
-                range.setStart(editElement.firstChild, 0);
-                range.setEndAfter(editElement.lastChild);
+                // 全选后 rang 不对 https://ld246.com/article/1654848722251
+                let firstChild = editElement.firstChild;
+                while (firstChild) {
+                    if (firstChild.nodeType === 3) {
+                        if (firstChild.textContent !== "") {
+                            range.setStart(firstChild, 0);
+                            break;
+                        }
+                        firstChild = firstChild.nextSibling;
+                    } else {
+                        if ((firstChild as HTMLElement).classList.contains("render-node") ||
+                            (firstChild as HTMLElement).classList.contains("img")) {
+                            range.setStartBefore(firstChild);
+                            break;
+                        }
+                        firstChild = firstChild.firstChild;
+                    }
+                }
+                let lastChild = editElement.lastChild;
+                while (lastChild) {
+                    if (lastChild.nodeType === 3) {
+                        if (lastChild.textContent !== "") {
+                            range.setEnd(lastChild, lastChild.textContent.length);
+                            break;
+                        }
+                        lastChild = lastChild.previousSibling;
+                    } else {
+                        if ((lastChild as HTMLElement).classList.contains("render-node") ||
+                            (lastChild as HTMLElement).classList.contains("img")) {
+                            range.setEndAfter(lastChild);
+                            break;
+                        }
+                        lastChild = lastChild.lastChild;
+                    }
+                }
                 protyle.toolbar.render(protyle, range);
                 return true;
             }
@@ -341,7 +374,7 @@ export const focusByWbr = (element: Element, range: Range) => {
             } else if (wbrPreviousSibling.nodeType !== 3 && (wbrPreviousSibling as HTMLElement).classList.contains("img")) {
                 // <img><wbr>, 删除图片后的唯一的一个字符
                 range.setStartAfter(wbrPreviousSibling);
-            }  else {
+            } else {
                 // <span class="hljs-function"><span class="hljs-keyword">fun</span></span>
                 range.setStartBefore(wbrElement);
             }
@@ -379,8 +412,13 @@ export const focusBlock = (element: Element, parentElement?: HTMLElement, toStar
         } else if (type === "NodeBlockQueryEmbed" && element.lastElementChild.previousElementSibling) {
             range.selectNodeContents(element.lastElementChild.previousElementSibling);
             setRange = true;
-        } else if (["NodeMathBlock", "NodeHTMLBlock"].includes(type) && element.lastElementChild.previousElementSibling?.lastElementChild) {
-            range.selectNodeContents(element.lastElementChild.previousElementSibling.lastElementChild);
+        } else if (["NodeMathBlock", "NodeHTMLBlock"].includes(type)) {
+            // https://ld246.com/article/1655714737572
+            if (element.lastElementChild.previousElementSibling?.lastElementChild) {
+                range.selectNodeContents(element.lastElementChild.previousElementSibling.lastElementChild);
+            } else if (element.lastElementChild.previousElementSibling) {
+                range.selectNodeContents(element.lastElementChild.previousElementSibling);
+            }
             setRange = true;
         } else if (type === "NodeIFrame" || type === "NodeWidget") {
             range.setStart(element, 0);
@@ -448,20 +486,7 @@ export const focusSideBlock = (updateElement: Element) => {
         if (!sideBlockElement) {
             sideBlockElement = updateElement;
         }
-        const cursorElement = getContenteditableElement(sideBlockElement);
-        if (cursorElement) {
-            const range = getEditorRange(cursorElement);
-            range.selectNodeContents(cursorElement);
-            range.collapse(collapse);
-            focusByRange(range);
-        } else {
-            const mathElement = updateElement.querySelector(".katex-display");
-            if (mathElement) {
-                const range = mathElement.nextElementSibling.ownerDocument.createRange();
-                range.setStart(mathElement.nextElementSibling.firstChild, 0);
-                focusByRange(range);
-            }
-        }
+        focusBlock(sideBlockElement, undefined, collapse);
         return;
     }
     const range = getEditorRange(updateElement);

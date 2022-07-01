@@ -32,8 +32,8 @@ import (
 	"github.com/88250/lute/parse"
 	util2 "github.com/88250/lute/util"
 	"github.com/emirpasic/gods/sets/hashset"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/cache"
-	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
@@ -43,7 +43,7 @@ var (
 	ErrNotFullyBoot = errors.New("the kernel has not been fully booted, please try again later")
 )
 
-var writingTreeLock = sync.Mutex{}
+var writingDataLock = sync.Mutex{}
 
 func IsFoldHeading(transactions *[]*Transaction) bool {
 	if 1 == len(*transactions) && 1 == len((*transactions)[0].DoOperations) {
@@ -114,8 +114,8 @@ func AutoFlushTx() {
 }
 
 func flushTx() {
-	writingTreeLock.Lock()
-	defer writingTreeLock.Unlock()
+	writingDataLock.Lock()
+	defer writingDataLock.Unlock()
 	defer util.Recover()
 
 	currentTx = mergeTx()
@@ -291,7 +291,7 @@ func (tx *Transaction) doMove(operation *Operation) (ret *TxErr) {
 
 	var headingChildren []*ast.Node
 	if isMovingFoldHeading := ast.NodeHeading == srcNode.Type && "1" == srcNode.IALAttr("fold"); isMovingFoldHeading {
-		headingChildren = treenode.FoldedHeadingChildren(srcNode)
+		headingChildren = treenode.HeadingChildren(srcNode)
 	}
 	var srcEmptyList *ast.Node
 	if ast.NodeListItem == srcNode.Type && srcNode.Parent.FirstChild == srcNode && srcNode.Parent.LastChild == srcNode {
@@ -324,7 +324,7 @@ func (tx *Transaction) doMove(operation *Operation) (ret *TxErr) {
 		}
 
 		if ast.NodeHeading == targetNode.Type && "1" == targetNode.IALAttr("fold") {
-			targetChildren := treenode.FoldedHeadingChildren(targetNode)
+			targetChildren := treenode.HeadingChildren(targetNode)
 			if l := len(targetChildren); 0 < l {
 				targetNode = targetChildren[l-1]
 			}
@@ -434,7 +434,7 @@ func (tx *Transaction) doPrependInsert(operation *Operation) (ret *TxErr) {
 		return &TxErr{code: TxErrCodeBlockNotFound, id: operation.ParentID}
 	}
 	tree, err := tx.loadTree(block.ID)
-	if filesys.ErrUnableLockFile == err {
+	if errors.Is(err, filelock.ErrUnableLockFile) {
 		return &TxErr{code: TxErrCodeUnableLockFile, msg: err.Error(), id: block.ID}
 	}
 	if nil != err {
@@ -522,7 +522,7 @@ func (tx *Transaction) doAppendInsert(operation *Operation) (ret *TxErr) {
 		return &TxErr{code: TxErrCodeBlockNotFound, id: operation.ParentID}
 	}
 	tree, err := tx.loadTree(block.ID)
-	if filesys.ErrUnableLockFile == err {
+	if errors.Is(err, filelock.ErrUnableLockFile) {
 		return &TxErr{code: TxErrCodeUnableLockFile, msg: err.Error(), id: block.ID}
 	}
 	if nil != err {
@@ -611,7 +611,7 @@ func (tx *Transaction) doAppend(operation *Operation) (ret *TxErr) {
 
 	var headingChildren []*ast.Node
 	if isMovingFoldHeading := ast.NodeHeading == srcNode.Type && "1" == srcNode.IALAttr("fold"); isMovingFoldHeading {
-		headingChildren = treenode.FoldedHeadingChildren(srcNode)
+		headingChildren = treenode.HeadingChildren(srcNode)
 	}
 	var srcEmptyList, targetNewList *ast.Node
 	if ast.NodeListItem == srcNode.Type {
@@ -723,7 +723,7 @@ func (tx *Transaction) doLargeInsert() (ret *TxErr) {
 	}
 	id := parentBlock.ID
 	tree, err := tx.loadTree(id)
-	if filesys.ErrUnableLockFile == err {
+	if errors.Is(err, filelock.ErrUnableLockFile) {
 		return &TxErr{code: TxErrCodeUnableLockFile, msg: err.Error(), id: id}
 	}
 	if nil != err {
@@ -784,7 +784,7 @@ func (tx *Transaction) doDelete(operation *Operation) (ret *TxErr) {
 	var err error
 	id := operation.ID
 	tree, err := tx.loadTree(id)
-	if filesys.ErrUnableLockFile == err {
+	if errors.Is(err, filelock.ErrUnableLockFile) {
 		return &TxErr{code: TxErrCodeUnableLockFile, msg: err.Error(), id: id}
 	}
 	if ErrBlockNotFound == err {
@@ -835,7 +835,7 @@ func (tx *Transaction) doInsert(operation *Operation) (ret *TxErr) {
 		}
 	}
 	tree, err := tx.loadTree(block.ID)
-	if filesys.ErrUnableLockFile == err {
+	if errors.Is(err, filelock.ErrUnableLockFile) {
 		return &TxErr{code: TxErrCodeUnableLockFile, msg: err.Error(), id: block.ID}
 	}
 	if nil != err {
@@ -910,7 +910,7 @@ func (tx *Transaction) doInsert(operation *Operation) (ret *TxErr) {
 		}
 
 		if ast.NodeHeading == node.Type && "1" == node.IALAttr("fold") {
-			children := treenode.FoldedHeadingChildren(node)
+			children := treenode.HeadingChildren(node)
 			if l := len(children); 0 < l {
 				node = children[l-1]
 			}
@@ -969,7 +969,7 @@ func (tx *Transaction) doUpdate(operation *Operation) (ret *TxErr) {
 	id := operation.ID
 
 	tree, err := tx.loadTree(id)
-	if filesys.ErrUnableLockFile == err {
+	if errors.Is(err, filelock.ErrUnableLockFile) {
 		return &TxErr{code: TxErrCodeUnableLockFile, msg: err.Error(), id: id}
 	}
 	if nil != err {
@@ -1057,27 +1057,19 @@ func refreshUpdated(n *ast.Node) {
 	}
 }
 
-func createdUpdated(n *ast.Node) {
-	ast.Walk(n, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if !entering || "" == n.ID {
-			return ast.WalkContinue
-		}
-
-		created := util.TimeFromID(n.ID)
-		updated := n.IALAttr("updated")
-		if "" == updated {
-			updated = created
-		}
-		if updated < created {
-			updated = created // 复制粘贴块后创建时间小于更新时间 https://github.com/siyuan-note/siyuan/issues/3624
-		}
-		n.SetIALAttr("updated", updated)
-		parents := treenode.ParentNodes(n)
-		for _, parent := range parents { // 更新所有父节点的更新时间字段
-			parent.SetIALAttr("updated", updated)
-		}
-		return ast.WalkContinue
-	})
+func createdUpdated(node *ast.Node) {
+	created := util.TimeFromID(node.ID)
+	updated := node.IALAttr("updated")
+	if "" == updated {
+		updated = created
+	}
+	if updated < created {
+		updated = created // 复制粘贴块后创建时间小于更新时间 https://github.com/siyuan-note/siyuan/issues/3624
+	}
+	parents := treenode.ParentNodes(node)
+	for _, parent := range parents { // 更新所有父节点的更新时间字段
+		parent.SetIALAttr("updated", updated)
+	}
 }
 
 type Operation struct {

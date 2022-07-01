@@ -15,21 +15,26 @@ export const account = {
 <div class="fn__hr--b"></div>
 <a class="b3-button b3-button--outline" style="min-width: 214px" href="https://ld246.com/subscribe/siyuan" target="_blank">
     <span>
-        <span class="fn__hr"></span>
+        <div class="fn__hr"></div>
         <span class="ft__smaller">${window.siyuan.languages.account4}</span>
-        <span class="fn__hr"></span>
+        <div class="fn__hr--small"></div>
         <big class="ft__secondary">${window.siyuan.languages.priceAnnual}</big>
         <span class="ft__on-background">/${window.siyuan.languages.year}</span>
-        <span class="fn__hr"></span>
+        <div class="fn__hr--small"></div>
         <span class="ft__smaller ft__on-surface">${window.siyuan.languages.account1}</span>
-        <span class="fn__hr"></span>
+        <div class="fn__hr"></div>
     </span>
 </a>
 <div class="fn__hr--b"></div>
-<div>${window.siyuan.languages.account2}</div>
-<div>${window.siyuan.languages.account8}</div>
-<div>${window.siyuan.languages.account5}</div>
+${window.siyuan.languages.account8}
+<div class="fn__hr"></div>
+${window.siyuan.languages.account2}
 <div><a href="https://b3log.org/siyuan/pricing.html" target="_blank">${window.siyuan.languages.account7}</a></div>
+<div class="fn__hr--b"></div>
+<span class="b3-chip b3-chip--primary fn__pointer" id="trialSub">
+    <svg class="ft__secondary"><use xlink:href="#iconVIP"></use></svg>
+    ${window.siyuan.languages.freeSub}
+</span>
 <div class="fn__hr--b"></div>`;
         if (window.siyuan.user) {
             let userTitlesHTML = "";
@@ -51,8 +56,16 @@ export const account = {
                 activeSubscriptionHTML = "";
                 subscriptionHTML = `<div class="b3-chip b3-chip--secondary">${Constants.SIYUAN_IMAGE_VIP}${window.siyuan.languages.account12}</div>`;
             } else if (window.siyuan.user.userSiYuanProExpireTime > 0) {
-                subscriptionHTML = `<div class="b3-chip b3-chip--primary"><svg class="ft__secondary"><use xlink:href="#iconVIP"></use></svg>${window.siyuan.languages.account10}</div><div class="fn__hr"></div>
-<div class="ft__on-surface ft__smaller">${window.siyuan.languages.account6} ${Math.floor((window.siyuan.user.userSiYuanProExpireTime - new Date().getTime()) / 1000 / 60 / 60 / 24)} ${window.siyuan.languages.day}</div>`;
+                if (window.siyuan.user.userSiYuanSubscriptionPlan === 2) {
+                    subscriptionHTML = `<div class="b3-chip b3-chip--primary"><svg><use xlink:href="#iconVIP"></use></svg>${window.siyuan.languages.account3}</div>
+<div class="fn__hr"></div>
+<div class="ft__on-surface ft__smaller">${window.siyuan.languages.account6} ${Math.floor((window.siyuan.user.userSiYuanProExpireTime - new Date().getTime()) / 1000 / 60 / 60 / 24)} ${window.siyuan.languages.day} ${window.siyuan.languages.clickMeToRenew}</div>
+<div class="fn__hr"></div>
+${window.siyuan.languages.account8}`;
+                } else {
+                    subscriptionHTML = `<div class="b3-chip b3-chip--primary"><svg class="ft__secondary"><use xlink:href="#iconVIP"></use></svg>${window.siyuan.languages.account10}</div><div class="fn__hr"></div>
+<div class="ft__on-surface ft__smaller">${window.siyuan.languages.account6} ${Math.floor((window.siyuan.user.userSiYuanProExpireTime - new Date().getTime()) / 1000 / 60 / 60 / 24)} ${window.siyuan.languages.day} ${window.siyuan.languages.clickMeToRenew}</div>`;
+                }
             }
             return `<div class="fn__flex config-account">
 <div class="config-account__center">
@@ -154,6 +167,14 @@ export const account = {
 </div>`;
     },
     bindEvent: () => {
+        const trialSubElement = account.element.querySelector("#trialSub");
+        if (trialSubElement) {
+            trialSubElement.addEventListener("click", () => {
+                fetchPost("/api/account/startFreeTrial", {}, () => {
+                    account.element.querySelector("#refresh").dispatchEvent(new Event("click"));
+                });
+            });
+        }
         const agreeLoginElement = account.element.querySelector("#agreeLogin") as HTMLInputElement;
         const userNameElement = account.element.querySelector("#userName") as HTMLInputElement;
         if (!userNameElement) {
@@ -278,8 +299,9 @@ export const account = {
                 userPassword: md5(userPasswordElement.value),
                 captcha: captchaElement.value.replace(/(^\s*)|(\s*$)/g, ""),
             }, (data) => {
+                let messageId;
                 if (data.code === 1) {
-                    showMessage(data.msg);
+                    messageId = showMessage(data.msg);
                     if (data.data.needCaptcha) {
                         // 验证码
                         needCaptcha = data.data.needCaptcha;
@@ -299,7 +321,7 @@ export const account = {
                     token = data.data.token;
                     return;
                 }
-                hideMessage();
+                hideMessage(messageId);
                 fetchPost("/api/setting/getCloudUser", {
                     token: data.data.token,
                 }, response => {
@@ -328,13 +350,26 @@ export const account = {
         });
     },
     onSetaccount() {
+        if (repos.element) {
+            repos.element.innerHTML = "";
+        }
+        if (window.siyuan.config.system.container === "ios") {
+            return;
+        }
         let html = "";
         if (window.siyuan.config.account.displayVIP && window.siyuan.user) {
             if (window.siyuan.user.userSiYuanProExpireTime === -1) {
                 html = `<div class="toolbar__item b3-tooltips b3-tooltips__se" aria-label="${window.siyuan.languages.account12}">${Constants.SIYUAN_IMAGE_VIP}</div>`;
             } else if (window.siyuan.user.userSiYuanProExpireTime > 0) {
-                html = `<div class="toolbar__item b3-tooltips b3-tooltips__se" aria-label="${window.siyuan.languages.account10}"><svg class="ft__secondary"><use xlink:href="#iconVIP"></use></svg></div>`;
+                if (window.siyuan.user.userSiYuanSubscriptionPlan === 2) {
+                    html = `<div class="toolbar__item b3-tooltips b3-tooltips__se" aria-label="${window.siyuan.languages.account3}"><svg><use xlink:href="#iconVIP"></use></svg></div>`;
+                } else {
+                    html = `<div class="toolbar__item b3-tooltips b3-tooltips__se" aria-label="${window.siyuan.languages.account10}"><svg class="ft__secondary"><use xlink:href="#iconVIP"></use></svg></div>`;
+                }
             }
+        }
+        if (!window.siyuan.user || (window.siyuan.user && window.siyuan.user.userSiYuanSubscriptionStatus === -1)){
+            html = `<div class="toolbar__item b3-tooltips b3-tooltips__se" aria-label="${window.siyuan.languages.freeSub}"><svg class="ft__error"><use xlink:href="#iconVIP"></use></svg></div>`;
         }
         if (window.siyuan.config.account.displayTitle && window.siyuan.user) {
             window.siyuan.user.userTitles.forEach(item => {
@@ -342,8 +377,5 @@ export const account = {
             });
         }
         document.getElementById("toolbarVIP").innerHTML = html;
-        if (repos.element) {
-            repos.element.innerHTML = "";
-        }
     }
 };

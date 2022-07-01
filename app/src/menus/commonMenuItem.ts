@@ -19,7 +19,7 @@ import {setPosition} from "../util/setPosition";
 import {updateTransaction} from "../protyle/wysiwyg/transaction";
 import {Bookmark} from "../layout/dock/Bookmark";
 import {rename} from "../editor/rename";
-import {openAsset, openBy} from "../editor/util";
+import {deleteFile, openAsset, openBy} from "../editor/util";
 import {matchHotKey} from "../protyle/util/hotKey";
 import * as dayjs from "dayjs";
 import {Constants} from "../constants";
@@ -29,7 +29,7 @@ const bindAttrInput = (inputElement: HTMLInputElement, confirmElement: Element) 
         if (event.isComposing) {
             return;
         }
-        if (matchHotKey("⌘Enter", event)) {
+        if (matchHotKey("⌘↩", event)) {
             confirmElement.dispatchEvent(new CustomEvent("click"));
             event.stopPropagation();
             event.preventDefault();
@@ -639,11 +639,11 @@ export const exportMd = (id: string) => {
                 label: "Markdown",
                 icon: "iconMarkdown",
                 click: () => {
-                    showMessage(window.siyuan.languages.exporting, -1);
+                    const msgId = showMessage(window.siyuan.languages.exporting, -1);
                     fetchPost("/api/export/exportMd", {
                         id,
                     }, response => {
-                        hideMessage();
+                        hideMessage(msgId);
                         if (window.siyuan.config.system.container === "ios") {
                             window.location.href = response.data.zip;
                         } else if (window.siyuan.config.system.container === "android" && window.JSAndroid) {
@@ -658,11 +658,11 @@ export const exportMd = (id: string) => {
                 label: "SiYuan .sy.zip",
                 icon: "iconSiYuan",
                 click: () => {
-                    showMessage(window.siyuan.languages.exporting, -1);
+                    const msgId = showMessage(window.siyuan.languages.exporting, -1);
                     fetchPost("/api/export/exportSY", {
                         id,
                     }, response => {
-                        hideMessage();
+                        hideMessage(msgId);
                         if (window.siyuan.config.system.container === "ios") {
                             window.location.href = response.data.zip;
                         } else if (window.siyuan.config.system.container === "android" && window.JSAndroid) {
@@ -708,20 +708,23 @@ export const openMenu = (src: string, onlyMenu = false) => {
     const submenu = [];
     if (isLocalPath(src)) {
         submenu.push({
-            label: window.siyuan.languages.openInNewTab,
+            label: window.siyuan.languages.insertRight,
+            accelerator: "Click",
             click() {
-                openAsset(src.trim(), parseInt(getSearch("page", src)));
+                openAsset(src.trim(), parseInt(getSearch("page", src)), "right");
             }
         });
         /// #if !BROWSER
         submenu.push({
             label: window.siyuan.languages.useDefault,
+            accelerator: "⇧Click",
             click() {
                 openBy(src, "app");
             }
         });
         submenu.push({
             label: window.siyuan.languages.showInFolder,
+            accelerator: "⌘Click",
             click: () => {
                 openBy(src, "folder");
             }
@@ -730,13 +733,18 @@ export const openMenu = (src: string, onlyMenu = false) => {
     } else {
         submenu.push({
             label: window.siyuan.languages.useBrowserView,
+            accelerator: "Click",
             click: () => {
                 /// #if !BROWSER
                 shell.openExternal(src).catch((e) => {
                     console.log("openExternal error:" + e);
                 });
                 /// #else
-                window.open(src);
+                if (window.siyuan.config.system.container === "ios") {
+                    window.location.href = src;
+                } else {
+                    window.open(src);
+                }
                 /// #endif
             }
         });
@@ -766,20 +774,7 @@ export const deleteMenu = (notebookId: string, name: string, pathString: string)
         label: window.siyuan.languages.delete,
         accelerator: "⌦",
         click: () => {
-            fetchPost("/api/block/getDocInfo", {
-                id: getDisplayName(pathString, true, true)
-            }, (response) => {
-                let tip = `${window.siyuan.languages.confirmDelete} <b>${name}</b>?`;
-                if (response.data.subFileCount > 0) {
-                    tip = `${window.siyuan.languages.confirmDelete} <b>${name}</b> ${window.siyuan.languages.andSubFile.replace("x", response.data.subFileCount)}?`;
-                }
-                confirmDialog(window.siyuan.languages.delete, tip, () => {
-                    fetchPost("/api/filetree/removeDoc", {
-                        notebook: notebookId,
-                        path: pathString
-                    });
-                });
-            });
+            deleteFile(notebookId, pathString, name);
         }
     }).element;
 };

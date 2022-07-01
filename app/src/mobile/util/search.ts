@@ -13,7 +13,7 @@ const onRecentblocks = (data: IWebSocketData) => {
     <svg class="b3-list-item__graphic"><use xlink:href="#${getIconByType(item.type)}"></use></svg>
     <span class="b3-list-item__text">${item.content}</span>
 </div>
-<div class="b3-list-item__meta">${item.hPath}</div>
+<div class="b3-list-item__meta">${Lute.EscapeHTMLStr(item.hPath)}</div>
 </div>`;
     });
     document.querySelector("#searchPanel").innerHTML = resultHTML;
@@ -77,7 +77,7 @@ export const popSearch = (modelElement: HTMLElement, modelMainElement: HTMLEleme
                     preventScroll(window.siyuan.mobileEditor.protyle);
                 }
                 fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
-                    openMobileFileById(id, !foldResponse.data);
+                    openMobileFileById(id, !foldResponse.data, foldResponse.data ? [Constants.CB_GET_ALL, Constants.CB_GET_HL] : [Constants.CB_GET_HL]);
                 });
                 closePanel();
                 event.preventDefault();

@@ -6,6 +6,50 @@ import {transaction, updateTransaction} from "../protyle/wysiwyg/transaction";
 import {scrollCenter} from "../util/highlightById";
 import {Constants} from "../constants";
 
+export const cancelSB = (protyle: IProtyle, nodeElement: Element) => {
+    const doOperations: IOperation[] = [];
+    const undoOperations: IOperation[] = [];
+    let previousId = nodeElement.previousElementSibling ? nodeElement.previousElementSibling.getAttribute("data-node-id") : undefined;
+    nodeElement.classList.remove("protyle-wysiwyg--select");
+    const id = nodeElement.getAttribute("data-node-id");
+    const sbElement = genSBElement(nodeElement.getAttribute("data-sb-layout"), id, nodeElement.lastElementChild.outerHTML);
+    undoOperations.push({
+        action: "insert",
+        id,
+        data: sbElement.outerHTML,
+        previousID: nodeElement.previousElementSibling ? nodeElement.previousElementSibling.getAttribute("data-node-id") : undefined,
+        parentID: nodeElement.parentElement.getAttribute("data-node-id") || protyle.block.parentID
+    });
+    Array.from(nodeElement.children).forEach((item, index) => {
+        if (index === nodeElement.childElementCount - 1) {
+            doOperations.push({
+                action: "delete",
+                id,
+            });
+            nodeElement.lastElementChild.remove();
+            nodeElement.outerHTML = nodeElement.innerHTML;
+            return;
+        }
+        doOperations.push({
+            action: "move",
+            id: item.getAttribute("data-node-id"),
+            previousID: previousId,
+            parentID: nodeElement.parentElement.getAttribute("data-node-id") || protyle.block.parentID
+        });
+        undoOperations.push({
+            action: "move",
+            id: item.getAttribute("data-node-id"),
+            previousID: item.previousElementSibling ? item.previousElementSibling.getAttribute("data-node-id") : undefined,
+            parentID: id
+        });
+        previousId = item.getAttribute("data-node-id");
+    });
+
+    return {
+        doOperations, undoOperations, previousId
+    };
+};
+
 export const genSBElement = (layout: string, id?: string, attrHTML?: string) => {
     const sbElement = document.createElement("div");
     sbElement.setAttribute("data-node-id", id || Lute.NewNodeID());
@@ -54,7 +98,8 @@ export const insertEmptyBlock = (protyle: IProtyle, position: InsertPosition, id
     const parentOldHTML = blockElement.parentElement.outerHTML;
     const newId = newElement.getAttribute("data-node-id");
     blockElement.insertAdjacentElement(position, newElement);
-    if (blockElement.getAttribute("data-type") === "NodeListItem" && blockElement.getAttribute("data-subtype") === "o") {
+    if (blockElement.getAttribute("data-type") === "NodeListItem" && blockElement.getAttribute("data-subtype") === "o" &&
+        !newElement.parentElement.classList.contains("protyle-wysiwyg")) {
         updateListOrder(newElement.parentElement, orderIndex);
         updateTransaction(protyle, newElement.parentElement.getAttribute("data-node-id"), newElement.parentElement.outerHTML, parentOldHTML);
     } else {

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/siyuan-note/siyuan/blob/master/README.md">English</a>
+<a href="README.md">English</a>
 </p>
 
 ## 💡 简介
@@ -66,7 +66,7 @@
 * Android APP
 * iOS APP
 * Docker 部署
-* [API](https://github.com/siyuan-note/siyuan/blob/master/API_zh_CN.md)
+* [API](API_zh_CN.md)
 
 ### 付费订阅
 
@@ -81,7 +81,7 @@
 
 ## 🗺️ 路线图
 
-* [思源笔记开发计划和进度](https://github.com/siyuan-note/siyuan/projects)
+* [思源笔记开发计划和进度](https://github.com/orgs/siyuan-note/projects/1)
 * [思源笔记版本变更和公告](https://ld246.com/tag/siyuan-announcement)
 
 ## 🛠️ 下载安装
@@ -154,11 +154,25 @@
 
 ## 🏘️ 社区
 
-* [中文讨论区](https://ld246.com/domain/siyuan)
-* [GitHub Issues](https://github.com/siyuan-note/siyuan/issues)
-* [用户社群汇总](https://ld246.com/article/1640266171309)
+* [中文讨论区](https://ld246.com/domain/siyuan) 官方支持渠道
+* [用户社区汇总](https://ld246.com/article/1640266171309) 由热心用户建立的社区
+* [Awesome SiYuan](https://github.com/siyuan-note/awesome) 由热心用户整理的资源
 
 ## ❓ 常见问题和解答
+
+### 思源适合我吗？或者说我应该如何选择笔记软件？
+
+这个问题因人而异，很难统一回答。如果你不太确定思源是否适合你，请看如下建议：
+
+* 如果你需要经常分享笔记或者与别人协作编辑，并且需要数据表格功能，推荐使用：
+
+  * [FlowUs 息流 - 新一代知识管理与协作平台](https://flowus.cn/)
+  * [我来 wolai - 不仅仅是未来的云端协作平台与个人笔记](https://www.wolai.com/)
+  * [Notion - One workspace. Every team.](https://www.notion.so/)
+* 如果你喜欢使用纯文本 Markdown 文件存储笔记，推荐使用：
+
+  * [Obsidian - A second brain, for you, forever.](https://obsidian.md/)
+  * [Logseq - A privacy-first, open-source knowledge base](https://logseq.com/)
 
 ### 思源是如何存储数据的？
 
@@ -175,16 +189,13 @@
 思源笔记是完全开源的，欢迎参与贡献：
 
 * [界面和内核](https://github.com/siyuan-note/siyuan)
-* [用户指南](https://github.com/siyuan-note/user-guide-zh_CN)
-* [外观](https://github.com/siyuan-note/appearance)
-* [数据解析器](https://github.com/88250/protyle)
-* [编辑器引擎](https://github.com/88250/lute)
-* [端到端加密](https://github.com/siyuan-note/encryption)
+* [用户指南](https://github.com/siyuan-note/user-guide-zh_CN)和[外观](https://github.com/siyuan-note/appearance)
+* [数据解析器](https://github.com/88250/protyle)和[编辑器引擎](https://github.com/88250/lute)
+* [端到端加密](https://github.com/siyuan-note/encryption)和[数据仓库](https://github.com/siyuan-note/dejavu)
 * [Chrome 剪藏扩展](https://github.com/siyuan-note/siyuan-chrome)
-* [Android 端](https://github.com/siyuan-note/siyuan-android)
-* [iOS 端](https://github.com/siyuan-note/siyuan-ios)
+* [Android 端](https://github.com/siyuan-note/siyuan-android)和 [iOS 端](https://github.com/siyuan-note/siyuan-ios)
 
-更多细节请参考[开发指南](https://github.com/siyuan-note/siyuan/blob/master/DEV_zh_CN.md)。
+更多细节请参考[开发指南](https://github.com/siyuan-note/siyuan/blob/master/.github/CONTRIBUTING_zh_CN.md)。
 
 ### 删除文档有什么注意事项吗？
 
@@ -202,16 +213,35 @@
 
 在开始的地方单击，滚动页面以后在结束的地方按住 <kbd>Shift</kbd> 单击。
 
-### 如何调整表格行列？
+### 如何进行查找替换？
 
-表格块的块标菜单中有操作入口。
+编辑器中选择关键字后按下 <kbd>Ctrl+R</kbd>。
+
+### 有的块（比如在列表项中的段落块）找不到块标怎么办？
+
+在列表项下的第一个子块是省略块标的。可以将光标移到这个块中，然后通过 <kbd>Ctrl+/</kbd> 触发它的块标菜单。
+
+### 如何分享笔记？
+
+* 导出导入 `.sy.zip` 数据包
+* 通过网络伺服
+* 导出导入 Markdown
+* <kbd>导出预览</kbd> 中复制到第三方在线服务
+
+前两种方式可以保证数据原始语义。
 
 ### 如何使用第三方同步盘进行数据同步？
 
 * 请仅同步 `工作空间/data/`，切勿同步整个工作空间
 * 思源运行期间请暂停第三方同步，否则可能会出现数据损坏，细节请参考[这里](https://ld246.com/article/1626537583158)
 * Android 端数据文件夹路径为 `内部存储设备/Android/data/org.b3log.siyuan/files/siyuan/data/`，该路径是应用私有路径，其他程序无法读取，只能手动复制
+* iOS/iPad 端数据文件夹路径不可见
 * 第三方同步和思源同步存在冲突，切勿同时使用
+
+另外，可以考虑手动导出导入 Data 实现数据同步：
+
+* 桌面端：<kbd>设置</kbd> - <kbd>导出</kbd> - <kbd>导出 Data</kbd> / <kbd>导入 Data</kbd>
+* 移动端：<kbd>右侧栏</kbd> - <kbd>关于</kbd> - <kbd>导出 Data</kbd> / <kbd>导入 Data</kbd>
 
 ### 端到端密码忘记了怎么办？
 
@@ -226,22 +256,6 @@
 本地功能完全免费使用，[云端服务](https://b3log.org/siyuan/pricing.html)需要年付订阅。
 
 非中国大陆地区的用户请勿付费订阅，因为思源云端服务器无法保证非中国大陆地区可用。
-
-## 💌 参与贡献
-
-思源笔记是完全开源的，欢迎参与贡献：
-
-* [界面和内核](https://github.com/siyuan-note/siyuan)
-* [用户指南](https://github.com/siyuan-note/user-guide-zh_CN)
-* [外观](https://github.com/siyuan-note/appearance)
-* [数据解析器](https://github.com/88250/protyle)
-* [编辑器引擎](https://github.com/88250/lute)
-* [端到端加密](https://github.com/siyuan-note/encryption)
-* [Chrome 剪藏扩展](https://github.com/siyuan-note/siyuan-chrome)
-* [Android 端](https://github.com/siyuan-note/siyuan-android)
-* [iOS 端](https://github.com/siyuan-note/siyuan-ios)
-
-更多细节请参考[开发指南](https://github.com/siyuan-note/siyuan/blob/master/DEV_zh_CN.md)。
 
 ## 🙏 鸣谢
 
@@ -269,6 +283,7 @@
 * [https://github.com/facette/natsort](https://github.com/facette/natsort) `BSD-3-Clause License`
 * [https://github.com/flopp/go-findfont](https://github.com/flopp/go-findfont) `MIT License`
 * [https://github.com/fsnotify/fsnotify](https://github.com/fsnotify/fsnotify) `BSD-3-Clause License`
+* [https://github.com/gabriel-vasile/mimetype](https://github.com/gabriel-vasile/mimetype) `MIT License`
 * [https://github.com/gin-contrib/cors](https://github.com/gin-contrib/cors) `MIT License`
 * [https://github.com/gin-contrib/gzip](https://github.com/gin-contrib/gzip) `MIT License`
 * [https://github.com/gin-contrib/sessions](https://github.com/gin-contrib/sessions) `MIT License`
@@ -282,6 +297,7 @@
 * [https://github.com/panjf2000/ants](https://github.com/panjf2000/ants) `MIT License`
 * [https://github.com/patrickmn/go-cache](https://github.com/patrickmn/go-cache) `MIT License`
 * [https://github.com/radovskyb/watcher](https://github.com/radovskyb/watcher) `BSD-3-Clause License`
+* [https://github.com/siyuan-note/dejavu](https://github.com/siyuan-note/dejavu) `Mulan PSL v2`
 * [https://github.com/siyuan-note/encryption](https://github.com/siyuan-note/encryption) `Mulan PSL v2`
 * [https://github.com/vmihailenco/msgpack](https://github.com/vmihailenco/msgpack) `BSD-2-Clause License`
 * [https://github.com/xrash/smetrics](https://github.com/xrash/smetrics) `MIT License`

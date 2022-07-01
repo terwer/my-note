@@ -131,7 +131,7 @@ export const exportLayout = (reload: boolean, cb?: () => void) => {
         return;
     }
     const layoutJSON: any = {
-        hideDock: useElement.getAttribute("xlink:href") !== "#iconMax",
+        hideDock: useElement.getAttribute("xlink:href") === "#iconDock",
         layout: {},
         top: dockToJSON(window.siyuan.layout.topDock),
         bottom: dockToJSON(window.siyuan.layout.bottomDock),
@@ -391,6 +391,16 @@ export const layoutToJSON = (layout: Layout | Wnd | Tab | Model, json: any) => {
     } else if (layout instanceof Tab) {
         json.children = {};
         layoutToJSON(layout.model, json.children);
+    }
+};
+
+export const resizeDrag = () => {
+    const dragElement = document.getElementById("drag");
+    const right = dragElement.getBoundingClientRect().left - document.querySelector("#windowControls").clientWidth;
+    if (right < dragElement.clientWidth) {
+        dragElement.style.paddingRight = right + "px";
+    } else {
+        dragElement.style.paddingRight = "";
     }
 };
 

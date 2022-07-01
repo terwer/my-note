@@ -22,6 +22,9 @@ import {Search} from "../search";
 import {showMessage} from "../dialog/message";
 import {openFileById, updatePanelByEditor} from "../editor/util";
 import {scrollCenter} from "../util/highlightById";
+import {getAllModels} from "./getAll";
+import {fetchPost} from "../util/fetch";
+import {onGet} from "../protyle/util/onGet";
 
 export class Wnd {
     public id: string;
@@ -336,6 +339,22 @@ export class Wnd {
             if (update) {
                 updatePanelByEditor(currentTab.model.editor.protyle, true, pushBack);
             }
+
+            // 切换到屏幕太高的页签 https://github.com/siyuan-note/siyuan/issues/5018
+            const protyle = currentTab.model.editor.protyle;
+            if (!protyle.scroll.element.classList.contains("fn__none") &&
+                protyle.wysiwyg.element.lastElementChild.getAttribute("data-eof") !== "true" &&
+                protyle.contentElement.scrollHeight > 0 &&
+                protyle.contentElement.scrollHeight <= protyle.contentElement.clientHeight) {
+                fetchPost("/api/filetree/getDoc", {
+                    id: protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),
+                    mode: 2,
+                    k: protyle.options.key || "",
+                    size: Constants.SIZE_GET,
+                }, getResponse => {
+                    onGet(getResponse, protyle, [Constants.CB_GET_APPEND, Constants.CB_GET_UNCHANGEID]);
+                });
+            }
         } else {
             updatePanelByEditor(undefined, false);
         }
@@ -352,8 +371,13 @@ export class Wnd {
         }
         let oldFocusIndex = 0;
         this.children.forEach((item, index) => {
-            if (item.headElement?.classList.contains("item--focus")) {
+            if (item.headElement && item.headElement.classList.contains("item--focus")) {
                 oldFocusIndex = index;
+                let nextElement = item.headElement.nextElementSibling;
+                while (nextElement && nextElement.classList.contains("item--pin")) {
+                    oldFocusIndex++;
+                    nextElement = nextElement.nextElementSibling;
+                }
             }
             if (!keepCursor) {
                 item.headElement?.classList.remove("item--focus");
@@ -381,7 +405,7 @@ export class Wnd {
                 event.preventDefault();
             });
         }
-        const containerElement = this.element.querySelector(".layout-tab-container")
+        const containerElement = this.element.querySelector(".layout-tab-container");
         if (!containerElement.querySelector(".fn__flex-1")) {
             // empty center
             containerElement.append(tab.panelElement);
@@ -428,11 +452,6 @@ export class Wnd {
         this.children.find((item, index) => {
             if (item.id === id) {
                 if (this.children.length === 1) {
-                    if (this.children[0].model && this.children[0].model instanceof Editor) {
-                        // 关闭窗口中的最后一个 tab
-                        setPanelFocus(this.headersElement.parentElement);
-                        updatePanelByEditor();
-                    }
                     this.destroyModel(this.children[0].model);
                     this.children = [];
                     if (["top", "bottom", "left", "right"].includes(this.parent.type)) {
@@ -440,6 +459,13 @@ export class Wnd {
                     } else {
                         this.remove();
                     }
+                    getAllModels().editor.forEach(item => {
+                        if (!item.element.classList.contains("fn__none")) {
+                            setPanelFocus(item.parent.parent.headersElement.parentElement);
+                            updatePanelByEditor(item.editor.protyle, true, true);
+                            return;
+                        }
+                    });
                     return;
                 }
                 if (item.headElement) {

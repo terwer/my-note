@@ -91,14 +91,14 @@ export const initFramework = () => {
     });
     initEditorName();
     if (getOpenNotebookCount() > 0) {
-        const id = window.localStorage.getItem(Constants.LOCAL_DOC) || "";
-        fetchPost("/api/block/checkBlockExist", {id}, existResponse => {
+        const localDoc = JSON.parse(window.localStorage.getItem(Constants.LOCAL_DOCINFO) || '{"id": ""}');
+        fetchPost("/api/block/checkBlockExist", {id: localDoc.id}, existResponse => {
             if (existResponse.data) {
-                openMobileFileById(id);
+                openMobileFileById(localDoc.id, localDoc.hasContext, localDoc.action);
             } else {
                 fetchPost("/api/block/getRecentUpdatedBlocks", {}, (response) => {
                     if (response.data.length !== 0) {
-                        openMobileFileById(response.data[0].id);
+                        openMobileFileById(response.data[0].id, true);
                     } else {
                         setEmpty();
                     }
@@ -115,6 +115,7 @@ export const initFramework = () => {
 
 const initEditorName = () => {
     const inputElement = document.getElementById("toolbarName") as HTMLInputElement;
+    inputElement.setAttribute("placeholder", window.siyuan.languages._kernel[16]);
     inputElement.addEventListener("blur", () => {
         if (window.siyuan.config.readonly || document.querySelector("#toolbarEdit use").getAttribute("xlink:href") === "#iconEdit") {
             return;

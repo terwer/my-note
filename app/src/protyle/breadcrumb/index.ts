@@ -30,7 +30,7 @@ export class Breadcrumb {
         const element = document.createElement("div");
         element.className = "protyle-breadcrumb";
         let html = `<div class="protyle-breadcrumb__bar"></div>
-<span class="fn__flex-1 fn__space fn__flex-shrink"></span>
+<span class="fn__space fn__flex-shrink"></span>
 <button class="b3-tooltips b3-tooltips__w block__icon fn__flex-center" style="opacity: 1;" data-menu="true" aria-label="${window.siyuan.languages.more}"><svg><use xlink:href="#iconMore"></use></svg></button>`;
         if (protyle.options.render.breadcrumbContext) {
             html += `<span class="fn__space"></span>
@@ -48,10 +48,6 @@ export class Breadcrumb {
                             openFileById({id, action: [Constants.CB_GET_FOCUS]});
                         }
                     } else {
-                        // const activeElement = this.element.querySelector(".protyle-breadcrumb__item--active")
-                        // if (activeElement) {
-                        //     activeElement.classList.remove("protyle-breadcrumb__item--active");
-                        // }
                         zoomOut(protyle, id);
                     }
                     event.preventDefault();
@@ -110,6 +106,9 @@ export class Breadcrumb {
                 }
             }
         });
+        this.element.addEventListener("mousewheel", (event: WheelEvent) => {
+            this.element.scrollLeft = this.element.scrollLeft + event.deltaY;
+        }, {passive: true});
         /// #if !BROWSER
         if ("windows" !== window.siyuan.config.system.os && "linux" !== window.siyuan.config.system.os) {
             const currentWindow = getCurrentWindow();
@@ -167,6 +166,7 @@ export class Breadcrumb {
                         icon: "iconRecord",
                         label: this.mediaRecorder?.isRecording ? window.siyuan.languages.endRecord : window.siyuan.languages.startRecord,
                         click: () => {
+                            let messageId = "";
                             if (!this.mediaRecorder) {
                                 navigator.mediaDevices.getUserMedia({audio: true}).then((mediaStream: MediaStream) => {
                                     this.mediaRecorder = new RecordMedia(mediaStream);
@@ -181,7 +181,7 @@ export class Breadcrumb {
                                         this.mediaRecorder.cloneChannelData(left, right);
                                     };
                                     this.mediaRecorder.startRecordingNewWavFile();
-                                    showMessage(window.siyuan.languages.recording, 86400000);
+                                    messageId = showMessage(window.siyuan.languages.recording, -1);
                                 }).catch(() => {
                                     showMessage(window.siyuan.languages["record-tip"]);
                                 });
@@ -190,12 +190,13 @@ export class Breadcrumb {
 
                             if (this.mediaRecorder.isRecording) {
                                 this.mediaRecorder.stopRecording();
-                                hideMessage();
+                                hideMessage(messageId);
                                 const file: File = new File([this.mediaRecorder.buildWavFileBlob()],
                                     `record${(new Date()).getTime()}.wav`, {type: "video/webm"});
                                 uploadFiles(protyle, [file]);
                             } else {
-                                showMessage(window.siyuan.languages.recording, 86400000);
+                                hideMessage(messageId);
+                                messageId = showMessage(window.siyuan.languages.recording, -1);
                                 this.mediaRecorder.startRecordingNewWavFile();
                             }
                         }
@@ -330,11 +331,8 @@ export class Breadcrumb {
                 type: "submenu",
                 submenu: editSubmenu
             }).element);
-            /// #if !BROWSER
             window.siyuan.menus.menu.append(exportMd(protyle.block.parentID));
-            /// #endif
             window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
-
             window.siyuan.menus.menu.append(new MenuItem({
                 type: "readonly",
                 label: `<div class="fn__flex">${window.siyuan.languages.docRuneCount}<span class="fn__space fn__flex-1"></span>${response.data.rootBlockRuneCount}</div>
@@ -395,20 +393,21 @@ export class Breadcrumb {
                     html += '<svg class="protyle-breadcrumb__arrow"><use xlink:href="#iconRight"></use></svg>';
                 }
             });
+            this.element.classList.remove("protyle-breadcrumb__bar--nowrap");
             this.element.innerHTML = html;
             const itemElements = Array.from(this.element.querySelectorAll(".protyle-breadcrumb__text"));
             if (itemElements.length === 0) {
                 return;
             }
             let jump = false;
-            while (this.element.scrollHeight > 60 && !jump) {
+            while (this.element.scrollHeight > 30 && !jump) {
                 itemElements.find((item, index) => {
                     if (itemElements.length === 1) {
                         item.classList.add("protyle-breadcrumb__text--ellipsis");
                         jump = true;
                         return true;
                     }
-                    if (index !== 0 && !item.classList.contains("protyle-breadcrumb__text--ellipsis")) {
+                    if (!item.classList.contains("protyle-breadcrumb__text--ellipsis")) {
                         item.classList.add("protyle-breadcrumb__text--ellipsis");
                         return true;
                     }
@@ -416,6 +415,10 @@ export class Breadcrumb {
                         jump = true;
                     }
                 });
+            }
+            this.element.classList.add("protyle-breadcrumb__bar--nowrap");
+            if (this.element.lastElementChild) {
+                this.element.scrollLeft = (this.element.lastElementChild as HTMLElement).offsetLeft - this.element.clientWidth - 8;
             }
         });
     }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -42,7 +43,7 @@ func getCloudSpaceOSS() (sync, backup map[string]interface{}, assetSize int64, e
 	resp, err := request.
 		SetResult(&result).
 		SetBody(map[string]string{"token": Conf.User.UserToken}).
-		Post(util.AliyunServer + "/apis/siyuan/data/getSiYuanWorkspace")
+		Post(util.AliyunServer + "/apis/siyuan/data/getSiYuanWorkspace?uid=" + Conf.User.UserId)
 	if nil != err {
 		util.LogErrorf("get cloud space failed: %s", err)
 		return nil, nil, 0, ErrFailedToConnectCloudServer
@@ -72,7 +73,7 @@ func removeCloudDirPath(dirPath string) (err error) {
 	resp, err := request.
 		SetResult(&result).
 		SetBody(map[string]string{"dirPath": dirPath, "token": Conf.User.UserToken}).
-		Post(util.AliyunServer + "/apis/siyuan/data/removeSiYuanDirPath")
+		Post(util.AliyunServer + "/apis/siyuan/data/removeSiYuanDirPath?uid=" + Conf.User.UserId)
 	if nil != err {
 		util.LogErrorf("create cloud sync dir failed: %s", err)
 		return ErrFailedToConnectCloudServer
@@ -161,7 +162,7 @@ func listCloudSyncDirOSS() (dirs []map[string]interface{}, size int64, err error
 	return
 }
 
-func ossDownload(localDirPath, cloudDirPath string, bootOrExit bool) (fetchedFiles int, transferSize uint64, err error) {
+func ossDownload(localDirPath, cloudDirPath string, bootOrExit bool) (fetchedFilesCount int, transferSize uint64, downloadedFiles map[string]bool, err error) {
 	if !gulu.File.IsExist(localDirPath) {
 		return
 	}
@@ -169,6 +170,25 @@ func ossDownload(localDirPath, cloudDirPath string, bootOrExit bool) (fetchedFil
 	cloudFileList, err := getCloudFileListOSS(cloudDirPath)
 	if nil != err {
 		return
+	}
+
+	if "backup" != cloudDirPath {
+		// 将云端索引文件临时保存一下，后面下载数据时如果部分成功，需要用索引文件恢复部分成功的文件 syncDirUpsertWorkspaceData()
+
+		var data []byte
+		data, err = gulu.JSON.MarshalJSON(cloudFileList)
+		if nil != err {
+			return
+		}
+		tmpSyncDir := filepath.Join(util.TempDir, "sync")
+		err = os.MkdirAll(tmpSyncDir, 0755)
+		if nil != err {
+			return
+		}
+		tmpIndex := filepath.Join(tmpSyncDir, "index.json")
+		if err = os.WriteFile(tmpIndex, data, 0644); nil != err {
+			return
+		}
 	}
 
 	localRemoves, cloudFetches, err := localUpsertRemoveListOSS(localDirPath, cloudFileList)
@@ -186,8 +206,10 @@ func ossDownload(localDirPath, cloudDirPath string, bootOrExit bool) (fetchedFil
 	needPushProgress := 32 < len(cloudFetches)
 	waitGroup := &sync.WaitGroup{}
 	var downloadErr error
+	downloadedFilesLock := sync.Mutex{}
+	downloadedFiles = map[string]bool{}
 	poolSize := 4
-	if poolSize > len(cloudFetches) {
+	if poolSize > len(cloudFetches)-1 /* 不计入 /.siyuan/conf.json，配置文件最后单独下载 */ {
 		poolSize = len(cloudFetches)
 	}
 	p, _ := ants.NewPoolWithFunc(poolSize, func(arg interface{}) {
@@ -195,22 +217,36 @@ func ossDownload(localDirPath, cloudDirPath string, bootOrExit bool) (fetchedFil
 		if nil != downloadErr {
 			return // 快速失败
 		}
+
 		fetch := arg.(string)
-		err = ossDownload0(localDirPath, cloudDirPath, fetch, &fetchedFiles, &transferSize, bootOrExit)
+		err = ossDownload0(localDirPath, cloudDirPath, fetch, &fetchedFilesCount, &transferSize, bootOrExit)
 		if nil != err {
-			downloadErr = err
+			downloadErr = err // 仅记录最后一次错误
 			return
 		}
+		downloadedFilesLock.Lock()
+		downloadedFiles[fetch] = true
+		downloadedFilesLock.Unlock()
+
 		if needPushProgress {
-			msg := fmt.Sprintf(Conf.Language(103), fetchedFiles, len(cloudFetches)-fetchedFiles)
-			util.PushProgress(util.PushProgressCodeProgressed, fetchedFiles, len(cloudFetches), msg)
+			msg := fmt.Sprintf(Conf.Language(103), fetchedFilesCount, len(cloudFetches)-fetchedFilesCount)
+			util.PushProgress(util.PushProgressCodeProgressed, fetchedFilesCount, len(cloudFetches), msg)
 		}
 		if bootOrExit {
-			msg := fmt.Sprintf("Downloading data from the cloud %d/%d", fetchedFiles, len(cloudFetches))
+			msg := fmt.Sprintf("Downloading data from the cloud %d/%d", fetchedFilesCount, len(cloudFetches))
 			util.IncBootProgress(0, msg)
 		}
 	})
 	for _, fetch := range cloudFetches {
+		if "/.siyuan/conf.json" == fetch {
+			// 同步下载可能会报错，为了确保本地数据版本号不变所以不能更新配置文件，配置文件最后单独下载
+			continue
+		}
+		if "/"+pathJSON == fetch {
+			// 已经在前面验证解密的步骤中下载过了，目前位于 temp/sync/pathJSON
+			continue
+		}
+
 		waitGroup.Add(1)
 		p.Invoke(fetch)
 	}
@@ -219,6 +255,13 @@ func ossDownload(localDirPath, cloudDirPath string, bootOrExit bool) (fetchedFil
 	if nil != downloadErr {
 		err = downloadErr
 		return
+	}
+
+	if "backup" != cloudDirPath {
+		err = ossDownload0(localDirPath, cloudDirPath, "/.siyuan/conf.json", &fetchedFilesCount, &transferSize, bootOrExit)
+		if nil != err {
+			return
+		}
 	}
 	if needPushProgress {
 		util.ClearPushProgress(len(cloudFetches))
@@ -304,20 +347,16 @@ func ossDownload0(localDirPath, cloudDirPath, fetch string, fetchedFiles *int, t
 	return
 }
 
-func ossUpload(localDirPath, cloudDirPath, cloudDevice string, boot bool) (wroteFiles int, transferSize uint64, err error) {
+func ossUpload(isBackup bool, localDirPath, cloudDirPath, cloudDevice string, boot bool) (wroteFiles int, transferSize uint64, err error) {
 	if !gulu.File.IsExist(localDirPath) {
 		return
 	}
 
-	var cloudFileList map[string]*CloudIndex
 	localDevice := Conf.System.ID
-	if "" != localDevice && localDevice == cloudDevice {
-		//util.LogInfof("cloud device is the same as local device, get index from local")
-		cloudFileList, err = getLocalFileListOSS(cloudDirPath)
-		if nil != err {
-			util.LogInfof("get local index failed [%s], get index from cloud", err)
-			cloudFileList, err = getCloudFileListOSS(cloudDirPath)
-		}
+	var localFileList, cloudFileList map[string]*CloudIndex
+	if "" != localDevice && localDevice == cloudDevice && !isBackup {
+		// 同一台设备连续上传，使用上一次的本地索引作为云端索引
+		cloudFileList, err = getLocalFileListOSS(isBackup)
 	} else {
 		cloudFileList, err = getCloudFileListOSS(cloudDirPath)
 	}
@@ -325,7 +364,26 @@ func ossUpload(localDirPath, cloudDirPath, cloudDevice string, boot bool) (wrote
 		return
 	}
 
-	localUpserts, cloudRemoves, err := cloudUpsertRemoveListOSS(localDirPath, cloudFileList)
+	calcHash := false
+	if 0 < len(cloudFileList) {
+		if idx := cloudFileList["/index.json"]; nil != idx {
+			calcHash = 0 == idx.Updated
+		}
+	}
+
+	excludes := getSyncExcludedList(localDirPath)
+	localFileList, err = genCloudIndex(localDirPath, excludes, calcHash)
+	if nil != err {
+		return
+	}
+
+	var localUpserts, cloudRemoves []string
+	localUpserts, cloudRemoves, err = cloudUpsertRemoveListOSS(localDirPath, cloudFileList, localFileList, excludes)
+	if nil != err {
+		return
+	}
+
+	err = ossRemove0(cloudDirPath, cloudRemoves)
 	if nil != err {
 		return
 	}
@@ -338,6 +396,7 @@ func ossUpload(localDirPath, cloudDirPath, cloudDevice string, boot bool) (wrote
 	if poolSize > len(localUpserts) {
 		poolSize = len(localUpserts)
 	}
+	msgId := gulu.Rand.String(7)
 	p, _ := ants.NewPoolWithFunc(poolSize, func(arg interface{}) {
 		defer waitGroup.Done()
 		if nil != uploadErr {
@@ -350,20 +409,19 @@ func ossUpload(localDirPath, cloudDirPath, cloudDevice string, boot bool) (wrote
 			return
 		}
 		if needPushProgress {
-			util.PushMsg(fmt.Sprintf(Conf.Language(104), wroteFiles, len(localUpserts)-wroteFiles), 1000*60*10)
+			util.PushUpdateMsg(msgId, fmt.Sprintf(Conf.Language(104), wroteFiles, len(localUpserts)-wroteFiles), 1000*60)
 		}
 		if boot {
 			msg := fmt.Sprintf("Uploading data to the cloud %d/%d", wroteFiles, len(localUpserts))
 			util.IncBootProgress(0, msg)
 		}
 	})
-	var index string
-	localIndex := filepath.Join(localDirPath, "index.json")
+	index := filepath.Join(localDirPath, "index.json")
+	meta := filepath.Join(localDirPath, pathJSON)
 	for _, localUpsert := range localUpserts {
-		if localIndex == localUpsert {
+		if index == localUpsert || meta == localUpsert {
 			// 同步过程中断导致的一致性问题 https://github.com/siyuan-note/siyuan/issues/4912
-			// index 最后单独上传
-			index = localUpsert
+			// index 和路径映射文件最后单独上传
 			continue
 		}
 
@@ -377,17 +435,20 @@ func ossUpload(localDirPath, cloudDirPath, cloudDevice string, boot bool) (wrote
 		return
 	}
 
-	// 单独上传 index
+	// 单独上传 index 和路径映射
 	if uploadErr = ossUpload0(localDirPath, cloudDirPath, index, &wroteFiles, &transferSize); nil != uploadErr {
+		err = uploadErr
+		return
+	}
+	if uploadErr = ossUpload0(localDirPath, cloudDirPath, meta, &wroteFiles, &transferSize); nil != uploadErr {
 		err = uploadErr
 		return
 	}
 
 	if needPushProgress {
 		util.PushMsg(Conf.Language(105), 3000)
+		util.PushClearMsg(msgId)
 	}
-
-	err = ossRemove0(cloudDirPath, cloudRemoves)
 	return
 }
 
@@ -423,6 +484,7 @@ func ossRemove0(cloudDirPath string, removes []string) (err error) {
 func ossUpload0(localDirPath, cloudDirPath, localUpsert string, wroteFiles *int, transferSize *uint64) (err error) {
 	info, statErr := os.Stat(localUpsert)
 	if nil != statErr {
+		util.LogErrorf("stat file [%s] failed: %s", localUpsert, statErr)
 		err = statErr
 		return
 	}
@@ -570,20 +632,25 @@ func getCloudSync(cloudDir string) (assetSize, backupSize int64, device string, 
 	return
 }
 
-func getLocalFileListOSS(dirPath string) (ret map[string]*CloudIndex, err error) {
+func getLocalFileListOSS(isBackup bool) (ret map[string]*CloudIndex, err error) {
+	ret = map[string]*CloudIndex{}
 	dir := "sync"
-	if !strings.HasPrefix(dirPath, "sync") {
+	if isBackup {
 		dir = "backup"
 	}
 
-	data, err := os.ReadFile(filepath.Join(util.WorkspaceDir, dir, "index.json"))
+	localDirPath := filepath.Join(util.WorkspaceDir, dir)
+	indexPath := filepath.Join(localDirPath, "index.json")
+	if !gulu.File.IsExist(indexPath) {
+		return
+	}
+
+	data, err := os.ReadFile(indexPath)
 	if nil != err {
 		return
 	}
 
-	if err = gulu.JSON.UnmarshalJSON(data, &ret); nil != err {
-		return
-	}
+	err = gulu.JSON.UnmarshalJSON(data, &ret)
 	return
 }
 
@@ -658,10 +725,18 @@ func localUpsertRemoveListOSS(localDirPath string, cloudFileList map[string]*Clo
 			return nil
 		}
 
+		if 0 < cloudIdx.Updated {
+			// 优先使用时间戳校验
+			if localModTime := info.ModTime().Unix(); cloudIdx.Updated == localModTime {
+				unchanged[relPath] = true
+			}
+			return nil
+		}
+
 		localHash, hashErr := util.GetEtag(path)
 		if nil != hashErr {
-			util.LogErrorf("get local file [%s] etag failed: %s", path, hashErr)
-			return nil
+			err = hashErr
+			return io.EOF
 		}
 		if cloudIdx.Hash == localHash {
 			unchanged[relPath] = true
@@ -682,42 +757,28 @@ func localUpsertRemoveListOSS(localDirPath string, cloudFileList map[string]*Clo
 	return
 }
 
-func cloudUpsertRemoveListOSS(localDirPath string, cloudFileList map[string]*CloudIndex) (localUpserts, cloudRemoves []string, err error) {
+func cloudUpsertRemoveListOSS(localDirPath string, cloudFileList, localFileList map[string]*CloudIndex, excludes map[string]bool) (localUpserts, cloudRemoves []string, err error) {
 	localUpserts, cloudRemoves = []string{}, []string{}
+
 	unchanged := map[string]bool{}
 	for cloudFile, cloudIdx := range cloudFileList {
-		localCheckPath := filepath.Join(localDirPath, cloudFile)
-		if !gulu.File.IsExist(localCheckPath) {
+		localIdx := localFileList[cloudFile]
+		if nil == localIdx {
 			cloudRemoves = append(cloudRemoves, cloudFile)
 			continue
 		}
-
-		localHash, hashErr := util.GetEtag(localCheckPath)
-		if nil != hashErr {
-			util.LogErrorf("get local file [%s] hash failed: %s", localCheckPath, hashErr)
-			err = hashErr
-			return
+		if 0 < cloudIdx.Updated {
+			// 优先使用时间戳校验
+			if localIdx.Updated == cloudIdx.Updated {
+				unchanged[filepath.Join(localDirPath, cloudFile)] = true
+			}
+			continue
 		}
 
-		if localHash == cloudIdx.Hash {
-			unchanged[localCheckPath] = true
+		if localIdx.Hash == cloudIdx.Hash {
+			unchanged[filepath.Join(localDirPath, cloudFile)] = true
+			continue
 		}
-	}
-
-	syncIgnoreList := getSyncIgnoreList()
-	excludes := map[string]bool{}
-	ignores := syncIgnoreList.Values()
-	for _, p := range ignores {
-		relPath := p.(string)
-		relPath = pathSha246(relPath, "/")
-		relPath = filepath.Join(localDirPath, relPath)
-		excludes[relPath] = true
-	}
-
-	delete(unchanged, filepath.Join(localDirPath, "index.json")) // 同步偶尔报错 `The system cannot find the path specified.` https://github.com/siyuan-note/siyuan/issues/4942
-	err = genCloudIndex(localDirPath, excludes)
-	if nil != err {
-		return
 	}
 
 	filepath.Walk(localDirPath, func(path string, info fs.FileInfo, err error) error {

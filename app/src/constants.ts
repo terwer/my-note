@@ -53,7 +53,7 @@ export abstract class Constants {
     // localstorage
     public static readonly LOCAL_SEARCHEDATA = "local-searchedata";
     public static readonly LOCAL_SEARCHETABDATA = "local-searchetabdata";
-    public static readonly LOCAL_DOC = "local-doc";
+    public static readonly LOCAL_DOCINFO = "local-docinfo";
     public static readonly LOCAL_DAILYNOTEID = "local-dailynoteid";
     public static readonly LOCAL_HISTORYNOTEID = "local-historynoteid";
     public static readonly LOCAL_CODELANG = "local-codelang";
@@ -82,7 +82,7 @@ export abstract class Constants {
     };
 
     // "⌘", "⇧", "⌥", "⌃"
-    // "⌘S", "⌘A", "⌘X", "⌘C", "⌘V", "⌘/", "⌘↑", "⌘↓", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⇧⌘⇥", "⌃⇥", "⌃⌘⇥", "⇧⌘→", "⇧⌘←", "⌘Home", "⌘End", "⇧Enter", "Enter", "PageUp", "PageDown", "⌫", "⌦", "F9" 不可自定义
+    // "⌘S", "⌘A", "⌘X", "⌘C", "⌘V", "⌘/", "⌘↑", "⌘↓", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⇧⌘⇥", "⌃⇥", "⌃⌘⇥", "⇧⌘→", "⇧⌘←", "⌘Home", "⌘End", "⇧↩", "↩", "PageUp", "PageDown", "⌫", "⌦", "F9" 不可自定义
     public static readonly SIYUAN_KEYMAP: IKeymap = {
         general: {
             enterBack: {default: "⌥←", custom: "⌥←"},
@@ -109,6 +109,7 @@ export abstract class Constants {
             toggleWin: {default: "⌥M", custom: "⌥M"},
             lockScreen: {default: "⌥N", custom: "⌥N"},
             move: {default: "", custom: ""},
+            selectOpen1: {default: "", custom: ""},
         },
         editor: {
             general: {
@@ -176,7 +177,7 @@ export abstract class Constants {
             list: {
                 indent: {default: "⇥", custom: "⇥"},
                 outdent: {default: "⇧⇥", custom: "⇧⇥"},
-                checkToggle: {default: "⌘Enter", custom: "⌘Enter"},
+                checkToggle: {default: "⌘↩", custom: "⌘↩"},
             },
             table: {
                 insertRowAbove: {default: "⇧⌘T", custom: "⇧⌘T"},
@@ -287,7 +288,7 @@ export abstract class Constants {
                 hotkeyLangId: "outline",
             }, {
                 type: "inbox",
-                size: {width: 250, height: 0},
+                size: {width: 252, height: 0},
                 show: false,
                 icon: "iconInbox",
                 hotkeyLangId: "inbox",
@@ -338,6 +339,7 @@ export abstract class Constants {
 </svg>`;
     public static readonly SIYUAN_IMAGE_FILE: string = "1f4c4";
     public static readonly SIYUAN_IMAGE_NOTE: string = "1f5c3";
+    public static readonly SIYUAN_IMAGE_FOLDER: string = "1f4d1";
 
     // assets
     public static readonly SIYUAN_ASSETS_IMAGE: string[] = [".apng", ".ico", ".cur", ".jpg", ".jpe", ".jpeg", ".jfif", ".pjp", ".pjpeg", ".png", ".gif", ".webp", ".bmp", ".svg"];
