@@ -37,3 +37,6 @@ lerna-debug.log*
 # package
 package-lock.json
 yarn.lock
+
+# workspace
+workspace/
