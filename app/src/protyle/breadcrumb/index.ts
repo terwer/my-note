@@ -3,7 +3,7 @@ import {fetchPost} from "../../util/fetch";
 import {Constants} from "../../constants";
 import {MenuItem} from "../../menus/Menu";
 import {fullscreen} from "./action";
-import {exportMd} from "../../menus/commonMenuItem";
+import {exportMd, publicMd} from "../../menus/commonMenuItem";
 import {setEditMode} from "../util/setEditMode";
 import {RecordMedia} from "../util/RecordMedia";
 import {hideMessage, showMessage} from "../../dialog/message";
@@ -332,6 +332,7 @@ export class Breadcrumb {
                 submenu: editSubmenu
             }).element);
             window.siyuan.menus.menu.append(exportMd(protyle.block.parentID));
+            window.siyuan.menus.menu.append(publicMd(protyle.block.parentID));
             window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
             window.siyuan.menus.menu.append(new MenuItem({
                 type: "readonly",

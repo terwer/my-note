@@ -680,6 +680,7 @@
   "edit-mode": "Mode Toggle",
   "emoji": "Emoji",
   "export": "Exporter",
+  "publish": "Publication",
   "fileTypeError": "type de fichier est une erreur",
   "fullscreen": "Basculer en plein écran",
   "generate": "Génération en cours",

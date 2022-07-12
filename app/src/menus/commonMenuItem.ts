@@ -8,7 +8,7 @@ import {getSearch, isMobile} from "../util/functions";
 import {getDisplayName, isLocalPath, movePathTo} from "../util/pathName";
 import {MenuItem} from "./Menu";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
-import {saveExport} from "../protyle/export";
+import {publishHTMLContent, publishMdContent, saveExport} from "../protyle/export";
 import {writeText} from "../protyle/util/compatibility";
 import {fetchPost} from "../util/fetch";
 import {hideMessage, showMessage} from "../dialog/message";
@@ -700,6 +700,31 @@ export const exportMd = (id: string) => {
                 }
             }
             /// #endif
+        ]
+    }).element;
+};
+
+export const publicMd = (id: string) => {
+    return new MenuItem({
+        // label: window.siyuan.languages.publish,
+        label: "Publish",
+        type: "submenu",
+        icon: "iconExact",
+        submenu:[
+            {
+                label: "Markdown",
+                icon: "iconMarkdown",
+                click: () => {
+                    publishMdContent(id, undefined);
+                }
+            },
+            {
+                label: "HTML (Markdown)",
+                icon: "iconHTML5",
+                click: () => {
+                    publishHTMLContent({type: "htmlmd", id});
+                }
+            }
         ]
     }).element;
 };

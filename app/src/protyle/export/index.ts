@@ -1,4 +1,4 @@
-import {showMessage} from "../../dialog/message";
+import {hideMessage, showMessage} from "../../dialog/message";
 import {Constants} from "../../constants";
 /// #if !BROWSER
 import {PrintToPDFOptions, SaveDialogReturnValue} from "electron";
@@ -109,6 +109,76 @@ export const saveExport = (option: { type: string, id: string }) => {
     }
     getExportPath(option);
     /// #endif
+};
+
+// publishMdContent
+export const publishMdContent = (id: string, callback: Function) => {
+    fetchPost("/api/block/getBlockInfo", {
+        id: id
+    }, (response) => {
+        const meta = response;
+
+        if (response.code === 2) {
+            // 文件被锁定
+            lockFile(response.data);
+            return;
+        }
+
+        const msgId = showMessage("publishing md...", -1);
+        fetchPost("/api/export/exportMdContent", {
+            id,
+        }, response => {
+            hideMessage(msgId);
+            const content = response.data.content;
+            if (callback) {
+                callback(meta, content);
+            } else {
+                console.log("publishMdContent meta=>", meta);
+                console.log("publishMdContent md=>", content);
+                doPublish(meta, content);
+            }
+        });
+    });
+};
+
+// publishHTMLContent
+export const publishHTMLContent = (option: { type: string, id: string }, pdfOption?: PrintToPDFOptions, removeAssets?: boolean) => {
+    // fetchPost("/api/block/getBlockInfo", {
+    //     id: option.id
+    // }, (response) => {
+    //     console.log("publishHTMLContent getBlockInfo=>", response);
+    //
+    //     if (response.code === 2) {
+    //         // 文件被锁定
+    //         lockFile(response.data);
+    //         return;
+    //     }
+    //
+    //     const msgId = showMessage("publishing html...", -1);
+    //     let url = "/api/export/exportHTML";
+    //     if (option.type === "htmlmd") {
+    //         url = "/api/export/exportMdHTML";
+    //     }
+    //     fetchPost(url, {
+    //         id: option.id,
+    //         pdf: false,
+    //         savePath: ""
+    //     }, exportResponse => {
+    //         const html = onExport(exportResponse, "", option.type, pdfOption, removeAssets, msgId);
+    //         console.log("publishHTMLContent html=>", html);
+    //     });
+    // });
+    publishMdContent(option.id, function (meta: any, content: any) {
+        const html = content;
+        console.log("publishHTMLContent meta=>", meta);
+        console.log("publishHTMLContent md=>", content);
+        doPublish(meta, content);
+    });
+};
+
+const doPublish = (meta: any, content: any) => {
+    console.log("doPublish meta=>", meta);
+    console.log("doPublish content=>", content);
 };
 
 /// #if !BROWSER
@@ -351,9 +421,17 @@ pre code {
             }, Math.min(timeout, 10000));
         });
     } else {
-        const htmlPath = path.join(filePath, "index.html");
-        fs.writeFileSync(htmlPath, html);
-        afterExport(htmlPath, msgId);
+        if (filePath !== "") {
+            const htmlPath = path.join(filePath, "index.html");
+            fs.writeFileSync(htmlPath, html);
+            afterExport(htmlPath, msgId);
+        }else{
+            hideMessage(msgId);
+            return html;
+        }
     }
 };
+
+
+
 /// #endif

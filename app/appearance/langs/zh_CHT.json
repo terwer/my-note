@@ -680,6 +680,7 @@
   "edit-mode": "模式切換",
   "emoji": "表情",
   "export": "匯出",
+  "publish": "發佈",
   "fileTypeError": "檔案類型不允許上傳",
   "fullscreen": "全螢幕切換",
   "generate": "生成中",
