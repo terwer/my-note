@@ -113,7 +113,7 @@ export const saveExport = (option: { type: string, id: string }) => {
 
 // publishMdContent
 export const publishMdContent = (id: string, callback: Function) => {
-    fetchPost("/api/block/getBlockInfo", {
+    fetchPost("/api/attr/getBlockAttrs", {
         id: id
     }, (response) => {
         const meta = response;
@@ -124,7 +124,7 @@ export const publishMdContent = (id: string, callback: Function) => {
             return;
         }
 
-        const msgId = showMessage("publishing md...", -1);
+        const msgId = showMessage("publishing...", -1);
         fetchPost("/api/export/exportMdContent", {
             id,
         }, response => {
@@ -134,8 +134,8 @@ export const publishMdContent = (id: string, callback: Function) => {
                 callback(meta, content);
             } else {
                 console.log("publishMdContent meta=>", meta);
-                console.log("publishMdContent md=>", content);
-                doPublish(meta, content);
+                // console.log("publishMdContent md=>", content);
+                doPublish(id, meta, content);
             }
         });
     });
@@ -171,14 +171,28 @@ export const publishHTMLContent = (option: { type: string, id: string }, pdfOpti
     publishMdContent(option.id, function (meta: any, content: any) {
         const html = content;
         console.log("publishHTMLContent meta=>", meta);
-        console.log("publishHTMLContent md=>", content);
-        doPublish(meta, content);
+        // console.log("publishHTMLContent md=>", content);
+        doPublish(option.id, meta, content);
     });
 };
 
-const doPublish = (meta: any, content: any) => {
-    console.log("doPublish meta=>", meta);
-    console.log("doPublish content=>", content);
+const doPublish = (id: string, meta: any, content: any) => {
+    // 设置自定义属性
+    fetchPost("/api/attr/setBlockAttrs", {
+        "id": id,
+        "attrs": {
+            "custom-slug": "my-post",
+            "custom-conf-post-id": "0",
+            "custom-jvue-post-id": "0",
+            "custom-cnblogs-post-id": "0",
+            "custom-vuepress-slug": "my-post"
+        }
+    }, (response) => {
+        const meta = response;
+
+        console.log("doPublish meta=>", meta);
+        // console.log("doPublish content=>", content);
+    });
 };
 
 /// #if !BROWSER
@@ -431,7 +445,5 @@ pre code {
         }
     }
 };
-
-
 
 /// #endif
