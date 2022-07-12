@@ -358,7 +358,7 @@ export class Breadcrumb {
                 id: protyle.block.parentID
             }, (response) => {
                 const meta = response;
-                console.log("publicMd init menu,meta=>", meta);
+                // console.log("publicMd init menu,meta=>", meta);
 
                 window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
                 window.siyuan.menus.menu.append(publicMd(protyle.block.parentID, meta));

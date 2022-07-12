@@ -16,7 +16,7 @@ export const publishMdContent = (id: string, type: string, meta: any, callback: 
         if (callback) {
             callback(meta, content);
         } else {
-            console.log("publishMdContent meta=>", meta);
+            // console.log("publishMdContent meta=>", meta);
             // console.log("publishMdContent md=>", content);
             doPublish(id, type, meta, content);
         }
@@ -27,7 +27,7 @@ export const publishMdContent = (id: string, type: string, meta: any, callback: 
 export const publishHTMLContent = (id: string, type: string, meta: any) => {
     publishMdContent(id, type, meta, function (meta: any, content: any) {
         const html = content;
-        console.log("publishHTMLContent meta=>", meta);
+        // console.log("publishHTMLContent meta=>", meta);
         // console.log("publishHTMLContent md=>", content);
         doPublish(id, type, meta, content);
     });
