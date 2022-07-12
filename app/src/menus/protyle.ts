@@ -320,7 +320,7 @@ export const zoomOut = (protyle: IProtyle, id: string, focusId?: string, isPushB
     const breadcrumbHLElement = protyle.breadcrumb.element.querySelector(".protyle-breadcrumb__item--active");
     if (breadcrumbHLElement && breadcrumbHLElement.getAttribute("data-node-id") === id) {
         if (id === protyle.block.rootID) {
-            return;1:1
+            return;
         }
         const focusElement = protyle.wysiwyg.element.querySelector(`[data-node-id="${focusId || id}"]`);
         if (focusElement) {
