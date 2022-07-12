@@ -7,7 +7,9 @@ import {getSearch, isMobile} from "../util/functions";
 import {isLocalPath, movePathTo, pathPosix} from "../util/pathName";
 import {MenuItem} from "./Menu";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
-import {publishHTMLContent, publishMdContent, saveExport} from "../protyle/export";
+import {saveExport} from "../protyle/export";
+import {publishHTMLContent, publishMdContent} from "../protyle/publish";
+import PUBLISH_TYPE_CONSTANTS from "../protyle/publish/util";
 import {writeText} from "../protyle/util/compatibility";
 import {fetchPost} from "../util/fetch";
 import {hideMessage, showMessage} from "../dialog/message";
@@ -230,9 +232,9 @@ export const openFileAttr = (attrs: IObject, id: string, focusName = "bookmark")
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
     });
-    (dialog.element.querySelector('.b3-text-field[data-name="bookmark"]') as HTMLInputElement).value = attrs.bookmark || "";
-    (dialog.element.querySelector('.b3-text-field[data-name="name"]') as HTMLInputElement).value = attrs.name || "";
-    (dialog.element.querySelector('.b3-text-field[data-name="alias"]') as HTMLInputElement).value = attrs.alias || "";
+    (dialog.element.querySelector(".b3-text-field[data-name=\"bookmark\"]") as HTMLInputElement).value = attrs.bookmark || "";
+    (dialog.element.querySelector(".b3-text-field[data-name=\"name\"]") as HTMLInputElement).value = attrs.name || "";
+    (dialog.element.querySelector(".b3-text-field[data-name=\"alias\"]") as HTMLInputElement).value = attrs.alias || "";
     const removeAttrs: string[] = [];
     dialog.element.addEventListener("click", (event) => {
         const target = event.target as HTMLElement;
@@ -428,9 +430,9 @@ export const openAttr = (nodeElement: Element, protyle: IProtyle, focusName = "b
                 focusByRange(range);
             }
         });
-        (dialog.element.querySelector('.b3-text-field[data-name="bookmark"]') as HTMLInputElement).value = response.data.bookmark || "";
-        (dialog.element.querySelector('.b3-text-field[data-name="name"]') as HTMLInputElement).value = response.data.name || "";
-        (dialog.element.querySelector('.b3-text-field[data-name="alias"]') as HTMLInputElement).value = response.data.alias || "";
+        (dialog.element.querySelector(".b3-text-field[data-name=\"bookmark\"]") as HTMLInputElement).value = response.data.bookmark || "";
+        (dialog.element.querySelector(".b3-text-field[data-name=\"name\"]") as HTMLInputElement).value = response.data.name || "";
+        (dialog.element.querySelector(".b3-text-field[data-name=\"alias\"]") as HTMLInputElement).value = response.data.alias || "";
         const removeAttrs: string[] = [];
         dialog.element.addEventListener("click", (event) => {
             const target = event.target as HTMLElement;
@@ -651,6 +653,7 @@ export const exportMd = (id: string) => {
                     fetchPost("/api/export/exportMd", {
                         id,
                     }, response => {
+                        // @ts-ignore
                         hideMessage(msgId);
                         if (window.siyuan.config.system.container === "ios") {
                             window.location.href = response.data.zip;
@@ -670,6 +673,7 @@ export const exportMd = (id: string) => {
                     fetchPost("/api/export/exportSY", {
                         id,
                     }, response => {
+                        // @ts-ignore
                         hideMessage(msgId);
                         if (window.siyuan.config.system.container === "ios") {
                             window.location.href = response.data.zip;
@@ -712,59 +716,59 @@ export const exportMd = (id: string) => {
     }).element;
 };
 
-export const publicMd = (id: string) => {
+export const publicMd = (id: string, meta: any) => {
     return new MenuItem({
         label: window.siyuan.languages.publish,
         type: "submenu",
         icon: "iconExact",
-        submenu:[
+        submenu: [
             {
                 label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformConf,
                 icon: "iconMarkdown",
                 click: () => {
-                    publishMdContent(id, undefined);
+                    publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CONFLUENCE, meta, undefined);
                 }
             },
-            // {
-            //     label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformJVue,
-            //     icon: "iconMarkdown",
-            //     click: () => {
-            //         publishMdContent(id, undefined);
-            //     }
-            // },
+            {
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformJVue,
+                icon: "iconMarkdown",
+                click: () => {
+                    publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_JVUE, meta, undefined);
+                }
+            },
             {
                 label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformCnblogs,
                 icon: "iconMarkdown",
                 click: () => {
-                    publishMdContent(id, undefined);
+                    publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta, undefined);
                 }
             },
             {
                 label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWordPress,
                 icon: "iconMarkdown",
                 click: () => {
-                    publishMdContent(id, undefined);
+                    publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS, meta, undefined);
                 }
             },
             {
                 label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformYuque,
                 icon: "iconMarkdown",
                 click: () => {
-                    publishMdContent(id, undefined);
+                    publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta, undefined);
                 }
             },
             {
                 label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWechat,
                 icon: "iconHTML5",
                 click: () => {
-                    publishHTMLContent({type: "htmlmd", id});
+                    publishHTMLContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta);
                 }
             },
             {
                 label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformLiandi,
                 icon: "iconHTML5",
                 click: () => {
-                    publishHTMLContent({type: "htmlmd", id});
+                    publishHTMLContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta);
                 }
             }
         ]

@@ -111,90 +111,6 @@ export const saveExport = (option: { type: string, id: string }) => {
     /// #endif
 };
 
-// publishMdContent
-export const publishMdContent = (id: string, callback: Function) => {
-    fetchPost("/api/attr/getBlockAttrs", {
-        id: id
-    }, (response) => {
-        const meta = response;
-
-        if (response.code === 2) {
-            // 文件被锁定
-            lockFile(response.data);
-            return;
-        }
-
-        const msgId = showMessage("publishing...", -1);
-        fetchPost("/api/export/exportMdContent", {
-            id,
-        }, response => {
-            hideMessage(msgId);
-            const content = response.data.content;
-            if (callback) {
-                callback(meta, content);
-            } else {
-                console.log("publishMdContent meta=>", meta);
-                // console.log("publishMdContent md=>", content);
-                doPublish(id, meta, content);
-            }
-        });
-    });
-};
-
-// publishHTMLContent
-export const publishHTMLContent = (option: { type: string, id: string }, pdfOption?: PrintToPDFOptions, removeAssets?: boolean) => {
-    // fetchPost("/api/block/getBlockInfo", {
-    //     id: option.id
-    // }, (response) => {
-    //     console.log("publishHTMLContent getBlockInfo=>", response);
-    //
-    //     if (response.code === 2) {
-    //         // 文件被锁定
-    //         lockFile(response.data);
-    //         return;
-    //     }
-    //
-    //     const msgId = showMessage("publishing html...", -1);
-    //     let url = "/api/export/exportHTML";
-    //     if (option.type === "htmlmd") {
-    //         url = "/api/export/exportMdHTML";
-    //     }
-    //     fetchPost(url, {
-    //         id: option.id,
-    //         pdf: false,
-    //         savePath: ""
-    //     }, exportResponse => {
-    //         const html = onExport(exportResponse, "", option.type, pdfOption, removeAssets, msgId);
-    //         console.log("publishHTMLContent html=>", html);
-    //     });
-    // });
-    publishMdContent(option.id, function (meta: any, content: any) {
-        const html = content;
-        console.log("publishHTMLContent meta=>", meta);
-        // console.log("publishHTMLContent md=>", content);
-        doPublish(option.id, meta, content);
-    });
-};
-
-const doPublish = (id: string, meta: any, content: any) => {
-    // 设置自定义属性
-    fetchPost("/api/attr/setBlockAttrs", {
-        "id": id,
-        "attrs": {
-            "custom-slug": "my-post",
-            "custom-conf-post-id": "0",
-            "custom-jvue-post-id": "0",
-            "custom-cnblogs-post-id": "0",
-            "custom-vuepress-slug": "my-post"
-        }
-    }, (response) => {
-        const meta = response;
-
-        console.log("doPublish meta=>", meta);
-        // console.log("doPublish content=>", content);
-    });
-};
-
 /// #if !BROWSER
 const getExportPath = (option: { type: string, id: string }, pdfOption?: PrintToPDFOptions, removeAssets?: boolean) => {
     fetchPost("/api/block/getBlockInfo", {
@@ -223,8 +139,10 @@ const getExportPath = (option: { type: string, id: string }, pdfOption?: PrintTo
                     savePath: result.filePath
                 }, exportResponse => {
                     if (option.type === "word") {
+                        // @ts-ignore
                         afterExport(result.filePath, msgId);
                     } else {
+                        // @ts-ignore
                         onExport(exportResponse, result.filePath, option.type, pdfOption, removeAssets, msgId);
                     }
                 });
@@ -402,6 +320,7 @@ pre code {
                             id: data.data.id,
                             path: pdfFilePath
                         }, () => {
+                            // @ts-ignore
                             afterExport(pdfFilePath, msgId);
                             if (removeAssets) {
                                 const removePromise = (dir: string) => {
@@ -426,10 +345,12 @@ pre code {
                         });
                         win.destroy();
                     }).catch((error: string) => {
+                        // @ts-ignore
                         showMessage("Export PDF error:" + error, 0, "error", msgId);
                         win.destroy();
                     });
                 } catch (e) {
+                    // @ts-ignore
                     showMessage("Export PDF error:" + e + ". Export HTML and use Chrome's printing function to convert to PDF", 0, "error", msgId);
                 }
             }, Math.min(timeout, 10000));
@@ -438,8 +359,10 @@ pre code {
         if (filePath !== "") {
             const htmlPath = path.join(filePath, "index.html");
             fs.writeFileSync(htmlPath, html);
+            // @ts-ignore
             afterExport(htmlPath, msgId);
         }else{
+            // @ts-ignore
             hideMessage(msgId);
             return html;
         }

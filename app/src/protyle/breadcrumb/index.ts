@@ -139,7 +139,7 @@ export class Breadcrumb {
             if (!protyle.contentElement.classList.contains("fn__none")) {
                 let uploadHTML = "";
                 if (!protyle.disabled) {
-                    uploadHTML = '<input class="b3-form__upload" type="file" multiple="multiple"';
+                    uploadHTML = "<input class=\"b3-form__upload\" type=\"file\" multiple=\"multiple\"";
                     if (protyle.options.upload.accept) {
                         uploadHTML += ` accept="${protyle.options.upload.accept}">`;
                     } else {
@@ -343,16 +343,32 @@ export class Breadcrumb {
                 submenu: editSubmenu
             }).element);
             window.siyuan.menus.menu.append(exportMd(protyle.block.parentID));
-            window.siyuan.menus.menu.append(publicMd(protyle.block.parentID));
-            window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
-            window.siyuan.menus.menu.append(new MenuItem({
+
+            // 字数统计菜单
+            const wordMenu = new MenuItem({
                 type: "readonly",
                 label: `<div class="fn__flex">${window.siyuan.languages.docRuneCount}<span class="fn__space fn__flex-1"></span>${response.data.rootBlockRuneCount}</div>
 <div class="fn__flex">${window.siyuan.languages.docWordCount}<span class="fn__space fn__flex-1"></span>${response.data.rootBlockWordCount}</div>
 <div class="fn__flex">${window.siyuan.languages.blockRuneCount}<span class="fn__space fn__flex-1"></span>${response.data.blockRuneCount}</div>
 <div class="fn__flex">${window.siyuan.languages.blockWordCount}<span class="fn__space fn__flex-1"></span>${response.data.blockWordCount}</div>`,
-            }).element);
-            window.siyuan.menus.menu.popup(position);
+            }).element;
+
+            // 先获取发布状态，再生成发布按钮
+            fetchPost("/api/attr/getBlockAttrs", {
+                id: protyle.block.parentID
+            }, (response) => {
+                const meta = response;
+                console.log("publicMd init menu,meta=>", meta);
+
+                window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
+                window.siyuan.menus.menu.append(publicMd(protyle.block.parentID, meta));
+
+                // 字数统计放到后面
+                window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
+                window.siyuan.menus.menu.append(wordMenu);
+
+                window.siyuan.menus.menu.popup(position);
+            });
         });
     }
 
@@ -402,7 +418,7 @@ export class Breadcrumb {
 </span>`;
                 }
                 if (index !== response.data.length - 1) {
-                    html += '<svg class="protyle-breadcrumb__arrow"><use xlink:href="#iconRight"></use></svg>';
+                    html += "<svg class=\"protyle-breadcrumb__arrow\"><use xlink:href=\"#iconRight\"></use></svg>";
                 }
             });
             this.element.classList.remove("protyle-breadcrumb__bar--nowrap");
