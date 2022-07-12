@@ -706,20 +706,54 @@ export const exportMd = (id: string) => {
 
 export const publicMd = (id: string) => {
     return new MenuItem({
-        // label: window.siyuan.languages.publish,
-        label: "Publish",
+        label: window.siyuan.languages.publish,
         type: "submenu",
         icon: "iconExact",
         submenu:[
             {
-                label: "Markdown",
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformConf,
+                icon: "iconMarkdown",
+                click: () => {
+                    publishMdContent(id, undefined);
+                }
+            },
+            // {
+            //     label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformJVue,
+            //     icon: "iconMarkdown",
+            //     click: () => {
+            //         publishMdContent(id, undefined);
+            //     }
+            // },
+            {
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformCnblogs,
                 icon: "iconMarkdown",
                 click: () => {
                     publishMdContent(id, undefined);
                 }
             },
             {
-                label: "HTML (Markdown)",
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWordPress,
+                icon: "iconMarkdown",
+                click: () => {
+                    publishMdContent(id, undefined);
+                }
+            },
+            {
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformYuque,
+                icon: "iconMarkdown",
+                click: () => {
+                    publishMdContent(id, undefined);
+                }
+            },
+            {
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWechat,
+                icon: "iconHTML5",
+                click: () => {
+                    publishHTMLContent({type: "htmlmd", id});
+                }
+            },
+            {
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformLiandi,
                 icon: "iconHTML5",
                 click: () => {
                     publishHTMLContent({type: "htmlmd", id});
