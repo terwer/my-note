@@ -320,7 +320,7 @@ export const zoomOut = (protyle: IProtyle, id: string, focusId?: string, isPushB
     const breadcrumbHLElement = protyle.breadcrumb.element.querySelector(".protyle-breadcrumb__item--active");
     if (breadcrumbHLElement && breadcrumbHLElement.getAttribute("data-node-id") === id) {
         if (id === protyle.block.rootID) {
-            return;
+            return;1:1
         }
         const focusElement = protyle.wysiwyg.element.querySelector(`[data-node-id="${focusId || id}"]`);
         if (focusElement) {
@@ -330,6 +330,7 @@ export const zoomOut = (protyle: IProtyle, id: string, focusId?: string, isPushB
         }
     }
     if (window.siyuan.mobileEditor) {
+        // @ts-ignore
         window.localStorage.setItem(Constants.LOCAL_DOCINFO, JSON.stringify({
             id,
             hasContext: id === protyle.block.rootID,
@@ -847,6 +848,7 @@ export const tableMenu = (protyle: IProtyle, nodeElement: Element, cellElement: 
         accelerator: window.siyuan.config.keymap.editor.general.alignLeft.custom,
         label: window.siyuan.languages.alignLeft,
         click: () => {
+            // @ts-ignore
             setTableAlign(protyle, [cellElement], nodeElement, "left", range);
         }
     });
@@ -855,6 +857,7 @@ export const tableMenu = (protyle: IProtyle, nodeElement: Element, cellElement: 
         label: window.siyuan.languages.alignCenter,
         accelerator: window.siyuan.config.keymap.editor.general.alignCenter.custom,
         click: () => {
+            // @ts-ignore
             setTableAlign(protyle, [cellElement], nodeElement, "center", range);
         }
     });
@@ -863,6 +866,7 @@ export const tableMenu = (protyle: IProtyle, nodeElement: Element, cellElement: 
         label: window.siyuan.languages.alignRight,
         accelerator: window.siyuan.config.keymap.editor.general.alignRight.custom,
         click: () => {
+            // @ts-ignore
             setTableAlign(protyle, [cellElement], nodeElement, "right", range);
         }
     });
