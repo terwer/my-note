@@ -157,7 +157,17 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    box-sizing: border-box
+    box-sizing: border-box;
+    border-radius: 0 0 4px 4px;
+    overflow: hidden;
+
+    .b3-chip--secondary {
+      padding: 0 8px;
+      display: inline;
+      margin-right: 8px;
+      font-size: 12px;
+      line-height: 16px;
+    }
   }
 
   &__repoheader {
@@ -165,6 +175,7 @@
 
     .block__icon {
       opacity: 1;
+      z-index: 1;
     }
   }
 }

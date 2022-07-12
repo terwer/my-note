@@ -93,6 +93,11 @@ func getDocInfo(c *gin.Context) {
 
 	id := arg["id"].(string)
 	info := model.GetDocInfo(id)
+	if nil == info {
+		ret.Code = -1
+		ret.Msg = fmt.Sprintf(model.Conf.Language(15), id)
+		return
+	}
 	ret.Data = info
 }
 
@@ -102,6 +107,44 @@ func getRecentUpdatedBlocks(c *gin.Context) {
 
 	blocks := model.RecentUpdatedBlocks()
 	ret.Data = blocks
+}
+
+func getContentWordCount(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	content := arg["content"].(string)
+	runeCount, wordCount := model.ContentWordCount(content)
+	ret.Data = map[string]interface{}{
+		"runeCount": runeCount,
+		"wordCount": wordCount,
+	}
+}
+
+func getBlocksWordCount(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	idsArg := arg["ids"].([]interface{})
+	var ids []string
+	for _, id := range idsArg {
+		ids = append(ids, id.(string))
+	}
+	runeCount, wordCount := model.BlocksWordCount(ids)
+	ret.Data = map[string]interface{}{
+		"runeCount": runeCount,
+		"wordCount": wordCount,
+	}
 }
 
 func getBlockWordCount(c *gin.Context) {
@@ -228,7 +271,7 @@ func getBlockInfo(c *gin.Context) {
 		return
 	}
 	if nil == block {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = fmt.Sprintf(model.Conf.Language(15), id)
 		return
 	}
@@ -279,5 +322,22 @@ func getBlockDOM(c *gin.Context) {
 	ret.Data = map[string]string{
 		"id":  id,
 		"dom": dom,
+	}
+}
+
+func getBlockKramdown(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	id := arg["id"].(string)
+	kramdown := model.GetBlockKramdown(id)
+	ret.Data = map[string]string{
+		"id":       id,
+		"kramdown": kramdown,
 	}
 }

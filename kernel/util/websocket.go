@@ -18,6 +18,7 @@ package util
 
 import (
 	"sync"
+	"time"
 
 	"github.com/88250/gulu"
 	"github.com/88250/melody"
@@ -142,6 +143,11 @@ func PushErrMsg(msg string, timeout int) (msgId string) {
 	msgId = gulu.Rand.String(7)
 	BroadcastByType("main", "msg", -1, msg, map[string]interface{}{"id": msgId, "closeTimeout": timeout})
 	return
+}
+
+func PushStatusBar(msg string) {
+	msg += " (" + time.Now().Format("2006-01-02 15:04:05") + ")"
+	BroadcastByType("main", "statusbar", 0, msg, nil)
 }
 
 const (

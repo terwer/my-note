@@ -59,9 +59,7 @@ func RemoveCloudBackup() (err error) {
 }
 
 func getCloudAvailableBackupSize() (size int64, err error) {
-	var sync map[string]interface{}
-	var assetSize int64
-	sync, _, assetSize, err = getCloudSpaceOSS()
+	sync, _, assetSize, err := getCloudSpaceOSS()
 	if nil != err {
 		return
 	}
@@ -75,11 +73,10 @@ func getCloudAvailableBackupSize() (size int64, err error) {
 }
 
 func GetCloudSpace() (s *Sync, b *Backup, hSize, hAssetSize, hTotalSize string, err error) {
-	var sync, backup map[string]interface{}
-	var assetSize int64
-	sync, backup, assetSize, err = getCloudSpaceOSS()
+	sync, backup, assetSize, err := getCloudSpaceOSS()
 	if nil != err {
-		return nil, nil, "", "", "", errors.New(Conf.Language(30) + " " + err.Error())
+		err = errors.New(Conf.Language(30) + " " + err.Error())
+		return
 	}
 
 	var totalSize, syncSize, backupSize int64

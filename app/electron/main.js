@@ -180,8 +180,7 @@ const boot = () => {
   })
 
   require('@electron/remote/main').enable(mainWindow.webContents)
-  mainWindow.webContents.userAgent = 'SiYuan/' + appVer +
-    ' https://b3log.org/siyuan ' + mainWindow.webContents.userAgent
+  mainWindow.webContents.userAgent = 'SiYuan/' + appVer + ' https://b3log.org/siyuan Electron'
   mainWindow.webContents.on('did-finish-load', () => {
     if ('win32' === process.platform || 'linux' === process.platform) {
       siyuanOpenURL = process.argv.find((arg) => arg.startsWith('siyuan://'))
@@ -220,9 +219,8 @@ const boot = () => {
   })
 
   // 加载主界面
-  const loadURL = 'http://127.0.0.1:6806/stage/build/app/index.html?v=' +
-    new Date().getTime()
-  mainWindow.loadURL(loadURL)
+  mainWindow.loadURL('http://127.0.0.1:6806/stage/build/app/index.html?v=' +
+    new Date().getTime())
 
   // 菜单
   const productName = 'SiYuan'

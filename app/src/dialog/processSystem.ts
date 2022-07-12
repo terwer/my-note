@@ -3,11 +3,11 @@ import {fetchPost} from "../util/fetch";
 /// #if !MOBILE
 import {getAllModels} from "../layout/getAll";
 import {ipcRenderer} from "electron";
+import {exportLayout} from "../layout/util";
 /// #endif
 import {showMessage} from "./message";
 import {Dialog} from "./index";
 import {isMobile} from "../util/functions";
-import {exportLayout} from "../layout/util";
 
 export const lockFile = (id: string) => {
     const html = `<div class="b3-dialog__scrim"></div>
@@ -35,10 +35,10 @@ export const lockFile = (id: string) => {
         getAllModels().editor.find((item) => {
             if (item.editor.protyle.block.rootID === id) {
                 item.parent.parent.removeTab(item.parent.id);
-                logElement.remove();
                 return true;
             }
         });
+        logElement.remove();
         /// #endif
     });
     logElement.querySelector(".b3-button--text").addEventListener("click", () => {
@@ -134,14 +134,21 @@ export const transactionError = (data: { code: number, data: string }) => {
     });
     const btnsElement = dialog.element.querySelectorAll(".b3-button");
     btnsElement[0].addEventListener("click", () => {
+        /// #if MOBILE
+        exitSiYuan();
+        /// #else
         exportLayout(false, () => {
             exitSiYuan();
         });
+        /// #endif
     });
     btnsElement[1].addEventListener("click", () => {
-        dialog.destroy();
         fetchPost("/api/filetree/refreshFiletree", {});
     });
+};
+
+export const progressStatus = (data: IWebSocketData) => {
+    document.querySelector("#status .status__msg").innerHTML = data.msg;
 };
 
 export const progressLoading = (data: IWebSocketData) => {

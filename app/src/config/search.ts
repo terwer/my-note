@@ -11,14 +11,14 @@ const getLang = (keys: string[]) => {
 export const initConfigSearch = (element: HTMLElement) => {
     const configIndex = [
         // 编辑器
-        getLang(["config",
+        getLang(["config", "fullWidth",
             "editor", "md2", "md3", "md12", "md16", "md27", "md28", "md29", "md30", "md31", "md32", "md33", "md34", "md39",
             "fontSizeTip", "fontSize", "font", "font1", "generateHistory", "generateHistoryInterval",
             "historyRetentionDays", "historyRetentionDaysTip", "clearHistory"
         ]),
 
         // 文档树
-        getLang(["selectOpen", "fileTree", "fileTree2", "fileTree3", "fileTree4",
+        getLang(["selectOpen", "tabLimit", "fileTree", "fileTree2", "fileTree3", "fileTree4",
             "fileTree5", "fileTree6", "fileTree7", "fileTree8", "fileTree12", "fileTree13", "fileTree15", "fileTree16", "fileTree17"]),
 
         // 图片

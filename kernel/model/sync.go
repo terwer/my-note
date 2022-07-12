@@ -34,8 +34,8 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/dustin/go-humanize"
-	"github.com/emirpasic/gods/sets/hashset"
-	"github.com/mattn/go-zglob"
+	gitignore "github.com/sabhiram/go-gitignore"
+	"github.com/siyuan-note/dejavu"
 	"github.com/siyuan-note/encryption"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/cache"
@@ -49,8 +49,7 @@ var (
 	syncSameCount        = 0
 	syncDownloadErrCount = 0
 	fixSyncInterval      = 5 * time.Minute
-	syncInterval         = fixSyncInterval
-	syncPlanTime         = time.Now().Add(syncInterval)
+	syncPlanTime         = time.Now().Add(fixSyncInterval)
 
 	BootSyncSucc = -1 // -1：未执行，0：执行成功，1：执行失败
 	ExitSyncSucc = -1
@@ -61,7 +60,6 @@ func AutoSync() {
 		time.Sleep(5 * time.Second)
 		if time.Now().After(syncPlanTime) {
 			SyncData(false, false, false)
-			syncPlanTime = time.Now().Add(syncInterval)
 		}
 	}
 }
@@ -74,8 +72,8 @@ func SyncData(boot, exit, byHand bool) {
 	}
 
 	if util.IsMutexLocked(&syncLock) {
-		util.LogWarnf("sync has been locked")
-		syncInterval = 30 * time.Second
+		util.LogWarnf("sync is in progress")
+		planSyncAfter(30 * time.Second)
 		return
 	}
 
@@ -86,7 +84,7 @@ func SyncData(boot, exit, byHand bool) {
 	if exit {
 		ExitSyncSucc = 0
 	}
-	if !IsSubscriber() || !Conf.Sync.Enabled || "" == Conf.Sync.CloudName || "" == Conf.E2EEPasswd {
+	if !IsSubscriber() || !Conf.Sync.Enabled || "" == Conf.Sync.CloudName || ("" == Conf.E2EEPasswd && !Conf.Sync.UseDataRepo) {
 		if byHand {
 			if "" == Conf.Sync.CloudName {
 				util.PushMsg(Conf.Language(123), 5000)
@@ -114,7 +112,7 @@ func SyncData(boot, exit, byHand bool) {
 	if 7 < syncDownloadErrCount && !byHand {
 		util.LogErrorf("sync download error too many times, cancel auto sync, try to sync by hand")
 		util.PushErrMsg(Conf.Language(125), 1000*60*60)
-		syncInterval = 64 * time.Minute
+		planSyncAfter(64 * time.Minute)
 		return
 	}
 
@@ -130,8 +128,14 @@ func SyncData(boot, exit, byHand bool) {
 		util.BroadcastByType("main", "syncing", 1, msg, nil)
 	}()
 
+	Conf.Sync.Stat = Conf.Language(133)
 	syncLock.Lock()
 	defer syncLock.Unlock()
+
+	if Conf.Sync.UseDataRepo {
+		syncRepo(boot, exit, byHand)
+		return
+	}
 
 	WaitForWritingFiles()
 	writingDataLock.Lock()
@@ -150,9 +154,6 @@ func SyncData(boot, exit, byHand bool) {
 		writingDataLock.Unlock()
 		return
 	}
-
-	// 创建数据快照 https://github.com/siyuan-note/siyuan/issues/5161
-	indexRepoBeforeCloudSync()
 
 	// 获取工作空间数据配置（数据版本）
 	dataConf, err := getWorkspaceDataConf()
@@ -194,11 +195,11 @@ func SyncData(boot, exit, byHand bool) {
 			syncSameCount = 5
 		}
 		if !byHand {
-			syncInterval = time.Minute * time.Duration(int(math.Pow(2, float64(syncSameCount))))
-			if fixSyncInterval.Minutes() > syncInterval.Minutes() {
-				syncInterval = time.Minute * 8
+			delay := time.Minute * time.Duration(int(math.Pow(2, float64(syncSameCount))))
+			if fixSyncInterval.Minutes() > delay.Minutes() {
+				delay = time.Minute * 8
 			}
-			util.LogInfof("set sync interval to [%dm]", int(syncInterval.Minutes()))
+			planSyncAfter(delay)
 		}
 
 		Conf.Sync.Stat = Conf.Language(133)
@@ -277,7 +278,7 @@ func SyncData(boot, exit, byHand bool) {
 		BootSyncSucc = 0
 		ExitSyncSucc = 0
 		if !byHand {
-			syncInterval = fixSyncInterval
+			planSyncAfter(fixSyncInterval)
 		}
 		return
 	}
@@ -392,82 +393,25 @@ func SyncData(boot, exit, byHand bool) {
 	BootSyncSucc = 0
 	ExitSyncSucc = 0
 	if !byHand {
-		syncInterval = fixSyncInterval
+		planSyncAfter(fixSyncInterval)
 	}
 
 	if boot && gulu.File.IsExist(util.BlockTreePath) {
 		// 在 blocktree 存在的情况下不会重建索引，所以这里需要刷新 blocktree 和 database
-
-		if err = treenode.ReadBlockTree(); nil != err {
-			os.RemoveAll(util.BlockTreePath)
-			util.LogWarnf("removed block tree [%s] due to %s", util.BlockTreePath, err)
-			return
-		}
-
-		for _, upsertFile := range upsertFiles {
-			if !strings.HasSuffix(upsertFile, ".sy") {
-				continue
-			}
-
-			upsertFile = filepath.ToSlash(upsertFile)
-			box := upsertFile[:strings.Index(upsertFile, "/")]
-			p := strings.TrimPrefix(upsertFile, box)
-			tree, err0 := LoadTree(box, p)
-			if nil != err0 {
-				continue
-			}
-			treenode.ReindexBlockTree(tree)
-			sql.UpsertTreeQueue(tree)
-		}
-		for _, removeFile := range removeFiles {
-			if !strings.HasSuffix(removeFile, ".sy") {
-				continue
-			}
-			id := strings.TrimSuffix(filepath.Base(removeFile), ".sy")
-			block := treenode.GetBlockTree(id)
-			if nil != block {
-				treenode.RemoveBlockTreesByRootID(block.RootID)
-				sql.RemoveTreeQueue(block.BoxID, block.RootID)
-			}
-		}
+		treenode.InitBlockTree()
+		incReindex(upsertFiles, removeFiles)
+		return
 	}
 
 	if !boot && !exit {
-		// 增量索引
-		for _, upsertFile := range upsertFiles {
-			if !strings.HasSuffix(upsertFile, ".sy") {
-				continue
-			}
-
-			upsertFile = filepath.ToSlash(upsertFile)
-			box := upsertFile[:strings.Index(upsertFile, "/")]
-			p := strings.TrimPrefix(upsertFile, box)
-			tree, err0 := LoadTree(box, p)
-			if nil != err0 {
-				continue
-			}
-			treenode.ReindexBlockTree(tree)
-			sql.UpsertTreeQueue(tree)
-			//util.LogInfof("sync index tree [%s]", tree.ID)
-		}
-		for _, removeFile := range removeFiles {
-			if !strings.HasSuffix(removeFile, ".sy") {
-				continue
-			}
-			id := strings.TrimSuffix(filepath.Base(removeFile), ".sy")
-			block := treenode.GetBlockTree(id)
-			if nil != block {
-				treenode.RemoveBlockTreesByRootID(block.RootID)
-				sql.RemoveTreeQueue(block.BoxID, block.RootID)
-				//util.LogInfof("sync remove tree [%s]", block.RootID)
-			}
-		}
+		incReindex(upsertFiles, removeFiles)
 		cache.ClearDocsIAL() // 同步后文档树文档图标没有更新 https://github.com/siyuan-note/siyuan/issues/4939
 		util.ReloadUI()
 	}
 	return
 }
 
+// TODO: 新版同步上线后移除
 // 清理 dir 下符合 ID 规则的空文件夹。
 // 因为是深度遍历，所以可能会清理不完全空文件夹，每次遍历仅能清理叶子节点。但是多次调用后，可以清理完全。
 func clearEmptyDirs(dir string) {
@@ -491,6 +435,63 @@ func clearEmptyDirs(dir string) {
 	}
 }
 
+// incReindex 增量重建索引。
+func incReindex(upserts, removes []string) {
+	needPushUpsertProgress := 32 < len(upserts)
+	needPushRemoveProgress := 32 < len(removes)
+
+	for _, upsertFile := range upserts {
+		if !strings.HasSuffix(upsertFile, ".sy") {
+			continue
+		}
+
+		upsertFile = filepath.ToSlash(upsertFile)
+		if strings.HasPrefix(upsertFile, "/") {
+			upsertFile = upsertFile[1:]
+		}
+		idx := strings.Index(upsertFile, "/")
+		if 0 > idx {
+			// .sy 直接出现在 data 文件夹下，没有出现在笔记本文件夹下的情况
+			continue
+		}
+
+		box := upsertFile[:idx]
+		p := strings.TrimPrefix(upsertFile, box)
+		tree, err0 := LoadTree(box, p)
+		if nil != err0 {
+			continue
+		}
+		treenode.ReindexBlockTree(tree)
+		sql.UpsertTreeQueue(tree)
+		msg := fmt.Sprintf("Sync reindex tree [%s]", tree.ID)
+		util.PushStatusBar(msg)
+		if needPushUpsertProgress {
+			util.PushEndlessProgress(msg)
+		}
+	}
+	for _, removeFile := range removes {
+		if !strings.HasSuffix(removeFile, ".sy") {
+			continue
+		}
+
+		id := strings.TrimSuffix(filepath.Base(removeFile), ".sy")
+		block := treenode.GetBlockTree(id)
+		if nil != block {
+			treenode.RemoveBlockTreesByRootID(block.RootID)
+			sql.RemoveTreeQueue(block.BoxID, block.RootID)
+			msg := fmt.Sprintf("Sync remove tree [%s]", block.RootID)
+			util.PushStatusBar(msg)
+			if needPushRemoveProgress {
+				util.PushEndlessProgress(msg)
+			}
+		}
+	}
+
+	if needPushRemoveProgress || needPushUpsertProgress {
+		util.PushClearProgress()
+	}
+}
+
 func SetCloudSyncDir(name string) {
 	if Conf.Sync.CloudName == name {
 		return
@@ -508,6 +509,15 @@ func SetSyncEnable(b bool) (err error) {
 	defer syncLock.Unlock()
 
 	Conf.Sync.Enabled = b
+	Conf.Save()
+	return
+}
+
+func SetSyncUseDataRepo(b bool) (err error) {
+	syncLock.Lock()
+	defer syncLock.Unlock()
+
+	Conf.Sync.UseDataRepo = b
 	Conf.Save()
 	return
 }
@@ -1147,9 +1157,16 @@ func CreateCloudSyncDir(name string) (err error) {
 		return errors.New(Conf.Language(37))
 	}
 
-	err = createCloudSyncDirOSS(name)
-	if nil != err {
-		return
+	if Conf.Sync.UseDataRepo {
+		var cloudInfo *dejavu.CloudInfo
+		cloudInfo, err = buildCloudInfo()
+		if nil != err {
+			return
+		}
+
+		err = dejavu.CreateCloudRepo(name, cloudInfo)
+	} else {
+		err = createCloudSyncDirOSS(name)
 	}
 	return
 }
@@ -1162,22 +1179,49 @@ func RemoveCloudSyncDir(name string) (err error) {
 		return
 	}
 
-	err = removeCloudDirPath("sync/" + name)
+	if Conf.Sync.UseDataRepo {
+		var cloudInfo *dejavu.CloudInfo
+		cloudInfo, err = buildCloudInfo()
+		if nil != err {
+			return
+		}
+
+		err = dejavu.RemoveCloudRepo(name, cloudInfo)
+	} else {
+		err = removeCloudDirPath("sync/" + name)
+	}
+
 	if nil != err {
 		return
 	}
 
 	if Conf.Sync.CloudName == name {
-		Conf.Sync.CloudName = ""
+		Conf.Sync.CloudName = "main"
 		Conf.Save()
+		util.PushMsg(Conf.Language(155), 5000)
 	}
 	return
 }
 
 func ListCloudSyncDir() (syncDirs []*Sync, hSize string, err error) {
 	syncDirs = []*Sync{}
+	var dirs []map[string]interface{}
+	var size int64
+	if Conf.Sync.UseDataRepo {
+		var cloudInfo *dejavu.CloudInfo
+		cloudInfo, err = buildCloudInfo()
+		if nil != err {
+			return
+		}
 
-	dirs, size, err := listCloudSyncDirOSS()
+		dirs, size, err = dejavu.GetCloudRepos(cloudInfo)
+	} else {
+		dirs, size, err = listCloudSyncDirOSS()
+	}
+	if nil != err {
+		return
+	}
+
 	for _, d := range dirs {
 		dirSize := int64(d["size"].(float64))
 		syncDirs = append(syncDirs, &Sync{
@@ -1222,13 +1266,15 @@ func formatErrorMsg(err error) string {
 		msg = Conf.Language(33)
 	} else if strings.Contains(msg, "Device or resource busy") {
 		msg = Conf.Language(85)
+	} else if strings.Contains(msg, "cipher: message authentication failed") {
+		msg = Conf.Language(172)
 	}
 	msg = msg + " v" + util.Ver
 	return msg
 }
 
 func IsValidCloudDirName(cloudDirName string) bool {
-	if 16 < utf8.RuneCountInString(cloudDirName) {
+	if 16 < utf8.RuneCountInString(cloudDirName) || 1 > utf8.RuneCountInString(cloudDirName) {
 		return false
 	}
 
@@ -1248,9 +1294,8 @@ func IsValidCloudDirName(cloudDirName string) bool {
 func getSyncExcludedList(localDirPath string) (ret map[string]bool) {
 	syncIgnoreList := getSyncIgnoreList()
 	ret = map[string]bool{}
-	ignores := syncIgnoreList.Values()
-	for _, p := range ignores {
-		relPath := p.(string)
+	for _, p := range syncIgnoreList {
+		relPath := p
 		relPath = pathSha256Short(relPath, "/")
 		relPath = filepath.Join(localDirPath, relPath)
 		ret[relPath] = true
@@ -1258,12 +1303,32 @@ func getSyncExcludedList(localDirPath string) (ret map[string]bool) {
 	return
 }
 
-func getSyncIgnoreList() (ret *hashset.Set) {
-	ret = hashset.New()
+func getSyncIgnoreList() (ret []string) {
+	lines := getIgnoreLines()
+	if 1 > len(lines) {
+		return
+	}
+
+	gi := gitignore.CompileIgnoreLines(lines...)
+	filepath.Walk(util.DataDir, func(p string, info os.FileInfo, err error) error {
+		p = strings.TrimPrefix(p, util.DataDir+string(os.PathSeparator))
+		p = filepath.ToSlash(p)
+		if gi.MatchesPath(p) {
+			ret = append(ret, p)
+		}
+		return nil
+	})
+	return
+}
+
+func getIgnoreLines() (ret []string) {
 	ignore := filepath.Join(util.DataDir, ".siyuan", "syncignore")
-	os.MkdirAll(filepath.Dir(ignore), 0755)
+	err := os.MkdirAll(filepath.Dir(ignore), 0755)
+	if nil != err {
+		return
+	}
 	if !gulu.File.IsExist(ignore) {
-		if err := gulu.File.WriteFileSafer(ignore, nil, 0644); nil != err {
+		if err = gulu.File.WriteFileSafer(ignore, nil, 0644); nil != err {
 			util.LogErrorf("create syncignore [%s] failed: %s", ignore, err)
 			return
 		}
@@ -1275,44 +1340,14 @@ func getSyncIgnoreList() (ret *hashset.Set) {
 	}
 	dataStr := string(data)
 	dataStr = strings.ReplaceAll(dataStr, "\r\n", "\n")
-	lines := strings.Split(dataStr, "\n")
+	ret = strings.Split(dataStr, "\n")
 
 	// 默认忽略帮助文档
-	lines = append(lines, "20210808180117-6v0mkxr/**/*")
-	lines = append(lines, "20210808180117-czj9bvb/**/*")
-	lines = append(lines, "20211226090932-5lcq56f/**/*")
+	ret = append(ret, "20210808180117-6v0mkxr/**/*")
+	ret = append(ret, "20210808180117-czj9bvb/**/*")
+	ret = append(ret, "20211226090932-5lcq56f/**/*")
 
-	var parents []string
-	for _, line := range lines {
-		if idx := strings.Index(line, "/*"); -1 < idx {
-			parent := line[:idx]
-			parents = append(parents, parent)
-		}
-	}
-	lines = append(lines, parents...)
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if "" == line {
-			continue
-		}
-		pattern := filepath.Join(util.DataDir, line)
-		pattern = filepath.FromSlash(pattern)
-		matches, globErr := zglob.Glob(pattern)
-		if nil != globErr && globErr != os.ErrNotExist {
-			util.LogErrorf("glob [%s] failed: %s", line, globErr)
-			continue
-		}
-		for _, m := range matches {
-			m = filepath.ToSlash(m)
-			if strings.Contains(m, ".siyuan/history") {
-				continue
-			}
-
-			m = strings.TrimPrefix(m, filepath.ToSlash(util.DataDir+string(os.PathSeparator)))
-			ret.Add(m)
-		}
-	}
+	ret = gulu.Str.RemoveDuplicatedElem(ret)
 	return
 }
 
@@ -1328,7 +1363,7 @@ func pathSha256Short(p, sep string) string {
 	return buf.String()
 }
 
-func GetSyncDirection(cloudDirName string) (code int, msg string) { // 0：失败，10：上传，20：下载，30：一致
+func GetSyncDirection(cloudDirName string) (code int, msg string) { // 0：失败，10：上传，20：下载，30：一致，40：使用数据仓库同步
 	if !IsSubscriber() {
 		return
 	}
@@ -1339,6 +1374,10 @@ func GetSyncDirection(cloudDirName string) (code int, msg string) { // 0：失�
 
 	if !IsValidCloudDirName(cloudDirName) {
 		return
+	}
+
+	if Conf.Sync.UseDataRepo {
+		return 40, ""
 	}
 
 	syncConf, err := getWorkspaceDataConf()
@@ -1364,8 +1403,7 @@ func GetSyncDirection(cloudDirName string) (code int, msg string) { // 0：失�
 func IncWorkspaceDataVer() {
 	filesys.IncWorkspaceDataVer(true, Conf.System.ID)
 	syncSameCount = 0
-	syncInterval = fixSyncInterval
-	syncPlanTime = time.Now().Add(30 * time.Second)
+	planSyncAfter(30 * time.Second)
 }
 
 func stableCopy(src, dest string) (err error) {
@@ -1398,4 +1436,8 @@ func stableCopy(src, dest string) (err error) {
 		util.LogErrorf("robocopy data from [%s] to [%s] failed: %s %s", src, dest, string(output), err)
 	}
 	return gulu.File.Copy(src, dest)
+}
+
+func planSyncAfter(d time.Duration) {
+	syncPlanTime = time.Now().Add(d)
 }

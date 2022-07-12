@@ -38,7 +38,6 @@ import (
 	"github.com/88250/lute/html"
 	"github.com/88250/lute/parse"
 	"github.com/88250/protyle"
-	"github.com/mattn/go-zglob"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
@@ -117,7 +116,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 		trees[tree.ID] = tree
 	}
 
-	// 引用指向重新生成的块 ID
+	// 引用和嵌入指向重新生成的块 ID
 	for _, tree := range trees {
 		ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 			if !entering {
@@ -129,6 +128,11 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 					n.Tokens = gulu.Str.ToBytes(newDefID)
 				} else {
 					util.LogWarnf("not found def [" + n.TokensStr() + "]")
+				}
+			} else if ast.NodeBlockQueryEmbedScript == n.Type {
+				for oldID, newID := range blockIDs {
+					// 导入 `.sy.zip` 后查询嵌入块失效 https://github.com/siyuan-note/siyuan/issues/5316
+					n.Tokens = bytes.ReplaceAll(n.Tokens, []byte(oldID), []byte(newID))
 				}
 			}
 			return ast.WalkContinue
@@ -234,21 +238,22 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 		}
 	}
 
-	assetsDirs, err := zglob.Glob(unzipRootPath + "/**/assets")
-	if nil != err {
-		return
-	}
-	if 0 < len(assetsDirs) {
-		for _, assets := range assetsDirs {
-			if gulu.File.IsDir(assets) {
-				dataAssets := filepath.Join(util.DataDir, "assets")
-				if err = gulu.File.Copy(assets, dataAssets); nil != err {
-					util.LogErrorf("copy assets from [%s] to [%s] failed: %s", assets, dataAssets, err)
-					return
-				}
-			}
-			os.RemoveAll(assets)
+	var assetsDirs []string
+	filepath.Walk(unzipRootPath, func(path string, info fs.FileInfo, err error) error {
+		if strings.Contains(path, "assets") && info.IsDir() {
+			assetsDirs = append(assetsDirs, path)
 		}
+		return nil
+	})
+	for _, assets := range assetsDirs {
+		if gulu.File.IsDir(assets) {
+			dataAssets := filepath.Join(util.DataDir, "assets")
+			if err = gulu.File.Copy(assets, dataAssets); nil != err {
+				util.LogErrorf("copy assets from [%s] to [%s] failed: %s", assets, dataAssets, err)
+				return
+			}
+		}
+		os.RemoveAll(assets)
 	}
 
 	writingDataLock.Lock()
@@ -389,6 +394,7 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 		})
 
 		targetPaths := map[string]string{}
+		assetsDone := map[string]string{}
 
 		// md 转换 sy
 		i := 0
@@ -476,15 +482,19 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 				}
 				fullPath, exist = assets[absDest]
 				if exist {
-					name := filepath.Base(fullPath)
-					ext := filepath.Ext(name)
-					name = strings.TrimSuffix(name, ext)
-					name += "-" + ast.NewNodeID() + ext
-					assetTargetPath := filepath.Join(assetDirPath, name)
-					delete(assets, absDest)
-					if err = gulu.File.Copy(fullPath, assetTargetPath); nil != err {
-						util.LogErrorf("copy asset from [%s] to [%s] failed: %s", fullPath, assetTargetPath, err)
-						return ast.WalkContinue
+					existName := assetsDone[absDest]
+					var name string
+					if "" == existName {
+						name = filepath.Base(fullPath)
+						name = util.AssetName(name)
+						assetTargetPath := filepath.Join(assetDirPath, name)
+						if err = gulu.File.Copy(fullPath, assetTargetPath); nil != err {
+							util.LogErrorf("copy asset from [%s] to [%s] failed: %s", fullPath, assetTargetPath, err)
+							return ast.WalkContinue
+						}
+						assetsDone[absDest] = name
+					} else {
+						name = existName
 					}
 					n.Tokens = gulu.Str.ToBytes("assets/" + name)
 				}
@@ -563,9 +573,7 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 			}
 			if exist {
 				name := filepath.Base(absolutePath)
-				ext := filepath.Ext(name)
-				name = strings.TrimSuffix(name, ext)
-				name += "-" + ast.NewNodeID() + ext
+				name = util.AssetName(name)
 				assetTargetPath := filepath.Join(assetDirPath, name)
 				if err = gulu.File.CopyFile(absolutePath, assetTargetPath); nil != err {
 					util.LogErrorf("copy asset from [%s] to [%s] failed: %s", absolutePath, assetTargetPath, err)

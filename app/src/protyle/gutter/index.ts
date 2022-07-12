@@ -21,6 +21,7 @@ import {scrollCenter} from "../../util/highlightById";
 import {isMobile} from "../../util/functions";
 import {confirmDialog} from "../../dialog/confirmDialog";
 import {enableProtyle} from "../util/onGet";
+import {countBlockWord} from "../../layout/status";
 
 export class Gutter {
     public element: HTMLElement;
@@ -566,6 +567,7 @@ export class Gutter {
         const turnIntoSubmenu: IMenu[] = [];
         hideElements(["select"], protyle);
         nodeElement.classList.add("protyle-wysiwyg--select");
+        countBlockWord([nodeElement.getAttribute("data-node-id")]);
         // "heading1-6", "list", "ordered-list", "check", "quote", "code", "table", "line", "math", "paragraph"
         if (type === "NodeParagraph" && !window.siyuan.config.readonly) {
             turnIntoSubmenu.push(this.turnsIntoOne({
@@ -1073,6 +1075,8 @@ export class Gutter {
                 label: window.siyuan.languages["insert-before"],
                 accelerator: window.siyuan.config.keymap.editor.general.insertBefore.custom,
                 click() {
+                    nodeElement.classList.remove("protyle-wysiwyg--select");
+                    countBlockWord([]);
                     insertEmptyBlock(protyle, "beforebegin", id);
                 }
             }).element);
@@ -1081,6 +1085,8 @@ export class Gutter {
                 label: window.siyuan.languages["insert-after"],
                 accelerator: window.siyuan.config.keymap.editor.general.insertAfter.custom,
                 click() {
+                    nodeElement.classList.remove("protyle-wysiwyg--select");
+                    countBlockWord([]);
                     insertEmptyBlock(protyle, "afterend", id);
                 }
             }).element);

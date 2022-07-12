@@ -32,6 +32,7 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute"
+	"github.com/Xuanwo/go-locale"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/getsentry/sentry-go"
 	"github.com/siyuan-note/filelock"
@@ -39,6 +40,7 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
+	"golang.org/x/text/language"
 )
 
 var Conf *AppConf
@@ -84,7 +86,7 @@ func InitConf() {
 		}
 	}
 
-	Conf = &AppConf{LogLevel: "debug", Lang: util.Lang}
+	Conf = &AppConf{LogLevel: "debug"}
 	confPath := filepath.Join(util.ConfDir, "conf.json")
 	if gulu.File.IsExist(confPath) {
 		data, err := os.ReadFile(confPath)
@@ -94,6 +96,37 @@ func InitConf() {
 		err = gulu.JSON.UnmarshalJSON(data, Conf)
 		if err != nil {
 			util.LogErrorf("parse conf [%s] failed: %s", confPath, err)
+		}
+	}
+
+	if "" != util.Lang {
+		Conf.Lang = util.Lang
+		util.LogInfof("initialized the specified language [%s]", util.Lang)
+	} else {
+		if "" == Conf.Lang {
+			// 未指定外观语言时使用系统语言
+
+			if userLang, err := locale.Detect(); nil == err {
+				var supportLangs []language.Tag
+				for lang := range langs {
+					if tag, err := language.Parse(lang); nil == err {
+						supportLangs = append(supportLangs, tag)
+					} else {
+						util.LogErrorf("load language [%s] failed: %s", lang, err)
+					}
+				}
+				matcher := language.NewMatcher(supportLangs)
+				lang, _, _ := matcher.Match(userLang)
+				base, _ := lang.Base()
+				region, _ := lang.Region()
+				util.Lang = base.String() + "_" + region.String()
+				Conf.Lang = util.Lang
+				util.LogInfof("initialized language [%s] based on device locale", Conf.Lang)
+			} else {
+				util.LogDebugf("check device locale failed [%s], using default language [en_US]", err)
+				util.Lang = "en_US"
+				Conf.Lang = util.Lang
+			}
 		}
 	}
 
@@ -129,6 +162,12 @@ func InitConf() {
 	}
 	if 1 > Conf.FileTree.MaxListCount {
 		Conf.FileTree.MaxListCount = 512
+	}
+	if 1 > Conf.FileTree.MaxOpenTabCount {
+		Conf.FileTree.MaxOpenTabCount = 8
+	}
+	if 32 < Conf.FileTree.MaxOpenTabCount {
+		Conf.FileTree.MaxOpenTabCount = 32
 	}
 	if nil == Conf.Tag {
 		Conf.Tag = conf.NewTag()
@@ -170,9 +209,6 @@ func InitConf() {
 	}
 	if nil == Conf.System.NetworkProxy {
 		Conf.System.NetworkProxy = &conf.NetworkProxy{}
-	}
-	if "" != Conf.System.NetworkProxy.Scheme {
-		util.LogInfof("using network proxy [%s]", Conf.System.NetworkProxy.String())
 	}
 	if "" == Conf.System.ID {
 		Conf.System.ID = util.GetDeviceID()
@@ -265,6 +301,8 @@ func InitConf() {
 			Environment: util.Mode,
 		})
 	}
+
+	util.SetNetworkProxy(Conf.System.NetworkProxy.String())
 }
 
 var langs = map[string]map[int]string{}
@@ -482,13 +520,9 @@ func InitBoxes() {
 					util.IncBootProgress(1, "Reading block trees...")
 				}
 			}()
-			if err := treenode.ReadBlockTree(); nil == err {
-				initialized = true
-			} else {
-				if err = os.RemoveAll(util.BlockTreePath); nil != err {
-					util.LogErrorf("remove block tree [%s] failed: %s", util.BlockTreePath, err)
-				}
-			}
+
+			treenode.InitBlockTree()
+			initialized = true
 		}
 	} else { // 大于 1 的话说明在同步阶段已经加载过了
 		initialized = true

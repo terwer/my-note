@@ -43,7 +43,43 @@ func checkoutRepo(c *gin.Context) {
 	}
 }
 
-func getRepoIndexLogs(c *gin.Context) {
+func downloadCloudSnapshot(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	id := arg["id"].(string)
+	tag := arg["tag"].(string)
+	if err := model.DownloadCloudSnapshot(tag, id); nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func uploadCloudSnapshot(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	id := arg["id"].(string)
+	tag := arg["tag"].(string)
+	if err := model.UploadCloudSnapshot(tag, id); nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func getRepoSnapshots(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
 
@@ -53,20 +89,36 @@ func getRepoIndexLogs(c *gin.Context) {
 	}
 
 	page := arg["page"].(float64)
-	logs, pageCount, totalCount, err := model.GetRepoIndexLogs(int(page))
+	snapshots, pageCount, totalCount, err := model.GetRepoSnapshots(int(page))
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 	ret.Data = map[string]interface{}{
-		"logs":       logs,
+		"snapshots":  snapshots,
 		"pageCount":  pageCount,
 		"totalCount": totalCount,
 	}
 }
 
-func indexRepo(c *gin.Context) {
+func getCloudRepoTagSnapshots(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	snapshots, err := model.GetCloudRepoTagSnapshots()
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	ret.Data = map[string]interface{}{
+		"snapshots": snapshots,
+	}
+}
+
+func removeCloudRepoTagSnapshot(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
 
@@ -75,8 +127,79 @@ func indexRepo(c *gin.Context) {
 		return
 	}
 
-	message := arg["message"].(string)
-	if err := model.IndexRepo(message); nil != err {
+	tag := arg["tag"].(string)
+	err := model.RemoveCloudRepoTag(tag)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func getRepoTagSnapshots(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	snapshots, err := model.GetTagSnapshots()
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	ret.Data = map[string]interface{}{
+		"snapshots": snapshots,
+	}
+}
+
+func removeRepoTagSnapshot(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	tag := arg["tag"].(string)
+	err := model.RemoveTagSnapshot(tag)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func createSnapshot(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	memo := arg["memo"].(string)
+	if err := model.IndexRepo(memo); nil != err {
+		ret.Code = -1
+		ret.Msg = fmt.Sprintf(model.Conf.Language(140), err)
+		ret.Data = map[string]interface{}{"closeTimeout": 5000}
+		return
+	}
+}
+
+func tagSnapshot(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	id := arg["id"].(string)
+	name := arg["name"].(string)
+	if err := model.TagSnapshot(id, name); nil != err {
 		ret.Code = -1
 		ret.Msg = fmt.Sprintf(model.Conf.Language(140), err)
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
@@ -96,7 +219,7 @@ func importRepoKey(c *gin.Context) {
 	base64Key := arg["key"].(string)
 	if err := model.ImportRepoKey(base64Key); nil != err {
 		ret.Code = -1
-		ret.Msg = model.Conf.Language(137)
+		ret.Msg = fmt.Sprintf(model.Conf.Language(137), err)
 		return
 	}
 }
@@ -107,7 +230,7 @@ func initRepoKey(c *gin.Context) {
 
 	if err := model.InitRepoKey(); nil != err {
 		ret.Code = -1
-		ret.Msg = model.Conf.Language(137)
+		ret.Msg = fmt.Sprintf(model.Conf.Language(137), err)
 		return
 	}
 

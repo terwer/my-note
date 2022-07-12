@@ -25,6 +25,7 @@ import {scrollCenter} from "../util/highlightById";
 import {getAllModels} from "./getAll";
 import {fetchPost} from "../util/fetch";
 import {onGet} from "../protyle/util/onGet";
+import {countBlockWord} from "./status";
 
 export class Wnd {
     public id: string;
@@ -247,7 +248,7 @@ export class Wnd {
                     newWnd.headersElement.append(oldTab.headElement);
                     newWnd.moveTab(oldTab);
 
-                    if (dragElement.style.bottom === "auto" && newWnd.element.previousElementSibling && targetWnd.element.parentElement) {
+                    if (dragElement.style.bottom === "50%" && newWnd.element.previousElementSibling && targetWnd.element.parentElement) {
                         // 交换位置
                         switchWnd(newWnd, targetWnd);
                     }
@@ -257,7 +258,7 @@ export class Wnd {
                     newWnd.headersElement.append(oldTab.headElement);
                     newWnd.moveTab(oldTab);
 
-                    if (dragElement.style.right === "auto" && newWnd.element.previousElementSibling && targetWnd.element.parentElement) {
+                    if (dragElement.style.right === "50%" && newWnd.element.previousElementSibling && targetWnd.element.parentElement) {
                         // 交换位置
                         switchWnd(newWnd, targetWnd);
                     }
@@ -294,7 +295,10 @@ export class Wnd {
                 if (item.headElement && item.headElement.classList.contains("fn__none")) {
                     // https://github.com/siyuan-note/siyuan/issues/267
                 } else {
-                    item.headElement?.classList.add("item--focus");
+                    if (item.headElement) {
+                        item.headElement.classList.add("item--focus");
+                        item.headElement.setAttribute("data-activetime", (new Date()).getTime().toString());
+                    }
                     item.panelElement.classList.remove("fn__none");
                 }
                 currentTab = item;
@@ -310,7 +314,7 @@ export class Wnd {
         if (currentTab && currentTab.model instanceof Editor) {
             const keepCursorId = currentTab.headElement.getAttribute("keep-cursor");
             if (keepCursorId) {
-                // 在新页签中打开，但不跳转到新页签，单切换到新页签时需调整滚动
+                // 在新页签中打开，但不跳转到新页签，但切换到新页签时需调整滚动
                 let nodeElement: HTMLElement;
                 Array.from(currentTab.model.editor.protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${keepCursorId}"]`)).find((item: HTMLElement) => {
                     if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed", true)) {
@@ -404,6 +408,8 @@ export class Wnd {
                 event.stopPropagation();
                 event.preventDefault();
             });
+
+            tab.headElement.setAttribute("data-activetime", (new Date()).getTime().toString());
         }
         const containerElement = this.element.querySelector(".layout-tab-container");
         if (!containerElement.querySelector(".fn__flex-1")) {
@@ -423,6 +429,24 @@ export class Wnd {
         // 移除 centerLayout 中的 empty
         if (this.parent.type === "center" && this.children.length === 2 && !this.children[0].headElement) {
             this.removeTab(this.children[0].id);
+        } else if (this.children.length > window.siyuan.config.fileTree.maxOpenTabCount) {
+            let removeId: string;
+            let openTime: string;
+            this.children.forEach((item, index) => {
+                if (item.headElement.classList.contains("item--pin") || item.headElement.classList.contains("item--focus") || index === oldFocusIndex) {
+                    return;
+                }
+                if (!openTime) {
+                    openTime = item.headElement.getAttribute("data-activetime");
+                    removeId = this.children[index].id;
+                } else if (item.headElement.getAttribute("data-activetime") < openTime) {
+                    openTime = item.headElement.getAttribute("data-activetime");
+                    removeId = this.children[index].id;
+                }
+            });
+            if (removeId) {
+                this.removeTab(removeId);
+            }
         }
     }
 
@@ -437,6 +461,7 @@ export class Wnd {
                 }
             });
             model.editor.destroy();
+            countBlockWord([]);
             return;
         }
         if (model instanceof Search) {
@@ -459,13 +484,19 @@ export class Wnd {
                     } else {
                         this.remove();
                     }
-                    getAllModels().editor.forEach(item => {
-                        if (!item.element.classList.contains("fn__none")) {
-                            setPanelFocus(item.parent.parent.headersElement.parentElement);
-                            updatePanelByEditor(item.editor.protyle, true, true);
-                            return;
-                        }
-                    });
+                    // 关闭分屏页签后光标消失
+                    const editors = getAllModels().editor;
+                    if (editors.length === 0) {
+                        updatePanelByEditor();
+                    } else {
+                        editors.forEach(item => {
+                            if (!item.element.classList.contains("fn__none")) {
+                                setPanelFocus(item.parent.parent.headersElement.parentElement);
+                                updatePanelByEditor(item.editor.protyle, true, true);
+                                return;
+                            }
+                        });
+                    }
                     return;
                 }
                 if (item.headElement) {
@@ -519,7 +550,10 @@ export class Wnd {
 
     public moveTab(tab: Tab, nextId?: string) {
         this.element.querySelector(".layout-tab-container").append(tab.panelElement);
-
+        if (tab.model instanceof Editor) {
+            // DOM 移动后 range 会变化，因此置空
+            tab.model.editor.protyle.toolbar.range = null;
+        }
         if (nextId) {
             // 只能用 find https://github.com/siyuan-note/siyuan/issues/3455
             this.children.find((item, index) => {

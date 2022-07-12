@@ -1,11 +1,10 @@
 /// #if !BROWSER
 import {shell} from "electron";
 /// #endif
-import {newFile} from "../util/newFile";
 import {getDockByType} from "../layout/util";
 import {confirmDialog} from "../dialog/confirmDialog";
 import {getSearch, isMobile} from "../util/functions";
-import {getDisplayName, isLocalPath, movePathTo} from "../util/pathName";
+import {isLocalPath, movePathTo, pathPosix} from "../util/pathName";
 import {MenuItem} from "./Menu";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {publishHTMLContent, publishMdContent, saveExport} from "../protyle/export";
@@ -13,16 +12,19 @@ import {writeText} from "../protyle/util/compatibility";
 import {fetchPost} from "../util/fetch";
 import {hideMessage, showMessage} from "../dialog/message";
 import {Dialog} from "../dialog";
-import {getAllModels} from "../layout/getAll";
 import {focusBlock, focusByRange, getEditorRange} from "../protyle/util/selection";
 import {setPosition} from "../util/setPosition";
 import {updateTransaction} from "../protyle/wysiwyg/transaction";
+/// #if !MOBILE
+import {getAllModels} from "../layout/getAll";
 import {Bookmark} from "../layout/dock/Bookmark";
+import {openAsset, openBy} from "../editor/util";
+/// #endif
 import {rename} from "../editor/rename";
-import {deleteFile, openAsset, openBy} from "../editor/util";
 import {matchHotKey} from "../protyle/util/hotKey";
 import * as dayjs from "dayjs";
 import {Constants} from "../constants";
+import {deleteFile} from "../editor/deleteFile";
 
 const bindAttrInput = (inputElement: HTMLInputElement, confirmElement: Element) => {
     inputElement.addEventListener("keydown", (event) => {
@@ -265,6 +267,7 @@ export const openFileAttr = (attrs: IObject, id: string, focusName = "bookmark")
                         });
                     }
                     window.siyuan.menus.menu.element.classList.remove("fn__none");
+                    window.siyuan.menus.menu.element.style.zIndex = "310";
                     setPosition(window.siyuan.menus.menu.element, event.clientX, event.clientY + 16);
                 });
                 break;
@@ -314,6 +317,7 @@ export const openFileAttr = (attrs: IObject, id: string, focusName = "bookmark")
         if (errorTip) {
             showMessage(errorTip.substr(0, errorTip.length - 2) + " " + window.siyuan.languages.invalid);
         }
+        /// #if !MOBILE
         getAllModels().editor.forEach(item => {
             if (item.editor.protyle.block.rootID === id) {
                 const refElement = item.editor.protyle.title.element.querySelector(".protyle-attr--refcount");
@@ -332,6 +336,7 @@ export const openFileAttr = (attrs: IObject, id: string, focusName = "bookmark")
                 }
             }
         });
+        /// #endif
         dialog.destroy();
     });
     dialog.element.querySelectorAll(".b3-text-field").forEach((item: HTMLInputElement) => {
@@ -460,6 +465,7 @@ export const openAttr = (nodeElement: Element, protyle: IProtyle, focusName = "b
                             });
                         }
                         window.siyuan.menus.menu.element.classList.remove("fn__none");
+                        window.siyuan.menus.menu.element.style.zIndex = "310";
                         setPosition(window.siyuan.menus.menu.element, event.clientX, event.clientY + 16);
                     });
                     break;
@@ -504,7 +510,8 @@ export const openAttr = (nodeElement: Element, protyle: IProtyle, focusName = "b
                     const escapeHTML = Lute.EscapeHTMLStr(item.value);
                     nodeElement.setAttribute(name, escapeHTML);
                     if (name === "bookmark") {
-                        if (escapeHTML !== response.data.bookmark && !isMobile()) {
+                        /// #if !MOBILE
+                        if (escapeHTML !== response.data.bookmark) {
                             const bookmark = getDockByType("bookmark").data.bookmark;
                             if (bookmark instanceof Bookmark) {
                                 setTimeout(() => {
@@ -512,6 +519,7 @@ export const openAttr = (nodeElement: Element, protyle: IProtyle, focusName = "b
                                 }, 219);
                             }
                         }
+                        /// #endif
                         nodeAttrHTML += `<div class="protyle-attr--bookmark">${escapeHTML}</div>`;
                     } else if (name === "name") {
                         nodeAttrHTML += `<div class="protyle-attr--name"><svg><use xlink:href="#iconN"></use></svg>${escapeHTML}</div>`;
@@ -766,21 +774,40 @@ export const publicMd = (id: string) => {
 export const openMenu = (src: string, onlyMenu = false) => {
     const submenu = [];
     if (isLocalPath(src)) {
-        submenu.push({
-            label: window.siyuan.languages.insertRight,
-            accelerator: "Click",
-            click() {
-                openAsset(src.trim(), parseInt(getSearch("page", src)), "right");
-            }
-        });
+        if (Constants.SIYUAN_ASSETS_EXTS.includes(pathPosix().extname(src)) &&
+            (!src.endsWith(".pdf") ||
+                (src.endsWith(".pdf") && !src.startsWith("file://")))
+        ) {
+            /// #if !MOBILE
+            submenu.push({
+                label: window.siyuan.languages.insertRight,
+                accelerator: "Click",
+                click() {
+                    openAsset(src.trim(), parseInt(getSearch("page", src)), "right");
+                }
+            });
+            /// #endif
+            /// #if !BROWSER
+            submenu.push({
+                label: window.siyuan.languages.useDefault,
+                accelerator: "⇧Click",
+                click() {
+                    openBy(src, "app");
+                }
+            });
+            /// #endif
+        } else {
+            /// #if !BROWSER
+            submenu.push({
+                label: window.siyuan.languages.useDefault,
+                accelerator: "Click",
+                click() {
+                    openBy(src, "app");
+                }
+            });
+            /// #endif
+        }
         /// #if !BROWSER
-        submenu.push({
-            label: window.siyuan.languages.useDefault,
-            accelerator: "⇧Click",
-            click() {
-                openBy(src, "app");
-            }
-        });
         submenu.push({
             label: window.siyuan.languages.showInFolder,
             accelerator: "⌘Click",
@@ -790,24 +817,31 @@ export const openMenu = (src: string, onlyMenu = false) => {
         });
         /// #endif
     } else {
+        /// #if !BROWSER
         submenu.push({
-            label: window.siyuan.languages.useBrowserView,
+            label: window.siyuan.languages.useDefault,
             accelerator: "Click",
             click: () => {
-                /// #if !BROWSER
                 shell.openExternal(src).catch((e) => {
-                    console.log("openExternal error:" + e);
+                    showMessage(e);
                 });
-                /// #else
-                if (window.siyuan.config.system.container === "ios") {
-                    window.location.href = src;
-                } else {
-                    window.open(src);
-                }
-                /// #endif
             }
         });
+        /// #endif
     }
+    /// #if BROWSER
+    submenu.push({
+        label: window.siyuan.languages.useBrowserView,
+        accelerator: "Click",
+        click: () => {
+            if (window.siyuan.config.system.container === "ios") {
+                window.location.href = src;
+            } else {
+                window.open(src);
+            }
+        }
+    });
+    /// #endif
     if (onlyMenu) {
         return submenu;
     }
@@ -815,16 +849,6 @@ export const openMenu = (src: string, onlyMenu = false) => {
         label: window.siyuan.languages.openBy,
         submenu
     }).element);
-};
-
-export const newFileMenu = (notebookId?: string, path?: string, open?: boolean) => {
-    return new MenuItem({
-        icon: "iconFile",
-        label: window.siyuan.languages.newFile,
-        click: () => {
-            newFile(notebookId, path, open);
-        }
-    }).element;
 };
 
 export const deleteMenu = (notebookId: string, name: string, pathString: string) => {

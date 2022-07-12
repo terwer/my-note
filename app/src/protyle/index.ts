@@ -16,12 +16,14 @@ import {Gutter} from "./gutter";
 import {Breadcrumb} from "./breadcrumb";
 import {onTransaction} from "./wysiwyg/transaction";
 import {fetchPost} from "../util/fetch";
+/// #if !MOBILE
 import {Title} from "./header/Title";
+import {updatePanelByEditor} from "../editor/util";
+import {setPanelFocus} from "../layout/util";
+/// #endif
 import {Background} from "./header/Background";
 import {getDisplayName} from "../util/pathName";
 import {onGet} from "./util/onGet";
-import {updatePanelByEditor} from "../editor/util";
-import {setPanelFocus} from "../layout/util";
 
 class Protyle {
 
@@ -49,9 +51,11 @@ class Protyle {
 
         this.protyle.hint = new Hint(this.protyle);
         this.protyle.breadcrumb = new Breadcrumb(this.protyle);
+        /// #if !MOBILE
         if (mergedOptions.render.title) {
             this.protyle.title = new Title(this.protyle);
         }
+        /// #endif
         if (mergedOptions.render.background) {
             this.protyle.background = new Background(this.protyle);
         }
@@ -91,10 +95,12 @@ class Protyle {
                                 size: Constants.SIZE_GET,
                             }, getResponse => {
                                 onGet(getResponse, this.protyle);
+                                /// #if !MOBILE
                                 if (data.cmd === "heading2doc") {
                                     // 文档标题互转后，需更新大纲
                                     updatePanelByEditor(this.protyle, false, false, true);
                                 }
+                                /// #endif
                                 // 文档标题互转后，编辑区会跳转到开头 https://github.com/siyuan-note/siyuan/issues/2939
                                 setTimeout(() => {
                                     this.protyle.contentElement.scrollTop = scrollTop;
@@ -104,8 +110,13 @@ class Protyle {
                         }
                         break;
                     case "rename":
-                        if (this.protyle.path === data.data.path && this.protyle.model) {
-                            this.protyle.model.parent.updateTitle(data.data.title);
+                        if (this.protyle.path === data.data.path) {
+                            if (this.protyle.model) {
+                                this.protyle.model.parent.updateTitle(data.data.title);
+                            }
+                            if (this.protyle.background) {
+                                this.protyle.background.ial.title = data.data.title;
+                            }
                         }
                         if (this.protyle.options.render.title && this.protyle.block.parentID === data.data.id) {
                             if (getSelection().rangeCount > 0 && this.protyle.element.contains(getSelection().getRangeAt(0).startContainer)) {
@@ -151,14 +162,17 @@ class Protyle {
         }, getResponse => {
             onGet(getResponse, this.protyle, options.action);
             if (this.protyle.model) {
+                /// #if !MOBILE
                 if (options.action?.includes(Constants.CB_GET_FOCUS)) {
                     setPanelFocus(this.protyle.model.element.parentElement.parentElement);
                 }
                 updatePanelByEditor(this.protyle, false);
+                /// #endif
             }
 
             // 需等待 getDoc 完成后再执行，否则在无页签的时候 updatePanelByEditor 会执行2次
             // 只能用 focusin，否则点击表格无法执行
+            /// #if !MOBILE
             this.protyle.wysiwyg.element.addEventListener("focusin", () => {
                 if (this.protyle && this.protyle.model) {
                     let needUpdate = true;
@@ -180,10 +194,12 @@ class Protyle {
                     });
                 }
             });
+            /// #endif
+            // 需等渲染完后再回调，用于定位搜索字段 https://github.com/siyuan-note/siyuan/issues/3171
+            if (mergedOptions.after) {
+                mergedOptions.after(this);
+            }
         });
-        if (mergedOptions.after) {
-            mergedOptions.after(this);
-        }
     }
 
     public reload() {

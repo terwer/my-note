@@ -110,7 +110,10 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
         <div id="searchHistoryList" data-close="false" class="fn__none b3-menu b3-list b3-list--background"></div>
     </div>
     <div class="b3-form__icon search__header${hotkey === window.siyuan.config.keymap.general.replace.custom ? "" : " fn__none"}">
-        <svg id="replaceHistoryBtn" data-menu="true" class="b3-form__icon-icon fn__a"><use xlink:href="#iconSearch"></use></svg>
+        <span class="fn__a" id="replaceHistoryBtn">
+            <svg data-menu="true" class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg>
+            <svg class="search__arrowdown"><use xlink:href="#iconDown"></use></svg>
+        </span>
         <input id="replaceInput" class="b3-text-field b3-text-field--text fn__block b3-form__icon-input">
         <svg class="fn__rotate fn__none svg" style="padding: 0 8px;align-self: center;"><use xlink:href="#iconRefresh"></use></svg>
         <button id="replaceAllBtn" class="b3-button b3-button--outline fn__flex-center">${window.siyuan.languages.replaceAll}</button>
@@ -325,7 +328,7 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
         let html = "";
         (localData.list || []).forEach((s: string) => {
             if (s !== searchInputElement.value) {
-                html += `<div class="b3-list-item">${s}</div>`;
+                html += `<div class="b3-list-item">${escapeHtml(s)}</div>`;
             }
         });
         historyElement.classList.remove("fn__none");
@@ -343,7 +346,7 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
         let html = "";
         (localData.replaceList || []).forEach((s: string) => {
             if (s !== replaceInputElement.value) {
-                html += `<div class="b3-list-item">${s}</div>`;
+                html += `<div class="b3-list-item">${escapeHtml(s)}</div>`;
             }
         });
         replaceHistoryElement.classList.remove("fn__none");
@@ -430,14 +433,10 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
                 searchPanelElement.scrollTop > currentList.offsetTop) {
                 searchPanelElement.scrollTop = currentList.offsetTop - searchPanelElement.clientHeight + lineHeight;
             }
-            const id = currentList.getAttribute("data-node-id");
-            fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
-                getArticle({
-                    dialog,
-                    folded: foldResponse.data,
-                    id,
-                    k: searchInputElement.value,
-                });
+            getArticle({
+                dialog,
+                id: currentList.getAttribute("data-node-id"),
+                k: searchInputElement.value,
             });
             event.preventDefault();
         } else if (event.key === "ArrowUp") {
@@ -453,14 +452,10 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
                 searchPanelElement.scrollTop > currentList.offsetTop - lineHeight * 2) {
                 searchPanelElement.scrollTop = currentList.offsetTop - lineHeight * 2;
             }
-            const id = currentList.getAttribute("data-node-id");
-            fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
-                getArticle({
-                    dialog,
-                    folded: foldResponse.data,
-                    id,
-                    k: searchInputElement.value,
-                });
+            getArticle({
+                dialog,
+                id: currentList.getAttribute("data-node-id"),
+                k: searchInputElement.value,
             });
             event.preventDefault();
         } else if (event.key === "Enter") {
@@ -556,14 +551,10 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
                 searchPanelElement.scrollTop > currentList.offsetTop) {
                 searchPanelElement.scrollTop = currentList.offsetTop - searchPanelElement.clientHeight + lineHeight;
             }
-            const id = currentList.getAttribute("data-node-id");
-            fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
-                getArticle({
-                    dialog,
-                    folded: foldResponse.data,
-                    id,
-                    k: searchInputElement.value,
-                });
+            getArticle({
+                dialog,
+                id: currentList.getAttribute("data-node-id"),
+                k: searchInputElement.value,
             });
         });
     };
@@ -606,14 +597,10 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
                         } else {
                             searchPanelElement.querySelector(".b3-list-item--focus").classList.remove("b3-list-item--focus");
                             target.classList.add("b3-list-item--focus");
-                            const id = target.getAttribute("data-node-id");
-                            fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
-                                getArticle({
-                                    dialog,
-                                    folded: foldResponse.data,
-                                    id,
-                                    k: searchInputElement.value,
-                                });
+                            getArticle({
+                                dialog,
+                                id: target.getAttribute("data-node-id"),
+                                k: searchInputElement.value,
                             });
                             searchInputElement.focus();
                         }
@@ -647,32 +634,43 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
 
 const getArticle = (options: {
     id: string,
-    folded: boolean,
     k: string,
     dialog: Dialog
 }) => {
-    if (!protyle) {
-        protyle = new Protyle(options.dialog.element.querySelector("#searchPreview") as HTMLElement, {
-            blockId: options.id,
-            hasContext: !options.folded,
-            key: options.k,
-            render: {
-                gutter: true,
-                breadcrumbDocName: true
-            },
-        });
-    } else {
-        protyle.protyle.scroll.lastScrollTop = 0;
-        addLoading(protyle.protyle);
-        fetchPost("/api/filetree/getDoc", {
-            id: options.id,
-            k: options.k,
-            mode: options.folded ? 0 : 3,
-            size: options.folded ? Constants.SIZE_GET_MAX : Constants.SIZE_GET,
-        }, getResponse => {
-            onGet(getResponse, protyle.protyle, options.folded ? [Constants.CB_GET_ALL] : [Constants.CB_GET_HL]);
-        });
-    }
+    fetchPost("/api/block/checkBlockFold", {id:options.id}, (foldResponse) => {
+        if (!protyle) {
+            protyle = new Protyle(options.dialog.element.querySelector("#searchPreview") as HTMLElement, {
+                blockId: options.id,
+                hasContext: !foldResponse.data,
+                key: options.k,
+                render: {
+                    gutter: true,
+                    breadcrumbDocName: true
+                },
+                after: () => {
+                    const matchElement = protyle.protyle.wysiwyg.element.querySelector(`div[data-node-id="${options.id}"] span[data-type="search-mark"]`);
+                    if (matchElement) {
+                        matchElement.scrollIntoView();
+                    }
+                }
+            });
+        } else {
+            protyle.protyle.scroll.lastScrollTop = 0;
+            addLoading(protyle.protyle);
+            fetchPost("/api/filetree/getDoc", {
+                id: options.id,
+                k: options.k,
+                mode: foldResponse.data ? 0 : 3,
+                size: foldResponse.data ? Constants.SIZE_GET_MAX : Constants.SIZE_GET,
+            }, getResponse => {
+                onGet(getResponse, protyle.protyle, foldResponse.data ? [Constants.CB_GET_ALL] : [Constants.CB_GET_HL]);
+                const matchElement = protyle.protyle.wysiwyg.element.querySelector(`div[data-node-id="${options.id}"] span[data-type="search-mark"]`);
+                if (matchElement) {
+                    matchElement.scrollIntoView();
+                }
+            });
+        }
+    });
 };
 
 const onSearch = (data: IBlock[], dialog: Dialog) => {
@@ -692,13 +690,10 @@ const onSearch = (data: IBlock[], dialog: Dialog) => {
         } else {
             dialog.element.querySelector("#searchPreview").classList.remove("fn__none");
         }
-        fetchPost("/api/block/checkBlockFold", {id: data[0].id}, (foldResponse) => {
-            getArticle({
-                dialog,
-                folded: foldResponse.data,
-                id: data[0].id,
-                k: (dialog.element.querySelector("input") as HTMLInputElement).value,
-            });
+        getArticle({
+            dialog,
+            id: data[0].id,
+            k: (dialog.element.querySelector("input") as HTMLInputElement).value,
         });
     } else {
         if (protyle) {

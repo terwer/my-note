@@ -2,10 +2,12 @@ import {confirmDialog} from "../dialog/confirmDialog";
 import {needSubscribe} from "../util/needSubscribe";
 import {fetchPost} from "../util/fetch";
 import {isMobile} from "../util/functions";
+/// #if !MOBILE
+import {exportLayout} from "../layout/util";
+/// #endif
 import {Dialog} from "../dialog";
 import {showMessage} from "../dialog/message";
 import {exitSiYuan} from "../dialog/processSystem";
-import {exportLayout} from "../layout/util";
 
 const getCloudList = (reload = false) => {
     const listElement = repos.element.querySelector("#reposCloudSyncList");
@@ -256,8 +258,8 @@ const setE2eePassword = () => {
 };
 
 const needPassword = () => {
-    if (window.siyuan.config.e2eePasswd === "") {
-        confirmDialog(window.siyuan.languages.config, window.siyuan.languages["_kernel"]["11"]);
+    if (window.siyuan.config.e2eePasswd === "" && !window.siyuan.config.sync.useDataRepo) {
+        confirmDialog(window.siyuan.languages.config, window.siyuan.languages._kernel[11]);
         return true;
     }
     return false;
@@ -292,7 +294,7 @@ export const repos = {
     </div>
 </div>`;
         }
-        let passwordHTML = `<div class="b3-label fn__flex${window.siyuan.config.e2eePasswd === "" ? "" : " fn__none"}">
+        let passwordHTML = `<div class="b3-label fn__flex${(window.siyuan.config.e2eePasswd !== "" || window.siyuan.config.sync.useDataRepo) ? " fn__none" : ""}">
     <div class="fn__flex-1 fn__flex-center">
         ${window.siyuan.languages.e2eePasswd}
         <div class="b3-label__text ft__error">${window.siyuan.languages.e2eePasswdTip}</div>
@@ -303,13 +305,13 @@ export const repos = {
         ${window.siyuan.languages.setPasswd}
     </button>
 </div>
-<div class="b3-label${window.siyuan.config.e2eePasswd === "" ? " fn__none" : ""}">
+<div class="b3-label${(window.siyuan.config.e2eePasswd === "" || window.siyuan.config.sync.useDataRepo) ? " fn__none" : ""}">
     ${window.siyuan.languages.e2eePasswd}
     <div class="b3-label__text"><i>${window.siyuan.languages.passwdSet}</i></div>
     <div class="b3-label__text ft__error">${0 === window.siyuan.config.e2eePasswdMode ? window.siyuan.languages.builtinE2EEPasswdTip : window.siyuan.languages.changeE2EEPasswdTip}</div>
 </div>`;
         if (isMobile()) {
-            passwordHTML = `<div class="b3-label${window.siyuan.config.e2eePasswd === "" ? "" : " fn__none"}">
+            passwordHTML = `<div class="b3-label${(window.siyuan.config.e2eePasswd !== "" || window.siyuan.config.sync.useDataRepo) ? " fn__none" : ""}">
     ${window.siyuan.languages.e2eePasswd}
     <div class="fn__hr"></div>
     <button id="updatePassword" class="b3-button b3-button--outline fn__block">
@@ -318,7 +320,7 @@ export const repos = {
     </button>
     <div class="b3-label__text ft__error">${window.siyuan.languages.e2eePasswdTip}</div>
 </div>
-<div class="b3-label${window.siyuan.config.e2eePasswd !== "" ? "" : " fn__none"}">
+<div class="b3-label${(window.siyuan.config.e2eePasswd === "" || window.siyuan.config.sync.useDataRepo) ? " fn__none" : ""}">
     ${window.siyuan.languages.e2eePasswd}
     <div class="fn__hr"></div>
     <div class="b3-label__text"><i>${window.siyuan.languages.passwdSet}</i></div>
@@ -358,6 +360,14 @@ ${passwordHTML}
         <option value="2" ${window.siyuan.config.sync.mode === 2 ? "selected" : ""}>${window.siyuan.languages.syncMode2}</option>
     </select>
 </label>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.syncDataRepo}
+        <div class="b3-label__text">${window.siyuan.languages.syncDataRepoTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input type="checkbox" id="useDataRepo"${window.siyuan.config.sync.useDataRepo ? " checked='checked'" : ""} class="b3-switch fn__flex-center">
+</label>
 <div class="b3-label">
     <div class="fn__flex">
         <div class="fn__flex-center">${window.siyuan.languages.cloudSync}</div>
@@ -368,7 +378,11 @@ ${passwordHTML}
     </div>
     <div id="reposCloudSyncList" class="fn__none config-repos__sync"><img style="margin: 0 auto;display: block;" src="/stage/loading-pure.svg"></div>
 </div>
-<div id="reposBackup" class="b3-label">${window.siyuan.languages.cloudBackup}</div>
+<div id="reposBackup" class="b3-label${window.siyuan.config.sync.useDataRepo ? " fn__none" : ""}">${window.siyuan.languages.cloudBackup}</div>
+<div class="b3-label fn__flex${window.siyuan.config.sync.useDataRepo ? "" : " fn__none"}">
+    <div class="fn__flex-center">${window.siyuan.languages.cloudBackup}</div>
+    <div class="b3-list-item__meta fn__flex-center">${window.siyuan.languages.cloudBackupTip}</div>
+</div>
 </div>`;
     },
     bindEvent: () => {
@@ -406,6 +420,36 @@ ${passwordHTML}
                 }
             });
         });
+        const useDataRepoElement = repos.element.querySelector("#useDataRepo") as HTMLInputElement;
+        useDataRepoElement.addEventListener("change", () => {
+            fetchPost("/api/sync/setSyncUseDataRepo", {enabled: useDataRepoElement.checked}, (response) => {
+                if (response.code === 1) {
+                    showMessage(response.msg);
+                    useDataRepoElement.checked = false;
+                } else {
+                    window.siyuan.config.sync.useDataRepo = useDataRepoElement.checked;
+                    const reposBackupElement = repos.element.querySelector("#reposBackup") as HTMLElement;
+                    const reposPasswordElement = repos.element.querySelector("#updatePassword").parentElement as HTMLElement;
+                    if (useDataRepoElement.checked) {
+                        reposBackupElement.classList.add("fn__none");
+                        reposBackupElement.nextElementSibling.classList.remove("fn__none");
+                        if (window.siyuan.config.e2eePasswd === "") {
+                            reposPasswordElement.classList.add("fn__none");
+                        } else {
+                            reposPasswordElement.nextElementSibling.classList.add("fn__none");
+                        }
+                    } else {
+                        reposBackupElement.classList.remove("fn__none");
+                        reposBackupElement.nextElementSibling.classList.add("fn__none");
+                        if (window.siyuan.config.e2eePasswd === "") {
+                            reposPasswordElement.classList.remove("fn__none");
+                        } else {
+                            reposPasswordElement.nextElementSibling.classList.remove("fn__none");
+                        }
+                    }
+                }
+            });
+        });
         const loadingElement = repos.element.querySelector("#reposLoading") as HTMLElement;
         loadingElement.style.width = repos.element.clientWidth + "px";
         loadingElement.style.height = repos.element.clientHeight + "px";
@@ -435,9 +479,13 @@ ${passwordHTML}
                                     fetchPost("/api/backup/downloadCloudBackup", {}, () => {
                                         fetchPost("/api/backup/recoverLocalBackup", {}, () => {
                                             setTimeout(() => {
+                                                /// #if !MOBILE
                                                 exportLayout(false, () => {
                                                     exitSiYuan();
                                                 });
+                                                /// #else
+                                                window.location.reload();
+                                                /// #endif
                                             }, 7000);
                                             return;
                                         });
@@ -481,8 +529,16 @@ ${passwordHTML}
                                 target.parentElement.setAttribute("disabled", "disabled");
                                 fetchPost("/api/sync/getSyncDirection", {name: target.getAttribute("data-name")}, (response) => {
                                     target.parentElement.removeAttribute("disabled");
+                                    const name = target.getAttribute("data-name");
+                                    if (40 == response.code) { // 使用数据仓库同步不需要对比同步方向
+                                        fetchPost("/api/sync/setCloudSyncDir", {name}, () => {
+                                            window.siyuan.config.sync.cloudName = name;
+                                            getCloudList(true);
+                                        });
+                                        return;
+                                    }
+
                                     confirmDialog(window.siyuan.languages.confirm, response.msg, () => {
-                                        const name = target.getAttribute("data-name");
                                         fetchPost("/api/sync/setCloudSyncDir", {name}, () => {
                                             window.siyuan.config.sync.cloudName = name;
                                             getCloudList(true);
