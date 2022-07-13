@@ -295,6 +295,22 @@ declare interface IConfig {
         networkServe: boolean
         useExistingDB: boolean
     }
+    terwer: {
+        publish: {
+            platform: {
+                cnblogs: {
+                    publishApiUrl: string,
+                    publishUsername: string,
+                    publishPassword: string
+                },
+                conf: {
+                    publishApiUrl: string,
+                    publishUsername: string,
+                    publishPassword: string
+                }
+            }
+        }
+    },
     localIPs: string[]
     readonly: boolean
     uiLayout: Record<string, any>
