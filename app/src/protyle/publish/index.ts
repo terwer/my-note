@@ -48,7 +48,7 @@ const doPublish = (id: string, type: string, meta: any, content: any) => {
         [postidKey]: "99999",
     };
 
-    wordpressApi_getPosts();
+    wordpressApi_getPosts(apiParams);
 
     fetchPost("/api/attr/setBlockAttrs", {
         "id": id,
@@ -60,11 +60,11 @@ const doPublish = (id: string, type: string, meta: any, content: any) => {
     });
 };
 
-async function wordpressApi_getPosts() {
+async function wordpressApi_getPosts(apiParams: any) {
     const client = wordpress_compatible.createClient({
-        url: "http://localhost:8000/xmlrpc.php",
-        username: "terwer",
-        password: "123456"
+        url: apiParams.API_URL,
+        username: apiParams.username,
+        password: apiParams.password
     });
 
     console.log("starting...")

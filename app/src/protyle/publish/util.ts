@@ -7,7 +7,7 @@ const API_TYPE_WECHAT = "wechat";
 const API_TYPE_LIANDI = "liandi";
 
 const CNBLOGS_API_URL = "https://rpc.cnblogs.com/metaweblog/tangyouwei";
-const WORDPRESS_API_URL = "https://terwergreen.wordpress.com/xmlrpc.php";
+const WORDPRESS_API_URL = "http://localhost:8000/xmlrpc.php";
 const CONFLUENCE_API_URL = "https://xmlrpc.terwergreen.com/api/xmlrpc?t=conf";
 const JVUE_API_URL = "http://v4.terwergreen.com:8002/xmlrpc";
 const YUQUE_API_URL = "https://xmlrpc.terwergreen.com/api/xmlrpc?t=yuque";
@@ -47,8 +47,8 @@ export function getApiParams(apiType: string) {
     if (API_TYPE_WORDPRESS == apiType) {
         API_URL = WORDPRESS_API_URL;
         appKey = API_TYPE_WORDPRESS;
-        username = "";
-        password = "";
+        username = "terwer";
+        password = "123456";
         postidKey = WORDPRESS_POSTID_KEY;
     }
 

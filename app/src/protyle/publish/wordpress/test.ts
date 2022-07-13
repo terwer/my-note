@@ -6,11 +6,13 @@
 // https://codex.wordpress.org/WordPress_APIs
 
 import wordpress_compatible from "./lib/wordpress-compatible";
+import PUBLISH_TYPE_CONSTANTS, {getApiParams} from "../util";
 
+const apiParams = getApiParams(PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS);
 const client = wordpress_compatible.createClient({
-    url: "http://localhost:8000/xmlrpc.php",
-    username: "terwer",
-    password: "123456"
+    url: apiParams.API_URL,
+    username: apiParams.username,
+    password: apiParams.password
 });
 
 console.log("starting...");
