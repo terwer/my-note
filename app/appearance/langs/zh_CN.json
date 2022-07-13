@@ -696,6 +696,8 @@
   "platformJVue": "JVue",
   "platformWordPress": "WordPress",
   "platformLiandi": "链滴社区",
+  "publishStatusNew": "[发布]",
+  "publishStatusUpdate": "[更新]",
   "fileTypeError": "文件类型不允许上传",
   "fullscreen": "全屏切换",
   "generate": "生成中",

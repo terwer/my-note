@@ -360,7 +360,7 @@ export class Breadcrumb {
                 id: protyle.block.parentID
             }, (response) => {
                 const meta = response;
-                console.log("publish status inited");
+                // console.log("publish status inited");
                 // console.log("publicMd init menu,meta=>", meta);
 
                 window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);

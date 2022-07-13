@@ -9,7 +9,7 @@ import {MenuItem} from "./Menu";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {saveExport} from "../protyle/export";
 import {publishHTMLContent, publishMdContent} from "../protyle/publish";
-import PUBLISH_TYPE_CONSTANTS from "../protyle/publish/util";
+import PUBLISH_TYPE_CONSTANTS, {getApiParams} from "../protyle/publish/util";
 import {writeText} from "../protyle/util/compatibility";
 import {fetchPost} from "../util/fetch";
 import {hideMessage, showMessage} from "../dialog/message";
@@ -723,56 +723,72 @@ export const publicMd = (id: string, meta: any) => {
         icon: "iconExact",
         submenu: [
             {
-                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformConf,
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformConf + " " + getPublishStatusIcon(PUBLISH_TYPE_CONSTANTS.API_TYPE_CONFLUENCE, meta),
                 icon: "iconMarkdown",
                 click: () => {
                     publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CONFLUENCE, meta, undefined);
                 }
             },
             {
-                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformJVue,
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformJVue + " " + getPublishStatusIcon(PUBLISH_TYPE_CONSTANTS.API_TYPE_JVUE, meta),
                 icon: "iconMarkdown",
                 click: () => {
                     publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_JVUE, meta, undefined);
                 }
             },
             {
-                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformCnblogs,
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformCnblogs + " " + getPublishStatusIcon(PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta),
                 icon: "iconMarkdown",
                 click: () => {
                     publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta, undefined);
                 }
             },
             {
-                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWordPress,
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWordPress + " " + getPublishStatusIcon(PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS, meta),
                 icon: "iconMarkdown",
                 click: () => {
                     publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS, meta, undefined);
                 }
             },
             {
-                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformYuque,
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformYuque + " " + getPublishStatusIcon(PUBLISH_TYPE_CONSTANTS.API_TYPE_YUQUE, meta),
                 icon: "iconMarkdown",
                 click: () => {
-                    publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta, undefined);
+                    publishMdContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_YUQUE, meta, undefined);
                 }
             },
             {
-                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWechat,
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformWechat + " " + getPublishStatusIcon(PUBLISH_TYPE_CONSTANTS.API_TYPE_WECHAT, meta),
                 icon: "iconHTML5",
                 click: () => {
-                    publishHTMLContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta);
+                    publishHTMLContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_WECHAT, meta);
                 }
             },
             {
-                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformLiandi,
+                label: window.siyuan.languages.publishTo + " " + window.siyuan.languages.platformLiandi + " " + getPublishStatusIcon(PUBLISH_TYPE_CONSTANTS.API_TYPE_LIANDI, meta),
                 icon: "iconHTML5",
                 click: () => {
-                    publishHTMLContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS, meta);
+                    publishHTMLContent(id, PUBLISH_TYPE_CONSTANTS.API_TYPE_LIANDI, meta);
                 }
             }
         ]
     }).element;
+};
+
+/**
+ * 根据平台类型获取文档ID关键字
+ * @param apiType 平台类型
+ * @param meta 元数据
+ */
+const getPublishStatusIcon = (apiType: string, meta: any) => {
+    // 未生效的临时代码，后续删掉
+    window.siyuan.languages.publishStatusNew = "[发布]";
+    window.siyuan.languages.publishStatusUpdate = "[更新]";
+
+    const postidKey = getApiParams(apiType).postidKey;
+    const publishStatus = meta.data[postidKey] || "";
+    const confIcon = publishStatus === "" ? window.siyuan.languages.publishStatusNew : window.siyuan.languages.publishStatusUpdate;
+    return confIcon;
 };
 
 export const openMenu = (src: string, onlyMenu = false) => {

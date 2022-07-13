@@ -695,6 +695,8 @@
   "platformJVue": "JVue",
   "platformWordPress": "WordPress",
   "platformLiandi": "Liandi",
+  "publishStatusNew": "[Publish]",
+  "publishStatusUpdate": "[Update]",
   "fileTypeError": "file type is error",
   "fullscreen": "Toggle Fullscreen",
   "generate": "Generating",
