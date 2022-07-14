@@ -24,6 +24,7 @@ electron/dist
 
 # IDE
 .idea/
+*.iml
 
 # Log
 logs
