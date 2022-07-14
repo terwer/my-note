@@ -40,6 +40,8 @@ module.exports = (env, argv) => {
         "https": require.resolve("https-browserify"),
         "http": require.resolve("stream-http"),
         "stream": require.resolve("stream-browserify"),
+        "url": require.resolve("url/"),
+        "buffer": require.resolve("buffer/"),
       },
       extensions: ['.ts', '.js', '.tpl', '.scss'],
     },
