@@ -99,7 +99,7 @@ func Boot() {
 	initPathDir()
 	checkPort()
 
-	bootBanner := figure.NewColorFigure("SiYuan", "isometric3", "green", true)
+	bootBanner := figure.NewColorFigure("Terwer", "big", "green", true)
 	LogInfof("\n" + bootBanner.String())
 	logBootInfo()
 
