@@ -1,4 +1,4 @@
-var url = require("url");
+const url = require("url");
 const xmlrpc = require("xmlrpc");
 const fieldMap = require("./field-compatible").default;
 
@@ -6,7 +6,7 @@ const fieldMap = require("./field-compatible").default;
 // http://codex.wordpress.org/XML-RPC_WordPress_API
 
 function extend(a: any, b: any) {
-    for (var p in b) {
+    for (const p in b) {
         a[p] = b[p];
     }
 
@@ -33,7 +33,7 @@ const Client = function (this: any, settings: any) {
         }
     });
 
-    var parsedUrl = Client.parseUrl(settings.url);
+    const parsedUrl = Client.parseUrl(settings.url);
     this.rpc = xmlrpc[parsedUrl.secure ? "createSecureClient" : "createClient"]({
         host: settings.host || parsedUrl.host,
         port: parsedUrl.port,
@@ -56,14 +56,12 @@ const Client = function (this: any, settings: any) {
 };
 
 Client.parseUrl = function (wpUrl: any) {
-    var urlParts, secure;
-
     // allow URLs without a protocol
     if (!(/\w+:\/\//.test(wpUrl))) {
         wpUrl = "http://" + wpUrl;
     }
-    urlParts = url.parse(wpUrl);
-    secure = urlParts.protocol === "https:";
+    const urlParts = url.parse(wpUrl);
+    const secure = urlParts.protocol === "https:";
 
     return {
         host: urlParts.hostname,
@@ -76,8 +74,9 @@ Client.parseUrl = function (wpUrl: any) {
 
 extend(Client.prototype, {
     call: function (method: any) {
-        var args = parseArguments(arguments),
-            fn = args.pop();
+        // eslint-disable-next-line prefer-rest-params
+        const args = parseArguments(arguments);
+        let fn = args.pop();
 
         if (typeof fn !== "function") {
             args.push(fn);
@@ -92,7 +91,7 @@ extend(Client.prototype, {
             if (error.code === "ENOTFOUND" && error.syscall === "getaddrinfo") {
                 error.message = "Unable to connect to WordPress.";
             } else if (error.message === "Unknown XML-RPC tag 'TITLE'") {
-                var additional = error.res.statusCode;
+                let additional = error.res.statusCode;
                 if (error.res.statusMessage) {
                     additional += "; " + error.res.statusMessage;
                 }
@@ -105,8 +104,10 @@ extend(Client.prototype, {
     },
 
     authenticatedCall: function () {
-        var args = [].slice.call(arguments);
+        // eslint-disable-next-line prefer-rest-params
+        const args = [].slice.call(arguments);
         args.splice(1, 0, this.blogId, this.username, this.password);
+        // eslint-disable-next-line prefer-spread
         this.call.apply(this, args);
     },
 

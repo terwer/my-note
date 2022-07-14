@@ -552,7 +552,7 @@ export const globalShortcut = () => {
             event.stopPropagation();
             let activeTabElement = document.querySelector(".block__icons--active");
             if (activeTabElement && activeTabElement.getBoundingClientRect().width > 0) {
-                let type: TDockType
+                let type: TDockType;
                 Array.from(activeTabElement.parentElement.classList).find(item => {
                     if (item.startsWith("sy__")) {
                         type = item.replace("sy__", "") as TDockType;

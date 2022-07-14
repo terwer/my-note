@@ -8,6 +8,7 @@ import wordpressApiClient from "./wordpress/wordpress-api-client";
 import msg from "../../util/msg";
 
 // publishMdContent
+// eslint-disable-next-line @typescript-eslint/ban-types
 export const publishMdContent = (id: string, type: string, meta: any, callback: Function) => {
     const msgId = showMessage("publishing...", -1);
     fetchPost("/api/export/exportMdContent", {
@@ -27,7 +28,8 @@ export const publishMdContent = (id: string, type: string, meta: any, callback: 
 };
 
 // publishHTMLContent
-export const publishHTMLContent = (id: string, type: string, meta: any) => {
+// eslint-disable-next-line @typescript-eslint/ban-types
+export const publishHTMLContent = (id: string, type: string, meta: Function) => {
     publishMdContent(id, type, meta, function (meta: any, content: any) {
         const html = content;
         // console.log("publishHTMLContent meta=>", meta);

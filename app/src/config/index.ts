@@ -10,7 +10,7 @@ import {repos} from "./repos";
 import {keymap} from "./keymap";
 import {bazaar} from "./bazaar";
 import {query} from "./query";
-import {publish} from "./publish"
+import {publish} from "./publish";
 import {Dialog} from "../dialog";
 
 export const openSetting = () => {

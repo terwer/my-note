@@ -1,4 +1,6 @@
 #!/bin/bash
+cd ../
+pwd
 
 echo 'Building UI'
 cd app

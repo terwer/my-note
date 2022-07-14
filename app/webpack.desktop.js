@@ -4,9 +4,9 @@ const pkg = require('./package.json')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const {CleanWebpackPlugin} = require('clean-webpack-plugin')
-const BundleAnalyzerPlugin = require(
-  'webpack-bundle-analyzer').BundleAnalyzerPlugin
+// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin
 const TerserPlugin = require('terser-webpack-plugin')
+// const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
 
 module.exports = (env, argv) => {
   return {
@@ -37,6 +37,9 @@ module.exports = (env, argv) => {
     resolve: {
       fallback: {
         'path': require.resolve('path-browserify'),
+        "https": require.resolve("https-browserify"),
+        "http": require.resolve("stream-http"),
+        "stream": require.resolve("stream-browserify"),
       },
       extensions: ['.ts', '.js', '.tpl', '.scss'],
     },

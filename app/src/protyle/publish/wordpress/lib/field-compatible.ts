@@ -1,7 +1,7 @@
-var maps = {};
+const maps = {};
 
 function extend(a: any, b: any) {
-    for (var p in b) {
+    for (const p in b) {
         a[p] = b[p];
     }
 
@@ -9,7 +9,7 @@ function extend(a: any, b: any) {
 }
 
 function createFieldMaps(renames: any, toFns: any, fromFns: any) {
-    var to = extend({}, renames),
+    const to = extend({}, renames),
         from = {};
 
     Object.keys(renames).forEach(function (key) {
@@ -25,7 +25,8 @@ function createFieldMaps(renames: any, toFns: any, fromFns: any) {
 }
 
 function mapFields(data: any, map: any) {
-    var field, value, mappedField,
+    let field, value, mappedField,
+        // eslint-disable-next-line prefer-const
         ret = {};
 
     for (field in data) {
@@ -37,6 +38,7 @@ function mapFields(data: any, map: any) {
             continue;
             // string -> change field name
         } else if (typeof mappedField === "string") {
+            // eslint-disable-next-line @typescript-eslint/ban-types
             ret[mappedField as keyof Object] = value;
             // function -> merge result
         } else {
@@ -248,7 +250,7 @@ maps.mediaItemMetadata = createFieldMaps({
     width: /* int */ "width"
 }, {}, {
     sizes: /* struct */ function (size: any) {
-        var keys = Object.keys(size),
+        const keys = Object.keys(size),
             results = {};
 
         // Loop through the available sizes and map the fields
@@ -305,7 +307,7 @@ const fieldCompatible = {
     },
     array: function (data: any, type: any) {
         // @ts-ignore
-        var map = maps[type].renames;
+        const map = maps[type].renames;
         return data.map(function (field: any) {
             return map[field];
         });

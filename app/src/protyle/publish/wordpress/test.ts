@@ -12,5 +12,9 @@ const wordpressApi = wordpressApiClient(PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRES
 const result2 = wordpressApi.getPosts(10);
 // @ts-ignore
 result2.then(function (reslove: any, reject: any) {
+    if(reject){
+        console.log("wordpress getPosts error=>", reject);
+        return;
+    }
     console.log("wordpress getPosts=>", reslove);
 });

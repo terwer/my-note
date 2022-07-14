@@ -80,6 +80,7 @@ const confirmMsg = (msg: string) => {
         msgDialog.destroy();
     });
     btnsElement[1].addEventListener("click", () => {
+        console.log("clicked");
     });
 };
 
@@ -88,7 +89,7 @@ const confirmMsg = (msg: string) => {
  * @param title 标题
  * @param callback 回调，会返回输入的数据
  */
-const inputMsg = (title: string, callback: Function) => {
+const inputMsg = (title: string, callback: any) => {
     const inputDialog = new Dialog({
         title: "🔑️" + title,
         content: `<div class="b3-dialog__content">
@@ -118,6 +119,7 @@ const inputMsg = (title: string, callback: Function) => {
  * @param title 标题
  * @param callback 回调，会返回输入的数据
  */
+// eslint-disable-next-line @typescript-eslint/ban-types
 const bindPlatformMsg = (title: string, callback: Function) => {
     const inputDialog = new Dialog({
         title: "🔑️" + title,
