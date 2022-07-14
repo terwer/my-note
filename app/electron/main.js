@@ -180,8 +180,7 @@ const boot = () => {
   })
 
   require('@electron/remote/main').enable(mainWindow.webContents)
-  mainWindow.webContents.userAgent = 'SiYuan/' + appVer +
-    ' https://b3log.org/siyuan ' + mainWindow.webContents.userAgent
+  mainWindow.webContents.userAgent = 'SiYuan/' + appVer + ' https://b3log.org/siyuan Electron'
   mainWindow.webContents.on('did-finish-load', () => {
     if ('win32' === process.platform || 'linux' === process.platform) {
       siyuanOpenURL = process.argv.find((arg) => arg.startsWith('siyuan://'))
@@ -220,9 +219,8 @@ const boot = () => {
   })
 
   // 加载主界面
-  const loadURL = 'http://127.0.0.1:6806/stage/build/app/index.html?v=' +
-    new Date().getTime()
-  mainWindow.loadURL(loadURL)
+  mainWindow.loadURL('http://127.0.0.1:6806/stage/build/app/index.html?v=' +
+    new Date().getTime())
 
   // 菜单
   const productName = 'SiYuan'
@@ -442,8 +440,8 @@ const initKernel = (initData) => {
     })
 
     const kernelName = 'win32' === process.platform
-      ? 'SiYuan-Kernel.exe'
-      : 'SiYuan-Kernel'
+      ? 'SiYuan_Kernel.exe'
+      : 'SiYuan_Kernel'
     const kernelPath = path.join(appDir, 'kernel', kernelName)
     if (!fs.existsSync(kernelPath)) {
       showErrorWindow('⚠️ 内核文件丢失 Kernel is missing', `<div>内核可执行文件丢失，请重新安装思源，并将思源加入杀毒软件信任列表。</div><div>The kernel binary is not found, please reinstall SiYuan and add SiYuan into the trust list of your antivirus software.</div>`)

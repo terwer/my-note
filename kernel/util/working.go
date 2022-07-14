@@ -32,6 +32,7 @@ import (
 	"github.com/88250/gulu"
 	figure "github.com/common-nighthawk/go-figure"
 	goPS "github.com/mitchellh/go-ps"
+	"github.com/siyuan-note/httpclient"
 )
 
 //var Mode = "dev"
@@ -39,7 +40,7 @@ import (
 var Mode = "prod"
 
 const (
-	Ver       = "2.0.22"
+	Ver       = "2.0.26"
 	IsInsider = false
 )
 
@@ -53,6 +54,7 @@ func Boot() {
 	IncBootProgress(3, "Booting...")
 	rand.Seed(time.Now().UTC().UnixNano())
 	initMime()
+	httpclient.SetUserAgent(UserAgent)
 
 	workspacePath := flag.String("workspace", "", "dir path of the workspace, default to ~/Documents/SiYuan/")
 	wdPath := flag.String("wd", WorkingDir, "working directory of SiYuan")
@@ -62,7 +64,7 @@ func Boot() {
 	readOnly := flag.Bool("readonly", false, "read-only mode")
 	accessAuthCode := flag.String("accessAuthCode", "", "access auth code")
 	ssl := flag.Bool("ssl", false, "for https and wss")
-	lang := flag.String("lang", "en_US", "zh_CN/zh_CHT/en_US/fr_FR")
+	lang := flag.String("lang", "", "zh_CN/zh_CHT/en_US/fr_FR/es_ES")
 	mode := flag.String("mode", "prod", "dev/prod")
 	flag.Parse()
 
@@ -97,7 +99,7 @@ func Boot() {
 	initPathDir()
 	checkPort()
 
-	bootBanner := figure.NewColorFigure("SiYuan", "isometric3", "green", true)
+	bootBanner := figure.NewColorFigure("Terwer", "big", "green", true)
 	LogInfof("\n" + bootBanner.String())
 	logBootInfo()
 
@@ -138,7 +140,7 @@ func SetBooted() {
 }
 
 func GetHistoryDirNow(now, suffix string) (ret string, err error) {
-	ret = filepath.Join(WorkspaceDir, "history", now+"-"+suffix)
+	ret = filepath.Join(HistoryDir, now+"-"+suffix)
 	if err = os.MkdirAll(ret, 0755); nil != err {
 		LogErrorf("make history dir failed: %s", err)
 		return
@@ -147,7 +149,7 @@ func GetHistoryDirNow(now, suffix string) (ret string, err error) {
 }
 
 func GetHistoryDir(suffix string) (ret string, err error) {
-	ret = filepath.Join(WorkspaceDir, "history", time.Now().Format("2006-01-02-150405")+"-"+suffix)
+	ret = filepath.Join(HistoryDir, time.Now().Format("2006-01-02-150405")+"-"+suffix)
 	if err = os.MkdirAll(ret, 0755); nil != err {
 		LogErrorf("make history dir failed: %s", err)
 		return
@@ -163,6 +165,7 @@ var (
 	ConfDir        string        // 配置目录路径
 	DataDir        string        // 数据目录路径
 	RepoDir        string        // 仓库目录路径
+	HistoryDir     string        // 数据历史目录路径
 	TempDir        string        // 临时目录路径
 	LogPath        string        // 配置目录下的日志文件 siyuan.log 路径
 	DBName         = "siyuan.db" // SQLite 数据库文件名
@@ -251,6 +254,7 @@ func initWorkspaceDir(workspaceArg string) {
 	ConfDir = filepath.Join(WorkspaceDir, "conf")
 	DataDir = filepath.Join(WorkspaceDir, "data")
 	RepoDir = filepath.Join(WorkspaceDir, "repo")
+	HistoryDir = filepath.Join(WorkspaceDir, "history")
 	TempDir = filepath.Join(WorkspaceDir, "temp")
 	osTmpDir := filepath.Join(TempDir, "os")
 	os.RemoveAll(osTmpDir)
@@ -268,7 +272,7 @@ var (
 	Resident       bool
 	ReadOnly       bool
 	AccessAuthCode string
-	Lang           = "en_US"
+	Lang           = ""
 
 	Container string // docker, android, ios, std
 )
@@ -323,7 +327,7 @@ func checkPort() {
 
 	LogInfof("port [%s] is opened, try to check version of running kernel", ServerPort)
 	result := NewResult()
-	_, err := NewBrowserRequest("").
+	_, err := httpclient.NewBrowserRequest().
 		SetResult(result).
 		SetHeader("User-Agent", UserAgent).
 		Get("http://127.0.0.1:" + ServerPort + "/api/system/version")

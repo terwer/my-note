@@ -13,7 +13,7 @@ Install pnpm: `npm install -g pnpm`
 <summary>For China mainland</summary>
 Set the Electron mirror environment variable:
 
-* macOS/Linux: ELECTRON_MIRROR="https://cnpmjs.org/mirrors/electron/" pnpm install electron@14.2.5 -D
+* macOS/Linux: ELECTRON_MIRROR="https://cnpmjs.org/mirrors/electron/" pnpm install electron@19.0.8 -D
 * Windows: `SET ELECTRON_MIRROR=https://cnpmjs.org/mirrors/electron/`
 
 NPM mirror:
@@ -32,9 +32,9 @@ On the desktop, go to the app folder to compile and run:
 ### Desktop
 
 * `cd kernel`
-* `go build --tags "fts5" -o "../app/kernel/SiYuan-Kernel.exe"`
+* `go build --tags "fts5" -o "../app/kernel/SiYuan_Kernel.exe"`
 * `cd ../app/kernel`
-* `./SiYuan-Kernel.exe --wd=.. --mode=dev`
+* `./SiYuan_Kernel.exe --wd=.. --mode=dev`
 
 ### iOS
 

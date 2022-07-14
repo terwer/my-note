@@ -2,13 +2,12 @@ name: CI/CD For SiYuan
 
 on:
   push:
-    tags:
-      - '*-dev*'
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
   workflow_dispatch:
-  
 
 jobs:
-
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
@@ -31,13 +30,13 @@ jobs:
         run: |
           echo "::set-output name=release_title::$(git show --format=%s --no-patch | head -1)"
           echo "::set-output name=release_version::$(TZ=Asia/Shanghai date +'v%Y%m%d%H%M')"
-          changelog=$(python scripts/parse-changelog.py -t ${{ github.ref }} siyuan-note/siyuan)
+          changelog=$(python scripts/parse-changelog.py -t ${{ github.ref }} terwer/my-note)
           changelog="${changelog//'%'/'%25'}"
           changelog="${changelog//$'\n'/'%0A'}"
           changelog="${changelog//$'\r'/'%0D'}"
           echo "::set-output name=release_body::$changelog"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
 
       - name: Extract version from package.json
         uses: sergeysova/jq-action@v2
@@ -49,7 +48,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
           release_name: ${{ steps.release_info.outputs.release_version }}
           tag_name: ${{ github.ref }}
@@ -64,35 +63,35 @@ jobs:
       matrix:
         config:
           - os: ubuntu-20.04
-            kernel_path: "../app/kernel-linux/SiYuan-Kernel"
+            kernel_path: "../app/kernel-linux/SiYuan_Kernel"
             build_args: "-s -w -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"
             electron_args: "dist-linux"
             goos: "linux"
             goarch: "amd64"
             suffix: "linux.AppImage"
           - os: ubuntu-20.04
-            kernel_path: "../app/kernel-linux/SiYuan-Kernel"
+            kernel_path: "../app/kernel-linux/SiYuan_Kernel"
             build_args: "-s -w -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"
             electron_args: "dist-linux"
             goos: "linux"
             goarch: "amd64"
             suffix: "linux.tar.gz"
           - os: macos-latest
-            kernel_path: "../app/kernel-darwin/SiYuan-Kernel"
+            kernel_path: "../app/kernel-darwin/SiYuan_Kernel"
             build_args: "-s -w -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"
             electron_args: "dist-darwin"
             goos: "darwin"
             goarch: "amd64"
             suffix: "mac.dmg"
           - os: macos-latest
-            kernel_path: "../app/kernel-darwin-arm64/SiYuan-Kernel"
+            kernel_path: "../app/kernel-darwin-arm64/SiYuan_Kernel"
             build_args: "-s -w -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"
             electron_args: "dist-darwin-arm64"
             goos: "darwin"
             goarch: "arm64"
             suffix: "mac-arm64.dmg"
           - os: windows-2019
-            kernel_path: "../app/kernel/SiYuan-Kernel.exe"
+            kernel_path: "../app/kernel/SiYuan_Kernel.exe"
             build_args: "-s -w -H=windowsgui -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"
             electron_args: "dist"
             goos: "windows"
@@ -101,7 +100,7 @@ jobs:
             goarch: "amd64"
             suffix: "win.exe"
           - os: windows-2019
-            kernel_path: "../app/kernel32/SiYuan-Kernel.exe"
+            kernel_path: "../app/kernel32/SiYuan_Kernel.exe"
             build_args: "-s -w -H=windowsgui -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"
             electron_args: "dist-win32"
             goos: "windows"
@@ -155,7 +154,7 @@ jobs:
     - name: Install Node Dependencies
       run: pnpm install
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app
-      
+
     - name: Building UI
       run: pnpm run build
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app
@@ -170,7 +169,7 @@ jobs:
       with:
         path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/kernel-linux
 
-    - name: Remove Kernel Directory for Windows 32bit 
+    - name: Remove Kernel Directory for Windows 32bit
       uses: JesseTG/rm@v1.0.2
       with:
         path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/kernel32
@@ -194,7 +193,7 @@ jobs:
       run: ${{ github.workspace }}\go\${{ matrix.config.gobin }}\goversioninfo -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
       if: "contains( matrix.config.goos, 'windows')"
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/kernel
-    
+
     - name: Building Kernel
       run: go build --tags fts5 -o "${{ matrix.config.kernel_path }}" -v -ldflags "${{ matrix.config.build_args }}"
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/kernel
@@ -205,7 +204,7 @@ jobs:
         GOOS: ${{ matrix.config.goos }}
         GOPATH: ${{ github.workspace }}/go
         GOARCH: ${{ matrix.config.goarch }}
-      
+
     - name: Building Electron
       run: pnpm run ${{ matrix.config.electron_args }}
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app
@@ -213,9 +212,9 @@ jobs:
     - name: Upload Release
       uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_name: siyuan-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
+        asset_name: my-note-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
         asset_path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/build/siyuan-${{ needs.create_release.outputs.version }}-${{ matrix.config.suffix }}
         asset_content_type: application/octet-stream

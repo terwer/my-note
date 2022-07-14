@@ -23,18 +23,21 @@ import (
 	"time"
 
 	figure "github.com/common-nighthawk/go-figure"
+	"github.com/siyuan-note/httpclient"
 )
 
 func BootMobile(container, appDir, workspaceDir, nativeLibDir, privateDataDir, lang string) {
 	IncBootProgress(3, "Booting...")
 	rand.Seed(time.Now().UTC().UnixNano())
 	initMime()
+	httpclient.SetUserAgent(UserAgent)
 
 	HomeDir = filepath.Join(workspaceDir, "home")
 	WorkingDir = filepath.Join(appDir, "app")
 	WorkspaceDir = workspaceDir
 	ConfDir = filepath.Join(workspaceDir, "conf")
 	DataDir = filepath.Join(workspaceDir, "data")
+	HistoryDir = filepath.Join(workspaceDir, "history")
 	RepoDir = filepath.Join(WorkspaceDir, "repo")
 	TempDir = filepath.Join(workspaceDir, "temp")
 	osTmpDir := filepath.Join(TempDir, "os")

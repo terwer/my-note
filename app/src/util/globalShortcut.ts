@@ -1,4 +1,4 @@
-import {isCtrl, isMac, writeText} from "../protyle/util/compatibility";
+import {isCtrl, isMac, updateHotkeyTip, writeText} from "../protyle/util/compatibility";
 import {matchHotKey} from "../protyle/util/hotKey";
 import {openSearch} from "../search/spread";
 import {
@@ -24,7 +24,7 @@ import {goBack, goForward} from "./backForward";
 import {onGet} from "../protyle/util/onGet";
 import {getDisplayName, getNotebookName, movePathTo} from "./pathName";
 import {confirmDialog} from "../dialog/confirmDialog";
-import {deleteFile, openFileById} from "../editor/util";
+import {openFileById} from "../editor/util";
 import {getAllDocks, getAllModels, getAllTabs} from "../layout/getAll";
 import {openGlobalSearch} from "../search/util";
 import {getColIndex} from "../protyle/util/table";
@@ -33,6 +33,11 @@ import {initFileMenu, initNavigationMenu} from "../menus/navigation";
 import {bindMenuKeydown} from "../menus/Menu";
 import {showMessage} from "../dialog/message";
 import {openHistory} from "./history";
+import {needSubscribe} from "./needSubscribe";
+import {Dialog} from "../dialog";
+import {unicode2Emoji} from "../emoji";
+import {deleteFile} from "../editor/deleteFile";
+import {escapeHtml} from "./escape";
 
 const getRightBlock = (element: HTMLElement, x: number, y: number) => {
     let index = 1;
@@ -43,6 +48,33 @@ const getRightBlock = (element: HTMLElement, x: number, y: number) => {
         index++;
     }
     return nodeElement;
+};
+
+const switchDialogEvent = (event: MouseEvent, switchDialog: Dialog) => {
+    event.preventDefault();
+    event.stopPropagation();
+    let target = event.target as HTMLElement;
+    while (!target.isSameNode(switchDialog.element)) {
+        if (target.classList.contains("b3-list-item")) {
+            const currentType = target.getAttribute("data-type") as TDockType;
+            if (currentType) {
+                getDockByType(currentType).toggleModel(currentType, true);
+            } else {
+                const currentId = target.getAttribute("data-id");
+                getAllTabs().find(item => {
+                    if (item.id === currentId) {
+                        item.parent.switchTab(item.headElement);
+                        setPanelFocus(item.headElement.parentElement.parentElement);
+                        return true;
+                    }
+                });
+            }
+            switchDialog.destroy();
+            switchDialog = undefined;
+            break;
+        }
+        target = target.parentElement;
+    }
 };
 
 export const globalShortcut = () => {
@@ -155,15 +187,83 @@ export const globalShortcut = () => {
         }
     });
 
+    let switchDialog: Dialog;
+
     window.addEventListener("keyup", (event) => {
         window.siyuan.ctrlIsPressed = false;
         window.siyuan.shiftIsPressed = false;
         window.siyuan.altIsPressed = false;
-        if ((event.target as HTMLElement).tagName === "INPUT" || (event.target as HTMLElement).tagName === "TEXTAREA") {
-            return;
-        }
-        if (!hasClosestBlock(document.activeElement)) {
-            return;
+        if (switchDialog && switchDialog.element.parentElement) {
+            if (event.key === "Tab") {
+                const currentLiElement = switchDialog.element.querySelector(".b3-list-item--focus");
+                currentLiElement.classList.remove("b3-list-item--focus");
+                if (event.shiftKey) {
+                    if (currentLiElement.previousElementSibling) {
+                        currentLiElement.previousElementSibling.classList.add("b3-list-item--focus");
+                    } else if (currentLiElement.getAttribute("data-original")) {
+                        currentLiElement.parentElement.lastElementChild.classList.add("b3-list-item--focus");
+                        currentLiElement.removeAttribute("data-original");
+                    } else if (currentLiElement.parentElement.nextElementSibling) {
+                        currentLiElement.parentElement.nextElementSibling.lastElementChild.classList.add("b3-list-item--focus");
+                    } else if (currentLiElement.parentElement.previousElementSibling) {
+                        currentLiElement.parentElement.previousElementSibling.lastElementChild.classList.add("b3-list-item--focus");
+                    }
+                } else {
+                    if (currentLiElement.nextElementSibling) {
+                        currentLiElement.nextElementSibling.classList.add("b3-list-item--focus");
+                    } else if (currentLiElement.getAttribute("data-original")) {
+                        currentLiElement.parentElement.firstElementChild.classList.add("b3-list-item--focus");
+                        currentLiElement.removeAttribute("data-original");
+                    } else if (currentLiElement.parentElement.nextElementSibling) {
+                        currentLiElement.parentElement.nextElementSibling.firstElementChild.classList.add("b3-list-item--focus");
+                    } else if (currentLiElement.parentElement.previousElementSibling) {
+                        currentLiElement.parentElement.previousElementSibling.firstElementChild.classList.add("b3-list-item--focus");
+                    }
+                }
+            } else if (event.key === "Control") {
+                let currentLiElement = switchDialog.element.querySelector(".b3-list-item--focus");
+                // 快速切换时，不触发 Tab
+                if (currentLiElement.getAttribute("data-original")) {
+                    currentLiElement.classList.remove("b3-list-item--focus");
+                    if (event.shiftKey) {
+                        if (currentLiElement.previousElementSibling) {
+                            currentLiElement.previousElementSibling.classList.add("b3-list-item--focus");
+                        } else {
+                            currentLiElement.parentElement.lastElementChild.classList.add("b3-list-item--focus");
+                            currentLiElement.removeAttribute("data-original");
+                        }
+                    } else {
+                        if (currentLiElement.nextElementSibling) {
+                            currentLiElement.nextElementSibling.classList.add("b3-list-item--focus");
+                        } else {
+                            currentLiElement.parentElement.firstElementChild.classList.add("b3-list-item--focus");
+                        }
+                    }
+                    currentLiElement.removeAttribute("data-original");
+                    currentLiElement = switchDialog.element.querySelector(".b3-list-item--focus");
+                }
+                const currentType = currentLiElement.getAttribute("data-type") as TDockType;
+                if (currentType) {
+                    getDockByType(currentType).toggleModel(currentType, true);
+                    const target = event.target as HTMLElement;
+                    if (target.classList.contains("protyle-wysiwyg") ||
+                        target.classList.contains("protyle-title__input") ||
+                        target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+                        target.blur();
+                    }
+                } else {
+                    const currentId = currentLiElement.getAttribute("data-id");
+                    getAllTabs().find(item => {
+                        if (item.id === currentId) {
+                            item.parent.switchTab(item.headElement);
+                            setPanelFocus(item.headElement.parentElement.parentElement);
+                            return true;
+                        }
+                    });
+                }
+                switchDialog.destroy();
+                switchDialog = undefined;
+            }
         }
     });
 
@@ -201,49 +301,68 @@ export const globalShortcut = () => {
         }
 
         if (event.ctrlKey && !event.metaKey && event.key === "Tab") {
-            const allTabs = getAllTabs();
-            if (allTabs.length === 0) {
+            if (switchDialog && switchDialog.element.parentElement) {
                 return;
             }
+            let dockHtml = "";
+            let tabHtml = "";
+            getAllDocks().forEach(item => {
+                dockHtml += `<li data-type="${item.type}" class="b3-list-item">
+    <svg class="b3-list-item__graphic"><use xlink:href="#${item.icon}"></use></svg>
+    <span class="b3-list-item__text">${window.siyuan.languages[item.hotkeyLangId]}</span>
+    <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general[item.hotkeyLangId].custom)}</span>
+</li>`;
+            });
             let currentTabElement = document.querySelector(".layout__wnd--active .layout-tab-bar > .item--focus");
             if (!currentTabElement) {
-                currentTabElement = allTabs[0].headElement.parentElement.querySelector(".item--focus");
-                if (!currentTabElement) {
-                    return;
-                }
+                currentTabElement = document.querySelector(".layout-tab-bar > .item--focus");
             }
-            let currentIndex = 0;
-            allTabs.find((item, index) => {
-                if (item.id === currentTabElement.getAttribute("data-id")) {
-                    currentIndex = index;
-                    return true;
-                }
+            if (currentTabElement) {
+                const currentId = currentTabElement.getAttribute("data-id");
+                getAllTabs().sort((itemA, itemB) => {
+                    return itemA.headElement.getAttribute("data-activetime") > itemB.headElement.getAttribute("data-activetime") ? -1 : 1;
+                }).forEach(item => {
+                    let icon = `<svg class="b3-list-item__graphic"><use xlink:href="#${item.icon}"></use></svg>`;
+                    if (item.model instanceof Editor) {
+                        icon = `<span class="b3-list-item__graphic">${unicode2Emoji(item.docIcon || Constants.SIYUAN_IMAGE_FILE)}</span>`;
+                    }
+                    tabHtml += `<li data-id="${item.id}" class="b3-list-item${currentId === item.id ? " b3-list-item--focus" : ""}"${currentId === item.id ? ' data-original="true"' : ""}>${icon}<span class="b3-list-item__text">${escapeHtml(item.title)}</span></li>`;
+                });
+            }
+            switchDialog = new Dialog({
+                content: `<div class="fn__flex-column b3-dialog--switch">
+    <div class="fn__hr"></div>
+    <div class="fn__flex">
+        <ul class="b3-list b3-list--background">${dockHtml}</ul>
+        <ul class="b3-list b3-list--background">${tabHtml}</ul>
+    </div>
+    <div class="fn__hr"></div>
+</div>`,
+                disableClose: true,
+                disableAnimation: true,
+                transparent: true,
             });
-            if (allTabs[currentIndex].model instanceof Editor) {
-                // range 已在新页面上才会触发 focusout，导致无法记录原有页面的 range，因此需要先记录一次。
-                (allTabs[currentIndex].model as Editor).editor.protyle.wysiwyg.element.dispatchEvent(new CustomEvent("focusout"));
+            if (isMac()) {
+                switchDialog.element.addEventListener("contextmenu", (event) => {
+                    switchDialogEvent(event, switchDialog);
+                });
             }
-            if (event.shiftKey) {
-                if (currentIndex === 0) {
-                    currentIndex = allTabs.length - 1;
-                } else {
-                    currentIndex--;
-                }
-            } else {
-                if (currentIndex === allTabs.length - 1) {
-                    currentIndex = 0;
-                } else {
-                    currentIndex++;
-                }
-            }
-            allTabs[currentIndex].parent.switchTab(allTabs[currentIndex].headElement);
-            setPanelFocus(allTabs[currentIndex].headElement.parentElement.parentElement);
+            switchDialog.element.addEventListener("click", (event) => {
+                switchDialogEvent(event, switchDialog);
+            });
             return;
         }
-
-        if (event.key === "F9") {
-            document.getElementById("barSync").dispatchEvent(new Event("click"));
+        if (matchHotKey(window.siyuan.config.keymap.general.syncNow.custom, event)) {
             event.preventDefault();
+            event.stopPropagation();
+            if (needSubscribe() || document.querySelector("#barSync svg").classList.contains("fn__rotate")) {
+                return;
+            }
+            if (!window.siyuan.config.sync.enabled) {
+                showMessage(window.siyuan.languages._kernel[124]);
+                return;
+            }
+            fetchPost("/api/sync/performSync", {});
             return;
         }
         if (matchHotKey(window.siyuan.config.keymap.general.lockScreen.custom, event)) {
@@ -253,23 +372,20 @@ export const globalShortcut = () => {
                 });
             });
             event.preventDefault();
+            event.stopPropagation();
             return;
         }
-        if (!window.siyuan.config.readonly && matchHotKey(window.siyuan.config.keymap.general.history.custom, event)) {
+        if (matchHotKey(window.siyuan.config.keymap.general.history.custom, event)) {
             openHistory();
             event.preventDefault();
+            event.stopPropagation();
             return;
         }
         if (!window.siyuan.config.readonly && matchHotKey(window.siyuan.config.keymap.general.config.custom, event)) {
             openSetting();
             event.preventDefault();
-            return;
-        }
-        // https://github.com/siyuan-note/insider/issues/445
-        if (matchHotKey("⌘S", event)) {
-            event.preventDefault();
             event.stopPropagation();
-            return true;
+            return;
         }
         const target = event.target as HTMLElement;
         if (matchHotKey("⌘A", event) && target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") {
@@ -285,6 +401,7 @@ export const globalShortcut = () => {
                     target.blur();
                 }
                 event.preventDefault();
+                event.stopPropagation();
                 return true;
             }
         });
@@ -299,11 +416,13 @@ export const globalShortcut = () => {
                 target.blur();
             }
             event.preventDefault();
+            event.stopPropagation();
             return;
         }
         if (matchHotKey(window.siyuan.config.keymap.general.newFile.custom, event)) {
             newFile(undefined, undefined, true);
             event.preventDefault();
+            event.stopPropagation();
             return;
         }
 
@@ -433,8 +552,16 @@ export const globalShortcut = () => {
             event.stopPropagation();
             let activeTabElement = document.querySelector(".block__icons--active");
             if (activeTabElement && activeTabElement.getBoundingClientRect().width > 0) {
-                const type = activeTabElement.parentElement.className.split("sy__")[1] as TDockType;
-                getDockByType(type).toggleModel(type, false, true);
+                let type: TDockType;
+                Array.from(activeTabElement.parentElement.classList).find(item => {
+                    if (item.startsWith("sy__")) {
+                        type = item.replace("sy__", "") as TDockType;
+                        return true;
+                    }
+                });
+                if (type) {
+                    getDockByType(type).toggleModel(type, false, true);
+                }
                 return;
             }
             activeTabElement = document.querySelector(".layout__wnd--active .item--focus");
@@ -460,6 +587,7 @@ export const globalShortcut = () => {
                 openGlobalSearch("", false);
             }
             event.preventDefault();
+            event.stopPropagation();
             return;
         }
 
@@ -488,7 +616,15 @@ export const globalShortcut = () => {
                 openSearch(searchKey);
             }
             event.preventDefault();
+            event.stopPropagation();
             return;
+        }
+
+        // https://github.com/siyuan-note/insider/issues/445
+        if (matchHotKey("⌘S", event)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
         }
     });
 
@@ -590,6 +726,7 @@ const editKeydown = (event: KeyboardEvent) => {
             openSearch(searchKey);
         }
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     if (!isFileFocus && matchHotKey(window.siyuan.config.keymap.general.move.custom, event)) {
@@ -605,6 +742,7 @@ const editKeydown = (event: KeyboardEvent) => {
             movePathTo(protyle.notebookId, protyle.path);
         }
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     const target = event.target as HTMLElement;
@@ -614,6 +752,7 @@ const editKeydown = (event: KeyboardEvent) => {
     if (matchHotKey(window.siyuan.config.keymap.editor.general.preview.custom, event)) {
         setEditMode(protyle, "preview");
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     if (matchHotKey(window.siyuan.config.keymap.editor.general.wysiwyg.custom, event)) {
@@ -626,17 +765,20 @@ const editKeydown = (event: KeyboardEvent) => {
             onGet(getResponse, protyle);
         });
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     // 没有光标时，无法撤销 https://ld246.com/article/1624021111567
     if (matchHotKey(window.siyuan.config.keymap.editor.general.undo.custom, event)) {
         protyle.undo.undo(protyle);
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     if (matchHotKey(window.siyuan.config.keymap.editor.general.redo.custom, event)) {
         protyle.undo.redo(protyle);
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     return false;
@@ -650,6 +792,7 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
     const files = dockFile.data.file as Files;
     if (matchHotKey(window.siyuan.config.keymap.general.selectOpen1.custom, event)) {
         event.preventDefault();
+        event.stopPropagation();
         const element = document.querySelector(".layout__wnd--active > .layout-tab-bar > .item--focus") ||
             document.querySelector(".layout-tab-bar > .item--focus");
         if (element) {
@@ -658,6 +801,7 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
                 files.selectItem(tab.model.editor.protyle.notebookId, tab.model.editor.protyle.path);
             }
         }
+        dockFile.toggleModel("file", true);
         return;
     }
     if (!files.element.previousElementSibling.classList.contains("block__icons--active")) {
@@ -688,12 +832,14 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
             name: isFile ? getDisplayName(liElement.getAttribute("data-name"), false, true) : getNotebookName(notebookId),
             type: isFile ? "file" : "notebook",
         });
+        event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     if (matchHotKey("⌘/", event)) {
         const liRect = liElement.getBoundingClientRect();
         if (isFile) {
-            initFileMenu(notebookId, pathString, liElement.getAttribute("data-node-id"), liElement.getAttribute("data-name")).popup({
+            initFileMenu(notebookId, pathString, liElement).popup({
                 x: liRect.right - 15,
                 y: liRect.top + 15
             });
@@ -705,6 +851,7 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
     if (isFile && matchHotKey(window.siyuan.config.keymap.general.move.custom, event)) {
         movePathTo(notebookId, pathString, false);
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     let searchKey = "";
@@ -720,6 +867,7 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
             openSearch(searchKey, undefined, notebookId);
         }
         event.preventDefault();
+        event.stopPropagation();
         return true;
     }
     const target = event.target as HTMLElement;

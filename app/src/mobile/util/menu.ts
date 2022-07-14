@@ -289,7 +289,7 @@ ${accountHTML}
                     const importKeyElement = modelMainElement.querySelector("#importKey");
                     importKeyElement.addEventListener("click", () => {
                         const passwordDialog = new Dialog({
-                            title: window.siyuan.languages.key,
+                            title: "🔑 " + window.siyuan.languages.key,
                             content: `<div class="b3-dialog__content">
     <textarea class="b3-text-field fn__block" placeholder="${window.siyuan.languages.keyPlaceholder}"></textarea>
 </div>
@@ -315,10 +315,12 @@ ${accountHTML}
                         });
                     });
                     modelMainElement.querySelector("#initKey").addEventListener("click", () => {
-                        fetchPost("/api/repo/initRepoKey", {}, (response) => {
-                            window.siyuan.config.repo.key = response.data.key;
-                            importKeyElement.parentElement.classList.add("fn__none");
-                            importKeyElement.parentElement.nextElementSibling.classList.remove("fn__none");
+                        confirmDialog("🔑 " + window.siyuan.languages.genKey, window.siyuan.languages.initRepoKeyTip, () => {
+                            fetchPost("/api/repo/initRepoKey", {}, (response) => {
+                                window.siyuan.config.repo.key = response.data.key;
+                                importKeyElement.parentElement.classList.add("fn__none");
+                                importKeyElement.parentElement.nextElementSibling.classList.remove("fn__none");
+                            });
                         });
                     });
                     modelMainElement.querySelector("#copyKey").addEventListener("click", () => {

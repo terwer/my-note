@@ -43,7 +43,7 @@ export const about = {
         <select id="aboutScheme" class="b3-select">
             <option value="" ${window.siyuan.config.system.networkProxy.scheme === "" ? "selected" : ""}>${window.siyuan.languages.directConnection}</option>
             <option value="socks5" ${window.siyuan.config.system.networkProxy.scheme === "socks5" ? "selected" : ""}>SOCKS5</option>
-            <option value="http" ${window.siyuan.config.system.networkProxy.scheme === "http" ? "selected" : ""}>HTTP</option>
+            <option value="http" ${window.siyuan.config.system.networkProxy.scheme === "https" ? "selected" : ""}>HTTPS</option>
         </select>
         <span class="fn__space"></span>
         <input id="aboutHost" placeholder="Host/IP" class="b3-text-field fn__flex-1 fn__block" value="${window.siyuan.config.system.networkProxy.host}"/>
@@ -190,8 +190,13 @@ export const about = {
                 const searchData = JSON.parse(localStorage.getItem(Constants.LOCAL_SEARCHEDATA) || "{}");
                 if (searchData.hPath) {
                     searchData.hPath = "";
+                    searchData.idPath = "";
                     localStorage.setItem(Constants.LOCAL_SEARCHEDATA, JSON.stringify(searchData));
                 }
+                localStorage.removeItem(Constants.LOCAL_DAILYNOTEID);
+                localStorage.removeItem(Constants.LOCAL_DOCINFO);
+                localStorage.removeItem(Constants.LOCAL_HISTORYNOTEID);
+                localStorage.removeItem("pdfjs.history");
                 exportLayout(false, () => {
                     exitSiYuan();
                 });
@@ -213,7 +218,7 @@ export const about = {
         const importKeyElement = about.element.querySelector("#importKey");
         importKeyElement.addEventListener("click", () => {
             const passwordDialog = new Dialog({
-                title: window.siyuan.languages.key,
+                title: "🔑 " + window.siyuan.languages.key,
                 content: `<div class="b3-dialog__content">
     <textarea class="b3-text-field fn__block" placeholder="${window.siyuan.languages.keyPlaceholder}"></textarea>
 </div>
@@ -239,10 +244,12 @@ export const about = {
             });
         });
         about.element.querySelector("#initKey").addEventListener("click", () => {
-            fetchPost("/api/repo/initRepoKey", {}, (response) => {
-                window.siyuan.config.repo.key = response.data.key;
-                importKeyElement.parentElement.classList.add("fn__none");
-                importKeyElement.parentElement.nextElementSibling.classList.remove("fn__none");
+            confirmDialog("🔑 " + window.siyuan.languages.genKey, window.siyuan.languages.initRepoKeyTip, () => {
+                fetchPost("/api/repo/initRepoKey", {}, (response) => {
+                    window.siyuan.config.repo.key = response.data.key;
+                    importKeyElement.parentElement.classList.add("fn__none");
+                    importKeyElement.parentElement.nextElementSibling.classList.remove("fn__none");
+                });
             });
         });
         about.element.querySelector("#copyKey").addEventListener("click", () => {

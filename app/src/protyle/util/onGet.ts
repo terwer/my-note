@@ -8,7 +8,9 @@ import {processRender} from "./processCode";
 import {highlightRender} from "../markdown/highlightRender";
 import {blockRender} from "../markdown/blockRender";
 import {highlightById} from "../../util/highlightById";
+/// #if !MOBILE
 import {pushBack} from "../../util/backForward";
+/// #endif
 import {focusBlock} from "./selection";
 import {hasClosestByAttribute, hasClosestByClassName} from "./hasClosest";
 import {preventScroll} from "../scroll/preventScroll";
@@ -99,15 +101,41 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
         return;
     }
     protyle.block.showAll = options.action.includes(Constants.CB_GET_ALL);
+    const REMOVED_OVER_HEIGHT = protyle.contentElement.clientHeight * 8;
     if (options.action.includes(Constants.CB_GET_APPEND)) {
+        // 动态加载移除
+        if (!protyle.wysiwyg.element.querySelector(".protyle-wysiwyg--select") && !protyle.scroll.keepLazyLoad && protyle.contentElement.scrollHeight > REMOVED_OVER_HEIGHT) {
+            let removeElement = protyle.wysiwyg.element.firstElementChild as HTMLElement;
+            const removeElements = [];
+            while (protyle.wysiwyg.element.childElementCount > 2) {
+                if (protyle.contentElement.scrollHeight - removeElement.offsetTop > REMOVED_OVER_HEIGHT) {
+                    removeElements.push(removeElement);
+                } else {
+                    break;
+                }
+                removeElement = removeElement.nextElementSibling as HTMLElement;
+            }
+            const lastRemoveTop = removeElement.getBoundingClientRect().top;
+            removeElements.forEach(item => {
+                item.remove();
+            });
+            protyle.contentElement.scrollTop = protyle.contentElement.scrollTop + (removeElement.getBoundingClientRect().top - lastRemoveTop);
+            protyle.scroll.lastScrollTop = protyle.contentElement.scrollTop;
+        }
         protyle.wysiwyg.element.insertAdjacentHTML("beforeend", options.content);
     } else if (options.action.includes(Constants.CB_GET_BEFORE)) {
         const lastElement = protyle.wysiwyg.element.firstElementChild as HTMLElement;
-        const lastTop = lastElement.getBoundingClientRect().top - protyle.element.getBoundingClientRect().top;
+        const lastTop = lastElement.getBoundingClientRect().top;
         protyle.wysiwyg.element.insertAdjacentHTML("afterbegin", options.content);
-        const appendHeight = lastElement.offsetTop - lastTop;
-        protyle.contentElement.scrollTop = appendHeight;
-        protyle.scroll.lastScrollTop = appendHeight;
+        protyle.contentElement.scrollTop = protyle.contentElement.scrollTop + (lastElement.getBoundingClientRect().top - lastTop);
+        protyle.scroll.lastScrollTop = protyle.contentElement.scrollTop;
+        // 动态加载移除
+        if (!protyle.wysiwyg.element.querySelector(".protyle-wysiwyg--select") && !protyle.scroll.keepLazyLoad) {
+            while (protyle.wysiwyg.element.childElementCount > 2 && protyle.contentElement.scrollHeight > REMOVED_OVER_HEIGHT &&
+            protyle.wysiwyg.element.lastElementChild.getBoundingClientRect().top > window.innerHeight) {
+                protyle.wysiwyg.element.lastElementChild.remove();
+            }
+        }
     } else {
         protyle.wysiwyg.element.innerHTML = options.content;
     }
@@ -120,9 +148,11 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
     if (options.action.includes(Constants.CB_GET_HL)) {
         preventScroll(protyle); // 搜索页签滚动会导致再次请求
         const hlElement = highlightById(protyle, protyle.block.id, true);
+        /// #if !MOBILE
         if (hlElement && !options.action.includes(Constants.CB_GET_UNUNDO)) {
             pushBack(protyle, undefined, hlElement);
         }
+        /// #endif
     } else if (options.action.includes(Constants.CB_GET_FOCUS)) {
         let focusElement: Element;
         Array.from(protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${protyle.block.id}"]`)).find((item: HTMLElement) => {
@@ -137,9 +167,11 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
         }
         if (focusElement && !protyle.wysiwyg.element.firstElementChild.isSameNode(focusElement)) {
             focusBlock(focusElement);
+            /// #if !MOBILE
             if (!options.action.includes(Constants.CB_GET_UNUNDO)) {
                 pushBack(protyle, undefined, focusElement);
             }
+            /// #endif
             focusElement.scrollIntoView();
             // 减少抖动 https://ld246.com/article/1654263598088
             setTimeout(() => {
@@ -147,16 +179,20 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
             }, Constants.TIMEOUT_BLOCKLOAD);
         } else {
             focusBlock(protyle.wysiwyg.element.firstElementChild);
+            /// #if !MOBILE
             if (!options.action.includes(Constants.CB_GET_UNUNDO)) {
                 pushBack(protyle, undefined, protyle.wysiwyg.element.firstElementChild);
             }
+            /// #endif
         }
     } else if (options.action.includes(Constants.CB_GET_FOCUSFIRST)) {
         // settimeout 时间需短一点，否则定位后快速滚动无效
         preventScroll(protyle, 8, 256);
         protyle.contentElement.scrollTop = 8;
         focusBlock(protyle.wysiwyg.element.firstElementChild);
+        /// #if !MOBILE
         pushBack(protyle, undefined, protyle.wysiwyg.element.firstElementChild);
+        /// #endif
     }
     if (protyle.disabled) {
         disabledProtyle(protyle);
@@ -182,6 +218,7 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
     if (!protyle.scroll.element.classList.contains("fn__none") &&
         protyle.wysiwyg.element.lastElementChild.getAttribute("data-eof") !== "true" &&
         protyle.contentElement.scrollHeight > 0 && // 没有激活的页签 https://github.com/siyuan-note/siyuan/issues/5255
+        !options.action.includes(Constants.CB_GET_FOCUSFIRST) && // 防止 eof 为true https://github.com/siyuan-note/siyuan/issues/5291
         protyle.contentElement.scrollHeight <= protyle.contentElement.clientHeight) {
         fetchPost("/api/filetree/getDoc", {
             id: protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),

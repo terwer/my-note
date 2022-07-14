@@ -4,8 +4,6 @@ import {fetchPost} from "../util/fetch";
 import {isMobile} from "../util/functions";
 import {Dialog} from "../dialog";
 import {showMessage} from "../dialog/message";
-import {exitSiYuan} from "../dialog/processSystem";
-import {exportLayout} from "../layout/util";
 
 const getCloudList = (reload = false) => {
     const listElement = repos.element.querySelector("#reposCloudSyncList");
@@ -69,57 +67,6 @@ const renderCloudBackup = () => {
     </div>
 </div>`;
         }
-        let actionHTML = `<div class="fn__flex">
-    <div class="fn__flex-center">${window.siyuan.languages.cloudBackup}</div>
-    <span class="b3-list-item__meta fn__flex-center">${response.data.backup?.updated}</span>
-    <div class="fn__flex-1"></div>
-    <button class="b3-button b3-button--outline fn__flex-center fn__size200" data-type="more">
-        <svg><use xlink:href="#iconMore"></use></svg>${window.siyuan.languages.more}
-    </button>
-</div>    
-<div class="fn__none">
-    <div class="fn__hr"></div>
-    <div style="margin-left: 16px">
-        <div class="fn__flex${response.data.backup.size === 0 ? " fn__none" : ""}">
-            <span class="fn__flex-center">${window.siyuan.languages.downloadRecover1}</span><span class="fn__space fn__flex-1"></span>
-            <button class="b3-button b3-button--outline fn__flex-center fn__size200 fn__flex-shrink" data-type="cloudDownloadRecover"><svg><use xlink:href="#iconUndo"></use></svg>${window.siyuan.languages.downloadRecover}</button>
-        </div><div class="fn__hr${response.data.backup.size === 0 ? " fn__none" : ""}"></div>
-        <div class="fn__flex">
-            <span class="fn__flex-center">${window.siyuan.languages.backupUpload1}</span><span class="fn__space fn__flex-1"></span>
-            <button class="b3-button b3-button--outline fn__flex-center fn__size200" data-type="localBackupUpload"><svg><use xlink:href="#iconUpload"></use></svg>${window.siyuan.languages.backupUpload}</button>
-        </div><div class="fn__hr"></div>
-        <div class="fn__flex${response.data.backup.size === 0 ? " fn__none" : ""}">
-            <span class="fn__flex-center">${window.siyuan.languages.deleteCloudBackup}</span><span class="fn__space fn__flex-1"></span>
-            <button class="b3-button b3-button--outline fn__flex-center fn__size200" data-type="cloudRemove"><svg><use xlink:href="#iconTrashcan"></use></svg>${window.siyuan.languages.remove}</button>
-        </div>
-    </div>
-</div>`;
-        if (isMobile()) {
-            actionHTML = `<div class="fn__flex">
-    <div class="fn__flex-center">${window.siyuan.languages.cloudBackup}</div>
-    <span class="b3-list-item__meta fn__flex-center">${response.data.backup?.updated}</span>
-    <div class="fn__flex-1"></div>
-    <button class="b3-button b3-button--outline fn__flex-center" data-type="more">
-        <svg><use xlink:href="#iconMore"></use></svg>${window.siyuan.languages.more}
-    </button>
-</div>
-<div class="fn__none">
-    <div class="fn__hr"></div>
-    <div class="${response.data.backup.size === 0 ? " fn__none" : ""}">
-        <button class="b3-button b3-button--outline fn__block" data-type="cloudDownloadRecover"><svg><use xlink:href="#iconUndo"></use></svg>${window.siyuan.languages.downloadRecover}</button>
-        <div class="b3-label__text">${window.siyuan.languages.downloadRecover1}</div>
-    </div>
-    <div class="fn__hr--b${response.data.backup.size === 0 ? " fn__none" : ""}"></div>
-    <button class="b3-button b3-button--outline fn__block" data-type="localBackupUpload"><svg><use xlink:href="#iconUpload"></use></svg>${window.siyuan.languages.backupUpload}</button>
-    <div class="b3-label__text">${window.siyuan.languages.backupUpload1}</div>
-    <div class="fn__hr--b"></div>
-    <div class="${response.data.backup.size === 0 ? " fn__none" : ""}">
-        <button class="b3-button b3-button--outline fn__block" data-type="cloudRemove"><svg><use xlink:href="#iconTrashcan"></use></svg>${window.siyuan.languages.remove}</button>
-        <div class="b3-label__text">${window.siyuan.languages.deleteCloudBackup}</div>
-    </div>
-</div>`;
-        }
-        repos.element.querySelector("#reposBackup").innerHTML = actionHTML;
     });
 };
 
@@ -154,115 +101,6 @@ const addCloudName = () => {
     });
 };
 
-const setE2eePassword = () => {
-    const dialog = new Dialog({
-        title: window.siyuan.languages.changeE2EEPasswd,
-        content: `<div class="b3-dialog__content">
-    <ul class="b3-list b3-list--background">
-        <li class="b3-list-item b3-list-item--hide-action" data-type="default">
-            <input type="radio" name="mode" class="fn__flex-center">
-            <div class="fn__space"></div>
-            <span class="b3-list-item__text">${window.siyuan.languages.defaultPassword}</span>
-            <span class="b3-list-item__action"><svg class="svg fn__flex-center ft__on-surface"><use xlink:href="#iconRight"></use></svg></span>
-        </li>
-        <li class="b3-list-item b3-list-item--hide-action" data-type="custom">
-            <input type="radio" name="mode" class="fn__flex-center">
-            <div class="fn__space"></div>
-            <span class="b3-list-item__text">${window.siyuan.languages.customPassword}</span>
-            <span class="b3-list-item__action"><svg class="svg fn__flex-center ft__on-surface"><use xlink:href="#iconRight"></use></svg></span>
-        </li>
-    </ul>
-    <div class="fn__none ft__error" data-type="default">
-        <button class="b3-button b3-button--outline"><svg><use xlink:href="#iconLeft"></use></svg>${window.siyuan.languages.back}</button>
-        <div class="fn__hr"></div>
-        ${window.siyuan.languages.defaultPasswordTip}
-    </div>
-    <div class="fn__none" data-type="custom">
-        <button class="b3-button b3-button--outline"><svg><use xlink:href="#iconLeft"></use></svg>${window.siyuan.languages.back}</button>
-        <div class="fn__hr"></div>
-        <input class="b3-text-field fn__block" placeholder="${window.siyuan.languages.customPassword}">
-        <div class="fn__hr"></div>
-        <div class="b3-label__text ft__error">${window.siyuan.languages.changeE2EEPasswdTip}</div>
-    </div>
-</div>
-<div class="b3-dialog__action">
-    <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
-    <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
-</div>`,
-        width: isMobile() ? "80vw" : "520px",
-    });
-    dialog.element.querySelector(".b3-dialog__content").addEventListener("click", (event) => {
-        let target = event.target as HTMLElement;
-        while (target && !target.classList.contains("b3-dialog__content")) {
-            if (target.classList.contains("b3-list-item")) {
-                target.parentElement.classList.add("fn__none");
-                if (target.getAttribute("data-type") === "default") {
-                    target.parentElement.nextElementSibling.classList.remove("fn__none");
-                } else {
-                    target.parentElement.nextElementSibling.nextElementSibling.classList.remove("fn__none");
-                }
-                break;
-            } else if (target.classList.contains("b3-button--outline")) {
-                target.parentElement.classList.add("fn__none");
-                dialog.element.querySelector(".b3-list").classList.remove("fn__none");
-                break;
-            }
-            target = target.parentElement;
-        }
-    });
-    const btnsElement = dialog.element.querySelectorAll(".b3-dialog__action .b3-button");
-    const inputElement = dialog.element.querySelector(".b3-text-field") as HTMLInputElement;
-    inputElement.addEventListener("keydown", (event) => {
-        if (event.isComposing) {
-            event.preventDefault();
-            return;
-        }
-        if (event.key === "Enter") {
-            (btnsElement[1] as HTMLButtonElement).click();
-            event.preventDefault();
-            event.stopPropagation();
-        } else if (event.key === "Escape") {
-            dialog.destroy();
-            event.stopPropagation();
-            event.preventDefault();
-        }
-    });
-    btnsElement[0].addEventListener("click", () => {
-        dialog.destroy();
-    });
-    btnsElement[1].addEventListener("click", () => {
-        if (!dialog.element.querySelector(".b3-list").classList.contains("fn__none")) {
-            showMessage(window.siyuan.languages.plsChoose);
-            return;
-        }
-        const mode = dialog.element.querySelector('div[data-type="default"]').classList.contains("fn__none") ? 1 : 0;
-        fetchPost("/api/system/setE2EEPasswd", {
-            e2eePasswd: inputElement.value,
-            mode    //0：内置密码; 1：自定义密码
-        }, () => {
-            window.siyuan.config.e2eePasswdMode = mode;
-            dialog.destroy();
-            const updateElement = repos.element.querySelector("#updatePassword").parentElement;
-            updateElement.classList.add("fn__none");
-            if (0 === window.siyuan.config.e2eePasswdMode) {
-                updateElement.nextElementSibling.lastElementChild.innerHTML = window.siyuan.languages.builtinE2EEPasswdTip;
-            } else {
-                updateElement.nextElementSibling.lastElementChild.innerHTML = window.siyuan.languages.changeE2EEPasswdTip;
-            }
-            updateElement.nextElementSibling.classList.remove("fn__none");
-            window.siyuan.config.e2eePasswd = "******";
-        });
-    });
-};
-
-const needPassword = () => {
-    if (window.siyuan.config.e2eePasswd === "") {
-        confirmDialog(window.siyuan.languages.config, window.siyuan.languages["_kernel"]["11"]);
-        return true;
-    }
-    return false;
-};
-
 export const repos = {
     element: undefined as Element,
     genHTML: () => {
@@ -292,39 +130,6 @@ export const repos = {
     </div>
 </div>`;
         }
-        let passwordHTML = `<div class="b3-label fn__flex${window.siyuan.config.e2eePasswd === "" ? "" : " fn__none"}">
-    <div class="fn__flex-1 fn__flex-center">
-        ${window.siyuan.languages.e2eePasswd}
-        <div class="b3-label__text ft__error">${window.siyuan.languages.e2eePasswdTip}</div>
-    </div>
-    <div class="fn__space"></div>
-    <button id="updatePassword" class="b3-button b3-button--outline fn__size200 fn__flex-center">
-        <svg><use xlink:href="#iconLock"></use></svg>
-        ${window.siyuan.languages.setPasswd}
-    </button>
-</div>
-<div class="b3-label${window.siyuan.config.e2eePasswd === "" ? " fn__none" : ""}">
-    ${window.siyuan.languages.e2eePasswd}
-    <div class="b3-label__text"><i>${window.siyuan.languages.passwdSet}</i></div>
-    <div class="b3-label__text ft__error">${0 === window.siyuan.config.e2eePasswdMode ? window.siyuan.languages.builtinE2EEPasswdTip : window.siyuan.languages.changeE2EEPasswdTip}</div>
-</div>`;
-        if (isMobile()) {
-            passwordHTML = `<div class="b3-label${window.siyuan.config.e2eePasswd === "" ? "" : " fn__none"}">
-    ${window.siyuan.languages.e2eePasswd}
-    <div class="fn__hr"></div>
-    <button id="updatePassword" class="b3-button b3-button--outline fn__block">
-        <svg><use xlink:href="#iconLock"></use></svg>
-        ${window.siyuan.languages.setPasswd}
-    </button>
-    <div class="b3-label__text ft__error">${window.siyuan.languages.e2eePasswdTip}</div>
-</div>
-<div class="b3-label${window.siyuan.config.e2eePasswd !== "" ? "" : " fn__none"}">
-    ${window.siyuan.languages.e2eePasswd}
-    <div class="fn__hr"></div>
-    <div class="b3-label__text"><i>${window.siyuan.languages.passwdSet}</i></div>
-    <div class="b3-label__text ft__error">${0 === window.siyuan.config.e2eePasswdMode ? window.siyuan.languages.builtinE2EEPasswdTip : window.siyuan.languages.changeE2EEPasswdTip}</div>
-</div>`;
-        }
         return `<div><div style="position: fixed;width: 800px;height: 434px;box-sizing: border-box;text-align: center;display: flex;align-items: center;justify-content: center;z-index: 1;" id="reposLoading">
     <img src="/stage/loading-pure.svg">
 </div>
@@ -338,7 +143,6 @@ export const repos = {
         </div>
     </div>
 </div>
-${passwordHTML}
 <label class="fn__flex b3-label">
     <div class="fn__flex-1">
         ${window.siyuan.languages.openSyncTip1}
@@ -368,7 +172,10 @@ ${passwordHTML}
     </div>
     <div id="reposCloudSyncList" class="fn__none config-repos__sync"><img style="margin: 0 auto;display: block;" src="/stage/loading-pure.svg"></div>
 </div>
-<div id="reposBackup" class="b3-label">${window.siyuan.languages.cloudBackup}</div>
+<div class="b3-label fn__flex">
+    <div class="fn__flex-center">${window.siyuan.languages.cloudBackup}</div>
+    <div class="b3-list-item__meta fn__flex-center">${window.siyuan.languages.cloudBackupTip}</div>
+</div>
 </div>`;
     },
     bindEvent: () => {
@@ -376,9 +183,6 @@ ${passwordHTML}
             return;
         }
         renderCloudBackup();
-        repos.element.querySelector("#updatePassword").addEventListener("click", () => {
-            setE2eePassword();
-        });
         const switchElement = repos.element.querySelector("#reposCloudSyncSwitch") as HTMLInputElement;
         switchElement.addEventListener("change", () => {
             if (switchElement.checked && window.siyuan.config.sync.cloudName === "") {
@@ -416,53 +220,12 @@ ${passwordHTML}
                 const type = target.getAttribute("data-type");
                 if (type) {
                     switch (type) {
-                        case "more":
-                            repos.element.querySelector("#reposBackup").lastElementChild.classList.toggle("fn__none");
-                            break;
                         case "config":
-                            if (!needPassword()) {
-                                if (syncConfigElement.classList.contains("fn__none")) {
-                                    getCloudList();
-                                    syncConfigElement.classList.remove("fn__none");
-                                } else {
-                                    syncConfigElement.classList.add("fn__none");
-                                }
-                            }
-                            break;
-                        case "cloudDownloadRecover":
-                            if (!needPassword()) {
-                                confirmDialog(window.siyuan.languages.downloadCloud, window.siyuan.languages.downloadCloudTip, () => {
-                                    fetchPost("/api/backup/downloadCloudBackup", {}, () => {
-                                        fetchPost("/api/backup/recoverLocalBackup", {}, () => {
-                                            setTimeout(() => {
-                                                exportLayout(false, () => {
-                                                    exitSiYuan();
-                                                });
-                                            }, 7000);
-                                            return;
-                                        });
-                                    });
-                                });
-                            }
-                            break;
-                        case "cloudRemove":
-                            if (!needPassword()) {
-                                confirmDialog(window.siyuan.languages.confirm, window.siyuan.languages.confirmDelete + "?", () => {
-                                    fetchPost("/api/backup/removeCloudBackup", {}, () => {
-                                        renderCloudBackup();
-                                    });
-                                });
-                            }
-                            break;
-                        case "localBackupUpload":
-                            if (!needPassword()) {
-                                confirmDialog(window.siyuan.languages.backupUpload, window.siyuan.languages.account3Tip, () => {
-                                    fetchPost("/api/backup/createLocalBackup", {}, () => {
-                                        fetchPost("/api/backup/uploadLocalBackup", {}, () => {
-                                            renderCloudBackup();
-                                        });
-                                    });
-                                });
+                            if (syncConfigElement.classList.contains("fn__none")) {
+                                getCloudList();
+                                syncConfigElement.classList.remove("fn__none");
+                            } else {
+                                syncConfigElement.classList.add("fn__none");
                             }
                             break;
                         case "addCloud":
@@ -481,8 +244,16 @@ ${passwordHTML}
                                 target.parentElement.setAttribute("disabled", "disabled");
                                 fetchPost("/api/sync/getSyncDirection", {name: target.getAttribute("data-name")}, (response) => {
                                     target.parentElement.removeAttribute("disabled");
+                                    const name = target.getAttribute("data-name");
+                                    if (40 == response.code) { // 使用数据仓库同步不需要对比同步方向
+                                        fetchPost("/api/sync/setCloudSyncDir", {name}, () => {
+                                            window.siyuan.config.sync.cloudName = name;
+                                            getCloudList(true);
+                                        });
+                                        return;
+                                    }
+
                                     confirmDialog(window.siyuan.languages.confirm, response.msg, () => {
-                                        const name = target.getAttribute("data-name");
                                         fetchPost("/api/sync/setCloudSyncDir", {name}, () => {
                                             window.siyuan.config.sync.cloudName = name;
                                             getCloudList(true);

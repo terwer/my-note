@@ -245,7 +245,7 @@ const JSONToCenter = (json: any, layout?: Layout | Wnd | Tab | Model) => {
         }));
     } else if (json.instance === "Tag") {
         (layout as Tab).addModel(new Tag((layout as Tab)));
-    } else if (json.instance === "search") {
+    } else if (json.instance === "Search") {
         (layout as Tab).addModel(new Search({
             tab: (layout as Tab),
             text: json.text
@@ -353,7 +353,7 @@ export const layoutToJSON = (layout: Layout | Wnd | Tab | Model, json: any) => {
     } else if (layout instanceof Tag) {
         json.instance = "Tag";
     } else if (layout instanceof Search) {
-        json.instance = "search";
+        json.instance = "Search";
         json.text = layout.text;
     }
 
@@ -410,8 +410,16 @@ export const resizeTabs = () => {
         if (item.editor && item.editor.protyle && item.element.parentElement) {
             hideElements(["gutter"], item.editor.protyle);
             setTimeout(() => {
-                // .layout .fn__flex-shrink {transition: width .3s ease;} 时需要再次计算 padding
+                // .layout .fn__flex-shrink {width .15s cubic-bezier(0, 0, .2, 1) 0ms} 时需要再次计算 padding
                 setPadding(item.editor.protyle);
+                if (typeof echarts !== "undefined") {
+                    item.editor.protyle.wysiwyg.element.querySelectorAll('[data-subtype="echarts"], [data-subtype="mindmap"]').forEach((chartItem: HTMLElement) => {
+                        const chartInstance = echarts.getInstanceById(chartItem.firstElementChild.nextElementSibling.getAttribute("_echarts_instance_"));
+                        if (chartInstance) {
+                            chartInstance.resize();
+                        }
+                    });
+                }
             }, 200);
         }
     });

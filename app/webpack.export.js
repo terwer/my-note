@@ -39,6 +39,11 @@ module.exports = (env, argv) => {
     resolve: {
       fallback: {
         'path': require.resolve('path-browserify'),
+        "https": require.resolve("https-browserify"),
+        "http": require.resolve("stream-http"),
+        "stream": require.resolve("stream-browserify"),
+        "url": require.resolve("url/"),
+        "buffer": require.resolve("buffer/"),
       },
       extensions: ['.ts', '.js', '.scss'],
     },
@@ -56,7 +61,7 @@ module.exports = (env, argv) => {
               options: {
                 'ifdef-verbose': false,
                 BROWSER: true,
-                MOBILE: false,
+                MOBILE: true,
               },
             },
           ],

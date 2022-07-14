@@ -1,10 +1,11 @@
 name: Release Docker Image
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -33,4 +34,4 @@ jobs:
 
       - name: Build the Docker image
         run: |
-          docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -t b3log/siyuan:latest -t b3log/siyuan:v2.0.22 .
+          docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -t terwer/my-note:latest -t terwer/my-note:v2.0.26 .

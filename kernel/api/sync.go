@@ -42,7 +42,7 @@ func getBootSync(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
 
-	if 1 == model.BootSyncSucc {
+	if model.Conf.Sync.Enabled && 1 == model.BootSyncSucc {
 		ret.Code = 1
 		ret.Msg = model.Conf.Language(17)
 		return
@@ -115,6 +115,25 @@ func createCloudSyncDir(c *gin.Context) {
 	err := model.CreateCloudSyncDir(name)
 	if nil != err {
 		ret.Code = -1
+		ret.Msg = err.Error()
+		ret.Data = map[string]interface{}{"closeTimeout": 5000}
+		return
+	}
+}
+
+func setSyncUseDataRepo(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	enabled := arg["enabled"].(bool)
+	err := model.SetSyncUseDataRepo(enabled)
+	if nil != err {
+		ret.Code = 1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return

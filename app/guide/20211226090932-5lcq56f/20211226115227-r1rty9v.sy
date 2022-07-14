@@ -5,7 +5,7 @@
 		"icon": "2753",
 		"id": "20211226115227-r1rty9v",
 		"title": "常見問題",
-		"updated": "20220619172140"
+		"updated": "20220711123511"
 	},
 	"Children": [
 		{
@@ -1403,7 +1403,11 @@
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "編輯器中選擇關鍵字後按下 "
+					"Data": "編輯器"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "中選擇關鍵字後按下 "
 				},
 				{
 					"Type": "NodeKbd",
@@ -1424,6 +1428,85 @@
 				{
 					"Type": "NodeText",
 					"Data": "。"
+				}
+			]
+		},
+		{
+			"ID": "20220709125506-pwlzx11",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20220709125506-pwlzx11",
+				"updated": "20220709125506"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "如何在已有的行級元素左側插入相同的行級元素？"
+				}
+			]
+		},
+		{
+			"ID": "20220709125506-e8zwp9c",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20220709125506-e8zwp9c",
+				"updated": "20220709130743"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "使用 Markdown 標記符插入的話可能會出現二義性問題，具體討論細節請參考"
+				},
+				{
+					"Type": "NodeLink",
+					"Data": "span",
+					"Children": [
+						{
+							"Type": "NodeOpenBracket"
+						},
+						{
+							"Type": "NodeLinkText",
+							"Data": "這裡"
+						},
+						{
+							"Type": "NodeCloseBracket"
+						},
+						{
+							"Type": "NodeOpenParen"
+						},
+						{
+							"Type": "NodeLinkDest",
+							"Data": "https://github.com/siyuan-note/siyuan/issues/5372"
+						},
+						{
+							"Type": "NodeCloseParen"
+						}
+					]
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。請使用 "
+				},
+				{
+					"Type": "NodeCodeSpan",
+					"Data": "code",
+					"Children": [
+						{
+							"Type": "NodeCodeSpanOpenMarker"
+						},
+						{
+							"Type": "NodeCodeSpanContent",
+							"Data": "/"
+						},
+						{
+							"Type": "NodeCodeSpanCloseMarker"
+						}
+					]
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 或者行級元素對應快捷鍵插入。"
 				}
 			]
 		},
@@ -1473,6 +1556,75 @@
 				{
 					"Type": "NodeText",
 					"Data": " 觸發它的塊標菜單。"
+				}
+			]
+		},
+		{
+			"ID": "20220711123511-bzzrzif",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20220711123511-bzzrzif",
+				"updated": "20220711123511"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "有的網絡圖片為什麼無法查看？"
+				}
+			]
+		},
+		{
+			"ID": "20220711123511-7kicy5w",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20220711123511-7kicy5w",
+				"updated": "20220711123511"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "為了避免一些潛在的安全問題，思源在發起互聯網服務請求時不會繞過目標站點的安全標頭校驗（比如安全策略標頭和防盜鏈校驗）。可以試一下編輯器右上角 "
+				},
+				{
+					"Type": "NodeCodeSpan",
+					"Data": "code",
+					"Children": [
+						{
+							"Type": "NodeCodeSpanOpenMarker"
+						},
+						{
+							"Type": "NodeCodeSpanContent",
+							"Data": "..."
+						},
+						{
+							"Type": "NodeCodeSpanCloseMarker"
+						}
+					]
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中的 "
+				},
+				{
+					"Type": "NodeCodeSpan",
+					"Data": "code",
+					"Children": [
+						{
+							"Type": "NodeCodeSpanOpenMarker"
+						},
+						{
+							"Type": "NodeCodeSpanContent",
+							"Data": "網絡圖片轉換為本地圖片"
+						},
+						{
+							"Type": "NodeCodeSpanCloseMarker"
+						}
+					]
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 功能將網絡圖片拉取到本地，這樣即使以後目標站點改變安全策略或者不可用本地圖片也不受影響。"
 				}
 			]
 		},
@@ -2106,150 +2258,439 @@
 			]
 		},
 		{
-			"ID": "20211226115356-hny5emi",
+			"ID": "20220708111330-n2z718x",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20211226115356-hny5emi",
-				"updated": "20211225214824"
+				"id": "20220708111330-n2z718x",
+				"updated": "20220708111330"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "端到端密碼忘記了怎麽辦？"
+					"Data": "數據倉庫密鑰遺失怎麼辦？"
 				}
 			]
 		},
 		{
-			"ID": "20211226115356-985lne8",
+			"ID": "20220708111330-a0zn0bb",
 			"Type": "NodeList",
-			"ListData": {
-				"Typ": 1
-			},
+			"ListData": {},
 			"Properties": {
-				"id": "20211226115356-985lne8",
-				"updated": "20211226115356"
+				"id": "20220708111330-a0zn0bb",
+				"updated": "20220708111330"
 			},
 			"Children": [
 				{
-					"ID": "20211226115356-o8rp4od",
+					"ID": "20220708111330-tpwl6ss",
 					"Type": "NodeListItem",
 					"ListData": {
-						"Typ": 1,
-						"Delimiter": 46,
-						"Marker": "MS4=",
-						"Num": 1
+						"BulletChar": 42,
+						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20211226115356-o8rp4od"
+						"id": "20220708111330-tpwl6ss",
+						"updated": "20220708111330"
 					},
 					"Children": [
 						{
-							"ID": "20211226115356-ssizaoe",
+							"ID": "20220708111330-rwngczp",
 							"Type": "NodeParagraph",
 							"Properties": {
-								"id": "20211226115356-ssizaoe"
+								"id": "20220708111330-rwngczp",
+								"updated": "20220708111330"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "主力設備上使用新的工作空間，將舊的工作空間 data 文件夾手動覆制到新的工作空間下"
+									"Data": "如果之前在多個設備上正確初始化過數據倉庫密鑰的話，那麼該密鑰在所有設備上都是相同的，可以在 "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "設置"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "關於"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "數據倉庫密鑰"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeKbd",
+									"Data": "kbd",
+									"Children": [
+										{
+											"Type": "NodeKbdOpenMarker"
+										},
+										{
+											"Type": "NodeText",
+											"Data": "複製密鑰字符串"
+										},
+										{
+											"Type": "NodeKbdCloseMarker"
+										}
+									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": " 找回"
 								}
 							]
 						}
 					]
 				},
 				{
-					"ID": "20211226115356-wdxpema",
+					"ID": "20220708111330-bslu8jv",
 					"Type": "NodeListItem",
 					"ListData": {
-						"Typ": 1,
-						"Delimiter": 46,
-						"Marker": "Mi4=",
-						"Num": 2
+						"BulletChar": 42,
+						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20211226115356-wdxpema"
+						"id": "20220708111330-bslu8jv",
+						"updated": "20220708111330"
 					},
 					"Children": [
 						{
-							"ID": "20211226115356-m0gqvck",
+							"ID": "20220708111330-f6b9i12",
 							"Type": "NodeParagraph",
 							"Properties": {
-								"id": "20211226115356-m0gqvck"
+								"id": "20220708111330-f6b9i12",
+								"updated": "20220708111330"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "新的工作空間可以重新設置密碼"
+									"Data": "如果之前沒有正確配置（比如多個設備上密鑰不一致）或者所有設備均不可用，已經無法獲得密鑰字符串，則可通過如下步驟重置密鑰："
 								}
 							]
-						}
-					]
-				},
-				{
-					"ID": "20211226115356-5iftoc4",
-					"Type": "NodeListItem",
-					"ListData": {
-						"Typ": 1,
-						"Delimiter": 46,
-						"Marker": "My4=",
-						"Num": 3
-					},
-					"Properties": {
-						"id": "20211226115356-5iftoc4",
-						"updated": "20211225214824"
-					},
-					"Children": [
-						{
-							"ID": "20211226115356-v8sz97s",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20211226115356-v8sz97s",
-								"updated": "20211225214824"
-							},
-							"Children": [
-								{
-									"Type": "NodeText",
-									"Data": "雲端使用新的雲端同步目錄"
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"ID": "20211226115356-2tif6u0",
-			"Type": "NodeParagraph",
-			"Properties": {
-				"id": "20211226115356-2tif6u0",
-				"updated": "20211228145251"
-			},
-			"Children": [
-				{
-					"Type": "NodeText",
-					"Data": "如果是行動端的話解除重裝即可（"
-				},
-				{
-					"Type": "NodeTag",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeTagOpenMarker"
 						},
 						{
-							"Type": "NodeText",
-							"Data": "注意"
-						},
-						{
-							"Type": "NodeTagCloseMarker"
+							"ID": "20220708111330-pdaci5v",
+							"Type": "NodeList",
+							"ListData": {
+								"Typ": 1
+							},
+							"Properties": {
+								"id": "20220708111330-pdaci5v",
+								"updated": "20220708111330"
+							},
+							"Children": [
+								{
+									"ID": "20220708111330-iw5l8s4",
+									"Type": "NodeListItem",
+									"ListData": {
+										"Typ": 1,
+										"Delimiter": 46,
+										"Marker": "MS4=",
+										"Num": 1
+									},
+									"Properties": {
+										"id": "20220708111330-iw5l8s4",
+										"updated": "20220708111330"
+									},
+									"Children": [
+										{
+											"ID": "20220708111330-r231m35",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220708111330-r231m35",
+												"updated": "20220708111330"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "手動備份好數據，可通過 "
+												},
+												{
+													"Type": "NodeKbd",
+													"Data": "kbd",
+													"Children": [
+														{
+															"Type": "NodeKbdOpenMarker"
+														},
+														{
+															"Type": "NodeText",
+															"Data": "導出 Data"
+														},
+														{
+															"Type": "NodeKbdCloseMarker"
+														}
+													]
+												},
+												{
+													"Type": "NodeText",
+													"Data": " 或者直接在文件系統上複製 "
+												},
+												{
+													"Type": "NodeKbd",
+													"Data": "kbd",
+													"Children": [
+														{
+															"Type": "NodeKbdOpenMarker"
+														},
+														{
+															"Type": "NodeText",
+															"Data": "工作空間/data/"
+														},
+														{
+															"Type": "NodeKbdCloseMarker"
+														}
+													]
+												},
+												{
+													"Type": "NodeText",
+													"Data": " 文件夾"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20220708111330-qtzmeir",
+									"Type": "NodeListItem",
+									"ListData": {
+										"Typ": 1,
+										"Delimiter": 46,
+										"Marker": "Mi4=",
+										"Num": 2
+									},
+									"Properties": {
+										"id": "20220708111330-qtzmeir",
+										"updated": "20220708111330"
+									},
+									"Children": [
+										{
+											"ID": "20220708111330-etvajn2",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220708111330-etvajn2",
+												"updated": "20220708111330"
+											},
+											"Children": [
+												{
+													"Type": "NodeKbd",
+													"Data": "kbd",
+													"Children": [
+														{
+															"Type": "NodeKbdOpenMarker"
+														},
+														{
+															"Type": "NodeText",
+															"Data": "設置"
+														},
+														{
+															"Type": "NodeKbdCloseMarker"
+														}
+													]
+												},
+												{
+													"Type": "NodeText",
+													"Data": " - "
+												},
+												{
+													"Type": "NodeKbd",
+													"Data": "kbd",
+													"Children": [
+														{
+															"Type": "NodeKbdOpenMarker"
+														},
+														{
+															"Type": "NodeText",
+															"Data": "關於"
+														},
+														{
+															"Type": "NodeKbdCloseMarker"
+														}
+													]
+												},
+												{
+													"Type": "NodeText",
+													"Data": " - "
+												},
+												{
+													"Type": "NodeKbd",
+													"Data": "kbd",
+													"Children": [
+														{
+															"Type": "NodeKbdOpenMarker"
+														},
+														{
+															"Type": "NodeText",
+															"Data": "數據倉庫密鑰"
+														},
+														{
+															"Type": "NodeKbdCloseMarker"
+														}
+													]
+												},
+												{
+													"Type": "NodeText",
+													"Data": " - "
+												},
+												{
+													"Type": "NodeKbd",
+													"Data": "kbd",
+													"Children": [
+														{
+															"Type": "NodeKbdOpenMarker"
+														},
+														{
+															"Type": "NodeText",
+															"Data": "重置數據倉庫"
+														},
+														{
+															"Type": "NodeKbdCloseMarker"
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20220708111330-5l71k76",
+									"Type": "NodeListItem",
+									"ListData": {
+										"Typ": 1,
+										"Delimiter": 46,
+										"Marker": "My4=",
+										"Num": 3
+									},
+									"Properties": {
+										"id": "20220708111330-5l71k76",
+										"updated": "20220708111330"
+									},
+									"Children": [
+										{
+											"ID": "20220708111330-9g2ec2m",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220708111330-9g2ec2m",
+												"updated": "20220708111330"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "重新初始化數據倉庫密鑰，在一台設備上初始化密鑰以後，其他設備導入密鑰"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20220708111330-unsbsmn",
+									"Type": "NodeListItem",
+									"ListData": {
+										"Typ": 1,
+										"Delimiter": 46,
+										"Marker": "NC4=",
+										"Num": 4
+									},
+									"Properties": {
+										"id": "20220708111330-unsbsmn",
+										"updated": "20220708111330"
+									},
+									"Children": [
+										{
+											"ID": "20220708111330-tzas9ec",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220708111330-tzas9ec",
+												"updated": "20220708111330"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "雲端使用新的同步目錄，舊的同步目錄已經無法使用，可以刪除"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20220708111330-fm3lx39",
+									"Type": "NodeListItem",
+									"ListData": {
+										"Typ": 1,
+										"Delimiter": 46,
+										"Marker": "NS4=",
+										"Num": 5
+									},
+									"Properties": {
+										"id": "20220708111330-fm3lx39",
+										"updated": "20220708111330"
+									},
+									"Children": [
+										{
+											"ID": "20220708111330-w2kzmb0",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20220708111330-w2kzmb0",
+												"updated": "20220708111330"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "已有的雲端快照已經無法使用，可以刪除"
+												}
+											]
+										}
+									]
+								}
+							]
 						}
 					]
-				},
-				{
-					"Type": "NodeText",
-					"Data": "：行動端解除應用時，本地工作空間資料會被一併刪除）。"
 				}
 			]
 		},
@@ -2299,7 +2740,7 @@
 						},
 						{
 							"Type": "NodeLinkDest",
-							"Data": "https://b3log.org/siyuan/pricing.html"
+							"Data": "https://b3log.org/siyuan/en/pricing.html"
 						},
 						{
 							"Type": "NodeCloseParen"
@@ -2317,12 +2758,38 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226115356-zk19o1w",
-				"updated": "20211228143236"
+				"updated": "20220703000552"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "非中國大陸地區的用戶請勿付費訂閱，因為思源雲端伺服器無法保證非中國大陸地區可用。"
+					"Data": "🐦 Limited to 1024 early bird seats, $36/year "
+				},
+				{
+					"Type": "NodeLink",
+					"Data": "span",
+					"Children": [
+						{
+							"Type": "NodeOpenBracket"
+						},
+						{
+							"Type": "NodeLinkText",
+							"Data": "Cloud service supports non-mainland China regions"
+						},
+						{
+							"Type": "NodeCloseBracket"
+						},
+						{
+							"Type": "NodeOpenParen"
+						},
+						{
+							"Type": "NodeLinkDest",
+							"Data": "https://github.com/siyuan-note/siyuan/issues/5331"
+						},
+						{
+							"Type": "NodeCloseParen"
+						}
+					]
 				}
 			]
 		}

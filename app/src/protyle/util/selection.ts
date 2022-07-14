@@ -1,5 +1,6 @@
 import {getContenteditableElement, getNextBlock, getPreviousBlock, hasPreviousSibling} from "../wysiwyg/getBlock";
 import {hasClosestByMatchTag} from "./hasClosest";
+import {countBlockWord, countSelectWord} from "../../layout/status";
 
 const selectIsEditor = (editor: Element, range?: Range) => {
     if (!range) {
@@ -26,6 +27,7 @@ export const selectAll = (protyle: IProtyle, nodeElement: Element, range: Range)
                     range.setStart(cellElement.firstChild, 0);
                     range.setEndAfter(cellElement.lastChild);
                     protyle.toolbar.render(protyle, range);
+                    countSelectWord(range);
                     return true;
                 }
             }
@@ -68,6 +70,7 @@ export const selectAll = (protyle: IProtyle, nodeElement: Element, range: Range)
                     }
                 }
                 protyle.toolbar.render(protyle, range);
+                countSelectWord(range);
                 return true;
             }
         }
@@ -80,9 +83,12 @@ export const selectAll = (protyle: IProtyle, nodeElement: Element, range: Range)
     selectElements.forEach(item => {
         item.classList.remove("protyle-wysiwyg--select");
     });
+    const ids: string [] = [];
     Array.from(protyle.wysiwyg.element.children).forEach(item => {
         item.classList.add("protyle-wysiwyg--select");
+        ids.push(item.getAttribute("data-node-id"));
     });
+    countBlockWord(ids);
 };
 
 export const getEditorRange = (element: Element) => {
@@ -409,12 +415,17 @@ export const focusBlock = (element: Element, parentElement?: HTMLElement, toStar
         if (type === "NodeThematicBreak") {
             range.selectNodeContents(element.firstElementChild);
             setRange = true;
-        } else if (type === "NodeBlockQueryEmbed" && element.lastElementChild.previousElementSibling) {
-            range.selectNodeContents(element.lastElementChild.previousElementSibling);
+        } else if (type === "NodeBlockQueryEmbed") {
+            if (element.lastElementChild.previousElementSibling) {
+                range.selectNodeContents(element.lastElementChild.previousElementSibling);
+            } else {
+                // https://github.com/siyuan-note/siyuan/issues/5267
+                range.selectNodeContents(element);
+            }
             setRange = true;
         } else if (["NodeMathBlock", "NodeHTMLBlock"].includes(type)) {
-            // https://ld246.com/article/1655714737572
             if (element.lastElementChild.previousElementSibling?.lastElementChild) {
+                // https://ld246.com/article/1655714737572
                 range.selectNodeContents(element.lastElementChild.previousElementSibling.lastElementChild);
             } else if (element.lastElementChild.previousElementSibling) {
                 range.selectNodeContents(element.lastElementChild.previousElementSibling);

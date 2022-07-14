@@ -10,6 +10,7 @@ import {repos} from "./repos";
 import {keymap} from "./keymap";
 import {bazaar} from "./bazaar";
 import {query} from "./query";
+import {publish} from "./publish";
 import {Dialog} from "../dialog";
 
 export const openSetting = () => {
@@ -38,6 +39,7 @@ export const openSetting = () => {
     <li data-name="keymap" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconKeymap"></use></svg>${window.siyuan.languages.keymap}</li>
     <li data-name="account" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconAccount"></use></svg>${window.siyuan.languages.account}</li>
     <li data-name="repos" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconCloud"></use></svg>${window.siyuan.languages.cloud}</li>
+    <li data-name="publish" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconExact"></use></svg>${window.siyuan.languages.publish}</li>
     <li data-name="about" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconInfo"></use></svg>${window.siyuan.languages.about}</li>
   </ul>
   <div class="b3-tab-container" style="height:${height}px" data-name="editor">${editor.genHTML()}</div>
@@ -50,6 +52,7 @@ export const openSetting = () => {
   <div class="b3-tab-container fn__none" style="height:${height}px" data-name="keymap"></div>
   <div class="b3-tab-container fn__none" style="height:${height}px" data-name="account"></div>
   <div class="b3-tab-container fn__none" style="height:${height}px" data-name="repos"></div>
+  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="publish"></div>
   <div class="b3-tab-container fn__none" style="height:${height}px" data-name="about"></div>
 </div>
 </div>`,
@@ -109,6 +112,11 @@ export const openSetting = () => {
                         containerElement.innerHTML = repos.genHTML();
                         repos.element = dialog.element.querySelector('.b3-tab-container[data-name="repos"]');
                         repos.bindEvent();
+                        break;
+                    case "publish":
+                        containerElement.innerHTML = publish.genHTML();
+                        publish.element = dialog.element.querySelector('.b3-tab-container[data-name="publish"]');
+                        publish.bindEvent();
                         break;
                     case "about":
                         containerElement.innerHTML = about.genHTML();

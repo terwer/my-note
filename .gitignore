@@ -24,6 +24,7 @@ electron/dist
 
 # IDE
 .idea/
+*.iml
 
 # Log
 logs
@@ -40,3 +41,5 @@ yarn.lock
 
 # workspace
 workspace/
+node_modules/
+pnpm-lock.yaml

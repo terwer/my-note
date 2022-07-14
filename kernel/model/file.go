@@ -364,6 +364,39 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 	return
 }
 
+func ContentWordCount(content string) (runeCount, wordCount int) {
+	luteEngine := NewLute()
+	tree := luteEngine.BlockDOM2Tree(content)
+	runeCount, wordCount = tree.Root.ContentLen()
+	return
+}
+
+func BlocksWordCount(ids []string) (runeCount, wordCount int) {
+	trees := map[string]*parse.Tree{} // 缓存
+	for _, id := range ids {
+		bt := treenode.GetBlockTree(id)
+		if nil == bt {
+			util.LogWarnf("block tree not found [%s]", id)
+			continue
+		}
+
+		tree := trees[bt.RootID]
+		if nil == tree {
+			tree, _ = LoadTree(bt.BoxID, bt.Path)
+			if nil == tree {
+				continue
+			}
+			trees[bt.RootID] = tree
+		}
+
+		node := treenode.GetNodeInTree(tree, id)
+		blockRuneCount, blockWordCount := node.ContentLen()
+		runeCount += blockRuneCount
+		wordCount += blockWordCount
+	}
+	return
+}
+
 func BlockWordCount(id string) (blockRuneCount, blockWordCount, rootBlockRuneCount, rootBlockWordCount int) {
 	tree, _ := loadTreeByBlockID(id)
 	if nil == tree {
@@ -531,11 +564,11 @@ func GetDoc(id string, index int, keyword string, mode int, size int) (blockCoun
 				tmp = append(tmp, e)
 			}
 			excludes = tmp
-			virtualBlockRefKeywords = util.ExcludeElem(virtualBlockRefKeywords, excludes)
+			virtualBlockRefKeywords = gulu.Str.ExcludeElem(virtualBlockRefKeywords, excludes)
 		}
 
 		// 虚拟引用排除当前文档名 https://github.com/siyuan-note/siyuan/issues/4537
-		virtualBlockRefKeywords = util.ExcludeElem(virtualBlockRefKeywords, []string{tree.Root.IALAttr("title")})
+		virtualBlockRefKeywords = gulu.Str.ExcludeElem(virtualBlockRefKeywords, []string{tree.Root.IALAttr("title")})
 
 		if 0 < len(virtualBlockRefKeywords) {
 			var tmp []string
@@ -657,7 +690,7 @@ func GetDoc(id string, index int, keyword string, mode int, size int) (blockCoun
 }
 
 func loadNodesByMode(node *ast.Node, inputIndex, mode, size int, isDoc, isHeading bool) (nodes []*ast.Node, eof bool) {
-	if 2 == mode { // 向下
+	if 2 == mode /* 向下 */ {
 		next := node.Next
 		if ast.NodeHeading == node.Type && "1" == node.IALAttr("fold") {
 			// 标题展开时进行动态加载导致重复内容 https://github.com/siyuan-note/siyuan/issues/4671
@@ -887,7 +920,7 @@ func DuplicateDoc(rootID string) (err error) {
 	return
 }
 
-func CreateDocByMd(boxID, p, title, md string) (err error) {
+func CreateDocByMd(boxID, p, title, md string, sorts []string) (err error) {
 	WaitForWritingFiles()
 
 	box := Conf.Box(boxID)
@@ -897,7 +930,13 @@ func CreateDocByMd(boxID, p, title, md string) (err error) {
 
 	luteEngine := NewLute()
 	dom := luteEngine.Md2BlockDOM(md)
-	return createDoc(box.ID, p, title, dom)
+	err = createDoc(box.ID, p, title, dom)
+	if nil != err {
+		return
+	}
+
+	ChangeFileTreeSort(box.ID, sorts)
+	return
 }
 
 func CreateWithMarkdown(boxID, hPath, md string) (id string, err error) {
@@ -1444,6 +1483,10 @@ func rootChildIDs(rootID string) (ret []string) {
 }
 
 func ChangeFileTreeSort(boxID string, paths []string) {
+	if 1 > len(paths) {
+		return
+	}
+
 	WaitForWritingFiles()
 	writingDataLock.Lock()
 	defer writingDataLock.Unlock()
