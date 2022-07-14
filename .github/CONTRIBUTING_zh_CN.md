@@ -32,9 +32,9 @@ NPM 镜像：
 ### 桌面端
 
 * `cd kernel`
-* `go build --tags "fts5" -o "../app/kernel/SiYuan-Kernel.exe"`
+* `go build --tags "fts5" -o "../app/kernel/SiYuan_Kernel.exe"`
 * `cd ../app/kernel`
-* `./SiYuan-Kernel.exe --wd=.. --mode=dev`
+* `./SiYuan_Kernel.exe --wd=.. --mode=dev`
 
 ### iOS
 
