@@ -6,7 +6,7 @@
 go env -w GO111MODULE=on
 # go env -w GOPROXY=https://goproxy.cn,direct
 go env -w GOPROXY=https://goproxy.cn
-go build --tags "fts5" -o "../app/kernel/SiYuan-Kernel"
+go build --tags "fts5" -o "../app/kernel/SiYuan_Kernel"
 cd ../app/kernel
 ./SiYuan-Kernel --wd=.. --mode=dev
 ```
