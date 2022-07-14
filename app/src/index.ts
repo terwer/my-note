@@ -85,6 +85,7 @@ class App {
         };
         fetchPost("/api/system/getConf", {}, response => {
             window.siyuan.config = response.data;
+            // console.log("getConf=>", response.data);
             fetchGet(`/appearance/langs/${window.siyuan.config.appearance.lang}.json?v=${Constants.SIYUAN_VERSION}`, (lauguages) => {
                 window.siyuan.languages = lauguages;
                 bootSync();

@@ -297,18 +297,9 @@ declare interface IConfig {
     }
     terwer: {
         publish: {
-            platform: {
-                cnblogs: {
-                    publishApiUrl: string,
-                    publishUsername: string,
-                    publishPassword: string
-                },
-                conf: {
-                    publishApiUrl: string,
-                    publishUsername: string,
-                    publishPassword: string
-                }
-            }
+            cnblogsPublishApiUrl: string
+            cnblogsPublishUsername: string
+            cnblogsPublishPassword: string
         }
     },
     localIPs: string[]

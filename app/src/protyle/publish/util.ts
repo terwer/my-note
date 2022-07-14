@@ -37,10 +37,10 @@ export function getApiParams(apiType: string) {
     // 修改这个切换api
     // ==================
     // cnblogs
-    let API_URL = CNBLOGS_API_URL;
+    let API_URL = window.siyuan.config.terwer.publish.cnblogsPublishApiUrl || CNBLOGS_API_URL;
     let appKey = API_TYPE_CNBLPGS;
-    let username = "";
-    let password = "";
+    let username = window.siyuan.config.terwer.publish.cnblogsPublishUsername || "";
+    let password = window.siyuan.config.terwer.publish.cnblogsPublishPassword || "";
     let postidKey = CNBLOGS_POSTID_KEY;
 
     // wordpress

@@ -5,6 +5,7 @@ import {PrintToPDFOptions} from "electron";
 import PUBLISH_TYPE_CONSTANTS, {getApiParams} from "./util";
 import metaWeblogApiClient from "./metaweblog/metaweblog-api-client";
 import wordpressApiClient from "./wordpress/wordpress-api-client";
+import msg from "../../util/msg";
 
 // publishMdContent
 export const publishMdContent = (id: string, type: string, meta: any, callback: Function) => {
@@ -39,7 +40,12 @@ const doPublish = (id: string, type: string, meta: any, content: any) => {
     console.log("doPublish meta before=>", meta);
 
     const apiParams = getApiParams(type);
-    console.log("doPublish apiParams=>", apiParams);
+    console.log("doPublish apiParams=>", {
+        "API_URL": apiParams.API_URL,
+        "appKey": apiParams.appKey,
+        "username": apiParams.username,
+        "apiParams.postidKey": apiParams.postidKey
+    });
 
     // 设置自定义属性
     const postidKey = apiParams.postidKey;
@@ -49,25 +55,29 @@ const doPublish = (id: string, type: string, meta: any, content: any) => {
         [postidKey]: "99999",
     };
 
-    const wordpressApi = wordpressApiClient(PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS);
-    const result2 = wordpressApi.getPosts(10);
-    // @ts-ignore
-    result2.then(function (reslove: any, reject: any) {
-        console.log("wordpress getPosts=>", reslove);
-    });
+    // const wordpressApi = wordpressApiClient(PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS);
+    // const result2 = wordpressApi.getPosts(10);
+    // // @ts-ignore
+    // result2.then(function (reslove: any, reject: any) {
+    //     console.log("wordpress getPosts=>", reslove);
+    // });
 
-    const metaWeblogApi = metaWeblogApiClient(PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS);
+    const metaWeblogApi = metaWeblogApiClient(PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS);
     const result = metaWeblogApi.getRecentPosts(10);
     result.then(function (posts) {
         console.log("metaweblog get recent posts=>", posts);
+        msg.alertMsg(window.siyuan.languages.successMsg);
+    }).catch(function (e: any) {
+        console.error(e);
+        msg.alertMsg(window.siyuan.languages.errorMsg);
     });
 
-    fetchPost("/api/attr/setBlockAttrs", {
-        "id": id,
-        "attrs": customAttr
-    }, (response) => {
-        const newmeta = response;
-        console.log("doPublish customAttr=>", customAttr);
-        // console.log("doPublish content=>", content);
-    });
+    // fetchPost("/api/attr/setBlockAttrs", {
+    //     "id": id,
+    //     "attrs": customAttr
+    // }, (response) => {
+    //     const newmeta = response;
+    //     console.log("doPublish customAttr=>", customAttr);
+    //     // console.log("doPublish content=>", content);
+    // });
 };
