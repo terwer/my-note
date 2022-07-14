@@ -66,6 +66,7 @@ type AppConf struct {
 	E2EEPasswd     string           `json:"e2eePasswd"`     // 端到端加密密码，用于备份和同步
 	E2EEPasswdMode int              `json:"e2eePasswdMode"` // 端到端加密密码生成方式，0：自动，1：自定义
 	System         *conf.System     `json:"system"`         // 系统
+	Terwer         *conf.Terwer     `json:"terwer"`         // 自定义配置
 	Keymap         *conf.Keymap     `json:"keymap"`         // 快捷键
 	Backup         *conf.Backup     `json:"backup"`         // 备份配置
 	Sync           *conf.Sync       `json:"sync"`           // 同步配置
@@ -206,6 +207,9 @@ func InitConf() {
 	} else {
 		Conf.System.KernelVersion = util.Ver
 		Conf.System.IsInsider = util.IsInsider
+	}
+	if nil == Conf.Terwer {
+		Conf.Terwer = conf.NewTerwer()
 	}
 	if nil == Conf.System.NetworkProxy {
 		Conf.System.NetworkProxy = &conf.NetworkProxy{}
