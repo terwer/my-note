@@ -30,7 +30,7 @@ jobs:
         run: |
           echo "::set-output name=release_title::$(git show --format=%s --no-patch | head -1)"
           echo "::set-output name=release_version::$(TZ=Asia/Shanghai date +'v%Y%m%d%H%M')"
-          changelog=$(python scripts/parse-changelog.py -t ${{ github.ref }} siyuan-note/siyuan)
+          changelog=$(python scripts/parse-changelog.py -t ${{ github.ref }} terwer/my-note)
           changelog="${changelog//'%'/'%25'}"
           changelog="${changelog//$'\n'/'%0A'}"
           changelog="${changelog//$'\r'/'%0D'}"
@@ -215,6 +215,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_name: siyuan-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
+        asset_name: my-note-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
         asset_path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/build/siyuan-${{ needs.create_release.outputs.version }}-${{ matrix.config.suffix }}
         asset_content_type: application/octet-stream
