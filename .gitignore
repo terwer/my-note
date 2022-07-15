@@ -43,3 +43,4 @@ yarn.lock
 workspace/
 node_modules/
 pnpm-lock.yaml
+venv/
