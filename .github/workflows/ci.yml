@@ -2,9 +2,8 @@ name: CI/CD For SiYuan
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
