@@ -19,9 +19,9 @@ A fork of SiYuan, a local-first personal knowledge management system
 
 ## 🚀 Release
 
-first, create a tag from a branch, then push the tag to trigger ci build and docker image build.tag example:v2.0.27
+first, create a tag from a branch, then push the tag to trigger ci build and docker image build.tag example:v0.0.0
 
 ```bash
-git tag v2.0.27
-git push origin v2.0.27
+git tag v0.0.0
+git push origin v0.0.0
 ```

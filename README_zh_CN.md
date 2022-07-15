@@ -19,9 +19,9 @@
 
 ## 🚀 发布
 
-首先在分支上创建一个标签，然后推送标签触发CI和docker镜像构建，标签名称示例：v2.0.27
+首先在分支上创建一个标签，然后推送标签触发CI和docker镜像构建，标签名称示例：v0.0.0
 
 ```bash
-git tag v2.0.27
-git push origin v2.0.27
+git tag v0.0.0
+git push origin v0.0.0
 ```
