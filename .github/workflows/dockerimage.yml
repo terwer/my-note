@@ -1,8 +1,10 @@
 name: Release Docker Image
 
+# 标签推送触发
 on:
   push:
-    branches: [ "master" ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -32,4 +34,4 @@ jobs:
 
       - name: Build the Docker image
         run: |
-          docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -t terwer/my-note:latest -t terwer/my-note:v2.0.26 .
+          docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -t terwer/my-note:latest -t terwer/my-note:v2.0.27 .

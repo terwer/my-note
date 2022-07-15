@@ -28,6 +28,20 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func renameAsset(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	oldPath := arg["oldPath"].(string)
+	newName := arg["newName"].(string)
+	model.RenameAsset(oldPath, newName)
+}
+
 func getDocImageAssets(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -70,7 +84,7 @@ func setFileAnnotation(c *gin.Context) {
 		ret.Msg = err.Error()
 		return
 	}
-	model.IncWorkspaceDataVer()
+	model.IncSync()
 }
 
 func getFileAnnotation(c *gin.Context) {

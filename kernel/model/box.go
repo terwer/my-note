@@ -261,7 +261,7 @@ func (box *Box) Mkdir(path string) error {
 		util.LogErrorf("mkdir [path=%s] in box [%s] failed: %s", path, box.ID, err)
 		return errors.New(msg)
 	}
-	IncWorkspaceDataVer()
+	IncSync()
 	return nil
 }
 
@@ -271,7 +271,7 @@ func (box *Box) MkdirAll(path string) error {
 		util.LogErrorf("mkdir all [path=%s] in box [%s] failed: %s", path, box.ID, err)
 		return errors.New(msg)
 	}
-	IncWorkspaceDataVer()
+	IncSync()
 	return nil
 }
 
@@ -292,7 +292,7 @@ func (box *Box) Move(oldPath, newPath string) error {
 			os.Remove(fromDir)
 		}
 	}
-	IncWorkspaceDataVer()
+	IncSync()
 	return nil
 }
 
@@ -305,7 +305,7 @@ func (box *Box) Remove(path string) error {
 		util.LogErrorf("remove [path=%s] in box [%s] failed: %s", path, box.ID, err)
 		return errors.New(msg)
 	}
-	IncWorkspaceDataVer()
+	IncSync()
 	return nil
 }
 
@@ -347,30 +347,6 @@ func (box *Box) listFiles(files, ret *[]*FileInfo) {
 
 func isSkipFile(filename string) bool {
 	return strings.HasPrefix(filename, ".") || "node_modules" == filename || "dist" == filename || "target" == filename
-}
-
-func checkUploadBackup() (err error) {
-	if !IsSubscriber() {
-		if "ios" == util.Container {
-			return errors.New(Conf.Language(122))
-		}
-		return errors.New(Conf.Language(29))
-	}
-
-	backupDir := Conf.Backup.GetSaveDir()
-	backupSize, err := util.SizeOfDirectory(backupDir, false)
-	if nil != err {
-		return
-	}
-
-	cloudAvailableBackupSize, err := getCloudAvailableBackupSize()
-	if nil != err {
-		return
-	}
-	if cloudAvailableBackupSize < backupSize {
-		return errors.New(fmt.Sprintf(Conf.Language(43), byteCountSI(int64(Conf.User.UserSiYuanRepoSize))))
-	}
-	return nil
 }
 
 func (box *Box) renameSubTrees(tree *parse.Tree) {

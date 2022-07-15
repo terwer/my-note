@@ -164,7 +164,7 @@ export const repos = {
 </label>
 <div class="b3-label">
     <div class="fn__flex">
-        <div class="fn__flex-center">${window.siyuan.languages.cloudSync}</div>
+        <div class="fn__flex-center">${window.siyuan.languages.cloudSyncDir}</div>
         <div class="fn__flex-1"></div>
         <button class="b3-button b3-button--outline fn__flex-center${isMobile() ? "" : " fn__size200"}" data-type="config">
             <svg><use xlink:href="#iconSettings"></use></svg>${window.siyuan.languages.config}
@@ -240,27 +240,10 @@ export const repos = {
                             });
                             break;
                         case "selectCloud":
-                            if (target.parentElement.getAttribute("disabled") !== "disabled") {
-                                target.parentElement.setAttribute("disabled", "disabled");
-                                fetchPost("/api/sync/getSyncDirection", {name: target.getAttribute("data-name")}, (response) => {
-                                    target.parentElement.removeAttribute("disabled");
-                                    const name = target.getAttribute("data-name");
-                                    if (40 == response.code) { // 使用数据仓库同步不需要对比同步方向
-                                        fetchPost("/api/sync/setCloudSyncDir", {name}, () => {
-                                            window.siyuan.config.sync.cloudName = name;
-                                            getCloudList(true);
-                                        });
-                                        return;
-                                    }
-
-                                    confirmDialog(window.siyuan.languages.confirm, response.msg, () => {
-                                        fetchPost("/api/sync/setCloudSyncDir", {name}, () => {
-                                            window.siyuan.config.sync.cloudName = name;
-                                            getCloudList(true);
-                                        });
-                                    });
-                                });
-                            }
+                            fetchPost("/api/sync/setCloudSyncDir", {name: target.getAttribute("data-name")}, () => {
+                                window.siyuan.config.sync.cloudName = target.getAttribute("data-name");
+                                getCloudList(true);
+                            });
                             break;
                     }
                     event.preventDefault();

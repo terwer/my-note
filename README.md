@@ -16,3 +16,11 @@ Build Your Eternal Digital Garden
 ## 💡 Introduction
 
 A fork of SiYuan, a local-first personal knowledge management system
+
+## 🚀 Release
+
+first, create a tag from a branch, then push the tag to trigger ci build and docker image build.tag example:v2.0.27
+
+```bash
+git push origin v2.0.27
+```

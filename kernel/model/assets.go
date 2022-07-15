@@ -34,9 +34,11 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
+	"github.com/88250/protyle"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/httpclient"
+	"github.com/siyuan-note/siyuan/kernel/cache"
 	"github.com/siyuan-note/siyuan/kernel/search"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
@@ -161,25 +163,32 @@ func NetImg2LocalAssets(rootID string) (err error) {
 	return
 }
 
-type Asset struct {
-	HName string `json:"hName"`
-	Name  string `json:"name"`
-	Path  string `json:"path"`
-}
+func SearchAssetsByName(keyword string) (ret []*cache.Asset) {
+	ret = []*cache.Asset{}
 
-func SearchAssetsByName(keyword string) (ret []*Asset) {
-	ret = []*Asset{}
-	sqlAssets := sql.QueryAssetsByName(keyword)
-	for _, sqlAsset := range sqlAssets {
-		hName := util.RemoveID(sqlAsset.Name)
-		_, hName = search.MarkText(hName, keyword, 64, Conf.Search.CaseSensitive)
-		asset := &Asset{
-			HName: hName,
-			Name:  sqlAsset.Name,
-			Path:  sqlAsset.Path,
+	count := 0
+	cache.Assets.Range(func(k, v interface{}) bool {
+		asset := v.(*cache.Asset)
+		if !strings.Contains(strings.ToLower(asset.HName), strings.ToLower(keyword)) {
+			return true
 		}
-		ret = append(ret, asset)
-	}
+
+		_, hName := search.MarkText(asset.HName, keyword, 64, Conf.Search.CaseSensitive)
+		ret = append(ret, &cache.Asset{
+			HName:   hName,
+			Path:    asset.Path,
+			Updated: asset.Updated,
+		})
+		count++
+		if Conf.Search.Limit <= count {
+			return false
+		}
+		return true
+	})
+
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].Updated > ret[j].Updated
+	})
 	return
 }
 
@@ -404,7 +413,7 @@ func RemoveUnusedAssets() (ret []string) {
 		ret = append(ret, unusedAsset)
 	}
 	if 0 < len(ret) {
-		IncWorkspaceDataVer()
+		IncSync()
 	}
 	return
 }
@@ -431,8 +440,61 @@ func RemoveUnusedAsset(p string) (ret string) {
 		util.LogErrorf("remove unused asset [%s] failed: %s", p, err)
 	}
 	ret = p
-	IncWorkspaceDataVer()
+	IncSync()
 	return
+}
+
+func RenameAsset(oldPath, newName string) {
+	util.PushEndlessProgress(Conf.Language(110))
+	defer util.PushClearProgress()
+
+	notebooks, err := ListNotebooks()
+	if nil != err {
+		return
+	}
+
+	newPath := util.AssetName(newName)
+
+	luteEngine := NewLute()
+	for _, notebook := range notebooks {
+		pages := pagedPaths(filepath.Join(util.DataDir, notebook.ID), 32)
+		for _, paths := range pages {
+			for _, treeAbsPath := range paths {
+				data, readErr := filelock.NoLockFileRead(treeAbsPath)
+				if nil != readErr {
+					util.LogErrorf("get data [path=%s] failed: %s", treeAbsPath, readErr)
+					return
+				}
+
+				if !bytes.Contains(data, []byte(oldPath)) {
+					return
+				}
+
+				data = bytes.Replace(data, []byte(oldPath), []byte(newPath), -1)
+				if writeErr := filelock.NoLockFileWrite(treeAbsPath, data); nil != writeErr {
+					util.LogErrorf("write data [path=%s] failed: %s", treeAbsPath, writeErr)
+					return
+				}
+
+				tree, parseErr := protyle.ParseJSONWithoutFix(luteEngine, data)
+				if nil != parseErr {
+					util.LogErrorf("parse json to tree [%s] failed: %s", treeAbsPath, parseErr)
+					return
+				}
+
+				treenode.ReindexBlockTree(tree)
+				sql.UpsertTreeQueue(tree)
+
+				util.PushEndlessProgress(fmt.Sprintf(Conf.Language(111), tree.Root.IALAttr("title")))
+			}
+		}
+	}
+
+	if err = os.Rename(filepath.Join(util.DataDir, oldPath), filepath.Join(util.DataDir, newPath)); nil != err {
+		util.LogErrorf("rename asset [%s] failed: %s", oldPath, err)
+	}
+
+	IncSync()
 }
 
 func UnusedAssets() (ret []string) {

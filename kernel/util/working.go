@@ -40,7 +40,7 @@ import (
 var Mode = "prod"
 
 const (
-	Ver       = "2.0.26"
+	Ver       = "2.0.27"
 	IsInsider = false
 )
 
@@ -137,15 +137,6 @@ func SetBooted() {
 	bootDetails = "Finishing boot..."
 	bootProgress = 100
 	LogInfof("kernel booted")
-}
-
-func GetHistoryDirNow(now, suffix string) (ret string, err error) {
-	ret = filepath.Join(HistoryDir, now+"-"+suffix)
-	if err = os.MkdirAll(ret, 0755); nil != err {
-		LogErrorf("make history dir failed: %s", err)
-		return
-	}
-	return
 }
 
 func GetHistoryDir(suffix string) (ret string, err error) {
