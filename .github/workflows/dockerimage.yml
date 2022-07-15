@@ -1,5 +1,6 @@
 name: Release Docker Image
 
+# 标签推送触发
 on:
   push:
     tags:
