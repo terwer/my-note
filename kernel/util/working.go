@@ -104,7 +104,7 @@ func Boot() {
 	checkPort()
 
 	bootBanner := figure.NewColorFigure("Terwer", "big", "green", true)
-	LogInfof("\n" + bootBanner.String())
+	logging.LogInfof("\n" + bootBanner.String())
 	logBootInfo()
 
 	go cleanOld()
