@@ -47,6 +47,8 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
     let id = blockElement.getAttribute("data-node-id");
     range.insertNode(document.createElement("wbr"));
     let oldHTML = blockElement.outerHTML;
+    const undoOperation: IOperation[] = [];
+    const doOperation: IOperation[] = [];
     if (range.toString() !== "") {
         const inlineMathElement = hasClosestByAttribute(range.commonAncestorContainer, "data-type", "inline-math");
         if (inlineMathElement) {
@@ -59,6 +61,16 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
             range.deleteContents();
         }
         range.insertNode(document.createElement("wbr"));
+        undoOperation.push({
+            action: "update",
+            id,
+            data: oldHTML
+        });
+        doOperation.push({
+            action: "update",
+            id,
+            data: blockElement.outerHTML
+        });
     }
     const tempElement = document.createElement("template");
     tempElement.innerHTML = html;
@@ -76,9 +88,11 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
             range.insertNode(tempElement.content.cloneNode(true));
             range.collapse(false);
             blockElement.setAttribute("updated", dayjs().format("YYYYMMDDHHmmss"));
-            if (editableElement && (editableElement.textContent.startsWith("```") || editableElement.textContent.startsWith("~~~") || editableElement.textContent.startsWith("···") ||
-                editableElement.textContent.indexOf("\n```") > -1 || editableElement.textContent.indexOf("\n~~~") > -1 || editableElement.textContent.indexOf("\n···") > -1)) {
-                if (editableElement.innerHTML.indexOf("\n") === -1 && editableElement.textContent.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") > -1) {
+            // 使用 innerHTML,避免行内元素为代码块
+            const trimStartText = editableElement ? editableElement.innerHTML.trimStart() : "";
+            if (editableElement && (trimStartText.startsWith("```") || trimStartText.startsWith("~~~") || trimStartText.startsWith("···") ||
+                trimStartText.indexOf("\n```") > -1 || trimStartText.indexOf("\n~~~") > -1 || trimStartText.indexOf("\n···") > -1)) {
+                if (trimStartText.indexOf("\n") === -1 && trimStartText.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") > -1) {
                     // ```test` 不处理
                 } else {
                     let replaceInnerHTML = editableElement.innerHTML.replace(/^(~|·|`){3,}/g, "```").replace(/\n(~|·|`){3,}/g, "\n```").trim();
@@ -114,8 +128,6 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
             }
         }
     }
-    const undoOperation: IOperation[] = [];
-    const doOperation: IOperation[] = [];
     const cursorLiElement = hasClosestByClassName(blockElement, "li");
     // 列表项不能单独进行粘贴 https://ld246.com/article/1628681120576/comment/1628681209731#comments
     if (tempElement.content.children[0]?.getAttribute("data-type") === "NodeListItem") {

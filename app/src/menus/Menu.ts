@@ -5,8 +5,11 @@ import {isMobile} from "../util/functions";
 
 export class Menu {
     public element: HTMLElement;
+    private wheelEvent: string;
 
     constructor() {
+        this.wheelEvent = "onwheel" in document.createElement("div") ? "wheel" : "mousewheel";
+
         this.element = document.getElementById("commonMenu");
         this.element.addEventListener(isMobile() ? getEventName() : "mouseover", (event) => {
             const target = event.target as Element;
@@ -33,11 +36,16 @@ export class Menu {
             itemElement.classList.add("b3-menu__item--show");
             const rect = subMenuElement.getBoundingClientRect();
             let style = "";
-            if (rect.right > window.innerWidth && (rect.left - this.element.clientWidth - rect.width > 0 ||
-                Math.abs(rect.left - this.element.clientWidth - rect.width) < (rect.right - window.innerWidth))) {
-                style = "left:auto;right:100%;";
+            const leftPosition = rect.left - this.element.clientWidth - rect.width;
+            if (rect.right > window.innerWidth && (
+                leftPosition > 0 || Math.abs(leftPosition) < (rect.right - window.innerWidth))) {
+                if (leftPosition >= 0) {
+                    style = "left:auto;right:100%;";
+                } else {
+                    style = `z-index:1;mix-blend-mode: normal;left:-${this.element.style.left};`;
+                }
             } else if (rect.right > window.innerWidth) {
-                style = `z-index:1;mix-blend-mode: normal;left:${window.innerWidth - rect.width}px;`;
+                style = `z-index:1;mix-blend-mode: normal;left:${window.innerWidth - rect.width - this.element.offsetLeft}px;`;
             }
             if (rect.bottom > window.innerHeight) {
                 style += `top: auto;bottom:-5px;max-height:${Math.min(rect.top, window.innerHeight * 0.4)}px`;
@@ -48,7 +56,17 @@ export class Menu {
         });
     }
 
+    private preventDefault(event: KeyboardEvent) {
+        event.preventDefault();
+    }
+
     public remove() {
+        if (isMobile()) {
+            window.removeEventListener("touchmove", this.preventDefault, false);
+        } else {
+            window.removeEventListener(this.wheelEvent, this.preventDefault, false);
+        }
+
         this.element.innerHTML = "";
         this.element.classList.add("fn__none");
         this.element.style.zIndex = "";
@@ -61,9 +79,15 @@ export class Menu {
         this.element.append(element);
     }
 
-    public popup(options: { x: number, y: number }) {
+    public popup(options: { x: number, y: number, h?: number }, isLeft = false) {
+        if (isMobile()) {
+            window.addEventListener("touchmove", this.preventDefault, {passive: false});
+        } else {
+            window.addEventListener(this.wheelEvent, this.preventDefault, {passive: false});
+        }
+
         this.element.classList.remove("fn__none");
-        setPosition(this.element, options.x, options.y);
+        setPosition(this.element, options.x - (isLeft ? window.siyuan.menus.menu.element.clientWidth : 0), options.y, options.h);
     }
 }
 

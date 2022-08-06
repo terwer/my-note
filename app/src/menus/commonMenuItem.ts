@@ -10,12 +10,11 @@ import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {saveExport} from "../protyle/export";
 import {publishHTMLContent, publishMdContent} from "../protyle/publish";
 import PUBLISH_TYPE_CONSTANTS, {getApiParams} from "../protyle/publish/util";
-import {writeText} from "../protyle/util/compatibility";
+import {openByMobile, writeText} from "../protyle/util/compatibility";
 import {fetchPost} from "../util/fetch";
 import {hideMessage, showMessage} from "../dialog/message";
 import {Dialog} from "../dialog";
 import {focusBlock, focusByRange, getEditorRange} from "../protyle/util/selection";
-import {setPosition} from "../util/setPosition";
 import {updateTransaction} from "../protyle/wysiwyg/transaction";
 /// #if !MOBILE
 import {getAllModels} from "../layout/getAll";
@@ -232,9 +231,9 @@ export const openFileAttr = (attrs: IObject, id: string, focusName = "bookmark")
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
     });
-    (dialog.element.querySelector(".b3-text-field[data-name=\"bookmark\"]") as HTMLInputElement).value = attrs.bookmark || "";
-    (dialog.element.querySelector(".b3-text-field[data-name=\"name\"]") as HTMLInputElement).value = attrs.name || "";
-    (dialog.element.querySelector(".b3-text-field[data-name=\"alias\"]") as HTMLInputElement).value = attrs.alias || "";
+    (dialog.element.querySelector('.b3-text-field[data-name="bookmark"]') as HTMLInputElement).value = attrs.bookmark || "";
+    (dialog.element.querySelector('.b3-text-field[data-name="name"]') as HTMLInputElement).value = attrs.name || "";
+    (dialog.element.querySelector('.b3-text-field[data-name="alias"]') as HTMLInputElement).value = attrs.alias || "";
     const removeAttrs: string[] = [];
     dialog.element.addEventListener("click", (event) => {
         const target = event.target as HTMLElement;
@@ -268,9 +267,8 @@ export const openFileAttr = (attrs: IObject, id: string, focusName = "bookmark")
                             }).element);
                         });
                     }
-                    window.siyuan.menus.menu.element.classList.remove("fn__none");
                     window.siyuan.menus.menu.element.style.zIndex = "310";
-                    setPosition(window.siyuan.menus.menu.element, event.clientX, event.clientY + 16);
+                    window.siyuan.menus.menu.popup({x: event.clientX, y: event.clientY + 16});
                 });
                 break;
         }
@@ -330,15 +328,17 @@ export const openFileAttr = (attrs: IObject, id: string, focusName = "bookmark")
                 item.editor.protyle.wysiwyg.renderCustom(attrsResult);
             }
         });
+        /// #endif
         fetchPost("/api/attr/resetBlockAttrs", {id, attrs: attrsResult}, () => {
+            /// #if !MOBILE
             if (attrsResult.bookmark !== attrs.bookmark) {
                 const bookmark = getDockByType("bookmark").data.bookmark;
                 if (bookmark instanceof Bookmark) {
                     bookmark.update();
                 }
             }
+            /// #endif
         });
-        /// #endif
         dialog.destroy();
     });
     dialog.element.querySelectorAll(".b3-text-field").forEach((item: HTMLInputElement) => {
@@ -430,9 +430,9 @@ export const openAttr = (nodeElement: Element, protyle: IProtyle, focusName = "b
                 focusByRange(range);
             }
         });
-        (dialog.element.querySelector(".b3-text-field[data-name=\"bookmark\"]") as HTMLInputElement).value = response.data.bookmark || "";
-        (dialog.element.querySelector(".b3-text-field[data-name=\"name\"]") as HTMLInputElement).value = response.data.name || "";
-        (dialog.element.querySelector(".b3-text-field[data-name=\"alias\"]") as HTMLInputElement).value = response.data.alias || "";
+        (dialog.element.querySelector('.b3-text-field[data-name="bookmark"]') as HTMLInputElement).value = response.data.bookmark || "";
+        (dialog.element.querySelector('.b3-text-field[data-name="name"]') as HTMLInputElement).value = response.data.name || "";
+        (dialog.element.querySelector('.b3-text-field[data-name="alias"]') as HTMLInputElement).value = response.data.alias || "";
         const removeAttrs: string[] = [];
         dialog.element.addEventListener("click", (event) => {
             const target = event.target as HTMLElement;
@@ -466,9 +466,8 @@ export const openAttr = (nodeElement: Element, protyle: IProtyle, focusName = "b
                                 }).element);
                             });
                         }
-                        window.siyuan.menus.menu.element.classList.remove("fn__none");
                         window.siyuan.menus.menu.element.style.zIndex = "310";
-                        setPosition(window.siyuan.menus.menu.element, event.clientX, event.clientY + 16);
+                        window.siyuan.menus.menu.popup({x: event.clientX, y: event.clientY + 16});
                     });
                     break;
             }
@@ -854,11 +853,7 @@ export const openMenu = (src: string, onlyMenu = false) => {
         label: window.siyuan.languages.useBrowserView,
         accelerator: "Click",
         click: () => {
-            if (window.siyuan.config.system.container === "ios") {
-                window.location.href = src;
-            } else {
-                window.open(src);
-            }
+            openByMobile(src);
         }
     });
     /// #endif

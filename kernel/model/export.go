@@ -41,15 +41,21 @@ import (
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/emirpasic/gods/stacks/linkedliststack"
 	"github.com/siyuan-note/filelock"
+	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func ExportNotebookSY(id string) (zipPath string) {
+	zipPath = exportBoxSYZip(id)
+	return
+}
+
 func ExportSY(id string) (name, zipPath string) {
 	block := treenode.GetBlockTree(id)
 	if nil == block {
-		util.LogErrorf("not found block [%s]", id)
+		logging.LogErrorf("not found block [%s]", id)
 		return
 	}
 
@@ -108,7 +114,7 @@ func ExportData() (zipPath string) {
 func exportData(exportFolder string) (err error) {
 	baseFolderName := "data-" + util.CurrentTimeSecondsStr()
 	if err = os.MkdirAll(exportFolder, 0755); nil != err {
-		util.LogErrorf("create export temp folder failed: %s", err)
+		logging.LogErrorf("create export temp folder failed: %s", err)
 		return
 	}
 
@@ -119,7 +125,7 @@ func exportData(exportFolder string) (err error) {
 
 	data := filepath.Join(util.WorkspaceDir, "data")
 	if err = stableCopy(data, exportFolder); nil != err {
-		util.LogErrorf("copy data dir from [%s] to [%s] failed: %s", data, baseFolderName, err)
+		logging.LogErrorf("copy data dir from [%s] to [%s] failed: %s", data, baseFolderName, err)
 		err = errors.New(fmt.Sprintf(Conf.Language(14), formatErrorMsg(err)))
 		return
 	}
@@ -127,17 +133,17 @@ func exportData(exportFolder string) (err error) {
 	zipPath := exportFolder + ".zip"
 	zip, err := gulu.Zip.Create(zipPath)
 	if nil != err {
-		util.LogErrorf("create export data zip [%s] failed: %s", exportFolder, err)
+		logging.LogErrorf("create export data zip [%s] failed: %s", exportFolder, err)
 		return
 	}
 
 	if err = zip.AddDirectory(baseFolderName, exportFolder); nil != err {
-		util.LogErrorf("create export data zip [%s] failed: %s", exportFolder, err)
+		logging.LogErrorf("create export data zip [%s] failed: %s", exportFolder, err)
 		return
 	}
 
 	if err = zip.Close(); nil != err {
-		util.LogErrorf("close export data zip failed: %s", err)
+		logging.LogErrorf("close export data zip failed: %s", err)
 	}
 
 	os.RemoveAll(exportFolder)
@@ -154,7 +160,7 @@ func Preview(id string) string {
 	return luteEngine.ProtylePreview(tree, luteEngine.RenderOptions)
 }
 
-func ExportDocx(id, savePath string) (err error) {
+func ExportDocx(id, savePath string, removeAssets bool) (err error) {
 	if !util.IsValidPandocBin(Conf.Export.PandocBin) {
 		return errors.New(Conf.Language(115))
 	}
@@ -174,19 +180,19 @@ func ExportDocx(id, savePath string) (err error) {
 	pandoc.Stdin = bytes.NewBufferString(dom)
 	output, err := pandoc.CombinedOutput()
 	if nil != err {
-		util.LogErrorf("export docx failed: %s", gulu.Str.FromBytes(output))
+		logging.LogErrorf("export docx failed: %s", gulu.Str.FromBytes(output))
 		msg := fmt.Sprintf(Conf.Language(14), gulu.Str.FromBytes(output))
 		return errors.New(msg)
 	}
 
 	if err = gulu.File.Copy(tmpDocxPath, filepath.Join(savePath, name+".docx")); nil != err {
-		util.LogErrorf("export docx failed: %s", err)
+		logging.LogErrorf("export docx failed: %s", err)
 		return errors.New(fmt.Sprintf(Conf.Language(14), err))
 	}
-	tmpAssets := filepath.Join(tmpDir, "assets")
-	if gulu.File.IsDir(tmpAssets) {
+
+	if tmpAssets := filepath.Join(tmpDir, "assets"); !removeAssets && gulu.File.IsDir(tmpAssets) {
 		if err = gulu.File.Copy(tmpAssets, filepath.Join(savePath, "assets")); nil != err {
-			util.LogErrorf("export docx failed: %s", err)
+			logging.LogErrorf("export docx failed: %s", err)
 			return errors.New(fmt.Sprintf(Conf.Language(14), err))
 		}
 	}
@@ -200,7 +206,7 @@ func ExportMarkdownHTML(id, savePath string, docx bool) (name, dom string) {
 	name = path.Base(tree.HPath)
 
 	if err := os.MkdirAll(savePath, 0755); nil != err {
-		util.LogErrorf("mkdir [%s] failed: %s", savePath, err)
+		logging.LogErrorf("mkdir [%s] failed: %s", savePath, err)
 		return
 	}
 
@@ -209,12 +215,12 @@ func ExportMarkdownHTML(id, savePath string, docx bool) (name, dom string) {
 		if strings.HasPrefix(asset, "assets/") {
 			srcAbsPath, err := GetAssetAbsPath(asset)
 			if nil != err {
-				util.LogWarnf("resolve path of asset [%s] failed: %s", asset, err)
+				logging.LogWarnf("resolve path of asset [%s] failed: %s", asset, err)
 				continue
 			}
 			targetAbsPath := filepath.Join(savePath, asset)
 			if err = gulu.File.Copy(srcAbsPath, targetAbsPath); nil != err {
-				util.LogWarnf("copy asset from [%s] to [%s] failed: %s", srcAbsPath, targetAbsPath, err)
+				logging.LogWarnf("copy asset from [%s] to [%s] failed: %s", srcAbsPath, targetAbsPath, err)
 			}
 		}
 	}
@@ -224,7 +230,7 @@ func ExportMarkdownHTML(id, savePath string, docx bool) (name, dom string) {
 		from := filepath.Join(util.WorkingDir, src)
 		to := filepath.Join(savePath, src)
 		if err := gulu.File.Copy(from, to); nil != err {
-			util.LogWarnf("copy stage from [%s] to [%s] failed: %s", from, savePath, err)
+			logging.LogWarnf("copy stage from [%s] to [%s] failed: %s", from, savePath, err)
 			return
 		}
 	}
@@ -238,7 +244,18 @@ func ExportMarkdownHTML(id, savePath string, docx bool) (name, dom string) {
 		from := filepath.Join(util.AppearancePath, src)
 		to := filepath.Join(savePath, "appearance", src)
 		if err := gulu.File.Copy(from, to); nil != err {
-			util.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
+			logging.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
+			return
+		}
+	}
+
+	// 复制自定义表情图片
+	emojis := emojisInTree(tree)
+	for _, emoji := range emojis {
+		from := filepath.Join(util.DataDir, emoji)
+		to := filepath.Join(savePath, emoji)
+		if err := gulu.File.Copy(from, to); nil != err {
+			logging.LogErrorf("copy emojis from [%s] to [%s] failed: %s", from, savePath, err)
 			return
 		}
 	}
@@ -251,6 +268,16 @@ func ExportMarkdownHTML(id, savePath string, docx bool) (name, dom string) {
 		processIFrame(tree)
 	}
 
+	// 自定义表情图片地址去掉开头的 /
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+		if ast.NodeEmojiImg == n.Type {
+			n.Tokens = bytes.ReplaceAll(n.Tokens, []byte("src=\"/emojis"), []byte("src=\"emojis"))
+		}
+		return ast.WalkContinue
+	})
 	dom = luteEngine.ProtylePreview(tree, luteEngine.RenderOptions)
 	return
 }
@@ -283,7 +310,7 @@ func ExportHTML(id, savePath string, pdf bool) (name, dom string) {
 	name = path.Base(tree.Path)
 
 	if err := os.MkdirAll(savePath, 0755); nil != err {
-		util.LogErrorf("mkdir [%s] failed: %s", savePath, err)
+		logging.LogErrorf("mkdir [%s] failed: %s", savePath, err)
 		return
 	}
 
@@ -291,12 +318,12 @@ func ExportHTML(id, savePath string, pdf bool) (name, dom string) {
 	for _, asset := range assets {
 		srcAbsPath, err := GetAssetAbsPath(asset)
 		if nil != err {
-			util.LogWarnf("resolve path of asset [%s] failed: %s", asset, err)
+			logging.LogWarnf("resolve path of asset [%s] failed: %s", asset, err)
 			continue
 		}
 		targetAbsPath := filepath.Join(savePath, asset)
 		if err = gulu.File.Copy(srcAbsPath, targetAbsPath); nil != err {
-			util.LogWarnf("copy asset from [%s] to [%s] failed: %s", srcAbsPath, targetAbsPath, err)
+			logging.LogWarnf("copy asset from [%s] to [%s] failed: %s", srcAbsPath, targetAbsPath, err)
 		}
 	}
 
@@ -307,7 +334,7 @@ func ExportHTML(id, savePath string, pdf bool) (name, dom string) {
 			from := filepath.Join(util.WorkingDir, src)
 			to := filepath.Join(savePath, src)
 			if err := gulu.File.Copy(from, to); nil != err {
-				util.LogErrorf("copy stage from [%s] to [%s] failed: %s", from, savePath, err)
+				logging.LogErrorf("copy stage from [%s] to [%s] failed: %s", from, savePath, err)
 				return
 			}
 		}
@@ -321,7 +348,18 @@ func ExportHTML(id, savePath string, pdf bool) (name, dom string) {
 			from := filepath.Join(util.AppearancePath, src)
 			to := filepath.Join(savePath, "appearance", src)
 			if err := gulu.File.Copy(from, to); nil != err {
-				util.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
+				logging.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
+				return
+			}
+		}
+
+		// 复制自定义表情图片
+		emojis := emojisInTree(tree)
+		for _, emoji := range emojis {
+			from := filepath.Join(util.DataDir, emoji)
+			to := filepath.Join(savePath, emoji)
+			if err := gulu.File.Copy(from, to); nil != err {
+				logging.LogErrorf("copy emojis from [%s] to [%s] failed: %s", from, savePath, err)
 				return
 			}
 		}
@@ -444,7 +482,7 @@ func AddPDFOutline(id, p string) (err error) {
 	outFile := inFile + ".tmp"
 	err = api.AddBookmarksFile(inFile, outFile, topBms, nil)
 	if nil != err {
-		util.LogErrorf("add bookmark failed: %s", err)
+		logging.LogErrorf("add bookmark failed: %s", err)
 		return
 	}
 	err = os.Rename(outFile, inFile)
@@ -467,7 +505,7 @@ func CopyStdMarkdown(id string) string {
 func ExportMarkdown(id string) (name, zipPath string) {
 	block := treenode.GetBlockTree(id)
 	if nil == block {
-		util.LogErrorf("not found block [%s]", id)
+		logging.LogErrorf("not found block [%s]", id)
 		return
 	}
 
@@ -496,7 +534,7 @@ func BatchExportMarkdown(boxID, folderPath string) (zipPath string) {
 	} else {
 		block := treenode.GetBlockTreeRootByHPath(box.ID, folderPath)
 		if nil == block {
-			util.LogErrorf("not found block")
+			logging.LogErrorf("not found block")
 			return
 		}
 		baseFolderName = path.Base(block.HPath)
@@ -527,7 +565,7 @@ func exportMarkdownZip(boxID, baseFolderName string, docPaths []string) (zipPath
 
 	exportFolder := filepath.Join(util.TempDir, "export", baseFolderName)
 	if err := os.MkdirAll(exportFolder, 0755); nil != err {
-		util.LogErrorf("create export temp folder failed: %s", err)
+		logging.LogErrorf("create export temp folder failed: %s", err)
 		return
 	}
 
@@ -553,11 +591,11 @@ func exportMarkdownZip(boxID, baseFolderName string, docPaths []string) (zipPath
 		}
 		writeFolder := filepath.Dir(writePath)
 		if err := os.MkdirAll(writeFolder, 0755); nil != err {
-			util.LogErrorf("create export temp folder [%s] failed: %s", writeFolder, err)
+			logging.LogErrorf("create export temp folder [%s] failed: %s", writeFolder, err)
 			continue
 		}
 		if err := gulu.File.WriteFileSafer(writePath, gulu.Str.ToBytes(md), 0644); nil != err {
-			util.LogErrorf("write export markdown file [%s] failed: %s", writePath, err)
+			logging.LogErrorf("write export markdown file [%s] failed: %s", writePath, err)
 			continue
 		}
 
@@ -573,7 +611,7 @@ func exportMarkdownZip(boxID, baseFolderName string, docPaths []string) (zipPath
 
 			srcPath, err := GetAssetAbsPath(asset)
 			if nil != err {
-				util.LogWarnf("get asset [%s] abs path failed: %s", asset, err)
+				logging.LogWarnf("get asset [%s] abs path failed: %s", asset, err)
 				continue
 			}
 
@@ -584,7 +622,7 @@ func exportMarkdownZip(boxID, baseFolderName string, docPaths []string) (zipPath
 				err = gulu.File.CopyFile(srcPath, destPath)
 			}
 			if nil != err {
-				util.LogErrorf("copy asset from [%s] to [%s] failed: %s", srcPath, destPath, err)
+				logging.LogErrorf("copy asset from [%s] to [%s] failed: %s", srcPath, destPath, err)
 				continue
 			}
 		}
@@ -593,21 +631,38 @@ func exportMarkdownZip(boxID, baseFolderName string, docPaths []string) (zipPath
 	zipPath = exportFolder + ".zip"
 	zip, err := gulu.Zip.Create(zipPath)
 	if nil != err {
-		util.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
+		logging.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
 		return ""
 	}
 
 	if err = zip.AddDirectory(baseFolderName, exportFolder); nil != err {
-		util.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
+		logging.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
 		return ""
 	}
 
 	if err = zip.Close(); nil != err {
-		util.LogErrorf("close export markdown zip failed: %s", err)
+		logging.LogErrorf("close export markdown zip failed: %s", err)
 	}
 
 	os.RemoveAll(exportFolder)
 	zipPath = "/export/" + url.PathEscape(filepath.Base(zipPath))
+	return
+}
+
+func exportBoxSYZip(boxID string) (zipPath string) {
+	box := Conf.Box(boxID)
+	if nil == box {
+		logging.LogErrorf("not found box [%s]", boxID)
+		return
+	}
+	baseFolderName := box.Name
+
+	var docPaths []string
+	docFiles := box.ListFiles("/")
+	for _, docFile := range docFiles {
+		docPaths = append(docPaths, docFile.path)
+	}
+	zipPath = exportSYZip(boxID, "/", baseFolderName, docPaths)
 	return
 }
 
@@ -624,7 +679,7 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 
 	exportFolder := filepath.Join(util.TempDir, "export", baseFolderName)
 	if err := os.MkdirAll(exportFolder, 0755); nil != err {
-		util.LogErrorf("create export temp folder failed: %s", err)
+		logging.LogErrorf("create export temp folder failed: %s", err)
 		return
 	}
 
@@ -657,7 +712,7 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 		readPath := filepath.Join(util.DataDir, tree.Box, tree.Path)
 		data, readErr := filelock.NoLockFileRead(readPath)
 		if nil != readErr {
-			util.LogErrorf("read file [%s] failed: %s", readPath, readErr)
+			logging.LogErrorf("read file [%s] failed: %s", readPath, readErr)
 			continue
 		}
 
@@ -665,11 +720,11 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 		writePath = filepath.Join(exportFolder, writePath)
 		writeFolder := filepath.Dir(writePath)
 		if mkdirErr := os.MkdirAll(writeFolder, 0755); nil != mkdirErr {
-			util.LogErrorf("create export temp folder [%s] failed: %s", writeFolder, mkdirErr)
+			logging.LogErrorf("create export temp folder [%s] failed: %s", writeFolder, mkdirErr)
 			continue
 		}
 		if writeErr := os.WriteFile(writePath, data, 0644); nil != writeErr {
-			util.LogErrorf("write export file [%s] failed: %s", writePath, writeErr)
+			logging.LogErrorf("write export file [%s] failed: %s", writePath, writeErr)
 			continue
 		}
 	}
@@ -679,14 +734,14 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 		readPath := filepath.Join(util.DataDir, tree.Box, tree.Path)
 		data, readErr := filelock.NoLockFileRead(readPath)
 		if nil != readErr {
-			util.LogErrorf("read file [%s] failed: %s", readPath, readErr)
+			logging.LogErrorf("read file [%s] failed: %s", readPath, readErr)
 			continue
 		}
 
 		writePath := strings.TrimPrefix(tree.Path, rootDirPath)
 		writePath = filepath.Join(exportFolder, treeID+".sy")
 		if writeErr := os.WriteFile(writePath, data, 0644); nil != writeErr {
-			util.LogErrorf("write export file [%s] failed: %s", writePath, writeErr)
+			logging.LogErrorf("write export file [%s] failed: %s", writePath, writeErr)
 			continue
 		}
 	}
@@ -713,7 +768,7 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 
 			srcPath, assetErr := GetAssetAbsPath(asset)
 			if nil != assetErr {
-				util.LogWarnf("get asset [%s] abs path failed: %s", asset, assetErr)
+				logging.LogWarnf("get asset [%s] abs path failed: %s", asset, assetErr)
 				continue
 			}
 
@@ -724,7 +779,7 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 				assetErr = gulu.File.CopyFile(srcPath, destPath)
 			}
 			if nil != assetErr {
-				util.LogErrorf("copy asset from [%s] to [%s] failed: %s", srcPath, destPath, assetErr)
+				logging.LogErrorf("copy asset from [%s] to [%s] failed: %s", srcPath, destPath, assetErr)
 				continue
 			}
 
@@ -735,17 +790,17 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 	zipPath = exportFolder + ".sy.zip"
 	zip, err := gulu.Zip.Create(zipPath)
 	if nil != err {
-		util.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
+		logging.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
 		return ""
 	}
 
 	if err = zip.AddDirectory(baseFolderName, exportFolder); nil != err {
-		util.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
+		logging.LogErrorf("create export markdown zip [%s] failed: %s", exportFolder, err)
 		return ""
 	}
 
 	if err = zip.Close(); nil != err {
-		util.LogErrorf("close export markdown zip failed: %s", err)
+		logging.LogErrorf("close export markdown zip failed: %s", err)
 	}
 
 	os.RemoveAll(exportFolder)
@@ -987,24 +1042,24 @@ func exportTree(tree *parse.Tree, wysiwyg bool) (ret *parse.Tree) {
 			p := refID[:strings.LastIndex(refID, "/")]
 			absPath, err := GetAssetAbsPath(p)
 			if nil != err {
-				util.LogWarnf("get assets abs path by rel path [%s] failed: %s", p, err)
+				logging.LogWarnf("get assets abs path by rel path [%s] failed: %s", p, err)
 				return ast.WalkSkipChildren
 			}
 			sya := absPath + ".sya"
 			syaData, err := os.ReadFile(sya)
 			if nil != err {
-				util.LogErrorf("read file [%s] failed: %s", sya, err)
+				logging.LogErrorf("read file [%s] failed: %s", sya, err)
 				return ast.WalkSkipChildren
 			}
 			syaJSON := map[string]interface{}{}
 			if err = gulu.JSON.UnmarshalJSON(syaData, &syaJSON); nil != err {
-				util.LogErrorf("unmarshal file [%s] failed: %s", sya, err)
+				logging.LogErrorf("unmarshal file [%s] failed: %s", sya, err)
 				return ast.WalkSkipChildren
 			}
 			annotationID := refID[strings.LastIndex(refID, "/")+1:]
 			annotationData := syaJSON[annotationID]
 			if nil == annotationData {
-				util.LogErrorf("not found annotation [%s] in .sya", annotationID)
+				logging.LogErrorf("not found annotation [%s] in .sya", annotationID)
 				return ast.WalkSkipChildren
 			}
 			pages := annotationData.(map[string]interface{})["pages"].([]interface{})
@@ -1163,6 +1218,7 @@ func resolveFootnotesDefs(refFootnotes *[]*refAsFootnotes, rootID string) (footn
 	}
 
 	footnotesDefBlock = &ast.Node{Type: ast.NodeFootnotesDefBlock}
+	var rendered []string
 	for _, foot := range *refFootnotes {
 		t, err := loadTreeByBlockID(foot.defID)
 		if nil != err {
@@ -1206,9 +1262,8 @@ func resolveFootnotesDefs(refFootnotes *[]*refAsFootnotes, rootID string) (footn
 					stmt := n.ChildByType(ast.NodeBlockQueryEmbedScript).TokensStr()
 					stmt = html.UnescapeString(stmt)
 					sqlBlocks := sql.SelectBlocksRawStmt(stmt, Conf.Search.Limit)
-					depth := 0
 					for _, b := range sqlBlocks {
-						subNodes := renderBlockMarkdownR0(b.ID, &depth)
+						subNodes := renderBlockMarkdownR0(b.ID, &rendered)
 						for _, subNode := range subNodes {
 							if ast.NodeListItem == subNode.Type {
 								parentList := &ast.Node{Type: ast.NodeList, ListData: &ast.ListData{Typ: subNode.ListData.Typ}}
@@ -1293,7 +1348,7 @@ func collectFootnotesDefs(id string, refFootnotes *[]*refAsFootnotes, treeCache 
 	}
 	node := treenode.GetNodeInTree(t, b.ID)
 	if nil == node {
-		util.LogErrorf("not found node [%s] in tree [%s]", b.ID, t.Root.ID)
+		logging.LogErrorf("not found node [%s] in tree [%s]", b.ID, t.Root.ID)
 		return
 	}
 	collectFootnotesDefs0(node, refFootnotes, treeCache, depth)

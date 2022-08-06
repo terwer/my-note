@@ -8,7 +8,6 @@ import {updateHotkeyTip} from "../../protyle/util/compatibility";
 import {openFileById} from "../../editor/util";
 import {Constants} from "../../constants";
 import {Dialog} from "../../dialog";
-import {isMobile} from "../../util/functions";
 import {confirmDialog} from "../../dialog/confirmDialog";
 import {escapeHtml} from "../../util/escape";
 
@@ -81,7 +80,6 @@ export class Bookmark extends Model {
                 fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
                     openFileById({
                         id,
-                        hasContext: !foldResponse.data,
                         action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS],
                     });
                 });
@@ -101,7 +99,7 @@ export class Bookmark extends Model {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                                width: isMobile() ? "80vw" : "520px",
+                                width: "520px",
                             });
                             const btnsElement = dialog.element.querySelectorAll(".b3-button");
                             btnsElement[0].addEventListener("click", () => {
@@ -143,9 +141,7 @@ export class Bookmark extends Model {
                                     }
                                 });
                             } else {
-                                fetchPost("/api/bookmark/removeBookmark", {bookmark}, () => {
-                                    this.update();
-                                });
+                                fetchPost("/api/bookmark/removeBookmark", {bookmark});
                             }
                         });
                     }
@@ -155,7 +151,6 @@ export class Bookmark extends Model {
             ctrlClick(element: HTMLElement) {
                 openFileById({
                     id: element.getAttribute("data-node-id"),
-                    hasContext: true,
                     keepCursor: true,
                 });
             },
@@ -163,7 +158,6 @@ export class Bookmark extends Model {
                 openFileById({
                     id: element.getAttribute("data-node-id"),
                     position: "right",
-                    hasContext: true,
                     action: [Constants.CB_GET_FOCUS]
                 });
             },
@@ -171,7 +165,6 @@ export class Bookmark extends Model {
                 openFileById({
                     id: element.getAttribute("data-node-id"),
                     position: "bottom",
-                    hasContext: true,
                     action: [Constants.CB_GET_FOCUS]
                 });
             }

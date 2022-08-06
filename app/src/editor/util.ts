@@ -10,7 +10,6 @@ import {setEditMode} from "../protyle/util/setEditMode";
 import {Files} from "../layout/dock/Files";
 import {setPadding} from "../protyle/ui/initUI";
 import {fetchPost} from "../util/fetch";
-import {showMessage} from "../dialog/message";
 import {focusBlock, focusByRange} from "../protyle/util/selection";
 import {onGet} from "../protyle/util/onGet";
 /// #if !BROWSER
@@ -33,7 +32,6 @@ export const openFileById = (options: {
     id: string,
     position?: string,
     mode?: TEditorMode,
-    hasContext?: boolean,
     action?: string[]
     keepCursor?: boolean
     zoomIn?: boolean
@@ -51,7 +49,6 @@ export const openFileById = (options: {
             rootID: data.data.rootID,
             position: options.position,
             mode: options.mode,
-            hasContext: options.hasContext,
             action: options.action,
             zoomIn: options.zoomIn,
             keepCursor: options.keepCursor
@@ -152,9 +149,13 @@ const openFile = (options: IOpenFileOptions) => {
         } else if (window.siyuan.config.fileTree.openFilesUseCurrentTab) {
             let unUpdateTab: Tab;
             // 不能 reverse, 找到也不能提前退出循环，否则 https://github.com/siyuan-note/siyuan/issues/3271
-            wnd.children.forEach((item) => {
+            wnd.children.find((item) => {
                 if (item.headElement && item.headElement.classList.contains("item--unupdate") && !item.headElement.classList.contains("item--pin")) {
                     unUpdateTab = item;
+                    if (item.headElement.classList.contains("item--focus")) {
+                        // https://ld246.com/article/1658979494658
+                        return true;
+                    }
                 }
             });
             wnd.addTab(newTab(options));
@@ -197,10 +198,12 @@ const switchEditor = (editor: Editor, options: IOpenFileOptions, allModels: IMod
     if ((!nodeElement || nodeElement?.clientHeight === 0) && options.id !== options.rootID) {
         fetchPost("/api/filetree/getDoc", {
             id: options.id,
-            mode: options.hasContext ? 3 : 0,
+            mode: (options.action && !options.action.includes(Constants.CB_GET_ALL)) ? 3 : 0,
             size: Constants.SIZE_GET,
         }, getResponse => {
             onGet(getResponse, editor.editor.protyle, options.action);
+            // 大纲点击折叠标题下的内容时，需更新反链面板
+            updateBacklinkGraph(allModels, editor.editor.protyle);
         });
     } else {
         if (options.action.includes(Constants.CB_GET_HL)) {
@@ -210,19 +213,7 @@ const switchEditor = (editor: Editor, options: IOpenFileOptions, allModels: IMod
                 focusBlock(nodeElement);
                 scrollCenter(editor.editor.protyle, nodeElement, true);
             } else if (editor.editor.protyle.block.rootID === options.id) {
-                if (editor.editor.protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-index") === "0") {
-                    focusBlock(editor.editor.protyle.wysiwyg.element.firstElementChild);
-                    editor.editor.protyle.contentElement.scrollTop = 0;
-                } else {
-                    // 动态加载
-                    fetchPost("/api/filetree/getDoc", {
-                        id: options.id,
-                        mode: 3,
-                        size: Constants.SIZE_GET,
-                    }, getResponse => {
-                        onGet(getResponse, editor.editor.protyle, options.action);
-                    });
-                }
+                // 由于 https://github.com/siyuan-note/siyuan/issues/5420，移除定位
             } else if (editor.editor.protyle.toolbar.range) {
                 nodeElement = hasClosestBlock(editor.editor.protyle.toolbar.range.startContainer) as Element;
                 focusByRange(editor.editor.protyle.toolbar.range);
@@ -281,7 +272,6 @@ const newTab = (options: IOpenFileOptions) => {
                         tab,
                         blockId: options.id,
                         mode: options.mode,
-                        hasContext: options.hasContext,
                         action: options.action,
                     });
                 }
@@ -339,6 +329,19 @@ export const updatePanelByEditor = (protyle?: IProtyle, focus = true, pushBackSt
     setTitle(title);
 };
 
+export const isCurrentEditor = (blockId: string) => {
+    const activeElement = document.querySelector(".layout__wnd--active > .layout-tab-bar > .item--focus");
+    if (activeElement) {
+        const tab = getInstanceById(activeElement.getAttribute("data-id"));
+        if (tab instanceof Tab && tab.model instanceof Editor) {
+            if (tab.model.editor.protyle.block.rootID !== blockId && tab.model.editor.protyle.block.id !== blockId) {
+                return false;
+            }
+        }
+    }
+    return true;
+};
+
 const updateOutline = (models: IModels, protyle: IProtyle, reload = false) => {
     models.outline.find(item => {
         if (reload || (item.type === "pin" && (!protyle || item.blockId !== protyle.block?.rootID))) {
@@ -352,6 +355,9 @@ const updateOutline = (models: IModels, protyle: IProtyle, reload = false) => {
             fetchPost("/api/outline/getDocOutline", {
                 id: blockId,
             }, response => {
+                if (!isCurrentEditor(blockId)) {
+                    return;
+                }
                 item.update(response, blockId);
                 if (protyle) {
                     item.updateDocTitle(protyle.background.ial);
@@ -401,8 +407,7 @@ export const updateBacklinkGraph = (models: IModels, protyle: IProtyle) => {
             if (blockId === item.blockId) {
                 return;
             }
-            item.blockId = blockId;
-            item.searchGraph(true);
+            item.searchGraph(true, blockId);
         }
     });
     models.backlinks.forEach(item => {
@@ -423,6 +428,10 @@ export const updateBacklinkGraph = (models: IModels, protyle: IProtyle) => {
             k: item.inputsElement[0].value,
             mk: item.inputsElement[1].value,
         }, response => {
+            if (!isCurrentEditor(blockId)) {
+                item.element.querySelector('.block__icon[data-type="refresh"] svg').classList.remove("fn__rotate");
+                return;
+            }
             item.blockId = blockId;
             item.render(response.data);
         });

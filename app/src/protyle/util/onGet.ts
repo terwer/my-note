@@ -107,7 +107,7 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
         if (!protyle.wysiwyg.element.querySelector(".protyle-wysiwyg--select") && !protyle.scroll.keepLazyLoad && protyle.contentElement.scrollHeight > REMOVED_OVER_HEIGHT) {
             let removeElement = protyle.wysiwyg.element.firstElementChild as HTMLElement;
             const removeElements = [];
-            while (protyle.wysiwyg.element.childElementCount > 2) {
+            while (protyle.wysiwyg.element.childElementCount > 2 && removeElements && !protyle.wysiwyg.element.lastElementChild.isSameNode(removeElement)) {
                 if (protyle.contentElement.scrollHeight - removeElement.offsetTop > REMOVED_OVER_HEIGHT) {
                     removeElements.push(removeElement);
                 } else {
@@ -121,6 +121,7 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
             });
             protyle.contentElement.scrollTop = protyle.contentElement.scrollTop + (removeElement.getBoundingClientRect().top - lastRemoveTop);
             protyle.scroll.lastScrollTop = protyle.contentElement.scrollTop;
+            hideElements(["toolbar"], protyle);
         }
         protyle.wysiwyg.element.insertAdjacentHTML("beforeend", options.content);
     } else if (options.action.includes(Constants.CB_GET_BEFORE)) {
@@ -135,6 +136,7 @@ const setHTML = (options: { content: string, action?: string[] }, protyle: IProt
             protyle.wysiwyg.element.lastElementChild.getBoundingClientRect().top > window.innerHeight) {
                 protyle.wysiwyg.element.lastElementChild.remove();
             }
+            hideElements(["toolbar"], protyle);
         }
     } else {
         protyle.wysiwyg.element.innerHTML = options.content;

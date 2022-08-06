@@ -1,10 +1,8 @@
 import {fetchPost} from "../../util/fetch";
-import {lockFile} from "../../dialog/processSystem";
 import {hideMessage, showMessage} from "../../dialog/message";
-import {PrintToPDFOptions} from "electron";
 import PUBLISH_TYPE_CONSTANTS, {getApiParams} from "./util";
 import metaWeblogApiClient from "./metaweblog/metaweblog-api-client";
-import wordpressApiClient from "./wordpress/wordpress-api-client";
+// import wordpressApiClient from "./wordpress/wordpress-api-client";
 import msg from "../../util/msg";
 
 // publishMdContent
@@ -57,18 +55,18 @@ const doPublish = (id: string, type: string, meta: any, content: any) => {
         [postidKey]: "99999",
     };
 
-    // const wordpressApi = wordpressApiClient(PUBLISH_TYPE_CONSTANTS.API_TYPE_WORDPRESS);
+    // const wordpressApi = wordpressApiClient(type);
     // const result2 = wordpressApi.getPosts(10);
     // // @ts-ignore
     // result2.then(function (reslove: any, reject: any) {
     //     console.log("wordpress getPosts=>", reslove);
     // });
 
-    const metaWeblogApi = metaWeblogApiClient(PUBLISH_TYPE_CONSTANTS.API_TYPE_CNBLPGS);
+    const metaWeblogApi = metaWeblogApiClient(type);
     const result = metaWeblogApi.getRecentPosts(10);
     result.then(function (posts) {
         console.log("metaweblog get recent posts=>", posts);
-        msg.alertMsg(window.siyuan.languages.successMsg);
+        msg.successMsg(window.siyuan.languages.successMsg);
     }).catch(function (e: any) {
         console.error(e);
         msg.alertMsg(window.siyuan.languages.errorMsg);

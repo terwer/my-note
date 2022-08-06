@@ -60,6 +60,7 @@ export abstract class Constants {
     public static readonly LOCAL_CODELANG = "local-codelang";
     public static readonly LOCAL_FONTSTYLES = "local-fontstyles";
     public static readonly LOCAL_EXPORTPDF = "local-exportpdf";
+    public static readonly LOCAL_EXPORTWORD = "local-exportword";
     public static readonly LOCAL_BAZAAR = "local-bazaar";
 
     // timeout
@@ -115,6 +116,7 @@ export abstract class Constants {
         },
         editor: {
             general: {
+                netImg2LocalAsset: {default: "", custom: ""},
                 hLayout: {default: "", custom: ""},
                 vLayout: {default: "", custom: ""},
                 refBottom: {default: "⇧>", custom: "⇧>"},
@@ -145,6 +147,7 @@ export abstract class Constants {
                 preview: {default: "⌥⌘9", custom: "⌥⌘9"},
                 insertBefore: {default: "⇧⌘B", custom: "⇧⌘B"},
                 insertAfter: {default: "⇧⌘A", custom: "⇧⌘A"},
+                jumpToParentNext: {default: "⇧⌘N", custom: "⇧⌘N"},
                 moveToUp: {default: "⇧⌘↑", custom: "⇧⌘↑"},
                 moveToDown: {default: "⇧⌘↓", custom: "⇧⌘↓"},
             },

@@ -27,12 +27,12 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/88250/melody"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/mssola/user_agent"
+	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/api"
 	"github.com/siyuan-note/siyuan/kernel/cmd"
 	"github.com/siyuan-note/siyuan/kernel/model"
@@ -41,12 +41,31 @@ import (
 
 var cookieStore = cookie.NewStore([]byte("ATN51UlxVq1Gcvdf"))
 
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "origin, Content-Length, Content-Type, Authorization")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func Serve(fastMode bool) {
 	gin.SetMode(gin.ReleaseMode)
 	ginServer := gin.New()
 	ginServer.MaxMultipartMemory = 1024 * 1024 * 32 // 插入较大的资源文件时内存占用较大 https://github.com/siyuan-note/siyuan/issues/5023
 	ginServer.Use(gin.Recovery())
-	ginServer.Use(cors.Default())
+	// 跨域支持验证
+	// ginServer.Use(cors.Default())
+	ginServer.Use(CORSMiddleware())
 	ginServer.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{".pdf", ".mp3", ".wav", ".ogg", ".mov", ".weba", ".mkv", ".mp4", ".webm"})))
 
 	cookieStore.Options(sessions.Options{
@@ -75,11 +94,11 @@ func Serve(fastMode bool) {
 	} else {
 		addr = "127.0.0.1:" + util.ServerPort
 	}
-	util.LogInfof("kernel is booting [%s]", "http://"+addr)
+	logging.LogInfof("kernel is booting [%s]", "http://"+addr)
 	util.HttpServing = true
 	if err := ginServer.Run(addr); nil != err {
 		if !fastMode {
-			util.LogErrorf("boot kernel failed: %s", err)
+			logging.LogErrorf("boot kernel failed: %s", err)
 			os.Exit(util.ExitCodeUnavailablePort)
 		}
 	}
@@ -137,12 +156,12 @@ func serveAppearance(ginServer *gin.Engine) {
 				enUSFilePath := filepath.Join(appearancePath, "langs", "en_US.json")
 				enUSData, err := os.ReadFile(enUSFilePath)
 				if nil != err {
-					util.LogFatalf("read en_US.json [%s] failed: %s", enUSFilePath, err)
+					logging.LogFatalf("read en_US.json [%s] failed: %s", enUSFilePath, err)
 					return
 				}
 				enUSMap := map[string]interface{}{}
 				if err = gulu.JSON.UnmarshalJSON(enUSData, &enUSMap); nil != err {
-					util.LogFatalf("unmarshal en_US.json [%s] failed: %s", enUSFilePath, err)
+					logging.LogFatalf("unmarshal en_US.json [%s] failed: %s", enUSFilePath, err)
 					return
 				}
 
@@ -155,7 +174,7 @@ func serveAppearance(ginServer *gin.Engine) {
 
 					langMap := map[string]interface{}{}
 					if err = gulu.JSON.UnmarshalJSON(data, &langMap); nil != err {
-						util.LogErrorf("unmarshal json [%s] failed: %s", filePath, err)
+						logging.LogErrorf("unmarshal json [%s] failed: %s", filePath, err)
 						c.JSON(200, enUSMap)
 						return
 					}
@@ -183,7 +202,7 @@ func serveAppearance(ginServer *gin.Engine) {
 func serveCheckAuth(c *gin.Context) {
 	data, err := os.ReadFile(filepath.Join(util.WorkingDir, "stage/auth.html"))
 	if nil != err {
-		util.LogErrorf("load auth page failed: %s", err)
+		logging.LogErrorf("load auth page failed: %s", err)
 		c.Status(500)
 		return
 	}
@@ -237,7 +256,7 @@ func serveWebSocket(ginServer *gin.Engine) {
 
 	ginServer.GET("/ws", func(c *gin.Context) {
 		if err := util.WebSocketServer.HandleRequest(c.Writer, c.Request); nil != err {
-			util.LogErrorf("handle command failed: %s", err)
+			logging.LogErrorf("handle command failed: %s", err)
 		}
 	})
 
@@ -246,14 +265,14 @@ func serveWebSocket(ginServer *gin.Engine) {
 	})
 
 	util.WebSocketServer.HandleConnect(func(s *melody.Session) {
-		//util.LogInfof("ws check auth for [%s]", s.Request.RequestURI)
+		//logging.LogInfof("ws check auth for [%s]", s.Request.RequestURI)
 		authOk := true
 
 		if "" != model.Conf.AccessAuthCode {
 			session, err := cookieStore.Get(s.Request, "siyuan")
 			if nil != err {
 				authOk = false
-				util.LogErrorf("get cookie failed: %s", err)
+				logging.LogErrorf("get cookie failed: %s", err)
 			} else {
 				val := session.Values["data"]
 				if nil == val {
@@ -263,7 +282,7 @@ func serveWebSocket(ginServer *gin.Engine) {
 					err = gulu.JSON.UnmarshalJSON([]byte(val.(string)), &sess)
 					if nil != err {
 						authOk = false
-						util.LogErrorf("unmarshal cookie failed: %s", err)
+						logging.LogErrorf("unmarshal cookie failed: %s", err)
 					} else {
 						authOk = sess["AccessAuthCode"].(string) == model.Conf.AccessAuthCode
 					}
@@ -273,13 +292,13 @@ func serveWebSocket(ginServer *gin.Engine) {
 
 		if !authOk {
 			s.CloseWithMsg([]byte("  unauthenticated"))
-			//util.LogWarnf("closed a unauthenticated session [%s]", util.GetRemoteAddr(s))
+			//logging.LogWarnf("closed a unauthenticated session [%s]", util.GetRemoteAddr(s))
 			return
 		}
 
 		util.AddPushChan(s)
 		//sessionId, _ := s.Get("id")
-		//util.LogInfof("ws [%s] connected", sessionId)
+		//logging.LogInfof("ws [%s] connected", sessionId)
 	})
 
 	util.WebSocketServer.HandleDisconnect(func(s *melody.Session) {
@@ -290,18 +309,18 @@ func serveWebSocket(ginServer *gin.Engine) {
 
 	util.WebSocketServer.HandleError(func(s *melody.Session, err error) {
 		//sessionId, _ := s.Get("id")
-		//util.LogDebugf("ws [%s] failed: %s", sessionId, err)
+		//logging.LogDebugf("ws [%s] failed: %s", sessionId, err)
 	})
 
 	util.WebSocketServer.HandleClose(func(s *melody.Session, i int, str string) error {
 		//sessionId, _ := s.Get("id")
-		//util.LogDebugf("ws [%s] closed: %v, %v", sessionId, i, str)
+		//logging.LogDebugf("ws [%s] closed: %v, %v", sessionId, i, str)
 		return nil
 	})
 
 	util.WebSocketServer.HandleMessage(func(s *melody.Session, msg []byte) {
 		start := time.Now()
-		util.LogTracef("request [%s]", shortReqMsg(msg))
+		logging.LogTracef("request [%s]", shortReqMsg(msg))
 		request := map[string]interface{}{}
 		if err := gulu.JSON.UnmarshalJSON(msg, &request); nil != err {
 			result := util.NewResult()
@@ -334,13 +353,15 @@ func serveWebSocket(ginServer *gin.Engine) {
 		if util.ReadOnly && !command.IsRead() {
 			result := util.NewResult()
 			result.Code = -1
-			result.Msg = model.Conf.Language(34)
+			// Error 34
+			result.Msg = "Error 34"
+			// result.Msg = model.Conf.Lang(34)
 			s.Write(result.Bytes())
 			return
 		}
 
 		end := time.Now()
-		util.LogTracef("parse cmd [%s] consumed [%d]ms", command.Name(), end.Sub(start).Milliseconds())
+		logging.LogTracef("parse cmd [%s] consumed [%d]ms", command.Name(), end.Sub(start).Milliseconds())
 
 		cmd.Exec(command)
 	})

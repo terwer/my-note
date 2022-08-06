@@ -11,10 +11,13 @@
 
 <details>
 <summary>适用于中国大陆</summary>
-设置 Electron 镜像环境变量：
 
-* macOS/Linux：ELECTRON_MIRROR="https://cnpmjs.org/mirrors/electron/" pnpm install electron@19.0.8 -D
-* Windows: `SET ELECTRON_MIRROR=https://cnpmjs.org/mirrors/electron/`
+设置 Electron 镜像环境变量并安装 Electron：
+
+* macOS/Linux: `ELECTRON_MIRROR=https://cnpmjs.org/mirrors/electron/ pnpm install electron@19.0.10 -D`
+* Windows:
+    * `SET ELECTRON_MIRROR=https://cnpmjs.org/mirrors/electron/`
+    * `pnpm install electron@19.0.10 -D`
 
 NPM 镜像：
 
@@ -22,8 +25,9 @@ NPM 镜像：
 * 恢复使用官方仓库 `pnpm --registry https://registry.npmjs.org i`
 </details>
 
-桌面端进入 app 文件夹编译和运行：
+桌面端进入 app 文件夹运行：
 
+* `pnpm install electron@19.0.10 -D`
 * `pnpm run dev`
 * `pnpm run start`
 

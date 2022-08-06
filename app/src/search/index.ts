@@ -40,6 +40,7 @@ export class Search extends Model {
             </span>
             <div id="searchHistoryList" data-close="false" class="fn__none b3-menu b3-list b3-list--background" style="position: absolute;top: 30px;max-height: 50vh;overflow: auto"></div>
         </div>
+        <div id="globalSearchResult" class="b3-list-item ft__smaller ft__on-surface"></div>
         <div id="globalSearchList" class="fn__flex-1 b3-list b3-list--background"></div>
         <div class="fn__loading fn__loading--top"><img width="120px" src="/stage/loading-pure.svg"></div>
     </div>
@@ -115,8 +116,7 @@ export class Search extends Model {
                                     fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
                                         openFileById({
                                             id,
-                                            hasContext: !foldResponse.data,
-                                            action: [Constants.CB_GET_FOCUS],
+                                            action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS],
                                             zoomIn: foldResponse.data,
                                             position: "right",
                                         });
@@ -135,8 +135,7 @@ export class Search extends Model {
                             fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
                                 openFileById({
                                     id,
-                                    hasContext: !foldResponse.data,
-                                    action: [Constants.CB_GET_FOCUS],
+                                    action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS],
                                     zoomIn: foldResponse.data
                                 });
                             });
@@ -197,7 +196,7 @@ export class Search extends Model {
             } else {
                 this.protyle = new Protyle(this.element.querySelector("#searchPreview") as HTMLElement, {
                     blockId: id,
-                    hasContext: !foldResponse.data,
+                    action: foldResponse.data ? [Constants.CB_GET_HL, Constants.CB_GET_ALL] : [Constants.CB_GET_HL],
                     key: value,
                     render: {
                         gutter: true,
@@ -238,7 +237,8 @@ export class Search extends Model {
             this.parent.updateTitle(this.text);
             loadElement.classList.remove("fn__none");
             fetchPost("/api/search/fullTextSearchBlock", {query: this.text}, (response) => {
-                this.onSearch(response.data);
+                this.onSearch(response.data.blocks);
+                this.element.querySelector("#globalSearchResult").innerHTML = window.siyuan.languages.findInDoc.replace("${x}", response.data.matchedRootCount).replace("${y}", response.data.matchedBlockCount);
                 loadElement.classList.add("fn__none");
             });
         }, Constants.TIMEOUT_SEARCH);

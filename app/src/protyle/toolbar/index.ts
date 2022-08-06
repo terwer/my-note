@@ -7,7 +7,9 @@ import {
     focusSideBlock,
     getEditorRange,
     getSelectionOffset,
-    getSelectionPosition, setFirstNodeRange, setLastNodeRange
+    getSelectionPosition,
+    setFirstNodeRange,
+    setLastNodeRange
 } from "../util/selection";
 import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName, hasClosestByMatchTag} from "../util/hasClosest";
 import {Link} from "./Link";
@@ -18,11 +20,7 @@ import {mathRender} from "../markdown/mathRender";
 import {getEventName} from "../util/compatibility";
 import {upDownHint} from "../../util/upDownHint";
 import {highlightRender} from "../markdown/highlightRender";
-import {
-    getContenteditableElement,
-    hasNextSibling,
-    hasPreviousSibling
-} from "../wysiwyg/getBlock";
+import {getContenteditableElement, hasNextSibling, hasPreviousSibling} from "../wysiwyg/getBlock";
 import {processRender} from "../util/processCode";
 import {BlockRef} from "./BlockRef";
 import {hintMoveBlock, hintRef, hintRenderAssets, hintRenderTemplate, hintRenderWidget} from "../hint/extend";
@@ -40,6 +38,7 @@ import {unicode2Emoji} from "../../emoji";
 import {escapeHtml} from "../../util/escape";
 import {hideElements} from "../ui/hideElements";
 import {linkMenu} from "../../menus/protyle";
+import {renderAssetsPreview} from "../../asset/renderAssets";
 
 export class Toolbar {
     public element: HTMLElement;
@@ -116,7 +115,9 @@ export class Toolbar {
         }
         const rangePosition = getSelectionPosition(nodeElement, range);
         this.element.classList.remove("fn__none");
-        setPosition(this.element, rangePosition.left - 52, rangePosition.top - this.toolbarHeight - 4);
+        const y = rangePosition.top - this.toolbarHeight - 4
+        this.element.setAttribute("data-inity", y + Constants.ZWSP + protyle.contentElement.scrollTop.toString());
+        setPosition(this.element, rangePosition.left - 52, y);
         this.element.querySelectorAll(".protyle-toolbar__item--current").forEach(item => {
             item.classList.remove("protyle-toolbar__item--current");
         });
@@ -200,7 +201,7 @@ export class Toolbar {
             } else if (startType === "block-ref" || endType === "block-ref") {
                 types.push("blockRef");
             } else if (startType === "file-annotation-ref" || endType === "file-annotation-ref") {
-                types.push("blockRef");
+                types.push("fileAnnotationRef");
             } else if (startType === "inline-math") {
                 types.push("inline-math");
             }
@@ -273,8 +274,6 @@ export class Toolbar {
             if (type === "link") {
                 this.element.classList.add("fn__none");
                 linkMenu(protyle, this.range.startContainer.parentElement);
-                const rect = this.range.startContainer.parentElement.getBoundingClientRect();
-                setPosition(window.siyuan.menus.menu.element, rect.left, rect.top + 13, 26);
             }
             return;
         }
@@ -335,8 +334,6 @@ export class Toolbar {
         if (types.length > 0 && types.includes("link") && action === "range") {
             // 链接快捷键不应取消，应该显示链接信息
             linkMenu(protyle, this.range.startContainer.parentElement);
-            const rect = this.range.startContainer.parentElement.getBoundingClientRect();
-            setPosition(window.siyuan.menus.menu.element, rect.left, rect.top + 13, 26);
             return;
         }
         const wbrElement = document.createElement("wbr");
@@ -516,8 +513,6 @@ export class Toolbar {
                     }
                     if (needShowLink) {
                         linkMenu(protyle, newElement as HTMLElement, focusText);
-                        const rect = newElement.getBoundingClientRect();
-                        setPosition(window.siyuan.menus.menu.element, rect.left, rect.top + 13, 26);
                     }
                 }
             }
@@ -863,6 +858,11 @@ export class Toolbar {
         });
         textElement.addEventListener("keydown", (event: KeyboardEvent) => {
             event.stopPropagation();
+            // 阻止 ctrl+m 缩小窗口 https://github.com/siyuan-note/siyuan/issues/5541
+            if (matchHotKey(window.siyuan.config.keymap.editor.insert["inline-math"].custom, event)) {
+                event.preventDefault();
+                return;
+            }
             if (event.isComposing) {
                 return;
             }
@@ -878,7 +878,6 @@ export class Toolbar {
                 return;
             }
             /// #endif
-
             if (event.key === "Escape" || matchHotKey("⌘↩", event)) {
                 this.subElement.classList.add("fn__none");
                 this.subElement.querySelector('[data-type="pin"]').classList.remove("block__icon--active");
@@ -1152,23 +1151,42 @@ export class Toolbar {
         }, (response) => {
             let html = "";
             response.data.forEach((item: { hName: string, path: string }, index: number) => {
-                html += `<di data-value="${item.path}" class="b3-list-item${index === 0 ? " b3-list-item--focus" : ""}">${item.hName}</di>`;
+                html += `<div data-value="${item.path}" class="b3-list-item${index === 0 ? " b3-list-item--focus" : ""}">${item.hName}</div>`;
             });
             this.subElement.style.width = "";
             this.subElement.style.padding = "";
-            this.subElement.innerHTML = `<div class="fn__flex-column" style="max-height:50vh"><input style="margin: 4px 8px 8px 8px" class="b3-text-field"/>
-<div class="b3-list fn__flex-1 b3-list--background" style="position: relative">${html}</div>
+            this.subElement.innerHTML = `<div style="max-height:50vh" class="fn__flex">
+<div class="fn__flex-column" style="min-width: 260px;max-width: 100vw">
+    <input style="margin: 4px 8px 8px 8px" class="b3-text-field"/>
+    <div class="b3-list fn__flex-1 b3-list--background" style="position: relative">${html}</div>
+</div>
+<div style="width: 260px;display: ${isMobile() ? "none" : "flex"};padding: 8px;overflow: auto;justify-content: center;align-items: center;"></div>
 </div>`;
-
+            const listElement = this.subElement.querySelector(".b3-list");
+            listElement.addEventListener("mouseover", (event) => {
+                const target = event.target as HTMLElement;
+                const hoverItemElement = hasClosestByClassName(target, "b3-list-item");
+                if (!hoverItemElement) {
+                    return;
+                }
+                previewElement.innerHTML = renderAssetsPreview(hoverItemElement.getAttribute("data-value"));
+            });
+            const previewElement = this.subElement.firstElementChild.lastElementChild;
+            previewElement.innerHTML = renderAssetsPreview(listElement.firstElementChild.getAttribute("data-value"));
             const inputElement = this.subElement.querySelector("input");
             inputElement.addEventListener("keydown", (event: KeyboardEvent) => {
                 event.stopPropagation();
                 if (event.isComposing) {
                     return;
                 }
-                upDownHint(this.subElement.lastElementChild.lastElementChild as HTMLElement, event);
+                const currentElement = upDownHint(listElement, event);
+                if (currentElement) {
+                    previewElement.innerHTML = renderAssetsPreview(currentElement.getAttribute("data-value"));
+                }
                 if (event.key === "Enter") {
                     hintRenderAssets(this.subElement.querySelector(".b3-list-item--focus").getAttribute("data-value"), protyle);
+                    // 空行处插入 mp3 会多一个空的 mp3 块
+                    event.preventDefault();
                 } else if (event.key === "Escape") {
                     this.subElement.classList.add("fn__none");
                     focusByRange(this.range);
@@ -1183,16 +1201,17 @@ export class Toolbar {
                     response.data.forEach((item: { path: string, hName: string }, index: number) => {
                         searchHTML += `<div data-value="${item.path}" class="b3-list-item${index === 0 ? " b3-list-item--focus" : ""}">${item.hName}</div>`;
                     });
-                    this.subElement.firstElementChild.lastElementChild.innerHTML = searchHTML;
+                    listElement.innerHTML = searchHTML;
+                    previewElement.innerHTML = renderAssetsPreview(listElement.firstElementChild.getAttribute("data-value"));
                 });
             });
             this.subElement.lastElementChild.addEventListener("click", (event) => {
                 const target = event.target as HTMLElement;
-                const listElement = hasClosestByClassName(target, "b3-list-item");
-                if (!listElement) {
+                const listItemElement = hasClosestByClassName(target, "b3-list-item");
+                if (!listItemElement) {
                     return;
                 }
-                hintRenderAssets(listElement.getAttribute("data-value"), protyle);
+                hintRenderAssets(listItemElement.getAttribute("data-value"), protyle);
             });
             const rangePosition = getSelectionPosition(nodeElement, range);
             this.subElement.classList.remove("fn__none");

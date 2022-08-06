@@ -18,24 +18,29 @@ package model
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/88250/gulu"
 	"github.com/dustin/go-humanize"
+	"github.com/qiniu/go-sdk/v7/storage"
 	"github.com/siyuan-note/dejavu"
 	"github.com/siyuan-note/dejavu/entity"
 	"github.com/siyuan-note/encryption"
 	"github.com/siyuan-note/eventbus"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/httpclient"
+	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/cache"
 	"github.com/siyuan-note/siyuan/kernel/sql"
+	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -62,7 +67,7 @@ func GetRepoSnapshots(page int) (logs []*dejavu.Log, pageCount, totalCount int, 
 			return
 		}
 
-		util.LogErrorf("get data repo index logs failed: %s", err)
+		logging.LogErrorf("get data repo index logs failed: %s", err)
 		return
 	}
 	return
@@ -80,7 +85,7 @@ func ImportRepoKey(base64Key string) (err error) {
 
 	key, err := base64.StdEncoding.DecodeString(base64Key)
 	if nil != err {
-		util.LogErrorf("import data repo key failed: %s", err)
+		logging.LogErrorf("import data repo key failed: %s", err)
 		return errors.New(Conf.Language(157))
 	}
 	if 32 != len(key) {
@@ -123,6 +128,40 @@ func ResetRepo() (err error) {
 	return
 }
 
+func InitRepoKeyFromPassphrase(passphrase string) (err error) {
+	passphrase = gulu.Str.RemoveInvisible(passphrase)
+	passphrase = strings.TrimSpace(passphrase)
+	if "" == passphrase {
+		return errors.New(Conf.Language(142))
+	}
+
+	util.PushMsg(Conf.Language(136), 3000)
+
+	if err = os.RemoveAll(Conf.Repo.GetSaveDir()); nil != err {
+		return
+	}
+	if err = os.MkdirAll(Conf.Repo.GetSaveDir(), 0755); nil != err {
+		return
+	}
+
+	salt := fmt.Sprintf("%x", sha256.Sum256([]byte(passphrase)))[:16]
+	key, err := encryption.KDF(passphrase, salt)
+	if nil != err {
+		logging.LogErrorf("init data repo key failed: %s", err)
+		return
+	}
+	Conf.Repo.Key = key
+	Conf.Save()
+
+	time.Sleep(1 * time.Second)
+	util.PushMsg(Conf.Language(138), 3000)
+	time.Sleep(1 * time.Second)
+	if initErr := IndexRepo("[Init] Init data repo"); nil != initErr {
+		util.PushErrMsg(fmt.Sprintf(Conf.Language(140), initErr), 0)
+	}
+	return
+}
+
 func InitRepoKey() (err error) {
 	util.PushMsg(Conf.Language(136), 3000)
 
@@ -142,14 +181,14 @@ func InitRepoKey() (err error) {
 	randomBytes = make([]byte, 16)
 	_, err = rand.Read(randomBytes)
 	if nil != err {
-		util.LogErrorf("init data repo key failed: %s", err)
+		logging.LogErrorf("init data repo key failed: %s", err)
 		return
 	}
 	salt := string(randomBytes)
 
 	key, err := encryption.KDF(password, salt)
 	if nil != err {
-		util.LogErrorf("init data repo key failed: %s", err)
+		logging.LogErrorf("init data repo key failed: %s", err)
 		return
 	}
 	Conf.Repo.Key = key
@@ -253,8 +292,10 @@ func UploadCloudSnapshot(tag, id string) (err error) {
 	uploadFileCount, uploadChunkCount, uploadBytes, err := repo.UploadTagIndex(tag, id, cloudInfo, map[string]interface{}{dejavu.CtxPushMsg: dejavu.CtxPushMsgToStatusBarAndProgress})
 	if nil != err {
 		if errors.Is(err, dejavu.ErrCloudBackupCountExceeded) {
-			err = errors.New(Conf.Language(154))
+			err = fmt.Errorf(Conf.Language(84), Conf.Language(154))
+			return
 		}
+		err = errors.New(fmt.Sprintf(Conf.Language(84), formatErrorMsg(err)))
 		return
 	}
 	msg := fmt.Sprintf(Conf.Language(152), uploadFileCount, uploadChunkCount, humanize.Bytes(uint64(uploadBytes)))
@@ -399,8 +440,6 @@ func IndexRepo(memo string) (err error) {
 	}
 
 	util.PushEndlessProgress(Conf.Language(143))
-	writingDataLock.Lock()
-	defer writingDataLock.Unlock()
 
 	start := time.Now()
 	latest, _ := repo.Latest()
@@ -428,7 +467,7 @@ func IndexRepo(memo string) (err error) {
 	return
 }
 
-func syncRepo(boot, exit, byHand bool) {
+func syncRepo(boot, exit, byHand bool) (err error) {
 	if 1 > len(Conf.Repo.Key) {
 		syncDownloadErrCount++
 		planSyncAfter(fixSyncInterval)
@@ -445,33 +484,33 @@ func syncRepo(boot, exit, byHand bool) {
 		planSyncAfter(fixSyncInterval)
 
 		msg := fmt.Sprintf("sync repo failed: %s", err)
-		util.LogErrorf(msg)
+		logging.LogErrorf(msg)
 		util.PushStatusBar(msg)
 		util.PushErrMsg(msg, 0)
 		return
 	}
 
-	err = indexRepoBeforeCloudSync(repo)
+	start := time.Now()
+	indexBeforeSync, err := indexRepoBeforeCloudSync(repo)
 	if nil != err {
 		syncDownloadErrCount++
 		planSyncAfter(fixSyncInterval)
 		return
 	}
 
-	start := time.Now()
 	cloudInfo, err := buildCloudInfo()
 	if nil != err {
 		return
 	}
+
 	syncContext := map[string]interface{}{dejavu.CtxPushMsg: dejavu.CtxPushMsgToStatusBar}
 	_, mergeResult, trafficStat, err := repo.Sync(cloudInfo, syncContext)
-
 	elapsed := time.Since(start)
 	if nil != err {
 		syncDownloadErrCount++
 		planSyncAfter(fixSyncInterval)
 
-		util.LogErrorf("sync data repo failed: %s", err)
+		logging.LogErrorf("sync data repo failed: %s", err)
 		msg := fmt.Sprintf(Conf.Language(80), formatErrorMsg(err))
 		if errors.Is(err, dejavu.ErrCloudStorageSizeExceeded) {
 			msg = fmt.Sprintf(Conf.Language(43), humanize.Bytes(uint64(Conf.User.UserSiYuanRepoSize)))
@@ -492,6 +531,8 @@ func syncRepo(boot, exit, byHand bool) {
 	msg := fmt.Sprintf(Conf.Language(150), trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)))
 	Conf.Sync.Stat = msg
 	syncDownloadErrCount = 0
+	logging.LogInfof("synced data repo [ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
+		trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
 
 	if 1 > len(mergeResult.Upserts) && 1 > len(mergeResult.Removes) { // 没有数据变更
 		syncSameCount++
@@ -517,30 +558,45 @@ func syncRepo(boot, exit, byHand bool) {
 	for _, file := range mergeResult.Removes {
 		removes = append(removes, file.Path)
 	}
-	incReindex(upserts, removes)
-	cache.ClearDocsIAL()
 
-	// 刷新界面
-	util.ReloadUI()
+	if boot && gulu.File.IsExist(util.BlockTreePath) {
+		treenode.InitBlockTree()
+	}
+
+	cache.ClearDocsIAL() // 同步后文档树文档图标没有更新 https://github.com/siyuan-note/siyuan/issues/4939
+
+	fullReindex := 0.2 < float64(len(upserts))/float64(len(indexBeforeSync.Files))
+	if fullReindex {
+		RefreshFileTree()
+		return
+	}
+	incReindex(upserts, removes)
+
+	if !boot && !exit {
+		util.ReloadUI()
+	}
+
 	elapsed = time.Since(start)
-	go func() {
-		time.Sleep(2 * time.Second)
-		util.PushStatusBar(fmt.Sprintf(Conf.Language(149), elapsed.Seconds()))
-	}()
+	if !exit {
+		go func() {
+			time.Sleep(2 * time.Second)
+			util.PushStatusBar(fmt.Sprintf(Conf.Language(149), elapsed.Seconds()))
+		}()
+	}
 	return
 }
 
-func indexRepoBeforeCloudSync(repo *dejavu.Repo) (err error) {
+func indexRepoBeforeCloudSync(repo *dejavu.Repo) (index *entity.Index, err error) {
 	start := time.Now()
 	latest, _ := repo.Latest()
-	index, err := repo.Index("[Sync] Cloud sync", map[string]interface{}{
+	index, err = repo.Index("[Sync] Cloud sync", map[string]interface{}{
 		dejavu.CtxPushMsg: dejavu.CtxPushMsgToStatusBar,
 	})
 	if nil != err {
-		msg := fmt.Sprintf(Conf.Language(140), err)
+		msg := fmt.Sprintf(Conf.Language(140), formatErrorMsg(err))
 		util.PushStatusBar(msg)
-		util.PushErrMsg(msg, 5000)
-		util.LogErrorf("index data repo before cloud sync failed: %s", err)
+		util.PushErrMsg(msg, 12000)
+		logging.LogErrorf("index data repo before cloud sync failed: %s", err)
 		return
 	}
 	elapsed := time.Since(start)
@@ -550,7 +606,7 @@ func indexRepoBeforeCloudSync(repo *dejavu.Repo) (err error) {
 		index.Memo = fmt.Sprintf("[Sync] Cloud sync, completed in %.2fs", elapsed.Seconds())
 		if err = repo.PutIndex(index); nil != err {
 			util.PushStatusBar("Save data snapshot for cloud sync failed")
-			util.LogErrorf("put index into data repo before cloud sync failed: %s", err)
+			logging.LogErrorf("put index into data repo before cloud sync failed: %s", err)
 			return
 		}
 		util.PushStatusBar(fmt.Sprintf(Conf.Language(147), elapsed.Seconds()))
@@ -559,7 +615,7 @@ func indexRepoBeforeCloudSync(repo *dejavu.Repo) (err error) {
 	}
 
 	if 7000 < elapsed.Milliseconds() {
-		util.LogWarnf("index data repo before cloud sync elapsed [%dms]", elapsed.Milliseconds())
+		logging.LogWarnf("index data repo before cloud sync elapsed [%dms]", elapsed.Milliseconds())
 	}
 	return
 }
@@ -569,7 +625,7 @@ func newRepository() (ret *dejavu.Repo, err error) {
 	ignoreLines = append(ignoreLines, "/.siyuan/conf.json") // 忽略旧版同步配置
 	ret, err = dejavu.NewRepo(util.DataDir, util.RepoDir, util.HistoryDir, util.TempDir, Conf.Repo.Key, ignoreLines)
 	if nil != err {
-		util.LogErrorf("init data repo failed: %s", err)
+		logging.LogErrorf("init data repo failed: %s", err)
 	}
 	return
 }
@@ -581,40 +637,42 @@ func subscribeEvents() {
 		contextPushMsg(context, msg)
 	})
 
-	count := 0
+	indexWalkDataCount := 0
 	eventbus.Subscribe(dejavu.EvtIndexWalkData, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(158), path)
-		count++
-		if 0 == count%32 {
+		msg := fmt.Sprintf(Conf.Language(158), filepath.Base(path))
+		if 0 == indexWalkDataCount%512 {
 			util.SetBootDetails(msg)
 			contextPushMsg(context, msg)
 		}
+		indexWalkDataCount++
 	})
 	eventbus.Subscribe(dejavu.EvtIndexBeforeGetLatestFiles, func(context map[string]interface{}, files []string) {
 		msg := fmt.Sprintf(Conf.Language(159), len(files))
 		util.SetBootDetails(msg)
 		contextPushMsg(context, msg)
 	})
-	eventbus.Subscribe(dejavu.EvtIndexGetLatestFile, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(159), path)
-		count++
-		if 0 == count%32 {
+	getLatestFileCount := 0
+	eventbus.Subscribe(dejavu.EvtIndexGetLatestFile, func(context map[string]interface{}, id string) {
+		msg := fmt.Sprintf(Conf.Language(159), id[:7])
+		if 0 == getLatestFileCount%512 {
 			util.SetBootDetails(msg)
 			contextPushMsg(context, msg)
 		}
+		getLatestFileCount++
 	})
 	eventbus.Subscribe(dejavu.EvtIndexUpsertFiles, func(context map[string]interface{}, files []*entity.File) {
 		msg := fmt.Sprintf(Conf.Language(160), len(files))
 		util.SetBootDetails(msg)
 		contextPushMsg(context, msg)
 	})
+	indexUpsertFileCount := 0
 	eventbus.Subscribe(dejavu.EvtIndexUpsertFile, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(160), path)
-		count++
-		if 0 == count%32 {
+		msg := fmt.Sprintf(Conf.Language(160), filepath.Base(path))
+		if 0 == indexUpsertFileCount%128 {
 			util.SetBootDetails(msg)
 			contextPushMsg(context, msg)
 		}
+		indexUpsertFileCount++
 	})
 
 	eventbus.Subscribe(dejavu.EvtCheckoutBeforeWalkData, func(context map[string]interface{}, path string) {
@@ -622,71 +680,91 @@ func subscribeEvents() {
 		util.SetBootDetails(msg)
 		contextPushMsg(context, msg)
 	})
+	coWalkDataCount := 0
 	eventbus.Subscribe(dejavu.EvtCheckoutWalkData, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(161), path)
-		count++
-		if 0 == count%32 {
+		msg := fmt.Sprintf(Conf.Language(161), filepath.Base(path))
+		if 0 == coWalkDataCount%512 {
 			util.SetBootDetails(msg)
 			contextPushMsg(context, msg)
 		}
+		coWalkDataCount++
 	})
+	var bootProgressPart float64
+	eventbus.Subscribe(dejavu.EvtCheckoutUpsertFiles, func(context map[string]interface{}, files []*entity.File) {
+		msg := fmt.Sprintf(Conf.Language(162), len(files))
+		util.SetBootDetails(msg)
+		bootProgressPart = 10 / float64(len(files))
+		contextPushMsg(context, msg)
+	})
+	coUpsertFileCount := 0
 	eventbus.Subscribe(dejavu.EvtCheckoutUpsertFile, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(162), path)
-		count++
-		if 0 == count%32 {
-			util.SetBootDetails(msg)
+		msg := fmt.Sprintf(Conf.Language(162), filepath.Base(path))
+		util.IncBootProgress(bootProgressPart, msg)
+		if 0 == coUpsertFileCount%128 {
 			contextPushMsg(context, msg)
 		}
+		coUpsertFileCount++
 	})
+	eventbus.Subscribe(dejavu.EvtCheckoutRemoveFiles, func(context map[string]interface{}, files []*entity.File) {
+		msg := fmt.Sprintf(Conf.Language(163), files)
+		util.SetBootDetails(msg)
+		bootProgressPart = 10 / float64(len(files))
+		contextPushMsg(context, msg)
+	})
+	coRemoveFileCount := 0
 	eventbus.Subscribe(dejavu.EvtCheckoutRemoveFile, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(163), path)
-		count++
-		if 0 == count%32 {
-			util.SetBootDetails(msg)
+		msg := fmt.Sprintf(Conf.Language(163), filepath.Base(path))
+		util.IncBootProgress(bootProgressPart, msg)
+		if 0 == coRemoveFileCount%512 {
 			contextPushMsg(context, msg)
 		}
+		coRemoveFileCount++
 	})
 
 	eventbus.Subscribe(dejavu.EvtCloudBeforeDownloadIndex, func(context map[string]interface{}, id string) {
 		msg := fmt.Sprintf(Conf.Language(164), id[:7])
-		util.SetBootDetails(msg)
+		util.IncBootProgress(1, msg)
 		contextPushMsg(context, msg)
 	})
 
 	eventbus.Subscribe(dejavu.EvtCloudBeforeDownloadFiles, func(context map[string]interface{}, ids []string) {
 		msg := fmt.Sprintf(Conf.Language(165), len(ids))
 		util.SetBootDetails(msg)
+		bootProgressPart = 10 / float64(len(ids))
 		contextPushMsg(context, msg)
 	})
+	downloadFileCount := 0
 	eventbus.Subscribe(dejavu.EvtCloudBeforeDownloadFile, func(context map[string]interface{}, id string) {
 		msg := fmt.Sprintf(Conf.Language(165), id[:7])
-		count++
-		if 0 == count%32 {
-			util.SetBootDetails(msg)
+		util.IncBootProgress(bootProgressPart, msg)
+		if 0 == downloadFileCount%8 {
 			contextPushMsg(context, msg)
 		}
+		downloadFileCount++
 	})
 	eventbus.Subscribe(dejavu.EvtCloudBeforeDownloadChunks, func(context map[string]interface{}, ids []string) {
 		msg := fmt.Sprintf(Conf.Language(166), len(ids))
 		util.SetBootDetails(msg)
+		bootProgressPart = 10 / float64(len(ids))
 		contextPushMsg(context, msg)
 	})
+	downloadChunkCount := 0
 	eventbus.Subscribe(dejavu.EvtCloudBeforeDownloadChunk, func(context map[string]interface{}, id string) {
 		msg := fmt.Sprintf(Conf.Language(166), id[:7])
-		count++
-		if 0 == count%32 {
-			util.SetBootDetails(msg)
+		util.IncBootProgress(bootProgressPart, msg)
+		if 0 == downloadChunkCount%8 {
 			contextPushMsg(context, msg)
 		}
+		downloadChunkCount++
 	})
 	eventbus.Subscribe(dejavu.EvtCloudBeforeDownloadRef, func(context map[string]interface{}, ref string) {
 		msg := fmt.Sprintf(Conf.Language(167), ref)
-		util.SetBootDetails(msg)
+		util.IncBootProgress(1, msg)
 		contextPushMsg(context, msg)
 	})
 	eventbus.Subscribe(dejavu.EvtCloudBeforeUploadIndex, func(context map[string]interface{}, id string) {
 		msg := fmt.Sprintf(Conf.Language(168), id[:7])
-		util.SetBootDetails(msg)
+		util.IncBootProgress(1, msg)
 		contextPushMsg(context, msg)
 	})
 	eventbus.Subscribe(dejavu.EvtCloudBeforeUploadFiles, func(context map[string]interface{}, files []*entity.File) {
@@ -694,26 +772,28 @@ func subscribeEvents() {
 		util.SetBootDetails(msg)
 		contextPushMsg(context, msg)
 	})
+	uploadFileCount := 0
 	eventbus.Subscribe(dejavu.EvtCloudBeforeUploadFile, func(context map[string]interface{}, id string) {
 		msg := fmt.Sprintf(Conf.Language(169), id[:7])
-		count++
-		if 0 == count%32 {
+		if 0 == uploadFileCount%8 {
 			util.SetBootDetails(msg)
 			contextPushMsg(context, msg)
 		}
+		uploadFileCount++
 	})
 	eventbus.Subscribe(dejavu.EvtCloudBeforeUploadChunks, func(context map[string]interface{}, ids []string) {
 		msg := fmt.Sprintf(Conf.Language(170), len(ids))
 		util.SetBootDetails(msg)
 		contextPushMsg(context, msg)
 	})
+	uploadChunkCount := 0
 	eventbus.Subscribe(dejavu.EvtCloudBeforeUploadChunk, func(context map[string]interface{}, id string) {
 		msg := fmt.Sprintf(Conf.Language(170), id[:7])
-		count++
-		if 0 == count%32 {
+		if 0 == uploadChunkCount%8 {
 			util.SetBootDetails(msg)
 			contextPushMsg(context, msg)
 		}
+		uploadChunkCount++
 	})
 	eventbus.Subscribe(dejavu.EvtCloudBeforeUploadRef, func(context map[string]interface{}, ref string) {
 		msg := fmt.Sprintf(Conf.Language(171), ref)
@@ -736,7 +816,7 @@ func contextPushMsg(context map[string]interface{}, msg string) {
 
 func buildCloudInfo() (ret *dejavu.CloudInfo, err error) {
 	if !IsValidCloudDirName(Conf.Sync.CloudName) {
-		util.LogWarnf("invalid cloud repo name, rename it to [main]")
+		logging.LogWarnf("invalid cloud repo name, rename it to [main]")
 		Conf.Sync.CloudName = "main"
 		Conf.Save()
 	}
@@ -752,6 +832,7 @@ func buildCloudInfo() (ret *dejavu.CloudInfo, err error) {
 		Token:     Conf.User.UserToken,
 		LimitSize: int64(Conf.User.UserSiYuanRepoSize - Conf.User.UserSiYuanAssetSize),
 		Server:    util.AliyunServer,
+		Zone:      &storage.ZoneHuadong, // TODO: 海外版需要条件编译
 	}
 	return
 }
@@ -814,7 +895,7 @@ func getCloudSpaceOSS() (sync, backup map[string]interface{}, assetSize int64, e
 		Post(util.AliyunServer + "/apis/siyuan/dejavu/getRepoStat?uid=" + Conf.User.UserId)
 
 	if nil != err {
-		util.LogErrorf("get cloud space failed: %s", err)
+		logging.LogErrorf("get cloud space failed: %s", err)
 		err = ErrFailedToConnectCloudServer
 		return
 	}
@@ -826,7 +907,7 @@ func getCloudSpaceOSS() (sync, backup map[string]interface{}, assetSize int64, e
 
 	code := result["code"].(float64)
 	if 0 != code {
-		util.LogErrorf("get cloud space failed: %s", result["msg"])
+		logging.LogErrorf("get cloud space failed: %s", result["msg"])
 		err = errors.New(result["msg"].(string))
 		return
 	}

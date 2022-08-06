@@ -4,11 +4,16 @@ import {iframeMenu, setFold, tableMenu, videoMenu, zoomOut} from "../../menus/pr
 import {MenuItem} from "../../menus/Menu";
 import {copySubMenu, openAttr, openWechatNotify} from "../../menus/commonMenuItem";
 import {updateHotkeyTip, writeText} from "../util/compatibility";
-import {transaction, turnIntoTransaction, turnsIntoTransaction, updateTransaction} from "../wysiwyg/transaction";
+import {
+    transaction,
+    turnIntoTransaction,
+    turnsIntoTransaction,
+    updateBatchTransaction,
+    updateTransaction
+} from "../wysiwyg/transaction";
 import {removeBlock} from "../wysiwyg/remove";
 import {focusBlock, focusByRange, getEditorRange} from "../util/selection";
 import {hideElements} from "../ui/hideElements";
-import {setPosition} from "../../util/setPosition";
 import {processRender} from "../util/processCode";
 import {highlightRender} from "../markdown/highlightRender";
 import {blockRender} from "../markdown/blockRender";
@@ -16,7 +21,7 @@ import {removeEmbed} from "../wysiwyg/removeEmbed";
 import {getContenteditableElement, getTopAloneElement, isNotEditBlock} from "../wysiwyg/getBlock";
 import * as dayjs from "dayjs";
 import {fetchPost} from "../../util/fetch";
-import {cancelSB, insertEmptyBlock} from "../../block/util";
+import {cancelSB, insertEmptyBlock, jumpToParentNext} from "../../block/util";
 import {scrollCenter} from "../../util/highlightById";
 import {isMobile} from "../../util/functions";
 import {confirmDialog} from "../../dialog/confirmDialog";
@@ -164,8 +169,7 @@ export class Gutter {
                 openAttr(protyle.wysiwyg.element.querySelector(`[data-node-id="${id}"]`), protyle);
             } else {
                 this.renderMenu(protyle, buttonElement);
-                window.siyuan.menus.menu.element.classList.remove("fn__none");
-                setPosition(window.siyuan.menus.menu.element, event.clientX - window.siyuan.menus.menu.element.clientWidth - 16, event.clientY - 16);
+                window.siyuan.menus.menu.popup({x: event.clientX - 16, y: event.clientY - 16}, true);
                 // https://ld246.com/article/1648433751993
                 if (!protyle.toolbar.range) {
                     protyle.toolbar.range = getEditorRange(protyle.wysiwyg.element.firstElementChild);
@@ -180,8 +184,7 @@ export class Gutter {
             }
             if (!window.siyuan.ctrlIsPressed && !window.siyuan.altIsPressed && !window.siyuan.shiftIsPressed) {
                 this.renderMenu(protyle, buttonElement);
-                window.siyuan.menus.menu.element.classList.remove("fn__none");
-                setPosition(window.siyuan.menus.menu.element, event.clientX - window.siyuan.menus.menu.element.clientWidth - 16, event.clientY - 16);
+                window.siyuan.menus.menu.popup({x: event.clientX - 16, y: event.clientY - 16}, true);
             }
             event.preventDefault();
             event.stopPropagation();
@@ -974,10 +977,14 @@ export class Gutter {
                         element.querySelector("input").addEventListener("change", (event) => {
                             const newHeight = ((event.target as HTMLInputElement).value || "420") + "px";
                             (nodeElement as HTMLElement).style.height = newHeight;
-                            (nodeElement.firstElementChild as HTMLElement).style.height = newHeight;
+                            (nodeElement.firstElementChild.nextElementSibling as HTMLElement).style.height = newHeight;
                             updateTransaction(protyle, id, nodeElement.outerHTML, html);
                             html = nodeElement.outerHTML;
                             event.stopPropagation();
+                            const chartInstance = echarts.getInstanceById(nodeElement.firstElementChild.nextElementSibling.getAttribute("_echarts_instance_"));
+                            if (chartInstance) {
+                                chartInstance.resize();
+                            }
                         });
                     }
                 }, {
@@ -1090,6 +1097,14 @@ export class Gutter {
                     insertEmptyBlock(protyle, "afterend", id);
                 }
             }).element);
+            window.siyuan.menus.menu.append(new MenuItem({
+                label: window.siyuan.languages.jumpToParentNext,
+                accelerator: window.siyuan.config.keymap.editor.general.jumpToParentNext.custom,
+                click() {
+                    nodeElement.classList.remove("protyle-wysiwyg--select");
+                    jumpToParentNext(protyle, nodeElement);
+                }
+            }).element);
             window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
 
             window.siyuan.menus.menu.append(new MenuItem({
@@ -1145,24 +1160,7 @@ export class Gutter {
     }
 
     private genClick(nodeElements: Element[], protyle: IProtyle, cb: (e: HTMLElement) => void) {
-        const operations: IOperation[] = [];
-        const undoOperations: IOperation[] = [];
-        nodeElements.forEach((element) => {
-            const id = element.getAttribute("data-node-id");
-            element.classList.remove("protyle-wysiwyg--select");
-            undoOperations.push({
-                action: "update",
-                id,
-                data: element.outerHTML
-            });
-            cb(element as HTMLElement);
-            operations.push({
-                action: "update",
-                id,
-                data: element.outerHTML
-            });
-        });
-        transaction(protyle, operations, undoOperations);
+        updateBatchTransaction(nodeElements, protyle, cb);
         focusBlock(nodeElements[0]);
     }
 

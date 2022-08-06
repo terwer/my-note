@@ -25,9 +25,9 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/html"
+	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
-	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 type GraphNode struct {
@@ -164,7 +164,6 @@ func BuildGraph(query string) (boxID string, nodes []*GraphNode, links []*GraphL
 		// 文档块关联
 		rootBlock := getBlockIn(treeBlocks, root.ID)
 		if nil == rootBlock {
-			//util.LogWarnf("root block is nil [rootID=%s], tree blocks [len=%d], just skip it", root.ID, len(treeBlocks))
 			continue
 		}
 
@@ -462,7 +461,7 @@ func pruneUnref(nodes *[]*GraphNode, links *[]*GraphLink) {
 		}
 
 		if maxBlocks < len(tmpNodes) {
-			util.LogWarnf("exceeded the maximum number of render nodes [%d]", maxBlocks)
+			logging.LogWarnf("exceeded the maximum number of render nodes [%d]", maxBlocks)
 			break
 		}
 	}
