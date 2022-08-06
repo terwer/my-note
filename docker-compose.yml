@@ -6,7 +6,7 @@ services:
   portable-siyuan:
     stdin_open: true
     tty: true
-    image: terwer/siyuan:2.1.5
+    image: terwer/my-note:2.1.5
     container_name: portable-siyuan
     build:
       context: .
