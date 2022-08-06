@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -32,11 +33,14 @@ type Asset struct {
 	Updated int64  `json:"updated"`
 }
 
-var Assets = sync.Map{}
+var Assets = map[string]*Asset{}
+var assetsLock = sync.Mutex{}
 
 func LoadAssets() {
 	start := time.Now()
-	Assets = sync.Map{}
+	assetsLock.Lock()
+	defer assetsLock.Unlock()
+
 	assets := filepath.Join(util.DataDir, "assets")
 	filepath.Walk(assets, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
@@ -45,21 +49,21 @@ func LoadAssets() {
 			}
 			return nil
 		}
-		if strings.HasSuffix(info.Name(), ".sya") {
+		if strings.HasSuffix(info.Name(), ".sya") || strings.HasPrefix(info.Name(), ".") {
 			return nil
 		}
 
 		hName := util.RemoveID(info.Name())
 		path = filepath.ToSlash(strings.TrimPrefix(path, util.DataDir))[1:]
-		Assets.Store(path, &Asset{
+		Assets[path] = &Asset{
 			HName:   hName,
 			Path:    path,
 			Updated: info.ModTime().UnixMilli(),
-		})
+		}
 		return nil
 	})
 	elapsed := time.Since(start)
 	if 2000 < elapsed.Milliseconds() {
-		util.LogInfof("loaded assets [%s]", elapsed)
+		logging.LogInfof("loaded assets [%.2fs]", elapsed.Seconds())
 	}
 }

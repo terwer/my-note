@@ -821,6 +821,8 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
         if (element) {
             const tab = getInstanceById(element.getAttribute("data-id")) as Tab;
             if (tab && tab.model instanceof Editor) {
+                tab.model.editor.protyle.wysiwyg.element.blur();
+                tab.model.editor.protyle.title.editElement.blur();
                 files.selectItem(tab.model.editor.protyle.notebookId, tab.model.editor.protyle.path);
             }
         }
@@ -985,6 +987,7 @@ const fileTreeKeydown = (event: KeyboardEvent) => {
         return true;
     }
     if (event.key === "Delete" || (event.key === "Backspace" && isMac())) {
+        window.siyuan.menus.menu.remove();
         if (isFile) {
             deleteFile(notebookId, pathString, getDisplayName(liElement.getAttribute("data-name"), false, true));
         } else {

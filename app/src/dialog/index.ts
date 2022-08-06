@@ -36,6 +36,8 @@ export class Dialog {
                 this.destroy();
             }
             event.stopPropagation();
+            // https://ld246.com/article/1657969292700/comment/1658147006669#comments
+            window.siyuan.menus.menu.remove();
         });
         if (!this.disableClose) {
             this.element.querySelector(".b3-dialog__close").addEventListener(getEventName(), (event) => {
@@ -66,9 +68,9 @@ export class Dialog {
         });
     }
 
-    public bindInput(inputElement: HTMLInputElement, enterEvent?: () => void) {
+    public bindInput(inputElement: HTMLInputElement | HTMLTextAreaElement, enterEvent?: () => void) {
         inputElement.focus();
-        inputElement.addEventListener("keydown", (event) => {
+        inputElement.addEventListener("keydown", (event: KeyboardEvent) => {
             if (event.isComposing) {
                 event.preventDefault();
                 return;

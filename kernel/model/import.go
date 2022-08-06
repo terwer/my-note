@@ -36,9 +36,11 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/html"
+	"github.com/88250/lute/html/atom"
 	"github.com/88250/lute/parse"
 	"github.com/88250/protyle"
 	"github.com/siyuan-note/filelock"
+	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
@@ -76,7 +78,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 		return
 	}
 	if 1 != len(unzipRootPaths) {
-		util.LogErrorf("invalid .sy.zip")
+		logging.LogErrorf("invalid .sy.zip")
 		return errors.New("invalid .sy.zip")
 	}
 	unzipRootPath := unzipRootPaths[0]
@@ -88,13 +90,13 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 	for _, syPath := range syPaths {
 		data, readErr := os.ReadFile(syPath)
 		if nil != readErr {
-			util.LogErrorf("read .sy [%s] failed: %s", syPath, readErr)
+			logging.LogErrorf("read .sy [%s] failed: %s", syPath, readErr)
 			err = readErr
 			return
 		}
 		tree, _, parseErr := protyle.ParseJSON(luteEngine, data)
 		if nil != parseErr {
-			util.LogErrorf("parse .sy [%s] failed: %s", syPath, parseErr)
+			logging.LogErrorf("parse .sy [%s] failed: %s", syPath, parseErr)
 			err = parseErr
 			return
 		}
@@ -127,7 +129,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 				if "" != newDefID {
 					n.Tokens = gulu.Str.ToBytes(newDefID)
 				} else {
-					util.LogWarnf("not found def [" + n.TokensStr() + "]")
+					logging.LogWarnf("not found def [" + n.TokensStr() + "]")
 				}
 			} else if ast.NodeBlockQueryEmbedScript == n.Type {
 				for oldID, newID := range blockIDs {
@@ -153,12 +155,12 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 		data = buf.Bytes()
 
 		if err = os.WriteFile(syPath, data, 0644); nil != err {
-			util.LogErrorf("write .sy [%s] failed: %s", syPath, err)
+			logging.LogErrorf("write .sy [%s] failed: %s", syPath, err)
 			return
 		}
 		newSyPath := filepath.Join(filepath.Dir(syPath), tree.ID+".sy")
 		if err = os.Rename(syPath, newSyPath); nil != err {
-			util.LogErrorf("rename .sy from [%s] to [%s] failed: %s", syPath, newSyPath, err)
+			logging.LogErrorf("rename .sy from [%s] to [%s] failed: %s", syPath, newSyPath, err)
 			return
 		}
 	}
@@ -210,7 +212,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 	for i, oldPath := range oldPaths {
 		newPath := renamePaths[oldPath]
 		if err = os.Rename(oldPath, newPath); nil != err {
-			util.LogErrorf("rename path from [%s] to [%s] failed: %s", oldPath, renamePaths[oldPath], err)
+			logging.LogErrorf("rename path from [%s] to [%s] failed: %s", oldPath, renamePaths[oldPath], err)
 			return errors.New("rename path failed")
 		}
 
@@ -249,7 +251,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 		if gulu.File.IsDir(assets) {
 			dataAssets := filepath.Join(util.DataDir, "assets")
 			if err = gulu.File.Copy(assets, dataAssets); nil != err {
-				util.LogErrorf("copy assets from [%s] to [%s] failed: %s", assets, dataAssets, err)
+				logging.LogErrorf("copy assets from [%s] to [%s] failed: %s", assets, dataAssets, err)
 				return
 			}
 		}
@@ -267,7 +269,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 	} else {
 		block := treenode.GetBlockTreeRootByPath(boxID, toPath)
 		if nil == block {
-			util.LogErrorf("not found block by path [%s]", toPath)
+			logging.LogErrorf("not found block by path [%s]", toPath)
 			return nil
 		}
 		baseTargetPath = strings.TrimSuffix(block.Path, ".sy")
@@ -279,7 +281,7 @@ func ImportSY(zipPath, boxID, toPath string) (err error) {
 	}
 
 	if err = stableCopy(unzipRootPath, targetDir); nil != err {
-		util.LogErrorf("copy data dir from [%s] to [%s] failed: %s", unzipRootPath, util.DataDir, err)
+		logging.LogErrorf("copy data dir from [%s] to [%s] failed: %s", unzipRootPath, util.DataDir, err)
 		err = errors.New("copy data failed")
 		return
 	}
@@ -305,7 +307,7 @@ func ImportData(zipPath string) (err error) {
 
 	files, err := filepath.Glob(filepath.Join(unzipPath, "*/*.sy"))
 	if nil != err {
-		util.LogErrorf("check data.zip failed: %s", err)
+		logging.LogErrorf("check data.zip failed: %s", err)
 		return errors.New("check data.zip failed")
 	}
 	if 0 < len(files) {
@@ -313,7 +315,7 @@ func ImportData(zipPath string) (err error) {
 	}
 	dirs, err := os.ReadDir(unzipPath)
 	if nil != err {
-		util.LogErrorf("check data.zip failed: %s", err)
+		logging.LogErrorf("check data.zip failed: %s", err)
 		return errors.New("check data.zip failed")
 	}
 	if 1 != len(dirs) {
@@ -326,7 +328,7 @@ func ImportData(zipPath string) (err error) {
 	filelock.ReleaseAllFileLocks()
 	tmpDataPath := filepath.Join(unzipPath, dirs[0].Name())
 	if err = stableCopy(tmpDataPath, util.DataDir); nil != err {
-		util.LogErrorf("copy data dir from [%s] to [%s] failed: %s", tmpDataPath, util.DataDir, err)
+		logging.LogErrorf("copy data dir from [%s] to [%s] failed: %s", tmpDataPath, util.DataDir, err)
 		err = errors.New("copy data failed")
 		return
 	}
@@ -350,7 +352,7 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 	} else {
 		block := treenode.GetBlockTreeRootByPath(boxID, toPath)
 		if nil == block {
-			util.LogErrorf("not found block by path [%s]", toPath)
+			logging.LogErrorf("not found block by path [%s]", toPath)
 			return nil
 		}
 		baseHPath = block.HPath
@@ -436,9 +438,10 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 
 			tree = parseKTree(data)
 			if nil == tree {
-				util.LogErrorf("parse tree [%s] failed", currentPath)
+				logging.LogErrorf("parse tree [%s] failed", currentPath)
 				return nil
 			}
+			imgHtmlBlock2InlineImg(tree)
 			tree.ID = id
 			tree.Root.ID = id
 			tree.Root.SetIALAttr("id", tree.Root.ID)
@@ -476,7 +479,7 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 						name = util.AssetName(name)
 						assetTargetPath := filepath.Join(assetDirPath, name)
 						if err = gulu.File.Copy(fullPath, assetTargetPath); nil != err {
-							util.LogErrorf("copy asset from [%s] to [%s] failed: %s", fullPath, assetTargetPath, err)
+							logging.LogErrorf("copy asset from [%s] to [%s] failed: %s", fullPath, assetTargetPath, err)
 							return ast.WalkContinue
 						}
 						assetsDone[absDest] = name
@@ -524,9 +527,10 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 		tree := parseKTree(data)
 		if nil == tree {
 			msg := fmt.Sprintf("parse tree [%s] failed", localPath)
-			util.LogErrorf(msg)
+			logging.LogErrorf(msg)
 			return errors.New(msg)
 		}
+		imgHtmlBlock2InlineImg(tree)
 		tree.ID = id
 		tree.Root.ID = id
 		tree.Root.SetIALAttr("id", tree.Root.ID)
@@ -563,7 +567,7 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 				name = util.AssetName(name)
 				assetTargetPath := filepath.Join(assetDirPath, name)
 				if err = gulu.File.CopyFile(absolutePath, assetTargetPath); nil != err {
-					util.LogErrorf("copy asset from [%s] to [%s] failed: %s", absolutePath, assetTargetPath, err)
+					logging.LogErrorf("copy asset from [%s] to [%s] failed: %s", absolutePath, assetTargetPath, err)
 					return ast.WalkContinue
 				}
 				n.Tokens = gulu.Str.ToBytes("assets/" + name)
@@ -586,6 +590,53 @@ func ImportFromLocalPath(boxID, localPath string, toPath string) (err error) {
 	}
 	debug.FreeOSMemory()
 	IncSync()
+	return
+}
+
+func imgHtmlBlock2InlineImg(tree *parse.Tree) {
+	imgHtmlBlocks := map[*ast.Node]*html.Node{}
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if ast.NodeHTMLBlock == n.Type {
+			htmlNodes, pErr := html.ParseFragment(bytes.NewReader(n.Tokens), &html.Node{Type: html.ElementNode})
+			if nil != pErr {
+				logging.LogErrorf("parse html block [%s] failed: %s", n.Tokens, pErr)
+				return ast.WalkContinue
+			}
+			if atom.Img == htmlNodes[0].DataAtom {
+				imgHtmlBlocks[n] = htmlNodes[0]
+			}
+		}
+		return ast.WalkContinue
+	})
+
+	for n, htmlImg := range imgHtmlBlocks {
+		src := domAttrValue(htmlImg, "src")
+		alt := domAttrValue(htmlImg, "alt")
+		title := domAttrValue(htmlImg, "title")
+
+		p := &ast.Node{Type: ast.NodeParagraph, ID: n.ID}
+		img := &ast.Node{Type: ast.NodeImage}
+		p.AppendChild(img)
+		img.AppendChild(&ast.Node{Type: ast.NodeBang})
+		img.AppendChild(&ast.Node{Type: ast.NodeOpenBracket})
+		img.AppendChild(&ast.Node{Type: ast.NodeLinkText, Tokens: []byte(alt)})
+		img.AppendChild(&ast.Node{Type: ast.NodeCloseBracket})
+		img.AppendChild(&ast.Node{Type: ast.NodeOpenParen})
+		img.AppendChild(&ast.Node{Type: ast.NodeLinkDest, Tokens: []byte(src)})
+		if "" != title {
+			img.AppendChild(&ast.Node{Type: ast.NodeLinkSpace})
+			img.AppendChild(&ast.Node{Type: ast.NodeLinkTitle})
+		}
+		img.AppendChild(&ast.Node{Type: ast.NodeCloseParen})
+
+		n.InsertBefore(p)
+		n.Unlink()
+	}
+
 	return
 }
 
@@ -635,4 +686,17 @@ func randStr(length int) string {
 		b[i] = letter[rand.Intn(len(letter))]
 	}
 	return string(b)
+}
+
+func domAttrValue(n *html.Node, attrName string) string {
+	if nil == n {
+		return ""
+	}
+
+	for _, attr := range n.Attr {
+		if attr.Key == attrName {
+			return attr.Val
+		}
+	}
+	return ""
 }

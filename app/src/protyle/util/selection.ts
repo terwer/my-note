@@ -52,21 +52,22 @@ export const selectAll = (protyle: IProtyle, nodeElement: Element, range: Range)
                         firstChild = firstChild.firstChild;
                     }
                 }
-                let lastChild = editElement.lastChild;
+                let lastChild = editElement.lastChild as HTMLElement;
                 while (lastChild) {
                     if (lastChild.nodeType === 3) {
                         if (lastChild.textContent !== "") {
                             range.setEnd(lastChild, lastChild.textContent.length);
                             break;
                         }
-                        lastChild = lastChild.previousSibling;
+                        lastChild = lastChild.previousSibling as HTMLElement;
                     } else {
-                        if ((lastChild as HTMLElement).classList.contains("render-node") ||
-                            (lastChild as HTMLElement).classList.contains("img")) {
+                        if (lastChild.classList.contains("render-node") ||
+                            lastChild.classList.contains("img") ||
+                            lastChild.tagName === "BR") {
                             range.setEndAfter(lastChild);
                             break;
                         }
-                        lastChild = lastChild.lastChild;
+                        lastChild = lastChild.lastChild as HTMLElement;
                     }
                 }
                 protyle.toolbar.render(protyle, range);
@@ -95,7 +96,7 @@ export const getEditorRange = (element: Element) => {
     let range: Range;
     if (getSelection().rangeCount > 0) {
         range = getSelection().getRangeAt(0);
-        if (element.isEqualNode(range.startContainer) || element.contains(range.startContainer)) {
+        if (element.isSameNode(range.startContainer) || element.contains(range.startContainer)) {
             return range;
         }
     }
@@ -416,19 +417,23 @@ export const focusBlock = (element: Element, parentElement?: HTMLElement, toStar
             range.selectNodeContents(element.firstElementChild);
             setRange = true;
         } else if (type === "NodeBlockQueryEmbed") {
-            if (element.lastElementChild.previousElementSibling) {
-                range.selectNodeContents(element.lastElementChild.previousElementSibling);
+            if (element.lastElementChild.previousElementSibling?.firstChild) {
+                range.selectNodeContents(element.lastElementChild.previousElementSibling.firstChild);
+                range.collapse(true);
             } else {
                 // https://github.com/siyuan-note/siyuan/issues/5267
                 range.selectNodeContents(element);
+                range.collapse(true);
             }
             setRange = true;
         } else if (["NodeMathBlock", "NodeHTMLBlock"].includes(type)) {
-            if (element.lastElementChild.previousElementSibling?.lastElementChild) {
+            if (element.lastElementChild.previousElementSibling?.lastElementChild?.firstChild) {
                 // https://ld246.com/article/1655714737572
-                range.selectNodeContents(element.lastElementChild.previousElementSibling.lastElementChild);
+                range.selectNodeContents(element.lastElementChild.previousElementSibling.lastElementChild.firstChild);
+                range.collapse(true);
             } else if (element.lastElementChild.previousElementSibling) {
                 range.selectNodeContents(element.lastElementChild.previousElementSibling);
+                range.collapse(true);
             }
             setRange = true;
         } else if (type === "NodeIFrame" || type === "NodeWidget") {
@@ -442,6 +447,7 @@ export const focusBlock = (element: Element, parentElement?: HTMLElement, toStar
             setRange = true;
         } else if (type === "NodeCodeBlock") {
             range.selectNodeContents(element);
+            range.collapse(true);
             setRange = true;
         }
         if (setRange) {

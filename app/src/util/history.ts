@@ -7,6 +7,7 @@ import {unicode2Emoji} from "../emoji";
 import {escapeHtml} from "./escape";
 import {isMobile} from "./functions";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
+import {renderAssetsPreview} from "../asset/renderAssets";
 
 const renderDoc = (notebook: INotebook, element: HTMLElement) => {
     if (!notebook || !notebook.id) {
@@ -87,16 +88,7 @@ const renderAssets = (element: HTMLElement) => {
                 logsHTML += "</ul>";
 
                 if (index === 0) {
-                    const type = item.items[0].title.substr(item.items[0].title.lastIndexOf(".")).toLowerCase();
-                    if (Constants.SIYUAN_ASSETS_IMAGE.includes(type)) {
-                        element.lastElementChild.innerHTML = `<img src="${item.items[0].path}">`;
-                    } else if (Constants.SIYUAN_ASSETS_AUDIO.includes(type)) {
-                        element.lastElementChild.innerHTML = `<audio controls="controls" src="${item.items[0].path}"></audio>`;
-                    } else if (Constants.SIYUAN_ASSETS_VIDEO.includes(type)) {
-                        element.lastElementChild.innerHTML = `<video controls="controls" src="${item.items[0].path}"></video>`;
-                    } else {
-                        element.lastElementChild.innerHTML = item.items[0].path;
-                    }
+                    element.lastElementChild.innerHTML = renderAssetsPreview(item.items[0].path);
                 }
             }
         });
@@ -124,24 +116,30 @@ const renderRepoItem = (response: IWebSocketData, element: Element, type: string
     let repoHTML = "";
     response.data.snapshots.forEach((item: { memo: string, id: string, hCreated: string, count: number, hSize: string, tag: string }) => {
         if (isMobile()) {
-            repoHTML += `<li class="b3-list-item b3-list-item--two" data-id="${item.id}" data-tag="${item.tag}">
+            repoHTML += `<li class="b3-list-item b3-list-item--two">
     <div class="b3-list-item__first">
+        <span class="b3-list-item__text">${escapeHtml(item.memo)}</span>
         <span class="b3-chip b3-chip--secondary${item.tag ? "" : " fn__none"}">${item.tag}</span>
-        ${item.hCreated}<span class="fn__space"></span>
-        <span class="b3-list-item__meta">${item.hSize}</span>
-        <span class="fn__flex-1"></span>
-        ${actionHTML}
     </div>
-    <span class="b3-list-item__meta">${escapeHtml(item.memo)}</span>
+    <div>
+        <span class="ft__smaller ft__on-surface">${item.hCreated}</span>
+        <span class="b3-list-item__meta">${item.hSize}</span>
+        <span class="b3-list-item__meta">${window.siyuan.languages.fileCount}${item.count}</span>
+    </div>
+    <div class="fn__flex" style="justify-content: flex-end;" data-id="${item.id}" data-tag="${item.tag}">${actionHTML}</div>
 </li>`;
         } else {
             repoHTML += `<li class="b3-list-item b3-list-item--hide-action" data-id="${item.id}" data-tag="${item.tag}">
-    <div class="b3-list-item__text">
-        <span class="b3-chip b3-chip--secondary${item.tag ? "" : " fn__none"}">${item.tag}</span>
-        ${item.hCreated}<span class="fn__space"></span>
-        ${escapeHtml(item.memo)}
-        <span class="b3-list-item__meta">${item.hSize}</span>
-        <span class="b3-list-item__meta">${window.siyuan.languages.fileCount}${item.count}</span>
+    <div class="fn__flex-1">
+        <div class="b3-list-item__text">
+            ${escapeHtml(item.memo)}
+            <span class="b3-chip b3-chip--secondary${item.tag ? "" : " fn__none"}">${item.tag}</span>
+        </div>
+        <div>
+            <span class="ft__smaller ft__on-surface">${item.hCreated}</span>
+            <span class="b3-list-item__meta">${item.hSize}</span>
+            <span class="b3-list-item__meta">${window.siyuan.languages.fileCount}${item.count}</span>
+        </div>
     </div>
     ${actionHTML}
 </li>`;
@@ -394,16 +392,7 @@ export const openHistory = () => {
             } else if (target.classList.contains("b3-list-item") && (type === "assets" || type === "doc")) {
                 const dataPath = target.getAttribute("data-path");
                 if (type === "assets") {
-                    const type = dataPath.substr(dataPath.lastIndexOf(".")).toLowerCase();
-                    if (Constants.SIYUAN_ASSETS_IMAGE.includes(type)) {
-                        firstPanelElement.nextElementSibling.lastElementChild.innerHTML = `<img src="${dataPath}">`;
-                    } else if (Constants.SIYUAN_ASSETS_AUDIO.includes(type)) {
-                        firstPanelElement.nextElementSibling.lastElementChild.innerHTML = `<audio controls="controls" src="${dataPath}"></audio>`;
-                    } else if (Constants.SIYUAN_ASSETS_VIDEO.includes(type)) {
-                        firstPanelElement.nextElementSibling.lastElementChild.innerHTML = `<video controls="controls" src="${dataPath}"></video>`;
-                    } else {
-                        firstPanelElement.nextElementSibling.lastElementChild.innerHTML = dataPath;
-                    }
+                    firstPanelElement.nextElementSibling.lastElementChild.innerHTML = renderAssetsPreview(dataPath);
                 } else if (type === "doc") {
                     fetchPost("/api/history/getDocHistoryContent", {
                         historyPath: dataPath
@@ -435,6 +424,9 @@ export const openHistory = () => {
                 const textareaElement = genRepoDialog.element.querySelector("textarea");
                 textareaElement.focus();
                 const btnsElement = genRepoDialog.element.querySelectorAll(".b3-button");
+                genRepoDialog.bindInput(textareaElement, () => {
+                    (btnsElement[1] as HTMLButtonElement).click();
+                });
                 btnsElement[0].addEventListener("click", () => {
                     genRepoDialog.destroy();
                 });
@@ -449,11 +441,7 @@ export const openHistory = () => {
                 const tag = target.parentElement.getAttribute("data-tag");
                 confirmDialog(window.siyuan.languages.delete, `${window.siyuan.languages.confirmDelete} <i>${tag}</i>?`, () => {
                     fetchPost("/api/repo/" + type, {tag}, () => {
-                        if (target.parentElement.parentElement.childElementCount === 1) {
-                            target.parentElement.parentElement.innerHTML = `<li class="b3-list--empty">${window.siyuan.languages.emptyContent}</li>`;
-                        } else {
-                            target.parentElement.remove();
-                        }
+                        renderRepo(repoElement, type === "removeRepoTagSnapshot" ? -1 : -2);
                     });
                 });
                 break;
@@ -486,6 +474,9 @@ export const openHistory = () => {
                 const btnsElement = genTagDialog.element.querySelectorAll(".b3-button");
                 btnsElement[0].addEventListener("click", () => {
                     genTagDialog.destroy();
+                });
+                genTagDialog.bindInput(inputElement, () => {
+                    (btnsElement[1] as HTMLButtonElement).click();
                 });
                 btnsElement[1].addEventListener("click", () => {
                     fetchPost("/api/repo/tagSnapshot", {

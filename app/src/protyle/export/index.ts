@@ -1,7 +1,7 @@
 import {hideMessage, showMessage} from "../../dialog/message";
 import {Constants} from "../../constants";
 /// #if !BROWSER
-import {PrintToPDFOptions, SaveDialogReturnValue} from "electron";
+import {PrintToPDFOptions, OpenDialogReturnValue} from "electron";
 import {BrowserWindow, dialog} from "@electron/remote";
 import * as fs from "fs";
 import * as path from "path";
@@ -105,9 +105,38 @@ export const saveExport = (option: { type: string, id: string }) => {
                 pdfDialog.destroy();
             }
         });
-        return;
+    } else if (option.type === "word") {
+        const localData = localStorage.getItem(Constants.LOCAL_EXPORTWORD);
+        const wordDialog = new Dialog({
+            title: "Word " + window.siyuan.languages.config,
+            content: `<div class="b3-dialog__content">
+    <label class="fn__flex b3-label">
+        <div class="fn__flex-1">
+            ${window.siyuan.languages.exportPDF4}
+        </div>
+        <span class="fn__space"></span>
+        <input id="removeAssets" class="b3-switch" type="checkbox" ${localData === "true" ? "checked" : ""}>
+    </label>
+</div>
+<div class="b3-dialog__action">
+    <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
+    <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
+</div>`,
+            width: "520px",
+        });
+        const btnsElement = wordDialog.element.querySelectorAll(".b3-button");
+        btnsElement[0].addEventListener("click", () => {
+            wordDialog.destroy();
+        });
+        btnsElement[1].addEventListener("click", () => {
+            const removeAssets = (wordDialog.element.querySelector("#removeAssets") as HTMLInputElement).checked;
+            localStorage.setItem(Constants.LOCAL_EXPORTWORD, removeAssets.toString());
+            getExportPath(option, undefined, removeAssets);
+            wordDialog.destroy();
+        });
+    } else {
+        getExportPath(option);
     }
-    getExportPath(option);
     /// #endif
 };
 
@@ -121,10 +150,24 @@ const getExportPath = (option: { type: string, id: string }, pdfOption?: PrintTo
             lockFile(response.data);
             return;
         }
-        dialog.showSaveDialog({
-            defaultPath: response.data.rootTitle,
-            properties: ["showOverwriteConfirmation"],
-        }).then((result: SaveDialogReturnValue) => {
+
+        let exportType = "HTML (SiYuan)";
+        switch (option.type) {
+            case "htmlmd":
+                exportType = "HTML (Markdown)";
+                break;
+            case "word":
+                exportType = "Word .docx";
+                break;
+            case "pdf":
+                exportType = "PDF";
+                break;
+        }
+
+        dialog.showOpenDialog({
+            title: window.siyuan.languages.export + " " + exportType,
+            properties: ["createDirectory", "openDirectory"],
+        }).then((result: OpenDialogReturnValue) => {
             if (!result.canceled) {
                 const msgId = showMessage(window.siyuan.languages.exporting, -1);
                 let url = "/api/export/exportHTML";
@@ -133,17 +176,22 @@ const getExportPath = (option: { type: string, id: string }, pdfOption?: PrintTo
                 } else if (option.type === "word") {
                     url = "/api/export/exportDocx";
                 }
+                const savePath = result.filePaths[0].endsWith(response.data.rootTitle) ? result.filePaths[0] : path.join(result.filePaths[0], response.data.rootTitle);
                 fetchPost(url, {
                     id: option.id,
                     pdf: option.type === "pdf",
-                    savePath: result.filePath
+                    removeAssets,
+                    savePath
                 }, exportResponse => {
                     if (option.type === "word") {
-                        // @ts-ignore
-                        afterExport(result.filePath, msgId);
+                        if (exportResponse.code === 1) {
+                            showMessage(exportResponse.msg, undefined, "error");
+                            hideMessage(msgId);
+                            return;
+                        }
+                        afterExport(savePath, msgId);
                     } else {
-                        // @ts-ignore
-                        onExport(exportResponse, result.filePath, option.type, pdfOption, removeAssets, msgId);
+                        onExport(exportResponse, savePath, option.type, pdfOption, removeAssets, msgId);
                     }
                 });
             }

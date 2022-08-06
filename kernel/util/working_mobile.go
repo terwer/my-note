@@ -22,17 +22,22 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/88250/gulu"
 	figure "github.com/common-nighthawk/go-figure"
 	"github.com/siyuan-note/httpclient"
+	"github.com/siyuan-note/logging"
 )
 
 func BootMobile(container, appDir, workspaceDir, nativeLibDir, privateDataDir, lang string) {
 	IncBootProgress(3, "Booting...")
 	rand.Seed(time.Now().UTC().UnixNano())
 	initMime()
-	httpclient.SetUserAgent(UserAgent)
 
 	HomeDir = filepath.Join(workspaceDir, "home")
+	userHomeConfDir := filepath.Join(HomeDir, ".config", "siyuan")
+	if !gulu.File.IsExist(userHomeConfDir) {
+		os.MkdirAll(userHomeConfDir, 0755)
+	}
 	WorkingDir = filepath.Join(appDir, "app")
 	WorkspaceDir = workspaceDir
 	ConfDir = filepath.Join(workspaceDir, "conf")
@@ -49,14 +54,17 @@ func BootMobile(container, appDir, workspaceDir, nativeLibDir, privateDataDir, l
 	AndroidNativeLibDir = nativeLibDir
 	AndroidPrivateDataDir = privateDataDir
 	LogPath = filepath.Join(TempDir, "siyuan.log")
+	logging.SetLogPath(LogPath)
 	AppearancePath = filepath.Join(ConfDir, "appearance")
 	ThemesPath = filepath.Join(AppearancePath, "themes")
 	IconsPath = filepath.Join(AppearancePath, "icons")
 	Resident = true
 	Container = container
+	UserAgent = UserAgent + " " + Container
+	httpclient.SetUserAgent(UserAgent)
 	Lang = lang
 	initPathDir()
 	bootBanner := figure.NewFigure("SiYuan", "", true)
-	LogInfof("\n" + bootBanner.String())
+	logging.LogInfof("\n" + bootBanner.String())
 	logBootInfo()
 }

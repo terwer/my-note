@@ -1,5 +1,4 @@
 import {getRandom, isMobile} from "../util/functions";
-import {setPosition} from "../util/setPosition";
 import {fetchPost} from "../util/fetch";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {Constants} from "../constants";
@@ -8,7 +7,6 @@ import {Files} from "../layout/dock/Files";
 import {getDockByType} from "../layout/util";
 import {getAllModels} from "../layout/getAll";
 /// #endif
-import {getEventName} from "../protyle/util/compatibility";
 import {setNoteBook} from "../util/pathName";
 
 export const getRandomEmoji = () => {
@@ -200,10 +198,8 @@ export const openEmojiPanel = (id: string, target: HTMLElement, isNotebook = fal
 </div>
 </div>`;
     window.siyuan.menus.menu.element.firstElementChild.querySelector(".emojis__item").classList.add("emojis__item--current");
-    window.siyuan.menus.menu.element.classList.remove("fn__none");
     const rect = target.getBoundingClientRect();
-    setPosition(window.siyuan.menus.menu.element, rect.left, rect.top + rect.height);
-
+    window.siyuan.menus.menu.popup({x: rect.left, y: rect.top + rect.height});
     const inputElement = window.siyuan.menus.menu.element.querySelector(".b3-text-field") as HTMLInputElement;
     const emojisContentElement = window.siyuan.menus.menu.element.querySelector(".emojis__panel");
     inputElement.addEventListener("compositionend", () => {
@@ -313,7 +309,8 @@ export const openEmojiPanel = (id: string, target: HTMLElement, isNotebook = fal
         inputElement.focus();
     }
     lazyLoadEmoji(window.siyuan.menus.menu.element);
-    window.siyuan.menus.menu.element.firstElementChild.addEventListener(getEventName(), (event) => {
+    // 不能使用 getEventName 否则 https://github.com/siyuan-note/siyuan/issues/5472
+    window.siyuan.menus.menu.element.firstElementChild.addEventListener("click", (event) => {
         const eventTarget = event.target as HTMLElement;
         const typeElement = hasClosestByClassName(eventTarget, "emojis__type");
         if (typeElement) {

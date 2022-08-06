@@ -32,6 +32,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/system/uiproc", addUIProcess)
 	ginServer.Handle("POST", "/api/system/loginAuth", model.LoginAuth)
 	ginServer.Handle("POST", "/api/system/logoutAuth", model.LogoutAuth)
+	ginServer.Handle("GET", "/api/system/getCaptcha", model.GetCaptcha)
 
 	// 需要鉴权
 
@@ -192,6 +193,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/export/batchExportMd", model.CheckAuth, batchExportMd)
 	ginServer.Handle("POST", "/api/export/exportMd", model.CheckAuth, exportMd)
 	ginServer.Handle("POST", "/api/export/exportSY", model.CheckAuth, exportSY)
+	ginServer.Handle("POST", "/api/export/exportNotebookSY", model.CheckAuth, exportNotebookSY)
 	ginServer.Handle("POST", "/api/export/exportMdContent", model.CheckAuth, exportMdContent)
 	ginServer.Handle("POST", "/api/export/exportHTML", model.CheckAuth, exportHTML)
 	ginServer.Handle("POST", "/api/export/exportMdHTML", model.CheckAuth, exportMdHTML)
@@ -245,6 +247,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/bazaar/getBazaarPackageREAME", model.CheckAuth, getBazaarPackageREAME)
 
 	ginServer.Handle("POST", "/api/repo/initRepoKey", model.CheckAuth, initRepoKey)
+	ginServer.Handle("POST", "/api/repo/InitRepoKeyFromPassphrase", model.CheckAuth, initRepoKeyFromPassphrase)
 	ginServer.Handle("POST", "/api/repo/resetRepo", model.CheckAuth, resetRepo)
 	ginServer.Handle("POST", "/api/repo/importRepoKey", model.CheckAuth, importRepoKey)
 	ginServer.Handle("POST", "/api/repo/createSnapshot", model.CheckAuth, createSnapshot)

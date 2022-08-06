@@ -33,6 +33,7 @@ import (
 	figure "github.com/common-nighthawk/go-figure"
 	goPS "github.com/mitchellh/go-ps"
 	"github.com/siyuan-note/httpclient"
+	"github.com/siyuan-note/logging"
 )
 
 //var Mode = "dev"
@@ -40,7 +41,7 @@ import (
 var Mode = "prod"
 
 const (
-	Ver       = "2.0.27"
+	Ver       = "2.1.5"
 	IsInsider = false
 )
 
@@ -54,7 +55,6 @@ func Boot() {
 	IncBootProgress(3, "Booting...")
 	rand.Seed(time.Now().UTC().UnixNano())
 	initMime()
-	httpclient.SetUserAgent(UserAgent)
 
 	workspacePath := flag.String("workspace", "", "dir path of the workspace, default to ~/Documents/SiYuan/")
 	wdPath := flag.String("wd", WorkingDir, "working directory of SiYuan")
@@ -83,10 +83,14 @@ func Boot() {
 		Container = "docker"
 	}
 
+	UserAgent = UserAgent + " " + Container
+	httpclient.SetUserAgent(UserAgent)
+
 	initWorkspaceDir(*workspacePath)
 
 	SSL = *ssl
 	LogPath = filepath.Join(TempDir, "siyuan.log")
+	logging.SetLogPath(LogPath)
 	AppearancePath = filepath.Join(ConfDir, "appearance")
 	if "dev" == Mode {
 		ThemesPath = filepath.Join(WorkingDir, "appearance", "themes")
@@ -106,11 +110,15 @@ func Boot() {
 	go cleanOld()
 }
 
+func setBootDetails(details string) {
+	bootDetails = "v" + Ver + " " + details
+}
+
 func SetBootDetails(details string) {
 	if 100 <= bootProgress {
 		return
 	}
-	bootDetails = details
+	setBootDetails(details)
 }
 
 func IncBootProgress(progress float64, details string) {
@@ -118,7 +126,7 @@ func IncBootProgress(progress float64, details string) {
 		return
 	}
 	bootProgress += progress
-	bootDetails = details
+	setBootDetails(details)
 }
 
 func IsBooted() bool {
@@ -134,15 +142,15 @@ func GetBootProgress() float64 {
 }
 
 func SetBooted() {
-	bootDetails = "Finishing boot..."
+	setBootDetails("Finishing boot...")
 	bootProgress = 100
-	LogInfof("kernel booted")
+	logging.LogInfof("kernel booted")
 }
 
 func GetHistoryDir(suffix string) (ret string, err error) {
 	ret = filepath.Join(HistoryDir, time.Now().Format("2006-01-02-150405")+"-"+suffix)
 	if err = os.MkdirAll(ret, 0755); nil != err {
-		LogErrorf("make history dir failed: %s", err)
+		logging.LogErrorf("make history dir failed: %s", err)
 		return
 	}
 	return
@@ -300,6 +308,7 @@ func initPathDir() {
 	}
 }
 
+// TODO: v2.2.0 移除
 func cleanOld() {
 	dirs, _ := os.ReadDir(WorkingDir)
 	for _, dir := range dirs {
@@ -316,33 +325,33 @@ func checkPort() {
 		return
 	}
 
-	LogInfof("port [%s] is opened, try to check version of running kernel", ServerPort)
+	logging.LogInfof("port [%s] is opened, try to check version of running kernel", ServerPort)
 	result := NewResult()
 	_, err := httpclient.NewBrowserRequest().
 		SetResult(result).
 		SetHeader("User-Agent", UserAgent).
 		Get("http://127.0.0.1:" + ServerPort + "/api/system/version")
 	if nil != err || 0 != result.Code {
-		LogErrorf("connect to port [%s] for checking running kernel failed", ServerPort)
+		logging.LogErrorf("connect to port [%s] for checking running kernel failed", ServerPort)
 		KillByPort(ServerPort)
 		return
 	}
 
 	if nil == result.Data {
-		LogErrorf("connect ot port [%s] for checking running kernel failed", ServerPort)
+		logging.LogErrorf("connect ot port [%s] for checking running kernel failed", ServerPort)
 		os.Exit(ExitCodeUnavailablePort)
 	}
 
 	runningVer := result.Data.(string)
 	if runningVer == Ver {
-		LogInfof("version of the running kernel is the same as this boot [%s], exit this boot", runningVer)
+		logging.LogInfof("version of the running kernel is the same as this boot [%s], exit this boot", runningVer)
 		os.Exit(ExitCodeOk)
 	}
 
-	LogInfof("found kernel [%s] is running, try to exit it", runningVer)
+	logging.LogInfof("found kernel [%s] is running, try to exit it", runningVer)
 	processes, err := goPS.Processes()
 	if nil != err {
-		LogErrorf("close kernel [%s] failed: %s", runningVer, err)
+		logging.LogErrorf("close kernel [%s] failed: %s", runningVer, err)
 		os.Exit(ExitCodeUnavailablePort)
 	}
 
@@ -354,7 +363,7 @@ func checkPort() {
 			if currentPid != kernelPid {
 				pid := strconv.Itoa(kernelPid)
 				Kill(pid)
-				LogInfof("killed kernel [name=%s, pid=%s, ver=%s], continue to boot", name, pid, runningVer)
+				logging.LogInfof("killed kernel [name=%s, pid=%s, ver=%s], continue to boot", name, pid, runningVer)
 			}
 		}
 	}
@@ -383,7 +392,7 @@ func KillByPort(port string) {
 			name = proc.Executable()
 		}
 		Kill(pid)
-		LogInfof("killed process [name=%s, pid=%s]", name, pid)
+		logging.LogInfof("killed process [name=%s, pid=%s]", name, pid)
 	}
 }
 
@@ -404,7 +413,7 @@ func PidByPort(port string) (ret string) {
 		CmdAttr(cmd)
 		data, err := cmd.CombinedOutput()
 		if nil != err {
-			LogErrorf("netstat failed: %s", err)
+			logging.LogErrorf("netstat failed: %s", err)
 			return
 		}
 		output := string(data)
@@ -424,7 +433,7 @@ func PidByPort(port string) (ret string) {
 	CmdAttr(cmd)
 	data, err := cmd.CombinedOutput()
 	if nil != err {
-		LogErrorf("lsof failed: %s", err)
+		logging.LogErrorf("lsof failed: %s", err)
 		return
 	}
 	output := string(data)

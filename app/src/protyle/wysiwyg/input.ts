@@ -5,7 +5,7 @@ import * as dayjs from "dayjs";
 import {transaction, updateTransaction} from "./transaction";
 import {mathRender} from "../markdown/mathRender";
 import {highlightRender} from "../markdown/highlightRender";
-import {getContenteditableElement, getNextBlock} from "./getBlock";
+import {getContenteditableElement, getNextBlock, isNotEditBlock} from "./getBlock";
 import {genEmptyBlock} from "../../block/util";
 import {blockRender} from "../markdown/blockRender";
 import {hideElements} from "../ui/hideElements";
@@ -41,9 +41,10 @@ export const input = async (protyle: IProtyle, blockElement: HTMLElement, range:
     }
     const wbrElement = document.createElement("wbr");
     range.insertNode(wbrElement);
+    let id = blockElement.getAttribute("data-node-id");
     if (type !== "NodeCodeBlock" && (editElement.innerHTML.endsWith("\n<wbr>") || editElement.innerHTML.endsWith("\n<wbr>\n"))) {
         // 软换行
-        updateTransaction(protyle, blockElement.getAttribute("data-node-id"), blockElement.outerHTML, blockElement.outerHTML.replace("\n<wbr>", "<wbr>"));
+        updateTransaction(protyle, id, blockElement.outerHTML, blockElement.outerHTML.replace("\n<wbr>", "<wbr>"));
         wbrElement.remove();
         return;
     }
@@ -60,16 +61,17 @@ export const input = async (protyle: IProtyle, blockElement: HTMLElement, range:
     if (editElement.innerHTML === "》<wbr>") {
         editElement.innerHTML = "><wbr>";
     }
-    if ((editElement.textContent.startsWith("````") || editElement.textContent.startsWith("····") || editElement.textContent.startsWith("~~~~")) &&
-        editElement.innerHTML.indexOf("\n") === -1) {
+    const trimStartText = editElement.innerHTML.trimStart();
+    if ((trimStartText.startsWith("````") || trimStartText.startsWith("····") || trimStartText.startsWith("~~~~")) &&
+        trimStartText.indexOf("\n") === -1) {
         // 超过三个标记符就可以形成为代码块，下方会处理
-    } else if ((editElement.textContent.startsWith("```") || editElement.textContent.startsWith("···") || editElement.textContent.startsWith("~~~")) &&
-        editElement.innerHTML.indexOf("\n") === -1 && editElement.textContent.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") === -1) {
+    } else if ((trimStartText.startsWith("```") || trimStartText.startsWith("···") || trimStartText.startsWith("~~~")) &&
+        trimStartText.indexOf("\n") === -1 && trimStartText.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") === -1) {
         // ```test` 后续处理，```test 不处理
+        updateTransaction(protyle, id, blockElement.outerHTML, protyle.wysiwyg.lastHTMLs[id]);
         wbrElement.remove();
         return;
     }
-    let id = blockElement.getAttribute("data-node-id");
     const refElement = hasClosestByAttribute(range.startContainer, "data-type", "block-ref");
     if (refElement && refElement.getAttribute("data-subtype") === "d") {
         const response = await fetchSyncPost("/api/block/getRefText", {id: refElement.getAttribute("data-id")});
@@ -79,11 +81,16 @@ export const input = async (protyle: IProtyle, blockElement: HTMLElement, range:
     }
     let html = blockElement.outerHTML;
     let todoOldHTML = "";
+    let focusHR = false;
     if (editElement.textContent === "---" && !blockElement.classList.contains("code-block")) {
         html = `<div data-node-id="${id}" data-type="NodeThematicBreak" class="hr"><div></div></div>`;
         const nextBlockElement = getNextBlock(editElement);
         if (nextBlockElement) {
-            focusBlock(nextBlockElement);
+            if (!isNotEditBlock(nextBlockElement)) {
+                focusBlock(nextBlockElement);
+            } else {
+                focusHR = true;
+            }
         } else {
             html += genEmptyBlock(false, true);
         }
@@ -101,9 +108,9 @@ export const input = async (protyle: IProtyle, blockElement: HTMLElement, range:
             todoOldHTML = blockElement.outerHTML;
         }
     } else {
-        if (editElement.textContent.startsWith("```") || editElement.textContent.startsWith("~~~") || editElement.textContent.startsWith("···") ||
-            editElement.textContent.indexOf("\n```") > -1 || editElement.textContent.indexOf("\n~~~") > -1 || editElement.textContent.indexOf("\n···") > -1) {
-            if (editElement.innerHTML.indexOf("\n") === -1 && editElement.textContent.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") > -1) {
+        if (trimStartText.startsWith("```") || trimStartText.startsWith("~~~") || trimStartText.startsWith("···") ||
+            trimStartText.indexOf("\n```") > -1 || trimStartText.indexOf("\n~~~") > -1 || trimStartText.indexOf("\n···") > -1) {
+            if (trimStartText.indexOf("\n") === -1 && trimStartText.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") > -1) {
                 // ```test` 不处理，正常渲染为段落块
             } else {
                 let replaceInnerHTML = editElement.innerHTML.replace(/^(~|·|`){3,}/g, "```").replace(/\n(~|·|`){3,}/g, "\n```").trim();
@@ -164,6 +171,8 @@ export const input = async (protyle: IProtyle, blockElement: HTMLElement, range:
                 blockRender(protyle, realElement);
                 protyle.toolbar.showRender(protyle, realElement);
                 hideElements(["hint"], protyle);
+            } else if (realType === "NodeThematicBreak" && focusHR) {
+                focusBlock(blockElement);
             } else {
                 mathRender(realElement);
                 if (index === tempElement.content.childElementCount - 1) {

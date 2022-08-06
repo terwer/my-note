@@ -11,7 +11,6 @@ import {transaction, updateTransaction} from "./transaction";
 import {breakList, genListItemElement, listOutdent, updateListOrder} from "./list";
 import {hasClosestByMatchTag} from "../util/hasClosest";
 import {highlightRender} from "../markdown/highlightRender";
-import {setPosition} from "../../util/setPosition";
 import {Constants} from "../../constants";
 import {scrollCenter} from "../../util/highlightById";
 
@@ -186,22 +185,22 @@ const listEnter = (protyle: IProtyle, blockElement: HTMLElement, range: Range) =
 
 export const enter = (blockElement: HTMLElement, range: Range, protyle: IProtyle) => {
     const disableElement = isNotEditBlock(blockElement);
-    if ((!disableElement || blockElement.classList.contains("hr")) && blockElement.classList.contains("protyle-wysiwyg--select")) {
+    if (!disableElement && blockElement.classList.contains("protyle-wysiwyg--select")) {
         setLastNodeRange(getContenteditableElement(blockElement), range, false);
         range.collapse(false);
         blockElement.classList.remove("protyle-wysiwyg--select");
         return;
     }
+    // https://github.com/siyuan-note/siyuan/issues/5471
     if (disableElement) {
-        if (blockElement.classList.contains("render-node")) {
-            protyle.toolbar.showRender(protyle, blockElement);
-        } else if (blockElement.classList.contains("hr")) {
+        if (blockElement.classList.contains("hr")) {
             insertEmptyBlock(protyle, "afterend");
+            return;
+        }
+        if (blockElement.classList.contains("protyle-wysiwyg--select") && blockElement.classList.contains("render-node")) {
+            protyle.toolbar.showRender(protyle, blockElement);
         } else {
-            protyle.gutter.renderMenu(protyle, blockElement);
-            window.siyuan.menus.menu.element.classList.remove("fn__none");
-            const rect = blockElement.getBoundingClientRect();
-            setPosition(window.siyuan.menus.menu.element, rect.left - window.siyuan.menus.menu.element.clientWidth, rect.top);
+            insertEmptyBlock(protyle, "afterend");
         }
         return;
     }
@@ -211,9 +210,10 @@ export const enter = (blockElement: HTMLElement, range: Range, protyle: IProtyle
         item.classList.remove("img--select");
     });
     // 代码块
-    if (editableElement.textContent.startsWith("```") || editableElement.textContent.startsWith("···") || editableElement.textContent.startsWith("~~~") ||
-        editableElement.textContent.indexOf("\n```") > -1 || editableElement.textContent.indexOf("\n~~~") > -1 || editableElement.textContent.indexOf("\n···") > -1) {
-        if (editableElement.innerHTML.indexOf("\n") === -1 && editableElement.textContent.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") > -1) {
+    const trimStartText = editableElement.innerHTML.trimStart();
+    if (trimStartText.startsWith("```") || trimStartText.startsWith("···") || trimStartText.startsWith("~~~") ||
+            trimStartText.indexOf("\n```") > -1 || trimStartText.indexOf("\n~~~") > -1 || trimStartText.indexOf("\n···") > -1) {
+        if (trimStartText.indexOf("\n") === -1 && trimStartText.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") > -1) {
             // ```test` 不处理，正常渲染为段落块
         } else {
             const oldHTML = blockElement.outerHTML;

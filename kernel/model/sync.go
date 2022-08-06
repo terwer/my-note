@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ import (
 	"github.com/88250/gulu"
 	"github.com/dustin/go-humanize"
 	"github.com/siyuan-note/dejavu"
+	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
@@ -55,14 +57,14 @@ func AutoSync() {
 }
 
 func SyncData(boot, exit, byHand bool) {
-	defer util.Recover()
+	defer logging.Recover()
 
 	if !boot && !exit && 2 == Conf.Sync.Mode && !byHand {
 		return
 	}
 
 	if util.IsMutexLocked(&syncLock) {
-		util.LogWarnf("sync is in progress")
+		logging.LogWarnf("sync is in progress")
 		planSyncAfter(30 * time.Second)
 		return
 	}
@@ -90,15 +92,15 @@ func SyncData(boot, exit, byHand bool) {
 	}
 
 	if boot {
-		util.LogInfof("sync before boot")
+		logging.LogInfof("sync before boot")
 	}
 	if exit {
-		util.LogInfof("sync before exit")
+		logging.LogInfof("sync before exit")
 		util.PushMsg(Conf.Language(81), 1000*60*15)
 	}
 
 	if 7 < syncDownloadErrCount && !byHand {
-		util.LogErrorf("sync download error too many times, cancel auto sync, try to sync by hand")
+		logging.LogErrorf("sync download error too many times, cancel auto sync, try to sync by hand")
 		util.PushErrMsg(Conf.Language(125), 1000*60*60)
 		planSyncAfter(64 * time.Minute)
 		return
@@ -108,23 +110,62 @@ func SyncData(boot, exit, byHand bool) {
 	Conf.Sync.Synced = now
 
 	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
-	defer func() {
-		synced := util.Millisecond2Time(Conf.Sync.Synced).Format("2006-01-02 15:04:05") + "\n\n" + Conf.Sync.Stat
-		msg := fmt.Sprintf(Conf.Language(82), synced)
-		Conf.Sync.Stat = msg
-		Conf.Save()
-		util.BroadcastByType("main", "syncing", 1, msg, nil)
-	}()
-
-	syncRepo(boot, exit, byHand)
+	err := syncRepo(boot, exit, byHand)
+	synced := util.Millisecond2Time(Conf.Sync.Synced).Format("2006-01-02 15:04:05") + "\n\n"
+	if nil == err {
+		synced += Conf.Sync.Stat
+	} else {
+		synced += fmt.Sprintf(Conf.Language(80), err)
+	}
+	msg := fmt.Sprintf(Conf.Language(82), synced)
+	Conf.Sync.Stat = msg
+	Conf.Save()
+	util.BroadcastByType("main", "syncing", 1, msg, nil)
 	return
 }
 
 // incReindex 增量重建索引。
 func incReindex(upserts, removes []string) {
-	needPushUpsertProgress := 32 < len(upserts)
+	util.IncBootProgress(3, "Sync reindexing...")
 	needPushRemoveProgress := 32 < len(removes)
+	needPushUpsertProgress := 32 < len(upserts)
+	msg := fmt.Sprintf(Conf.Language(35))
+	util.PushStatusBar(msg)
+	if needPushRemoveProgress || needPushUpsertProgress {
+		util.PushEndlessProgress(msg)
+	}
 
+	logging.LogDebugf("sync reindex [upserts=%d, removes=%d]", len(upserts), len(removes))
+
+	// 先执行 remove，否则移动文档时 upsert 会被忽略，导致未被索引
+	bootProgressPart := 10 / float64(len(removes))
+	for _, removeFile := range removes {
+		if !strings.HasSuffix(removeFile, ".sy") {
+			continue
+		}
+
+		id := strings.TrimSuffix(filepath.Base(removeFile), ".sy")
+		block := treenode.GetBlockTree(id)
+		if nil != block {
+			msg = fmt.Sprintf(Conf.Language(39), block.RootID)
+			util.IncBootProgress(bootProgressPart, msg)
+			util.PushStatusBar(msg)
+			if needPushRemoveProgress {
+				util.PushEndlessProgress(msg)
+			}
+
+			treenode.RemoveBlockTreesByRootID(block.RootID)
+			sql.RemoveTreeQueue(block.BoxID, block.RootID)
+		}
+	}
+
+	msg = fmt.Sprintf(Conf.Language(35))
+	util.PushStatusBar(msg)
+	if needPushRemoveProgress || needPushUpsertProgress {
+		util.PushEndlessProgress(msg)
+	}
+
+	bootProgressPart = 10 / float64(len(upserts))
 	for _, upsertFile := range upserts {
 		if !strings.HasSuffix(upsertFile, ".sy") {
 			continue
@@ -142,38 +183,24 @@ func incReindex(upserts, removes []string) {
 
 		box := upsertFile[:idx]
 		p := strings.TrimPrefix(upsertFile, box)
+		msg = fmt.Sprintf(Conf.Language(40), strings.TrimSuffix(path.Base(p), ".sy"))
+		util.IncBootProgress(bootProgressPart, msg)
+		util.PushStatusBar(msg)
+		if needPushUpsertProgress {
+			util.PushEndlessProgress(msg)
+		}
+
 		tree, err0 := LoadTree(box, p)
 		if nil != err0 {
 			continue
 		}
 		treenode.ReindexBlockTree(tree)
 		sql.UpsertTreeQueue(tree)
-		msg := fmt.Sprintf("Sync reindex tree [%s]", tree.ID)
-		util.PushStatusBar(msg)
-		if needPushUpsertProgress {
-			util.PushEndlessProgress(msg)
-		}
-	}
-	for _, removeFile := range removes {
-		if !strings.HasSuffix(removeFile, ".sy") {
-			continue
-		}
-
-		id := strings.TrimSuffix(filepath.Base(removeFile), ".sy")
-		block := treenode.GetBlockTree(id)
-		if nil != block {
-			treenode.RemoveBlockTreesByRootID(block.RootID)
-			sql.RemoveTreeQueue(block.BoxID, block.RootID)
-			msg := fmt.Sprintf("Sync remove tree [%s]", block.RootID)
-			util.PushStatusBar(msg)
-			if needPushRemoveProgress {
-				util.PushEndlessProgress(msg)
-			}
-		}
 	}
 
+	util.PushStatusBar(Conf.Language(58))
 	if needPushRemoveProgress || needPushUpsertProgress {
-		util.PushClearProgress()
+		util.PushEndlessProgress(Conf.Language(58))
 	}
 }
 
@@ -230,6 +257,8 @@ func CreateCloudSyncDir(name string) (err error) {
 }
 
 func RemoveCloudSyncDir(name string) (err error) {
+	msgId := util.PushMsg(Conf.Language(116), 15000)
+
 	syncLock.Lock()
 	defer syncLock.Unlock()
 
@@ -245,9 +274,12 @@ func RemoveCloudSyncDir(name string) (err error) {
 
 	err = dejavu.RemoveCloudRepo(name, cloudInfo)
 	if nil != err {
+		err = errors.New(formatErrorMsg(err))
 		return
 	}
 
+	util.PushClearMsg(msgId)
+	time.Sleep(500 * time.Millisecond)
 	if Conf.Sync.CloudName == name {
 		Conf.Sync.CloudName = "main"
 		Conf.Save()
@@ -286,13 +318,26 @@ func ListCloudSyncDir() (syncDirs []*Sync, hSize string, err error) {
 }
 
 func formatErrorMsg(err error) string {
+	if errors.Is(err, dejavu.ErrCloudAuthFailed) {
+		return Conf.Language(31) + " v" + util.Ver
+	}
+
 	msg := err.Error()
-	if strings.Contains(msg, "Permission denied") || strings.Contains(msg, "Access is denied") {
+	msgLowerCase := strings.ToLower(msg)
+	if strings.Contains(msgLowerCase, "permission denied") || strings.Contains(msg, "access is denied") {
 		msg = Conf.Language(33) + " " + err.Error()
-	} else if strings.Contains(msg, "Device or resource busy") {
-		msg = Conf.Language(85) + " " + err.Error()
-	} else if strings.Contains(msg, "cipher: message authentication failed") {
-		msg = Conf.Language(172) + " " + err.Error()
+	} else if strings.Contains(msgLowerCase, "device or resource busy") || strings.Contains(msg, "is being used by another") {
+		msg = fmt.Sprintf(Conf.Language(85), err)
+	} else if strings.Contains(msgLowerCase, "cipher: message authentication failed") {
+		msg = Conf.Language(135)
+	} else if strings.Contains(msgLowerCase, "repo fatal error") {
+		msg = Conf.Language(23) + " " + err.Error()
+	} else if strings.Contains(msgLowerCase, "no such host") || strings.Contains(msgLowerCase, "connection failed") || strings.Contains(msgLowerCase, "hostname resolution") {
+		msg = Conf.Language(24)
+	} else if strings.Contains(msgLowerCase, "net/http: request canceled while waiting for connection") || strings.Contains(msgLowerCase, "exceeded while awaiting") || strings.Contains(msgLowerCase, "context deadline exceeded") {
+		msg = Conf.Language(24)
+	} else if strings.Contains(msgLowerCase, "cloud object not found") {
+		msg = Conf.Language(129)
 	}
 	msg = msg + " v" + util.Ver
 	return msg
@@ -324,13 +369,13 @@ func getIgnoreLines() (ret []string) {
 	}
 	if !gulu.File.IsExist(ignore) {
 		if err = gulu.File.WriteFileSafer(ignore, nil, 0644); nil != err {
-			util.LogErrorf("create syncignore [%s] failed: %s", ignore, err)
+			logging.LogErrorf("create syncignore [%s] failed: %s", ignore, err)
 			return
 		}
 	}
 	data, err := os.ReadFile(ignore)
 	if nil != err {
-		util.LogErrorf("read syncignore [%s] failed: %s", ignore, err)
+		logging.LogErrorf("read syncignore [%s] failed: %s", ignore, err)
 		return
 	}
 	dataStr := string(data)
@@ -378,7 +423,7 @@ func stableCopy(src, dest string) (err error) {
 			strings.Contains(err.Error(), "exit status 7") {
 			return nil
 		}
-		util.LogErrorf("robocopy data from [%s] to [%s] failed: %s %s", src, dest, string(output), err)
+		logging.LogErrorf("robocopy data from [%s] to [%s] failed: %s %s", src, dest, string(output), err)
 	}
 	return gulu.File.Copy(src, dest)
 }

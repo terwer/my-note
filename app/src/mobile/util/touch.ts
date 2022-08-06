@@ -9,7 +9,13 @@ const forwardStack: IBackStack[] = [];
 let previousIsBack = false;
 
 export const handleTouchEnd = () => {
-    if (!clientX || !clientY) return;
+    if (window.siyuan.mobileEditor) {
+        window.siyuan.mobileEditor.protyle.breadcrumb.show();
+    }
+
+    if (!clientX || !clientY || navigator.userAgent.indexOf("iPhone") === -1) {
+        return;
+    }
 
     if (Math.abs(xDiff) > Math.abs(yDiff) && Math.abs(xDiff) > window.innerWidth / 2) {
         if (xDiff > 0) {
@@ -23,7 +29,7 @@ export const handleTouchEnd = () => {
             const item = forwardStack.pop();
             item.scrollTop = window.siyuan.mobileEditor.protyle.contentElement.scrollTop;
             window.siyuan.backStack.push(item);
-            openMobileFileById(item.id, item.hasContext, item.callback, false);
+            openMobileFileById(item.id, item.callback, false);
             setTimeout(() => {
                 window.siyuan.mobileEditor.protyle.contentElement.scrollTo({
                     top: window.siyuan.backStack[window.siyuan.backStack.length - 2]?.scrollTop || 0,
@@ -43,7 +49,7 @@ export const handleTouchEnd = () => {
             const item = window.siyuan.backStack.pop();
             item.scrollTop = window.siyuan.mobileEditor.protyle.contentElement.scrollTop;
             forwardStack.push(item);
-            openMobileFileById(item.id, item.hasContext, item.callback, false);
+            openMobileFileById(item.id, item.callback, false);
             setTimeout(() => {
                 window.siyuan.mobileEditor.protyle.contentElement.scrollTo({
                     top: forwardStack[forwardStack.length - 2]?.scrollTop || 0,
