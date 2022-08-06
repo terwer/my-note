@@ -1,5 +1,6 @@
 name: Release Docker Image
 
+# token验证有问题，先取消
 # 标签推送触发
 on:
   push:
