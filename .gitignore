@@ -24,6 +24,7 @@ electron/dist
 
 # IDE
 .idea/
+*.iml
 
 # Log
 logs
@@ -37,3 +38,6 @@ lerna-debug.log*
 # package
 package-lock.json
 yarn.lock
+
+# workspace
+workspace/
