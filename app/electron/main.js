@@ -405,10 +405,10 @@ const initKernel = (workspace, lang) => {
       },
     })
 
-    const kernelName = 'win32' === process.platform ? 'SiYuan-Kernel.exe' : 'SiYuan_Kernel'
+    const kernelName = 'win32' === process.platform ? 'SiYuan-Kernel.exe' : 'SiYuan-Kernel'
     let kernelPath = path.join(appDir, 'kernel', kernelName)
     if (!fs.existsSync(kernelPath)) {
-      kernelPath = path.join(appDir, 'kernel', "SiYuan-Kernel")
+      kernelPath = path.join(appDir, 'kernel', "SiYuan_Kernel")
     }
     if (!fs.existsSync(kernelPath)) {
       showErrorWindow('⚠️ 内核文件丢失 Kernel is missing',
