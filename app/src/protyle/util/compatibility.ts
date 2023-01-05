@@ -139,7 +139,7 @@ export const hotKey2Electron = (key: string) => {
     return electronKey + key.substr(key.length - 1);
 };
 
-export const getLocalStorage = () => {
+export const getLocalStorage = (cb:()=>void) => {
     fetchPost("/api/storage/getLocalStorage", undefined, (response) => {
         window.siyuan.storage = response.data;
         // 历史数据迁移
@@ -149,7 +149,10 @@ export const getLocalStorage = () => {
             replaceKeys: [],
             col: "",
             row: "",
-            layout: 0
+            layout: 0,
+            colTab: "",
+            rowTab: "",
+            layoutTab: 0
         };
         defaultStorage[Constants.LOCAL_PDFTHEME] = {light: "light", dark: "dark"};
         defaultStorage[Constants.LOCAL_BAZAAR] = {
@@ -209,6 +212,7 @@ export const getLocalStorage = () => {
                 window.siyuan.storage[key] = defaultStorage[key];
             }
         });
+        cb();
     });
 };
 
