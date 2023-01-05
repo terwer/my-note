@@ -658,12 +658,14 @@ app.whenReady().then(() => {
   ipcMain.on('siyuan-export-close', (event, id) => {
     BrowserWindow.fromId(id).webContents.send('siyuan-export-close', data)
   })
-  ipcMain.on('siyuan-quit', (id) => {
+  ipcMain.on('siyuan-quit', (event, id) => {
     const mainWindow = BrowserWindow.fromId(id)
     let tray
     workspaces.find((item, index) => {
       if (item.id === id) {
-        mainWindow.destroy()
+        if (workspaces.length > 1) {
+          mainWindow.destroy()
+        }
         tray = item.tray
         workspaces.splice(index, 1)
         return true
@@ -831,9 +833,11 @@ app.on('second-instance', (event, commandLine) => {
 })
 
 app.on('activate', () => {
-  const mainWindow = workspaces[0].browserWindow
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show()
+  if (workspaces.length > 0) {
+    const mainWindow = workspaces[0].browserWindow
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show()
+    }
   }
   if (BrowserWindow.getAllWindows().length === 0) {
     boot()
