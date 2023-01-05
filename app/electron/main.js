@@ -389,6 +389,7 @@ const initKernel = (workspace, lang) => {
         server.close(() => resolve(port))
       }).listen(port, '127.0.0.1'))
     }
+
     kernelPort = await getAvailablePort()
     writeLog('got kernel available port [' + kernelPort + ']')
     return kernelPort
@@ -443,7 +444,7 @@ const initKernel = (workspace, lang) => {
       writeLog('booted kernel process [pid=' + kernelProcessPid + ']')
 
       kernelProcess.on('close', (code) => {
-        writeLog(`kernel exited with code [${code}]`)
+        writeLog(`kernel [pid=${kernelProcessPid}, port=${availablePort}] exited with code [${code}]`)
         if (0 !== code) {
           switch (code) {
             case 20:
