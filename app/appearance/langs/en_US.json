@@ -1,4 +1,9 @@
 {
+  "workspaceList": "Workspaces",
+  "openWorkspace": "Open Workspace",
+  "openedWorkspace": "Opened Workspaces",
+  "removeWorkspaceTip": "The workspace cannot be recovered after being deleted, are you sure to delete it?",
+  "new": "New",
   "share2LiandiConfirmTip": "Are you sure to share this document to Liandi?",
   "share2Liandi": "Share to Liandi",
   "noDueCard": "\uD83D\uDD2E Great job! There are no more review tasks at the moment, check back later!",
@@ -11,6 +16,7 @@
   "recentDocs": "Recently opened documents",
   "autoLaunch": "Automatic launch at boot",
   "autoLaunchTip": "After enabling, the application will be automatically launched after logging into the operating system",
+  "sortByContent": "Original content order",
   "sortByRankDesc": "Relevance DESC",
   "sortByRankAsc": "Relevance ASC",
   "saveCriterion": "Save named criterion",
@@ -41,6 +47,8 @@
   "microphoneNotAccess": "Access to the microphone is denied, go to System Preferences to reset",
   "dynamicLoadBlocks": "Number of dynamically loaded blocks",
   "dynamicLoadBlocksTip": "This value contains the number of subblocks. If there are many code blocks, formula blocks or chart blocks that need to be rendered, it is recommended not to set too large",
+  "backlinkExpand": "Default expansion number of backlink panel",
+  "backlinkExpandTip": "If configured as <code class='fn__code'>0</code>, it will not be expanded",
   "googleAnalytics": "Google Analytics",
   "googleAnalyticsTip": "After enabling, usage will be counted through <a href=\"https://analytics.google.com/\" target=\"_blank\">Google Analytics</a> so that developers can improve the product user experience",
   "floatWindowMode": "Hover to display a floating window",
@@ -178,7 +186,7 @@
   "exportPDF3": "Page Scale",
   "exportPDF4": "Remove assets directory",
   "exportPDF5": "Keep folded",
-  "exportPDF6": "Fusionar subdocumentos",
+  "exportPDF6": "Merge subdocuments",
   "upload": "Upload",
   "reminderTip": "The reminder time cannot be less than the current time",
   "wechatTip": "The content block will be sent to the cloud in clear text, and pushed through the WeChat MP template message when it expires",
@@ -745,8 +753,6 @@
   "about4": "Open browser",
   "about5": "Access Authorization Code",
   "about6": "After configuration, it will be used as the access authentication password, leave it blank to close the authentication",
-  "about7": "Workspace dir",
-  "about8": "After the workspace is switched, the data in the current workspace will not be copied to the target workspace<br>If you need to copy data, please manually copy the current workspace <code class='fn__code'>data</code> folder on the file system to the target workspace<br>The application will be closed automatically after modification, please restart manually",
   "about9": "Automatically upload error messages and diagnostic data",
   "about10": "After enabling, it will automatically upload error information and diagnostic data through the <a href=\"https://sentry.io\" target=\"_blank\">Sentry</a> SDK, which does not involve personal privacy data so that developers can fix bugs. The application will be closed automatically after modification, please restart manually",
   "about11": "Network serving",
@@ -1048,6 +1054,7 @@
     "179": "The disk space may be insufficient. It is recommended to keep the free space of the disk where the workspace is located at more than twice the size of data",
     "180": "Search content block does not exist",
     "181": "The document has been shared to Liandi, <a href=\"%s\" target=\"_blank\">click to view</a>",
-    "182": "Sharing document, please wait..."
+    "182": "Sharing document, please wait...",
+    "183": "Validating index document tree [%d/%d %s]"
   }
 }

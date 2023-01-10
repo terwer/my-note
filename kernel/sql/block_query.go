@@ -581,6 +581,38 @@ func GetBlock(id string) (ret *Block) {
 	return
 }
 
+func GetRootUpdated() (ret map[string]string, err error) {
+	rows, err := query("SELECT root_id, updated FROM blocks WHERE type = 'd'")
+	if nil != err {
+		logging.LogErrorf("sql query failed: %s", err)
+		return
+	}
+	defer rows.Close()
+
+	ret = map[string]string{}
+	for rows.Next() {
+		var rootID, updated string
+		rows.Scan(&rootID, &updated)
+		ret[rootID] = updated
+	}
+	return
+}
+
+func GetDuplicatedRootIDs() (ret []string) {
+	rows, err := query("SELECT DISTINCT root_id FROM blocks GROUP BY id HAVING COUNT(*) > 1")
+	if nil != err {
+		logging.LogErrorf("sql query failed: %s", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		ret = append(ret, id)
+	}
+	return
+}
+
 func GetAllRootBlocks() (ret []*Block) {
 	stmt := "SELECT * FROM blocks WHERE type = 'd'"
 	rows, err := query(stmt)

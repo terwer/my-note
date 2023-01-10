@@ -1,4 +1,9 @@
 {
+  "workspaceList": "Espaces de travail",
+  "openWorkspace": "Ouvrir l'espace de travail",
+  "openedWorkspace": "Espace de travail ouvert",
+  "removeWorkspaceTip": "L'espace de travail ne peut pas être récupéré après avoir été supprimé, êtes-vous sûr de le supprimer ?",
+  "new": "Nouveau",
   "share2LiandiConfirmTip": "Êtes-vous sûr de partager ce document avec Liandi ?",
   "share2Liandi": "Partager avec Liandi",
   "noDueCard": "\uD83D\uDD2E Excellent travail ! Il n'y a plus de tâches de révision pour le moment, revenez plus tard !",
@@ -11,6 +16,7 @@
   "recentDocs": "Documents récemment ouverts",
   "autoLaunch": "Lancement automatique au démarrage",
   "autoLaunchTip": "Après l'activation, l'application sera automatiquement lancée après la connexion au système d'exploitation",
+  "sortByContent": "Ordre du contenu original",
   "sortByRankDesc": "DESC de pertinence",
   "sortByRankAsc": "ASC de pertinence",
   "saveCriterion": "Enregistrer le critère nommé",
@@ -41,6 +47,8 @@
   "microphoneNotAccess": "L'accès au microphone est refusé, allez dans les Préférences Système pour réinitialiser",
   "dynamicLoadBlocks": "Nombre de blocs chargés dynamiquement",
   "dynamicLoadBlocksTip": "Cette valeur contient le nombre de sous-blocs. S'il y a beaucoup de blocs de code, de blocs de formule ou de blocs de graphique qui doivent être rendus, il est recommandé de ne pas définir trop grand",
+  "backlinkExpand": "Numéro d'extension par défaut du panneau de backlink",
+  "backlinkExpandTip": "Si configuré comme <code class='fn__code'>0</code>, il ne sera pas développé",
   "googleAnalytics": "Google Analytics",
   "googleAnalyticsTip": "Après l'activation, l'utilisation sera comptabilisée via <a href=\"https://analytics.google.com/\" target=\"_blank\">Google Analytics</a> afin que les développeurs puissent améliorer l'expérience utilisateur du produit.",
   "floatWindowMode": "Survolez pour afficher une fenêtre flottante",
@@ -745,8 +753,6 @@
   "about4": "Ouvrir le navigateur",
   "about5": "Accès Code d'autorisation",
   "about6": "Configuré comme mot de passe d'authentification d'accès, laisser vide pour désactiver l'authentification.",
-  "about7": "Répertoire de l'espace de travail",
-  "about8": "Une fois l'espace de travail basculé, les données de l'espace de travail actuel ne seront pas copiées dans l'espace de travail cible<br>Si vous devez copier des données, veuillez copier manuellement le dossier <code class='fn__code'>data</code> de l'espace de travail actuel sur le système de fichiers vers l'espace de travail cible<br>L'application se fermera automatiquement après modification, merci de redémarrer manuellement",
   "about9": "Télécharger automatiquement les messages d'erreur et les données de diagnostic",
   "about10": "Après l'activation, il télécharge automatiquement les informations d'erreur et les données de diagnostic via le SDK <a href=\"https://sentry.io\" target=\"_blank\">Sentry</a>, qui n'implique pas de données de confidentialité personnelles afin que les développeurs peut corriger des bogues.  L'application sera fermée automatiquement après modification, veuillez la redémarrer manuellement.",
   "about11": "Service de réseau",
@@ -1048,6 +1054,7 @@
     "179": "L'espace disque peut être insuffisant. Il est recommandé de conserver l'espace libre du disque où se trouve l'espace de travail à plus de deux fois la taille des données",
     "180": "Le bloc de contenu de recherche n'existe pas",
     "181": "Le document a été partagé avec Liandi, <a href=\"%s\" target=\"_blank\">cliquez pour afficher</a>",
-    "182": "Partage du document, veuillez patienter..."
+    "182": "Partage du document, veuillez patienter...",
+    "183": "Validation de l'arborescence du document d'index [%d/%d %s]"
   }
 }

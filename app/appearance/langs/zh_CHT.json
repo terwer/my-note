@@ -1,4 +1,9 @@
 {
+  "workspaceList": "工作空間列表",
+  "openWorkspace": "打開工作空間",
+  "openedWorkspace": "已打開的工作空間",
+  "removeWorkspaceTip": "刪除工作空間後無法恢復，確定刪除嗎？",
+  "new": "新建",
   "share2LiandiConfirmTip": "確定將該文檔分享到鏈滴嗎？",
   "share2Liandi": "分享到鏈滴",
   "noDueCard": "\uD83D\uDD2E 幹得漂亮！目前已經沒有更多複習任務，過一會再來看看吧！",
@@ -11,6 +16,7 @@
   "recentDocs": "最近打開的文檔",
   "autoLaunch": "開機自動啟動",
   "autoLaunchTip": "啟用後會在登錄操作系統後自動啟動應用",
+  "sortByContent": "按原文內容順序",
   "sortByRankDesc": "按相關度降序",
   "sortByRankAsc": "按相關度升序",
   "saveCriterion": "保存命名查詢",
@@ -41,6 +47,8 @@
   "microphoneNotAccess": "麥克風被拒絕訪問，可前往系統偏好設置中重新設置",
   "dynamicLoadBlocks": "動態載入塊數",
   "dynamicLoadBlocksTip": "該值包含了子塊數。如果需要渲染的代碼塊、公式塊或圖表塊較多，建議不要設置過大",
+  "backlinkExpand": "反鏈面板默認展開數",
+  "backlinkExpandTip": "配置為 <code class='fn__code'>0</code> 則不展開",
   "googleAnalytics": "Google Analytics",
   "googleAnalyticsTip": "啟用後會通過 <a href=\"https://analytics.google.com/\" target=\"_blank\">Google Analytics</a> 統計使用情況，以便開發者提升產品使用體驗",
   "floatWindowMode": "懸停出現浮窗",
@@ -745,8 +753,6 @@
   "about4": "打開瀏覽器",
   "about5": "存取授權碼",
   "about6": "配置後作為存取鑒權密碼，留空則關閉鑒權",
-  "about7": "工作空間目錄",
-  "about8": "切換工作空間後不會將當前工作空間的數據複製到目標工作空間中<br>如果需要復制數據，請手動在文件系統上將當前工作空間 <code class='fn__code'>data</code> 文件夾拷貝到目標工作空間下<br>修改後會自動關閉應用，請手動重啟",
   "about9": "自動上傳報錯信息和診斷數據",
   "about10": "啟用後會通過 <a href=\"https://sentry.io\" target=\"_blank\">Sentry</a> SDK 自動上傳報錯信息和診斷數據等不涉及個人隱私的數據，以便開發者修復缺陷。修改後會自動關閉應用，請手動重啟",
   "about11": "網路伺服",
@@ -1048,6 +1054,7 @@
     "179": "磁碟空間可能不足，建議保持工作空間所在磁碟可用空間為 data 大小的 2 倍以上",
     "180": "不存在符合條件的內容塊",
     "181": "已分享文檔到鏈滴，<a href=\"%s\" target=\"_blank\">點擊查看</a>",
-    "182": "正在分享文檔，請稍等..."
+    "182": "正在分享文檔，請稍等...",
+    "183": "正在校驗索引文檔樹 [%d/%d %s]"
   }
 }
