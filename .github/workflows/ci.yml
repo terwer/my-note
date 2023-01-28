@@ -2,8 +2,11 @@ name: CI/CD For SiYuan
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
 
