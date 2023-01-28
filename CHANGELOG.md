@@ -1,3 +1,82 @@
+## v2.7.0 / 2023-01-17
+
+### 引入特性
+
+* [分享文档到链滴](https://github.com/siyuan-note/siyuan/issues/2004)
+* [桌面端支持搜索图片 OCR 文本](https://github.com/siyuan-note/siyuan/issues/3470)
+* [支持链滴积分兑换扩容云端存储](https://github.com/siyuan-note/siyuan/issues/7055)
+
+### 改进功能
+
+* [为桌面端窗口标题栏添加应用图标](https://github.com/siyuan-note/siyuan/pull/7032)
+* [顶栏工作空间、外观模式和状态栏帮助菜单二次点击收回](https://github.com/siyuan-note/siyuan/issues/7036)
+* [`Alt+N` 锁屏调整为全局快捷键](https://github.com/siyuan-note/siyuan/issues/7042)
+* [初次启动选择工作空间后不再创建 `SiYuan` 这一层文件夹](https://github.com/siyuan-note/siyuan/issues/7044)
+* [改进块聚焦和只读模式情况下的提示](https://github.com/siyuan-note/siyuan/issues/7047)
+* [PDF 预览页面点击链接后应打开浏览器](https://github.com/siyuan-note/siyuan/issues/7054)
+* [优化窗口最小时设置、模版和资源的界面](https://github.com/siyuan-note/siyuan/issues/7056)
+* [桌面端快捷方式工作空间参数 `--workspace` 变更](https://github.com/siyuan-note/siyuan/issues/7070)
+* [改进主界面菜单和功能入口布局](https://github.com/siyuan-note/siyuan/issues/7071)
+* [无动态滚动时应保持编辑器滚动的流畅性](https://github.com/siyuan-note/siyuan/issues/7072)
+* [支持多级菜单及菜单滚动](https://github.com/siyuan-note/siyuan/issues/7075)
+* [标签右键增加操作菜单](https://github.com/siyuan-note/siyuan/issues/7078)
+* [初次安装完浏览器剪藏扩展后提示刷新页面](https://github.com/siyuan-note/siyuan/issues/7079)
+* [编辑器宽度改变后需保持光标位置在可视区域内](https://github.com/siyuan-note/siyuan/issues/7080)
+* [支持通过 URL 查询字符串参数 `id` 和 `focus` 跳转到 Web 端指定块](https://github.com/siyuan-note/siyuan/pull/7086)
+* [数据仓库迁出时忽略 `.tmp` 临时文件](https://github.com/siyuan-note/siyuan/issues/7087)
+* [桌面端快捷方式支持 `--port` 启动参数](https://github.com/siyuan-note/siyuan/issues/7092)
+
+### 开发重构
+
+* [改进 `getSearch` 函数实现](https://github.com/siyuan-note/siyuan/pull/7089)
+
+### 修复缺陷
+
+* [反链面板 `链接` 子面板收起后 `提及` 子面板未显示内容](https://github.com/siyuan-note/siyuan/issues/7029)
+* [桌面端删除当前工作空间后报错](https://github.com/siyuan-note/siyuan/issues/7035)
+* [多开工作空间 `锁屏` 后访问鉴权失败](https://github.com/siyuan-note/siyuan/issues/7038)
+* [文档标题输入时右键粘贴无效](https://github.com/siyuan-note/siyuan/issues/7045)
+* [调用模板时模板名首字符乱码](https://github.com/siyuan-note/siyuan/issues/7049)
+* [搜索高亮和虚拟引用不需要转义 Markdown 标记符](https://github.com/siyuan-note/siyuan/issues/7051)
+* [多个桌面端快捷方式指定不同的 `--workspace` 参数后无法启动多个工作空间](https://github.com/siyuan-note/siyuan/issues/7059)
+* [工作空间列表中出现多个相同的路径](https://github.com/siyuan-note/siyuan/issues/7061)
+* [特定情况下块首删除会移除整个块](https://github.com/siyuan-note/siyuan/issues/7066)
+* [三击后快速 `Alt+D` 可能导致块显示异常](https://github.com/siyuan-note/siyuan/issues/7068)
+* [特殊情况下浮窗会消失](https://github.com/siyuan-note/siyuan/issues/7081)
+* [按住 Ctrl 拖拽反链的块到文档中触发状态异常](https://github.com/siyuan-note/siyuan/issues/7088)
+
+## v2.6.3 / 2023-01-11
+
+### 改进功能
+
+* [PDF 画框复制标注带截图](https://github.com/siyuan-note/siyuan/issues/2952)
+* [桌面端支持工作空间多开](https://github.com/siyuan-note/siyuan/issues/4567)
+* [移动端支持切换工作空间](https://github.com/siyuan-note/siyuan/issues/4642)
+* [反链面板默认展开](https://github.com/siyuan-note/siyuan/issues/6083)
+* [搜索框和搜索页签布局分开保存](https://github.com/siyuan-note/siyuan/issues/6984)
+* [`上传资源文件到图床` 每次都全量上传刷新 CDN](https://github.com/siyuan-note/siyuan/issues/6985)
+* [Mermaid 时序图增加序号](https://github.com/siyuan-note/siyuan/pull/6992)
+* [改进桌面端拉起内核](https://github.com/siyuan-note/siyuan/issues/6996)
+* [拖拽 PDF 到页签上无法保存滚动位置](https://github.com/siyuan-note/siyuan/issues/7000)
+* [桌面端内核进程根据 Electron 主进程判断是否自动退出](https://github.com/siyuan-note/siyuan/issues/7002)
+* [改进界面缩放](https://github.com/siyuan-note/siyuan/issues/7003)
+* [剪藏支持知乎链接卡片](https://github.com/siyuan-note/siyuan/issues/7011)
+* [自动校验数据库索引](https://github.com/siyuan-note/siyuan/issues/7016)
+* [桌面端工作空间切换从 设置 - 关于 中移动到顶栏](https://github.com/siyuan-note/siyuan/issues/7017)
+* [改进重建索引](https://github.com/siyuan-note/siyuan/issues/7018)
+* [改进 Edge 浏览器 `Web 选择` 复制](https://github.com/siyuan-note/siyuan/issues/7021)
+* [升级 Mermaid 到 9.3.0](https://github.com/siyuan-note/siyuan/issues/7024)
+* [统一块超链接点击和右键打开行为](https://github.com/siyuan-note/siyuan/issues/7026)
+* [改进 `/模板` 搜索排序](https://github.com/siyuan-note/siyuan/issues/7027)
+* [反链面板支持过滤关键字高亮](https://github.com/siyuan-note/siyuan/issues/7028)
+
+### 修复缺陷
+
+* [搜索高亮超链接锚文本后预览窗口修改导致地址失效](https://github.com/siyuan-note/siyuan/issues/6982)
+* [搜索指定路径参数解析异常](https://github.com/siyuan-note/siyuan/issues/6983)
+* [localStorage 请求顺序异常导致图标无法加载](https://github.com/siyuan-note/siyuan/issues/6986)
+* [图片元素解析错误触发状态异常](https://github.com/siyuan-note/siyuan/issues/6989)
+
 ## v2.6.2 / 2023-01-03
 
 ### 改进功能

@@ -24,6 +24,7 @@ import {getCurrentWindow, systemPreferences} from "@electron/remote";
 import {onGet} from "../util/onGet";
 import {saveScroll} from "../scroll/saveScroll";
 import {hideElements} from "../ui/hideElements";
+import {confirmDialog} from "../../dialog/confirmDialog";
 
 export class Breadcrumb {
     public element: HTMLElement;
@@ -34,12 +35,15 @@ export class Breadcrumb {
     constructor(protyle: IProtyle) {
         const element = document.createElement("div");
         element.className = "protyle-breadcrumb";
+        const isFocus = protyle.options.action.includes(Constants.CB_GET_ALL);
         let html = `<div class="protyle-breadcrumb__bar"></div>
 <span class="protyle-breadcrumb__space"></span>
-<button class="b3-tooltips b3-tooltips__w block__icon fn__flex-center" style="opacity: 1;" data-menu="true" aria-label="${window.siyuan.languages.more}"><svg><use xlink:href="#iconMore"></use></svg></button>`;
+<button class="block__icon block__icon--show ft__smaller fn__flex-center${isFocus ? "" : " fn__none"}" style="line-height: 14px" data-type="exit-focus">${window.siyuan.languages.exitFocus}</button>
+<span class="fn__space${isFocus ? "" : " fn__none"}"></span>
+<button class="b3-tooltips b3-tooltips__w block__icon block__icon--show fn__flex-center" data-menu="true" aria-label="${window.siyuan.languages.more}"><svg><use xlink:href="#iconMore"></use></svg></button>`;
         if (protyle.options.render.breadcrumbContext) {
             html += `<span class="fn__space"></span>
-<div class="b3-tooltips b3-tooltips__w block__icon fn__flex-center" style="opacity: 1;" data-type="context" aria-label="${window.siyuan.languages.context}"><svg><use xlink:href="#iconAlignCenter"></use></svg></div>`;
+<div class="b3-tooltips b3-tooltips__w block__icon block__icon--show fn__flex-center" data-type="context" aria-label="${window.siyuan.languages.context}"><svg><use xlink:href="#iconAlignCenter"></use></svg></div>`;
         }
         element.innerHTML = html;
         this.element = element.firstElementChild as HTMLElement;
@@ -62,6 +66,10 @@ export class Breadcrumb {
                         x: event.clientX,
                         y: event.clientY
                     });
+                    event.preventDefault();
+                    break;
+                } else if (target.getAttribute("data-type") === "exit-focus") {
+                    zoomOut(protyle, protyle.block.rootID);
                     event.preventDefault();
                     break;
                 } else if (target.getAttribute("data-type") === "context") {
@@ -231,32 +239,6 @@ export class Breadcrumb {
             }
             if (!protyle.disabled) {
                 window.siyuan.menus.menu.append(new MenuItem({
-                    label: window.siyuan.languages.uploadAssets2CDN,
-                    icon: "iconCloud",
-                    click() {
-                        if (!needSubscribe()) {
-                            fetchPost("/api/asset/uploadCloud", {id: protyle.block.parentID});
-                        }
-                    }
-                }).element);
-                window.siyuan.menus.menu.append(new MenuItem({
-                    label: window.siyuan.languages.netImg2LocalAsset,
-                    icon: "iconTransform",
-                    accelerator: window.siyuan.config.keymap.editor.general.netImg2LocalAsset.custom,
-                    click() {
-                        netImg2LocalAssets(protyle);
-                    }
-                }).element);
-                if (!needSubscribe("")) {
-                    window.siyuan.menus.menu.append(new MenuItem({
-                        label: window.siyuan.languages.share2Liandi,
-                        icon: "iconLiandi",
-                        click() {
-                            fetchPost("/api/export/export2Liandi", {id: protyle.block.parentID});
-                        }
-                    }).element);
-                }
-                window.siyuan.menus.menu.append(new MenuItem({
                     label: window.siyuan.languages.optimizeTypography,
                     icon: "iconFormat",
                     click: () => {
@@ -288,6 +270,36 @@ export class Breadcrumb {
                         });
                     }
                 }).element);
+                window.siyuan.menus.menu.append(new MenuItem({
+                    label: window.siyuan.languages.netImg2LocalAsset,
+                    icon: "iconTransform",
+                    accelerator: window.siyuan.config.keymap.editor.general.netImg2LocalAsset.custom,
+                    click() {
+                        netImg2LocalAssets(protyle);
+                    }
+                }).element);
+                window.siyuan.menus.menu.append(new MenuItem({
+                    label: window.siyuan.languages.uploadAssets2CDN,
+                    icon: "iconCloud",
+                    click() {
+                        if (!needSubscribe()) {
+                            confirmDialog("📦 " + window.siyuan.languages.uploadAssets2CDN, window.siyuan.languages.uploadAssets2CDNConfirmTip, () => {
+                                fetchPost("/api/asset/uploadCloud", {id: protyle.block.parentID});
+                            });
+                        }
+                    }
+                }).element);
+                if (!needSubscribe("")) {
+                    window.siyuan.menus.menu.append(new MenuItem({
+                        label: window.siyuan.languages.share2Liandi,
+                        icon: "iconLiandi",
+                        click() {
+                            confirmDialog("🚀 " + window.siyuan.languages.share2Liandi, window.siyuan.languages.share2LiandiConfirmTip, () => {
+                                fetchPost("/api/export/export2Liandi", {id: protyle.block.parentID});
+                            });
+                        }
+                    }).element);
+                }
             }
             if (!protyle.scroll?.element.classList.contains("fn__none")) {
                 window.siyuan.menus.menu.append(new MenuItem({

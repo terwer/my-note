@@ -879,7 +879,6 @@ func markReplaceSpan(n *ast.Node, unlinks *[]*ast.Node, keywords []string, markS
 		text = search.EncloseHighlighting(text, keywords, getMarkSpanStart(markSpanDataType), getMarkSpanEnd(), Conf.Search.CaseSensitive)
 		n.Tokens = gulu.Str.ToBytes(text)
 		if bytes.Contains(n.Tokens, []byte(searchMarkDataType)) {
-			n.Tokens = lex.EscapeMarkers(n.Tokens)
 			linkTree := parse.Inline("", n.Tokens, luteEngine.ParseOptions)
 			var children []*ast.Node
 			for c := linkTree.Root.FirstChild.FirstChild; nil != c; c = c.Next {
@@ -910,6 +909,23 @@ func markReplaceSpan(n *ast.Node, unlinks *[]*ast.Node, keywords []string, markS
 					c.Type = ast.NodeTextMark
 					c.TextMarkType = n.TextMarkType
 					c.TextMarkTextContent = string(c.Tokens)
+					if n.IsTextMarkType("a") {
+						c.TextMarkAHref, c.TextMarkATitle = n.TextMarkAHref, n.TextMarkATitle
+					} else if n.IsTextMarkType("block-ref") {
+						c.TextMarkBlockRefID = n.TextMarkBlockRefID
+						c.TextMarkBlockRefSubtype = n.TextMarkBlockRefSubtype
+					} else if n.IsTextMarkType("file-annotation-ref") {
+						c.TextMarkFileAnnotationRefID = n.TextMarkFileAnnotationRefID
+					}
+				} else if ast.NodeTextMark == c.Type {
+					if n.IsTextMarkType("a") {
+						c.TextMarkAHref, c.TextMarkATitle = n.TextMarkAHref, n.TextMarkATitle
+					} else if n.IsTextMarkType("block-ref") {
+						c.TextMarkBlockRefID = n.TextMarkBlockRefID
+						c.TextMarkBlockRefSubtype = n.TextMarkBlockRefSubtype
+					} else if n.IsTextMarkType("file-annotation-ref") {
+						c.TextMarkFileAnnotationRefID = n.TextMarkFileAnnotationRefID
+					}
 				}
 
 				children = append(children, c)

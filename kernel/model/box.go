@@ -391,47 +391,28 @@ func isSkipFile(filename string) bool {
 	return strings.HasPrefix(filename, ".") || "node_modules" == filename || "dist" == filename || "target" == filename
 }
 
-func (box *Box) renameSubTrees(tree *parse.Tree) {
-	subFiles := box.ListFiles(tree.Path)
-	totals := len(subFiles) + 3
-	showProgress := 64 < totals
-	for i, subFile := range subFiles {
-		if !strings.HasSuffix(subFile.path, ".sy") {
-			continue
-		}
-
-		subTree, err := LoadTree(box.ID, subFile.path) // LoadTree 会重新构造 HPath
-		if nil != err {
-			continue
-		}
-
-		sql.UpsertTreeQueue(subTree)
-		if showProgress {
-			msg := fmt.Sprintf(Conf.Language(107), subTree.HPath)
-			util.PushProgress(util.PushProgressCodeProgressed, i, totals, msg)
-		}
-	}
-
-	if showProgress {
-		util.ClearPushProgress(totals)
-	}
-}
-
 func moveTree(tree *parse.Tree) {
 	treenode.SetBlockTreePath(tree)
 	sql.UpsertTreeQueue(tree)
 
 	box := Conf.Box(tree.Box)
-	subFiles := box.ListFiles(tree.Path)
-	totals := len(subFiles) + 5
-	showProgress := 64 < totals
+	box.renameSubTrees(tree)
+}
 
-	for i, subFile := range subFiles {
+func (box *Box) renameSubTrees(tree *parse.Tree) {
+	subFiles := box.ListFiles(tree.Path)
+	box.moveTrees0(subFiles)
+}
+
+func (box *Box) moveTrees0(files []*FileInfo) {
+	totals := len(files) + 5
+	showProgress := 64 < totals
+	for i, subFile := range files {
 		if !strings.HasSuffix(subFile.path, ".sy") {
 			continue
 		}
 
-		subTree, err := LoadTree(box.ID, subFile.path)
+		subTree, err := LoadTree(box.ID, subFile.path) // LoadTree 会重新构造 HPath
 		if nil != err {
 			continue
 		}
@@ -523,31 +504,10 @@ func genTreeID(tree *parse.Tree) {
 	return
 }
 
-func ReindexTree(path string) (err error) {
-	if !strings.HasPrefix(path, "/data/") {
-		return errors.New("path must start with /data/")
-	}
-
-	part := strings.TrimPrefix(path, "/data/")
-	idx := strings.Index(part, "/")
-	if 0 > idx {
-		return errors.New("parse box failed")
-	}
-	box := part[:idx]
-
-	p := strings.TrimPrefix(path, "/data/"+box)
-	tree, err := LoadTree(box, p)
-	if nil != err {
-		return
-	}
-
-	treenode.ReindexBlockTree(tree)
-	sql.UpsertTreeQueue(tree)
-	sql.WaitForWritingDatabase()
-	return
-}
+var isFullReindexing = false
 
 func FullReindex() {
+	isFullReindexing = true
 	util.PushEndlessProgress(Conf.Language(35))
 	WaitForWritingFiles()
 
@@ -566,6 +526,7 @@ func FullReindex() {
 	InitFlashcards()
 
 	util.PushEndlessProgress(Conf.Language(58))
+	isFullReindexing = false
 	go func() {
 		time.Sleep(1 * time.Second)
 		util.ReloadUI()

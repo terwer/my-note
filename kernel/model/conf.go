@@ -273,6 +273,9 @@ func InitConf() {
 	if 1024 < Conf.Editor.DynamicLoadBlocks {
 		Conf.Editor.DynamicLoadBlocks = 1024
 	}
+	if 0 > Conf.Editor.BacklinkExpandCount {
+		Conf.Editor.BacklinkExpandCount = 0
+	}
 
 	if nil == Conf.Search {
 		Conf.Search = conf.NewSearch()
@@ -425,6 +428,7 @@ func Close(force bool, execInstallPkg int) (exitCode int) {
 	Conf.Close()
 	sql.CloseDatabase()
 	treenode.SaveBlockTree(false)
+	SaveAssetsTexts()
 	clearWorkspaceTemp()
 	clearPortJSON()
 	util.UnlockWorkspace()
@@ -718,6 +722,11 @@ func clearWorkspaceTemp() {
 			logging.LogInfof("removed temp file [%s]", tmp)
 		}
 	}
+
+	// 老版本遗留文件清理
+	os.RemoveAll(filepath.Join(util.DataDir, "assets", ".siyuan", "assets.json"))
+	os.RemoveAll(filepath.Join(util.WorkspaceDir, "backup"))
+	os.RemoveAll(filepath.Join(util.WorkspaceDir, "sync"))
 
 	logging.LogInfof("cleared workspace temp")
 }

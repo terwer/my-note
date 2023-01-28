@@ -12,14 +12,16 @@ export const editor = {
     setMode: (readOnly?: boolean) => {
         const target = document.querySelector("#barReadonly");
         if (typeof readOnly === "undefined") {
-            readOnly = target.getAttribute("aria-label") === `${window.siyuan.languages.use} ${window.siyuan.languages.editReadonly}`;
+            readOnly = target.getAttribute("aria-label") === `${window.siyuan.languages.use} ${window.siyuan.languages.editReadonly} ${updateHotkeyTip(window.siyuan.config.keymap.general.editMode.custom)}`;
         }
         window.siyuan.config.editor.readOnly = readOnly;
         if (readOnly) {
-            target.setAttribute("aria-label", `${window.siyuan.languages.use} ${window.siyuan.languages.editMode}`);
+            target.classList.add("toolbar__item--active");
+            target.setAttribute("aria-label", `${window.siyuan.languages.use} ${window.siyuan.languages.editMode} ${updateHotkeyTip(window.siyuan.config.keymap.general.editMode.custom)}`);
             target.querySelector("use").setAttribute("xlink:href", "#iconPreview");
         } else {
-            target.setAttribute("aria-label", `${window.siyuan.languages.use} ${window.siyuan.languages.editReadonly}`);
+            target.classList.remove("toolbar__item--active");
+            target.setAttribute("aria-label", `${window.siyuan.languages.use} ${window.siyuan.languages.editReadonly} ${updateHotkeyTip(window.siyuan.config.keymap.general.editMode.custom)}`);
             target.querySelector("use").setAttribute("xlink:href", "#iconEdit");
         }
         fetchPost("/api/setting/setEditor", window.siyuan.config.editor, () => {
@@ -216,6 +218,14 @@ export const editor = {
 </label>
 <label class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
+        ${window.siyuan.languages.backlinkExpand}
+        <div class="b3-label__text">${window.siyuan.languages.backlinkExpandTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-text-field fn__flex-center fn__size200" id="backlinkExpandCount" type="number" min="0" max="512" value="${window.siyuan.config.editor.backlinkExpandCount}"/>
+</label>
+<label class="fn__flex b3-label config__item">
+    <div class="fn__flex-1">
         ${window.siyuan.languages.generateHistory}
         <div class="b3-label__text">${window.siyuan.languages.generateHistoryInterval}</div>
     </div>
@@ -315,6 +325,7 @@ export const editor = {
                 virtualBlockRefInclude: (editor.element.querySelector("#virtualBlockRefInclude") as HTMLInputElement).value,
                 virtualBlockRefExclude: (editor.element.querySelector("#virtualBlockRefExclude") as HTMLInputElement).value,
                 blockRefDynamicAnchorTextMaxLen: parseInt((editor.element.querySelector("#blockRefDynamicAnchorTextMaxLen") as HTMLInputElement).value),
+                backlinkExpandCount: parseInt((editor.element.querySelector("#backlinkExpandCount") as HTMLInputElement).value),
                 dynamicLoadBlocks: dynamicLoadBlocks,
                 codeLigatures: (editor.element.querySelector("#codeLigatures") as HTMLInputElement).checked,
                 codeTabSpaces: parseInt((editor.element.querySelector("#codeTabSpaces") as HTMLInputElement).value),

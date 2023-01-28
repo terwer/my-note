@@ -51,6 +51,11 @@ interface Window {
     hideKeyboardToolbar(): void
 }
 
+interface IWorkspace {
+    path:string
+    closed:boolean
+}
+
 interface ICard {
     id: string
     updated: string
@@ -113,8 +118,9 @@ interface IPdfAnno {
     }[]
     index?: number,
     color: string,
-    type: string,
-    content: string,
+    type: string,   // border, text
+    content: string,    // rect, text
+    mode: string,
     id?: string,
     coords?: number[]
 }
@@ -306,6 +312,7 @@ declare interface IEditor {
     virtualBlockRefExclude: string;
     virtualBlockRefInclude: string;
     blockRefDynamicAnchorTextMaxLen: number;
+    backlinkExpandCount: number;
 
     emoji: string[];
 }

@@ -10,6 +10,18 @@ import {Dialog} from "./index";
 import {isMobile} from "../util/functions";
 import {confirmDialog} from "./confirmDialog";
 import {getCurrentWindow} from "@electron/remote";
+import {escapeHtml} from "../util/escape";
+import {getWorkspaceName} from "../util/noRelyPCFunction";
+
+export const lockScreen = () => {
+    /// #if BROWSER
+    fetchPost("/api/system/logoutAuth", {}, () => {
+        window.location.href = "/";
+    });
+    /// #else
+    ipcRenderer.send(Constants.SIYUAN_LOCK_SCREEN);
+    /// #endif
+};
 
 export const lockFile = (id: string) => {
     const html = `<div class="b3-dialog__scrim"></div>
@@ -93,8 +105,7 @@ export const exitSiYuan = () => {
                 buttonElement.addEventListener("click", () => {
                     fetchPost("/api/system/exit", {force: true}, () => {
                         /// #if !BROWSER
-                        ipcRenderer.send(Constants.SIYUAN_CONFIG_CLOSETRAY);
-                        ipcRenderer.send(Constants.SIYUAN_QUIT);
+                        ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
                         /// #else
                         if (["ios", "android"].includes(window.siyuan.config.system.container) && (window.webkit?.messageHandlers || window.JSAndroid)) {
                             window.location.href = "siyuan://api/system/exit";
@@ -118,8 +129,7 @@ export const exitSiYuan = () => {
                     }, 2000);
                     // 然后等待一段时间后再退出，避免界面主进程退出以后内核子进程被杀死
                     setTimeout(() => {
-                        ipcRenderer.send(Constants.SIYUAN_CONFIG_CLOSETRAY);
-                        ipcRenderer.send(Constants.SIYUAN_QUIT);
+                        ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
                     }, 4000);
                     /// #endif
                 });
@@ -129,15 +139,13 @@ export const exitSiYuan = () => {
                     execInstallPkg: 1 //  0：默认检查新版本，1：不执行新版本安装，2：执行新版本安装
                 }, () => {
                     /// #if !BROWSER
-                    ipcRenderer.send(Constants.SIYUAN_CONFIG_CLOSETRAY);
-                    ipcRenderer.send(Constants.SIYUAN_QUIT);
+                    ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
                     /// #endif
                 });
             });
         } else { // 正常退出
             /// #if !BROWSER
-            ipcRenderer.send(Constants.SIYUAN_CONFIG_CLOSETRAY);
-            ipcRenderer.send(Constants.SIYUAN_QUIT);
+            ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
             /// #else
             if (["ios", "android"].includes(window.siyuan.config.system.container) && (window.webkit?.messageHandlers || window.JSAndroid)) {
                 window.location.href = "siyuan://api/system/exit";
@@ -266,16 +274,22 @@ export const bootSync = () => {
 
 export const setTitle = (title: string) => {
     const dragElement = document.getElementById("drag");
+    const workspaceName = getWorkspaceName();
     if (title === window.siyuan.languages.siyuanNote) {
-        const versionTitle = title + " v" + Constants.SIYUAN_VERSION;
+        const versionTitle = `${title} - ${workspaceName} - v${Constants.SIYUAN_VERSION}`;
         document.title = versionTitle;
-        dragElement.textContent = versionTitle;
-        dragElement.setAttribute("title", versionTitle);
+        if (dragElement) {
+            dragElement.textContent = versionTitle;
+            dragElement.setAttribute("title", versionTitle);
+        }
     } else {
         title = title || "Untitled";
-        document.title = title + " - " + window.siyuan.languages.siyuanNote + " v" + Constants.SIYUAN_VERSION;
-        dragElement.textContent = title;
+        document.title = `${title} - ${workspaceName} - ${window.siyuan.languages.siyuanNote} v${Constants.SIYUAN_VERSION}`;
+        if (!dragElement) {
+            return;
+        }
         dragElement.setAttribute("title", title);
+        dragElement.innerHTML = escapeHtml(title);
     }
 };
 

@@ -139,7 +139,7 @@ export const hotKey2Electron = (key: string) => {
     return electronKey + key.substr(key.length - 1);
 };
 
-export const getLocalStorage = () => {
+export const getLocalStorage = (cb:()=>void) => {
     fetchPost("/api/storage/getLocalStorage", undefined, (response) => {
         window.siyuan.storage = response.data;
         // 历史数据迁移
@@ -149,7 +149,10 @@ export const getLocalStorage = () => {
             replaceKeys: [],
             col: "",
             row: "",
-            layout: 0
+            layout: 0,
+            colTab: "",
+            rowTab: "",
+            layoutTab: 0
         };
         defaultStorage[Constants.LOCAL_PDFTHEME] = {light: "light", dark: "dark"};
         defaultStorage[Constants.LOCAL_BAZAAR] = {
@@ -196,9 +199,11 @@ export const getLocalStorage = () => {
                 paragraph: window.siyuan.config.search.paragraph,
             }
         };
+        defaultStorage[Constants.LOCAL_ZOOM] = 1;
 
         [Constants.LOCAL_SEARCHEKEYS, Constants.LOCAL_PDFTHEME, Constants.LOCAL_BAZAAR, Constants.LOCAL_EXPORTWORD,
-            Constants.LOCAL_EXPORTPDF, Constants.LOCAL_DOCINFO, Constants.LOCAL_FONTSTYLES, Constants.LOCAL_SEARCHEDATA].forEach((key) => {
+            Constants.LOCAL_EXPORTPDF, Constants.LOCAL_DOCINFO, Constants.LOCAL_FONTSTYLES, Constants.LOCAL_SEARCHEDATA,
+            Constants.LOCAL_ZOOM,].forEach((key) => {
             if (typeof response.data[key] === "string") {
                 try {
                     window.siyuan.storage[key] = Object.assign(defaultStorage[key], JSON.parse(response.data[key]));
@@ -209,6 +214,7 @@ export const getLocalStorage = () => {
                 window.siyuan.storage[key] = defaultStorage[key];
             }
         });
+        cb();
     });
 };
 
