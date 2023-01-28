@@ -1,11 +1,11 @@
 FROM node:16 as NODE_BUILD
 WORKDIR /go/src/github.com/siyuan-note/siyuan/
 ADD . /go/src/github.com/siyuan-note/siyuan/
-RUN cd app && npm install -g pnpm \\
-    && pnpm config set registry https://registry.npmmirror.com/ \\
-    && pnpm config set electron_mirror=https://cdn.npmmirror.com/binaries/electron/ \\
-    && pnpm config set electron_custom_dir=22.0.0 \\
-    && pnpm install && pnpm run build
+RUN cd app && npm install -g pnpm && \
+    pnpm config set registry https://registry.npmmirror.com/ && \
+    pnpm config set electron_mirror=https://cdn.npmmirror.com/binaries/electron/ && \
+    pnpm config set electron_custom_dir=22.0.0 && \
+    pnpm install && pnpm run build
 
 FROM golang:alpine as GO_BUILD
 WORKDIR /go/src/github.com/siyuan-note/siyuan/
