@@ -140,7 +140,7 @@ jobs:
         node-version: 16
 
     - name: Install Node pnpm
-      run: npm install -g pnpm
+      run: npm install -g pnpm && pnpm config set registry https://registry.npmmirror.com/ && pnpm config set electron_mirror=https://cdn.npmmirror.com/binaries/electron/ && pnpm config set electron_custom_dir=22.0.0
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app
 
     - name: Install Node Dependencies
@@ -201,6 +201,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_name: siyuan-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
+        asset_name: my-note-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
         asset_path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/build/siyuan-${{ needs.create_release.outputs.version }}-${{ matrix.config.suffix }}
         asset_content_type: application/octet-stream
