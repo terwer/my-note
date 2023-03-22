@@ -36,6 +36,66 @@ import (
 
 var ErrFailedToConnectCloudServer = errors.New("failed to connect cloud server")
 
+func CloudChatGPT(msg string, contextMsgs []string) (ret string, stop bool, err error) {
+	if nil == Conf.User {
+		return
+	}
+
+	payload := map[string]interface{}{}
+	var messages []map[string]interface{}
+	for _, contextMsg := range contextMsgs {
+		messages = append(messages, map[string]interface{}{
+			"role":    "user",
+			"content": contextMsg,
+		})
+	}
+	messages = append(messages, map[string]interface{}{
+		"role":    "user",
+		"content": msg,
+	})
+	payload["messages"] = messages
+
+	requestResult := gulu.Ret.NewResult()
+	request := httpclient.NewCloudRequest30s()
+	_, err = request.
+		SetSuccessResult(requestResult).
+		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
+		SetBody(payload).
+		Post(util.AliyunServer + "/apis/siyuan/ai/chatGPT")
+	if nil != err {
+		logging.LogErrorf("chat gpt failed: %s", err)
+		err = ErrFailedToConnectCloudServer
+		return
+	}
+	if 0 != requestResult.Code {
+		err = errors.New(requestResult.Msg)
+		stop = true
+		return
+	}
+
+	data := requestResult.Data.(map[string]interface{})
+	choices := data["choices"].([]interface{})
+	if 1 > len(choices) {
+		stop = true
+		return
+	}
+	choice := choices[0].(map[string]interface{})
+	message := choice["message"].(map[string]interface{})
+	ret = message["content"].(string)
+
+	if nil != choice["finish_reason"] {
+		finishReason := choice["finish_reason"].(string)
+		if "length" == finishReason {
+			stop = false
+		} else {
+			stop = true
+		}
+	} else {
+		stop = true
+	}
+	return
+}
+
 func StartFreeTrial() (err error) {
 	if nil == Conf.User {
 		return errors.New(Conf.Language(31))
@@ -44,7 +104,7 @@ func StartFreeTrial() (err error) {
 	requestResult := gulu.Ret.NewResult()
 	request := httpclient.NewCloudRequest30s()
 	_, err = request.
-		SetResult(requestResult).
+		SetSuccessResult(requestResult).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/user/startFreeTrial")
 	if nil != err {
@@ -61,7 +121,7 @@ func DeactivateUser() (err error) {
 	requestResult := gulu.Ret.NewResult()
 	request := httpclient.NewCloudRequest30s()
 	resp, err := request.
-		SetResult(requestResult).
+		SetSuccessResult(requestResult).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/user/deactivate")
 	if nil != err {
@@ -86,7 +146,7 @@ func SetCloudBlockReminder(id, data string, timed int64) (err error) {
 	payload := map[string]interface{}{"dataId": id, "data": data, "timed": timed}
 	request := httpclient.NewCloudRequest30s()
 	resp, err := request.
-		SetResult(requestResult).
+		SetSuccessResult(requestResult).
 		SetBody(payload).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/calendar/setBlockReminder")
@@ -119,7 +179,7 @@ func LoadUploadToken() (err error) {
 	requestResult := gulu.Ret.NewResult()
 	request := httpclient.NewCloudRequest30s()
 	resp, err := request.
-		SetResult(requestResult).
+		SetSuccessResult(requestResult).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/upload/token")
 	if nil != err {
@@ -144,19 +204,14 @@ func LoadUploadToken() (err error) {
 }
 
 var (
-	refreshCheckTicker             = time.NewTicker(2 * time.Hour)
 	subscriptionExpirationReminded bool
 )
 
-func AutoRefreshCheck() {
-	for {
-		go refreshSubscriptionExpirationRemind()
-		go refreshUser()
-		go refreshAnnouncement()
-		go refreshCheckDownloadInstallPkg()
-
-		<-refreshCheckTicker.C
-	}
+func RefreshCheckJob() {
+	go refreshSubscriptionExpirationRemind()
+	go refreshUser()
+	go refreshAnnouncement()
+	go refreshCheckDownloadInstallPkg()
 }
 
 func refreshSubscriptionExpirationRemind() {
@@ -338,7 +393,7 @@ func RemoveCloudShorthands(ids []string) (err error) {
 		"ids": ids,
 	}
 	resp, err := request.
-		SetResult(&result).
+		SetSuccessResult(&result).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		SetBody(body).
 		Post(util.AliyunServer + "/apis/siyuan/inbox/removeCloudShorthands")
@@ -366,7 +421,7 @@ func GetCloudShorthand(id string) (ret map[string]interface{}, err error) {
 	result := map[string]interface{}{}
 	request := httpclient.NewCloudRequest30s()
 	resp, err := request.
-		SetResult(&result).
+		SetSuccessResult(&result).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/inbox/getCloudShorthand?id=" + id)
 	if nil != err {
@@ -397,7 +452,7 @@ func GetCloudShorthands(page int) (result map[string]interface{}, err error) {
 	result = map[string]interface{}{}
 	request := httpclient.NewCloudRequest30s()
 	resp, err := request.
-		SetResult(&result).
+		SetSuccessResult(&result).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/inbox/getCloudShorthands?p=" + strconv.Itoa(page))
 	if nil != err {
@@ -434,7 +489,7 @@ func getUser(token string) (*conf.User, error) {
 	result := map[string]interface{}{}
 	request := httpclient.NewCloudRequest30s()
 	_, err := request.
-		SetResult(&result).
+		SetSuccessResult(&result).
 		SetBody(map[string]string{"token": token}).
 		Post(util.AliyunServer + "/apis/siyuan/user")
 	if nil != err {
@@ -467,7 +522,7 @@ func UseActivationcode(code string) (err error) {
 	requestResult := gulu.Ret.NewResult()
 	request := httpclient.NewCloudRequest30s()
 	_, err = request.
-		SetResult(requestResult).
+		SetSuccessResult(requestResult).
 		SetBody(map[string]string{"data": code}).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/useActivationcode")
@@ -488,7 +543,7 @@ func CheckActivationcode(code string) (retCode int, msg string) {
 	requestResult := gulu.Ret.NewResult()
 	request := httpclient.NewCloudRequest30s()
 	_, err := request.
-		SetResult(requestResult).
+		SetSuccessResult(requestResult).
 		SetBody(map[string]string{"data": code}).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		Post(util.AliyunServer + "/apis/siyuan/checkActivationcode")
@@ -508,7 +563,7 @@ func Login(userName, password, captcha string) (ret *gulu.Result, err error) {
 	result := map[string]interface{}{}
 	request := httpclient.NewCloudRequest30s()
 	_, err = request.
-		SetResult(&result).
+		SetSuccessResult(&result).
 		SetBody(map[string]string{"userName": userName, "userPassword": password, "captcha": captcha}).
 		Post(util.AliyunServer + "/apis/siyuan/login")
 	if nil != err {
@@ -534,7 +589,7 @@ func Login2fa(token, code string) (map[string]interface{}, error) {
 	result := map[string]interface{}{}
 	request := httpclient.NewCloudRequest30s()
 	_, err := request.
-		SetResult(&result).
+		SetSuccessResult(&result).
 		SetBody(map[string]string{"twofactorAuthCode": code}).
 		SetHeader("token", token).
 		Post(util.AliyunServer + "/apis/siyuan/login/2fa")

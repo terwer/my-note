@@ -1,4 +1,4 @@
-type TLayout = "normal" | "top" | "bottom" | "left" | "right" | "center"
+type TLayout = "normal" | "bottom" | "left" | "right" | "center"
 type TSearchFilter = "mathBlock" | "table" | "blockquote" | "superBlock" | "paragraph" | "document" | "heading"
     | "list" | "listItem" | "codeBlock" | "htmlBlock"
 type TDirection = "lr" | "tb"
@@ -12,7 +12,7 @@ type TDockType =
     | "backlink"
     | "backlinkOld"
     | "inbox"
-type TDockPosition = "Left" | "Right" | "Top" | "Bottom"
+type TDockPosition = "Left" | "Right" | "Bottom"
 type TWS = "main" | "filetree" | "protyle"
 type TEditorMode = "preview" | "wysiwyg"
 type TOperation =
@@ -25,6 +25,8 @@ type TOperation =
     | "setAttrs"
     | "updateAttrs"
     | "append"
+    | "insertAttrViewBlock"
+    | "removeAttrViewBlock"
 type TBazaarType = "templates" | "icons" | "widgets" | "themes"
 declare module "blueimp-md5"
 
@@ -42,25 +44,40 @@ interface Window {
         writeClipboard(text: string): void
         writeImageClipboard(uri: string): void
         readClipboard(): string
+        getBlockURL(): string
     }
 
     goBack(): void
 
-    showKeyboardToolbar(bottom?: number): void
+    showKeyboardToolbar(height: number): void
 
     hideKeyboardToolbar(): void
+
+    openFileByURL(URL: string): boolean
+}
+
+interface ISaveLayout {
+    name: string,
+    layout: IObject
 }
 
 interface IWorkspace {
-    path:string
-    closed:boolean
+    path: string
+    closed: boolean
 }
 
-interface ICard {
+interface ICardPackage {
     id: string
     updated: string
     name: string
     size: number
+}
+
+interface ICard {
+    deckID: string
+    cardID: string
+    blockID: string
+    nextDues: IObject
 }
 
 interface ISearchOption {
@@ -85,6 +102,7 @@ interface ISearchOption {
         listItem: boolean
         codeBlock: boolean
         htmlBlock: boolean
+        embedBlock: boolean
     }
 }
 
@@ -153,6 +171,7 @@ interface INotebook {
     closed: boolean
     icon: string
     sort: number
+    sortMode: number
 }
 
 interface ISiyuan {
@@ -170,7 +189,10 @@ interface ISiyuan {
     notebooks?: INotebook[],
     emojis?: IEmoji[],
     backStack?: IBackStack[],
-    mobileEditor?: import("../protyle").Protyle, // mobile
+    mobile?: {
+        editor?: import("../protyle").Protyle
+        files?: import("../mobile/util/MobileFiles").MobileFiles
+    },
     user?: {
         userId: string
         userName: string
@@ -190,7 +212,6 @@ interface ISiyuan {
     layout?: {
         layout?: import("../layout").Layout,
         centerLayout?: import("../layout").Layout,
-        topDock?: import("../layout/dock").Dock,
         leftDock?: import("../layout/dock").Dock,
         rightDock?: import("../layout/dock").Dock,
         bottomDock?: import("../layout/dock").Dock,
@@ -223,10 +244,11 @@ interface IOperation {
     action: TOperation, // move， delete 不需要传 data
     id: string,
     data?: string, // updateAttr 时为  { old: IObject, new: IObject }
-    parentID?: string
+    parentID?: string   // 为 insertAttrViewBlock 传 avid
     previousID?: string
     retData?: any
     nextID?: string // insert 专享
+    srcIDs?: string[] // insertAttrViewBlock 专享
 }
 
 interface IObject {
@@ -284,6 +306,7 @@ declare interface IExport {
     paragraphBeginningSpace: boolean;
     addTitle: boolean;
     addFooter: boolean;
+    markdownYFM: boolean;
 }
 
 declare interface IEditor {
@@ -354,7 +377,7 @@ declare interface IFileTree {
     removeDocWithoutConfirm: boolean
     allowCreateDeeper: boolean
     refCreateSavePath: string
-    createDocNameTemplate: string
+    docCreateSavePath: string
     sort: number
     maxOpenTabCount: number
     maxListCount: number
@@ -377,7 +400,7 @@ declare interface IConfig {
         stat: string
         interval: number
         cloudName: string
-        provider: number
+        provider: number    // 0 官方同步， 2 S3， 3 WebDAV
         s3: {
             endpoint: string
             pathStyle: boolean
@@ -400,7 +423,7 @@ declare interface IConfig {
     api: {
         token: string
     }
-    newbie: boolean
+    openHelp: boolean
     system: {
         networkProxy: {
             host: string
@@ -416,6 +439,7 @@ declare interface IConfig {
         container: "std" | "android" | "docker" | "ios"
         isMicrosoftStore: boolean
         os: "windows" | "linux" | "darwin"
+        osPlatform: string
         homeDir: string
         xanadu: boolean
         udanax: boolean
@@ -427,7 +451,7 @@ declare interface IConfig {
         autoLaunch: boolean
     }
     localIPs: string[]
-    readonly: boolean
+    readonly: boolean   // 全局只读
     uiLayout: Record<string, any>
     langs: { label: string, name: string }[]
     appearance: IAppearance
@@ -442,6 +466,7 @@ declare interface IConfig {
         sort: number
     }
     search: {
+        embedBlock: boolean
         htmlBlock: boolean
         document: boolean
         heading: boolean
@@ -456,7 +481,7 @@ declare interface IConfig {
         name: boolean
         alias: boolean
         memo: boolean
-        custom: boolean
+        ial: boolean
         limit: number
         caseSensitive: boolean
         backlinkMentionName: boolean
@@ -468,7 +493,6 @@ declare interface IConfig {
         virtualRefAlias: boolean
         virtualRefAnchor: boolean
         virtualRefDoc: boolean
-        virtualRefKeywordsLimit: boolean
     },
     stat: {
         treeCount: number

@@ -14,13 +14,13 @@ export class MobileBookmarks {
 
     constructor() {
         this.element = document.querySelector('#sidebar [data-type="sidebar-bookmark"]');
-        this.element.innerHTML = `<div class="toolbar">
+        this.element.innerHTML = `<div class="toolbar toolbar--border toolbar--dark">
     <div class="fn__space"></div>
     <div class="toolbar__text">
         ${window.siyuan.languages.bookmark}
     </div>
     <span class="fn__space"></span>
-    <svg data-type="expand" class="toolbar__icon"><use xlink:href="#iconFullscreen"></use></svg>
+    <svg data-type="expand" class="toolbar__icon"><use xlink:href="#iconExpand"></use></svg>
     <span class="fn__space"></span>
     <svg data-type="collapse" class="toolbar__icon"><use xlink:href="#iconContract"></use></svg>
 </div>
@@ -83,11 +83,13 @@ export class MobileBookmarks {
                         });
                     }
                 } else {
-                    openMobileFileById(id, [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]);
+                    fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
+                        openMobileFileById(id, foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL, Constants.CB_GET_HTML] : [Constants.CB_GET_FOCUS, Constants.CB_GET_SETID, Constants.CB_GET_CONTEXT, Constants.CB_GET_HTML]);
+                    });
                 }
             },
-            blockExtHTML: '<span class="b3-list-item__action" data-type="remove"><svg><use xlink:href="#iconTrashcan"></use></svg></span>',
-            topExtHTML: '<span class="b3-list-item__action" data-type="edit"><svg><use xlink:href="#iconEdit"></use></svg></span><span class="b3-list-item__action" data-type="remove"><svg><use xlink:href="#iconTrashcan"></use></svg></span>'
+            blockExtHTML: window.siyuan.config.readonly ? undefined : '<span class="b3-list-item__action" data-type="remove"><svg><use xlink:href="#iconTrashcan"></use></svg></span>',
+            topExtHTML: window.siyuan.config.readonly ? undefined : '<span class="b3-list-item__action" data-type="edit"><svg><use xlink:href="#iconEdit"></use></svg></span><span class="b3-list-item__action" data-type="remove"><svg><use xlink:href="#iconTrashcan"></use></svg></span>'
         });
         this.element.addEventListener("click", (event) => {
             let target = event.target as HTMLElement;

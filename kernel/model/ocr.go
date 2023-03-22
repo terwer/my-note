@@ -1,32 +1,27 @@
 package model
 
 import (
-	"github.com/dustin/go-humanize"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/88250/gulu"
-	"github.com/panjf2000/ants/v2"
+	"github.com/dustin/go-humanize"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/cache"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func AutoOCRAssets() {
+func OCRAssetsJob() {
 	if !util.TesseractEnabled {
 		return
 	}
 
-	for {
-		autoOCRAssets()
-		time.Sleep(7 * time.Second)
-	}
+	task.AppendTaskWithTimeout(task.OCRImage, 7*time.Second, autoOCRAssets)
 }
 
 func autoOCRAssets() {
@@ -34,40 +29,32 @@ func autoOCRAssets() {
 
 	assetsPath := util.GetDataAssetsAbsPath()
 	assets := getUnOCRAssetsAbsPaths()
+	if 0 < len(assets) {
+		for i, assetAbsPath := range assets {
+			text := util.Tesseract(assetAbsPath)
+			p := strings.TrimPrefix(assetAbsPath, assetsPath)
+			p = "assets" + filepath.ToSlash(p)
+			util.AssetsTextsLock.Lock()
+			util.AssetsTexts[p] = text
+			util.AssetsTextsLock.Unlock()
+			util.AssetsTextsChanged = true
 
-	poolSize := runtime.NumCPU()
-	if 4 < poolSize {
-		poolSize = 4
+			if 4 <= i { // 一次任务中最多处理 4 张图片，防止卡顿
+				break
+			}
+		}
 	}
-	waitGroup := &sync.WaitGroup{}
-	p, _ := ants.NewPoolWithFunc(poolSize, func(arg interface{}) {
-		defer waitGroup.Done()
 
-		assetAbsPath := arg.(string)
-		text := util.Tesseract(assetAbsPath)
-		p := strings.TrimPrefix(assetAbsPath, assetsPath)
-		p = "assets" + filepath.ToSlash(p)
-		util.AssetsTextsLock.Lock()
-		util.AssetsTexts[p] = text
-		util.AssetsTextsLock.Unlock()
-		util.AssetsTextsChanged = true
-	})
-	for _, assetAbsPath := range assets {
-		waitGroup.Add(1)
-		p.Invoke(assetAbsPath)
-	}
-	waitGroup.Wait()
-	p.Release()
-
-	cleanNotFoundAssetsTexts()
+	cleanNotExistAssetsTexts()
 }
 
-func cleanNotFoundAssetsTexts() {
-	tmp := util.AssetsTexts
+func cleanNotExistAssetsTexts() {
+	util.AssetsTextsLock.Lock()
+	defer util.AssetsTextsLock.Unlock()
 
 	assetsPath := util.GetDataAssetsAbsPath()
 	var toRemoves []string
-	for asset, _ := range tmp {
+	for asset, _ := range util.AssetsTexts {
 		assetAbsPath := strings.TrimPrefix(asset, "assets")
 		assetAbsPath = filepath.Join(assetsPath, assetAbsPath)
 		if !gulu.File.IsExist(assetAbsPath) {
@@ -75,12 +62,10 @@ func cleanNotFoundAssetsTexts() {
 		}
 	}
 
-	util.AssetsTextsLock.Lock()
 	for _, asset := range toRemoves {
 		delete(util.AssetsTexts, asset)
 		util.AssetsTextsChanged = true
 	}
-	util.AssetsTextsLock.Unlock()
 	return
 }
 
@@ -88,8 +73,7 @@ func getUnOCRAssetsAbsPaths() (ret []string) {
 	var assetsPaths []string
 	assets := cache.GetAssets()
 	for _, asset := range assets {
-		lowerName := strings.ToLower(asset.Path)
-		if !strings.HasSuffix(lowerName, ".png") && !strings.HasSuffix(lowerName, ".jpg") && !strings.HasSuffix(lowerName, ".jpeg") {
+		if !util.IsTesseractExtractable(asset.Path) {
 			continue
 		}
 		assetsPaths = append(assetsPaths, asset.Path)
@@ -107,11 +91,8 @@ func getUnOCRAssetsAbsPaths() (ret []string) {
 	return
 }
 
-func AutoFlushAssetsTexts() {
-	for {
-		SaveAssetsTexts()
-		time.Sleep(7 * time.Second)
-	}
+func FlushAssetsTextsJob() {
+	SaveAssetsTexts()
 }
 
 func LoadAssetsTexts() {

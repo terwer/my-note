@@ -17,20 +17,104 @@
 package model
 
 import (
+	"bytes"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
+	"github.com/ClarkThan/ahocorasick"
+	"github.com/dgraph-io/ristretto"
+	"github.com/siyuan-note/siyuan/kernel/search"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 )
 
+// virtualBlockRefCache 用于保存块关联的虚拟引用关键字。
+// 改进打开虚拟引用后加载文档的性能 https://github.com/siyuan-note/siyuan/issues/7378
+var virtualBlockRefCache, _ = ristretto.NewCache(&ristretto.Config{
+	NumCounters: 102400,
+	MaxCost:     10240,
+	BufferItems: 64,
+})
+
+func getBlockVirtualRefKeywords(root *ast.Node) (ret []string) {
+	val, ok := virtualBlockRefCache.Get(root.ID)
+	if !ok {
+		buf := bytes.Buffer{}
+		ast.Walk(root, func(n *ast.Node, entering bool) ast.WalkStatus {
+			if !entering || !n.IsBlock() {
+				return ast.WalkContinue
+			}
+
+			content := treenode.NodeStaticContent(n, nil, false)
+			buf.WriteString(content)
+			return ast.WalkContinue
+		})
+		content := buf.String()
+		ret = putBlockVirtualRefKeywords(content, root.ID, root.IALAttr("title"))
+		return
+	}
+	ret = val.([]string)
+	return
+}
+
+func putBlockVirtualRefKeywords(blockContent, blockID, docTitle string) (ret []string) {
+	keywords := getVirtualRefKeywords(docTitle)
+	if 1 > len(keywords) {
+		return
+	}
+
+	contentTmp := blockContent
+	var keywordsTmp []string
+	if !Conf.Search.CaseSensitive {
+		contentTmp = strings.ToLower(blockContent)
+		for _, keyword := range keywords {
+			keywordsTmp = append(keywordsTmp, strings.ToLower(keyword))
+		}
+	} else {
+		for _, keyword := range keywords {
+			keywordsTmp = append(keywordsTmp, keyword)
+		}
+	}
+
+	m := ahocorasick.NewMatcher()
+	m.BuildWithPatterns(keywordsTmp)
+	hits := m.Search(contentTmp)
+	for _, hit := range hits {
+		ret = append(ret, hit)
+	}
+
+	if 1 > len(ret) {
+		return
+	}
+
+	ret = gulu.Str.RemoveDuplicatedElem(ret)
+	virtualBlockRefCache.SetWithTTL(blockID, ret, 1, 10*time.Minute)
+	return
+}
+
+func CacheVirtualBlockRefJob() {
+	virtualBlockRefCache.Del("virtual_ref")
+	if !Conf.Editor.VirtualBlockRef {
+		return
+	}
+
+	keywords := sql.QueryVirtualRefKeywords(Conf.Search.VirtualRefName, Conf.Search.VirtualRefAlias, Conf.Search.VirtualRefAnchor, Conf.Search.VirtualRefDoc)
+	virtualBlockRefCache.Set("virtual_ref", keywords, 1)
+}
+
+func ResetVirtualBlockRefCache() {
+	virtualBlockRefCache.Clear()
+	CacheVirtualBlockRefJob()
+}
+
 func processVirtualRef(n *ast.Node, unlinks *[]*ast.Node, virtualBlockRefKeywords []string, refCount map[string]int, luteEngine *lute.Lute) bool {
-	if !Conf.Editor.VirtualBlockRef || 1 > len(virtualBlockRefKeywords) {
+	if !Conf.Editor.VirtualBlockRef {
 		return false
 	}
 
@@ -43,8 +127,18 @@ func processVirtualRef(n *ast.Node, unlinks *[]*ast.Node, virtualBlockRefKeyword
 		return false
 	}
 
+	if 1 > len(virtualBlockRefKeywords) {
+		return false
+	}
+
 	content := string(n.Tokens)
-	newContent := markReplaceSpanWithSplit(content, virtualBlockRefKeywords, getMarkSpanStart(virtualBlockRefDataType), getMarkSpanEnd())
+	tmp := gulu.Str.RemoveInvisible(content)
+	tmp = strings.TrimSpace(tmp)
+	if "" == tmp {
+		return false
+	}
+
+	newContent := markReplaceSpanWithSplit(content, virtualBlockRefKeywords, search.GetMarkSpanStart(search.VirtualBlockRefDataType), search.GetMarkSpanEnd())
 	if content != newContent {
 		// 虚拟引用排除命中自身块命名和别名的情况 https://github.com/siyuan-note/siyuan/issues/3185
 		var blockKeys []string
@@ -55,7 +149,7 @@ func processVirtualRef(n *ast.Node, unlinks *[]*ast.Node, virtualBlockRefKeyword
 			blockKeys = append(blockKeys, alias)
 		}
 		if 0 < len(blockKeys) {
-			keys := gulu.Str.SubstringsBetween(newContent, getMarkSpanStart(virtualBlockRefDataType), getMarkSpanEnd())
+			keys := gulu.Str.SubstringsBetween(newContent, search.GetMarkSpanStart(search.VirtualBlockRefDataType), search.GetMarkSpanEnd())
 			for _, k := range keys {
 				if gulu.Str.Contains(k, blockKeys) {
 					return true
@@ -83,7 +177,10 @@ func getVirtualRefKeywords(docName string) (ret []string) {
 		return
 	}
 
-	ret = sql.QueryVirtualRefKeywords(Conf.Search.VirtualRefName, Conf.Search.VirtualRefAlias, Conf.Search.VirtualRefAnchor, Conf.Search.VirtualRefDoc)
+	if val, ok := virtualBlockRefCache.Get("virtual_ref"); ok {
+		ret = val.([]string)
+	}
+
 	if "" != strings.TrimSpace(Conf.Editor.VirtualBlockRefInclude) {
 		include := strings.ReplaceAll(Conf.Editor.VirtualBlockRefInclude, "\\,", "__comma@sep__")
 		includes := strings.Split(include, ",")
@@ -128,10 +225,6 @@ func getVirtualRefKeywords(docName string) (ret []string) {
 	// 虚拟引用排除当前文档名 https://github.com/siyuan-note/siyuan/issues/4537
 	ret = gulu.Str.ExcludeElem(ret, []string{docName})
 	ret = prepareMarkKeywords(ret)
-
-	if Conf.Search.VirtualRefKeywordsLimit < len(ret) {
-		ret = ret[:Conf.Search.VirtualRefKeywordsLimit]
-	}
 	return
 }
 

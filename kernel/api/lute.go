@@ -17,6 +17,7 @@
 package api
 
 import (
+	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -61,7 +62,7 @@ func html2BlockDOM(c *gin.Context) {
 		return
 	}
 
-	luteEngine := model.NewLute()
+	luteEngine := util.NewLute()
 	var unlinks []*ast.Node
 	tree := parse.Parse("", []byte(markdown), luteEngine.ParseOptions)
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
@@ -70,7 +71,7 @@ func html2BlockDOM(c *gin.Context) {
 		}
 
 		if ast.NodeListItem == n.Type && nil == n.FirstChild {
-			newNode := parse.NewParagraph()
+			newNode := treenode.NewParagraph()
 			n.AppendChild(newNode)
 			n.SetIALAttr("updated", util.TimeFromID(newNode.ID))
 			return ast.WalkSkipChildren

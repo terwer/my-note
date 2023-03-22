@@ -10,6 +10,7 @@ import {genOptions} from "../util/genOptions";
 import {openSnippets} from "./util/snippets";
 import {openColorPicker} from "./util/colorPicker";
 import {loadAssets} from "../util/assets";
+import {resetFloatDockSize} from "../layout/dock/util";
 
 export const appearance = {
     element: undefined as Element,
@@ -211,6 +212,7 @@ export const appearance = {
             } else {
                 document.getElementById("status").classList.remove("fn__none");
             }
+            resetFloatDockSize();
         });
     },
     bindEvent: () => {
@@ -277,6 +279,6 @@ export const appearance = {
             }
         }
         loadAssets(data);
-        document.querySelector("#barMode use").setAttribute("xlink:href", `#icon${window.siyuan.config.appearance.modeOS ? "Mode" : (window.siyuan.config.appearance.mode === 0 ? "Light" : "Dark")}`);
+        document.querySelector("#barMode use")?.setAttribute("xlink:href", `#icon${window.siyuan.config.appearance.modeOS ? "Mode" : (window.siyuan.config.appearance.mode === 0 ? "Light" : "Dark")}`);
     }
 };

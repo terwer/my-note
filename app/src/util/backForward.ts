@@ -10,8 +10,9 @@ import {Tab} from "../layout/Tab";
 import {Editor} from "../editor";
 import {onGet} from "../protyle/util/onGet";
 import {scrollCenter} from "./highlightById";
-import {lockFile} from "../dialog/processSystem";
 import {zoomOut} from "../menus/protyle";
+import {showMessage} from "../dialog/message";
+import {saveScroll} from "../protyle/scroll/saveScroll";
 
 let forwardStack: IBackStack[] = [];
 let previousIsBack = false;
@@ -19,7 +20,7 @@ let previousIsBack = false;
 const focusStack = async (stack: IBackStack) => {
     hideElements(["gutter", "toolbar", "hint", "util", "dialog"], stack.protyle);
     let blockElement: Element;
-    if (!stack.protyle.element.parentElement) {
+    if (!document.contains(stack.protyle.element)) {
         const response = await fetchSyncPost("/api/block/checkBlockExist", {id: stack.protyle.block.rootID});
         if (!response.data) {
             // 页签删除
@@ -37,18 +38,23 @@ const focusStack = async (stack: IBackStack) => {
         }
         if (wnd) {
             const info = await fetchSyncPost("/api/block/getBlockInfo", {id: stack.id});
-            if (info.code === 2) {
-                // 文件被锁定
-                lockFile(info.data);
-                return false;
+            if (info.code === 3) {
+                showMessage(info.msg);
+                return;
             }
             const tab = new Tab({
                 title: info.data.rootTitle,
                 docIcon: info.data.rootIcon,
                 callback(tab) {
+                    const scrollAttr = saveScroll(stack.protyle, true);
+                    scrollAttr.focusId = stack.id;
+                    scrollAttr.focusStart = stack.position.start;
+                    scrollAttr.focusEnd = stack.position.end;
                     const editor = new Editor({
                         tab,
-                        blockId: stack.id, // 忘记为什么要用 rootChildID 了，但用了会产生 https://github.com/siyuan-note/siyuan/issues/6004 问题
+                        scrollAttr,
+                        blockId: stack.isZoom ? stack.id : stack.protyle.block.rootID,
+                        action: stack.isZoom ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS]
                     });
                     tab.addModel(editor);
                 }
@@ -69,32 +75,31 @@ const focusStack = async (stack: IBackStack) => {
                 wnd.addTab(tab);
             }
             wnd.showHeading();
-            // 页签关闭
-            setTimeout(() => {
-                const protyle = (tab.model as Editor).editor.protyle;
-                forwardStack.find(item => {
-                    if (!item.protyle.element.parentElement && item.protyle.block.rootID === protyle.block.rootID) {
-                        item.protyle = protyle;
-                    }
-                });
-                window.siyuan.backStack.find(item => {
-                    if (!item.protyle.element.parentElement && item.protyle.block.rootID === protyle.block.rootID) {
-                        item.protyle = protyle;
-                    }
-                });
-                if (protyle.block.rootID === stack.id) {
-                    focusByOffset(protyle.title.editElement, stack.position.start, stack.position.end);
-                } else {
-                    Array.from(protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${stack.id}"]`)).find(item => {
-                        if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed")) {
-                            blockElement = item;
-                            return true;
-                        }
-                    });
-                    focusByOffset(getContenteditableElement(blockElement), stack.position.start, stack.position.end);
-                    scrollCenter(protyle, blockElement);
+            // 替换被关闭的 protyle
+            const protyle = (tab.model as Editor).editor.protyle;
+            stack.protyle = protyle;
+            forwardStack.forEach(item => {
+                if (!document.contains(item.protyle.element) && item.protyle.block.rootID === info.data.rootID) {
+                    item.protyle = protyle;
                 }
-            }, 500);
+            });
+            window.siyuan.backStack.forEach(item => {
+                if (!document.contains(item.protyle.element) && item.protyle.block.rootID === info.data.rootID) {
+                    item.protyle = protyle;
+                }
+            });
+            if (info.data.rootID === stack.id) {
+                focusByOffset(protyle.title.editElement, stack.position.start, stack.position.end);
+            } else {
+                Array.from(protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${stack.id}"]`)).find(item => {
+                    if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed")) {
+                        blockElement = item;
+                        return true;
+                    }
+                });
+                focusByOffset(getContenteditableElement(blockElement), stack.position.start, stack.position.end);
+                scrollCenter(protyle, blockElement);
+            }
             return true;
         } else {
             return false;
@@ -160,7 +165,7 @@ const focusStack = async (stack: IBackStack) => {
             return false;
         }
         fetchPost("/api/filetree/getDoc", {
-            id: stack.id, // 忘记为什么要用 rootChildID 了，但用了会产生 https://github.com/siyuan-note/siyuan/issues/6004 问题
+            id: stack.id,
             mode: stack.isZoom ? 0 : 3,
             size: stack.isZoom ? Constants.SIZE_GET_MAX : window.siyuan.config.editor.dynamicLoadBlocks,
         }, getResponse => {
@@ -187,8 +192,10 @@ export const goBack = async () => {
         }
         return;
     }
-    document.querySelector("#barForward").classList.remove("toolbar__item--disabled");
-    if (!previousIsBack) {
+    document.querySelector("#barForward")?.classList.remove("toolbar__item--disabled");
+    if (!previousIsBack &&
+        // 页签被关闭时应优先打开该页签，页签存在时即可返回上一步，不用再重置光标到该页签上
+        document.contains(window.siyuan.backStack[window.siyuan.backStack.length - 1].protyle.element)) {
         forwardStack.push(window.siyuan.backStack.pop());
     }
     let stack = window.siyuan.backStack.pop();
@@ -203,7 +210,7 @@ export const goBack = async () => {
     }
     previousIsBack = true;
     if (window.siyuan.backStack.length === 0) {
-        document.querySelector("#barBack").classList.add("toolbar__item--disabled");
+        document.querySelector("#barBack")?.classList.add("toolbar__item--disabled");
     }
 };
 
@@ -214,7 +221,7 @@ export const goForward = async () => {
         }
         return;
     }
-    document.querySelector("#barBack").classList.remove("toolbar__item--disabled");
+    document.querySelector("#barBack")?.classList.remove("toolbar__item--disabled");
     if (previousIsBack) {
         window.siyuan.backStack.push(forwardStack.pop());
     }
@@ -231,7 +238,7 @@ export const goForward = async () => {
     }
     previousIsBack = false;
     if (forwardStack.length === 0) {
-        document.querySelector("#barForward").classList.add("toolbar__item--disabled");
+        document.querySelector("#barForward")?.classList.add("toolbar__item--disabled");
     }
 };
 
@@ -264,7 +271,7 @@ export const pushBack = (protyle: IProtyle, range?: Range, blockElement?: Elemen
                     window.siyuan.backStack.push(forwardStack.pop());
                 }
                 forwardStack = [];
-                document.querySelector("#barForward").classList.add("toolbar__item--disabled");
+                document.querySelector("#barForward")?.classList.add("toolbar__item--disabled");
             }
             window.siyuan.backStack.push({
                 position,
@@ -278,7 +285,7 @@ export const pushBack = (protyle: IProtyle, range?: Range, blockElement?: Elemen
             previousIsBack = false;
         }
         if (window.siyuan.backStack.length > 1) {
-            document.querySelector("#barBack").classList.remove("toolbar__item--disabled");
+            document.querySelector("#barBack")?.classList.remove("toolbar__item--disabled");
         }
     }
 };

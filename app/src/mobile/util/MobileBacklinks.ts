@@ -12,14 +12,14 @@ export class MobileBacklinks {
 
     constructor() {
         this.element = document.querySelector('#sidebar [data-type="sidebar-backlink"]');
-        this.element.innerHTML = `<div class="toolbar">
+        this.element.innerHTML = `<div class="toolbar toolbar--border toolbar--dark">
     <div class="fn__space"></div>
     <div class="toolbar__text">
         ${window.siyuan.languages.backlinks}
     </div>
     <span class="counter listCount"></span>
     <span class="fn__space"></span>
-    <svg data-type="expand" class="toolbar__icon"><use xlink:href="#iconFullscreen"></use></svg>
+    <svg data-type="expand" class="toolbar__icon"><use xlink:href="#iconExpand"></use></svg>
     <span class="fn__space"></span>
     <svg data-type="collapse" class="toolbar__icon"><use xlink:href="#iconContract"></use></svg>
 </div>
@@ -31,7 +31,7 @@ export class MobileBacklinks {
     </div>
     <span class="counter listMCount"></span>
     <span class="fn__space"></span>
-    <svg data-type="mExpand" class="toolbar__icon"><use xlink:href="#iconFullscreen"></use></svg>
+    <svg data-type="mExpand" class="toolbar__icon"><use xlink:href="#iconExpand"></use></svg>
     <span class="fn__space"></span>
     <svg data-type="mCollapse" class="toolbar__icon"><use xlink:href="#iconContract"></use></svg>
     <span class="fn__space"></span>
@@ -106,7 +106,7 @@ export class MobileBacklinks {
 
     public update() {
         fetchPost("/api/ref/getBacklink", {
-            id: window.siyuan.mobileEditor.protyle.block.id,
+            id: window.siyuan.mobile.editor.protyle.block.id,
             beforeLen: this.beforeLen,
             k: "",
             mk: "",

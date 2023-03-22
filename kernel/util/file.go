@@ -17,12 +17,13 @@
 package util
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
@@ -54,11 +55,11 @@ func AssetName(name string) string {
 	_, id := LastID(name)
 	ext := path.Ext(name)
 	name = name[0 : len(name)-len(ext)]
-	if !IsIDPattern(id) {
+	if !ast.IsNodeIDPattern(id) {
 		id = ast.NewNodeID()
 		name = name + "-" + id + ext
 	} else {
-		if !IsIDPattern(name) {
+		if !ast.IsNodeIDPattern(name) {
 			name = name[:len(name)-len(id)-1] + "-" + id + ext
 		} else {
 			name = name + ext
@@ -75,44 +76,6 @@ func LastID(p string) (name, id string) {
 		id = id[len(id)-22:]
 	}
 	return
-}
-
-func LatestTmpFile(p string) string {
-	dir, base := filepath.Split(p)
-	files, err := os.ReadDir(dir)
-	if nil != err {
-		logging.LogErrorf("read dir [%s] failed: %s", dir, err)
-		return ""
-	}
-
-	var tmps []os.DirEntry
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		if strings.HasSuffix(f.Name(), ".tmp") && strings.HasPrefix(f.Name(), base) && len(base)+7+len(".tmp") == len(f.Name()) {
-			tmps = append(tmps, f)
-		}
-	}
-
-	if 1 > len(tmps) {
-		return ""
-	}
-
-	sort.Slice(tmps, func(i, j int) bool {
-		info1, err := tmps[i].Info()
-		if nil != err {
-			logging.LogErrorf("read file info [%s] failed: %s", tmps[i].Name(), err)
-			return false
-		}
-		info2, err := tmps[j].Info()
-		if nil != err {
-			logging.LogErrorf("read file info [%s] failed: %s", tmps[j].Name(), err)
-			return false
-		}
-		return info1.ModTime().After(info2.ModTime())
-	})
-	return filepath.Join(dir, tmps[0].Name())
 }
 
 func IsCorruptedSYData(data []byte) bool {
@@ -141,7 +104,23 @@ func FilterUploadFileName(name string) string {
 	ret = strings.ReplaceAll(ret, "#", "")
 	ret = strings.ReplaceAll(ret, "%", "")
 	ret = strings.ReplaceAll(ret, "$", "")
+	ret = TruncateLenFileName(ret)
 	return ret
+}
+
+func TruncateLenFileName(name string) (ret string) {
+	// 插入资源文件时文件名长度最大限制 189 字节 https://github.com/siyuan-note/siyuan/issues/7099
+	var byteCount int
+	buf := bytes.Buffer{}
+	for _, r := range name {
+		byteCount += utf8.RuneLen(r)
+		if 189 < byteCount {
+			break
+		}
+		buf.WriteRune(r)
+	}
+	ret = buf.String()
+	return
 }
 
 func FilterFilePath(p string) (ret string) {
@@ -169,13 +148,13 @@ func FilterFileName(name string) string {
 	return name
 }
 
-func IsSubFolder(parent, sub string) bool {
-	if 1 > len(parent) || 1 > len(sub) {
+func IsSubPath(absPath, toCheckPath string) bool {
+	if 1 > len(absPath) || 1 > len(toCheckPath) {
 		return false
 	}
 	if gulu.OS.IsWindows() {
-		if filepath.IsAbs(parent) && filepath.IsAbs(sub) {
-			if strings.ToLower(parent)[0] != strings.ToLower(sub)[0] {
+		if filepath.IsAbs(absPath) && filepath.IsAbs(toCheckPath) {
+			if strings.ToLower(absPath)[0] != strings.ToLower(toCheckPath)[0] {
 				// 不在一个盘
 				return false
 			}
@@ -183,7 +162,7 @@ func IsSubFolder(parent, sub string) bool {
 	}
 
 	up := ".." + string(os.PathSeparator)
-	rel, err := filepath.Rel(parent, sub)
+	rel, err := filepath.Rel(absPath, toCheckPath)
 	if err != nil {
 		return false
 	}
@@ -215,6 +194,9 @@ func SizeOfDirectory(path string) (size int64, err error) {
 func DataSize() (dataSize, assetsSize int64) {
 	filepath.Walk(DataDir, func(path string, info os.FileInfo, err error) error {
 		if nil != err {
+			if os.IsNotExist(err) {
+				return nil
+			}
 			logging.LogErrorf("size of data failed: %s", err)
 			return io.EOF
 		}

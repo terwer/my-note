@@ -1,19 +1,20 @@
 import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName} from "./hasClosest";
 import * as dayjs from "dayjs";
-import {removeEmbed} from "../wysiwyg/removeEmbed";
 import {transaction, updateTransaction} from "../wysiwyg/transaction";
 import {getContenteditableElement} from "../wysiwyg/getBlock";
-import {focusBlock, getEditorRange, focusByWbr, fixTableRange} from "./selection";
+import {fixTableRange, focusBlock, focusByWbr, getEditorRange} from "./selection";
 import {mathRender} from "../markdown/mathRender";
 import {Constants} from "../../constants";
 import {highlightRender} from "../markdown/highlightRender";
 import {scrollCenter} from "../../util/highlightById";
 
-export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => {
+export const insertHTML = (html: string, protyle: IProtyle, isBlock = false,
+                           // 移动端插入嵌入块时，获取到的 range 为旧值
+                           useProtyleRange = false) => {
     if (html === "") {
         return;
     }
-    const range = getEditorRange(protyle.wysiwyg.element);
+    const range = useProtyleRange ? protyle.toolbar.range : getEditorRange(protyle.wysiwyg.element);
     fixTableRange(range);
     if (hasClosestByAttribute(range.startContainer, "data-type", "NodeTable") && !isBlock) {
         html = protyle.lute.BlockDOM2InlineBlockDOM(html);
@@ -43,7 +44,7 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
         blockElement.setAttribute("updated", dayjs().format("YYYYMMDDHHmmss"));
         updateTransaction(protyle, id, blockElement.outerHTML, oldHTML);
         setTimeout(() => {
-            scrollCenter(protyle, blockElement);
+            scrollCenter(protyle, blockElement, false, "smooth");
         }, Constants.TIMEOUT_BLOCKLOAD);
         return;
     }
@@ -76,9 +77,9 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
         });
     }
     const tempElement = document.createElement("template");
-    tempElement.innerHTML = html;
+    // 需要再 spin 一次 https://github.com/siyuan-note/siyuan/issues/7118
+    tempElement.innerHTML = protyle.lute.SpinBlockDOM(html);
     const editableElement = getContenteditableElement(blockElement);
-    let render = false;
     // 使用 lute 方法会添加 p 元素，只有一个 p 元素或者只有一个字符串或者为 <u>b</u> 时的时候只拷贝内部
     if (!isBlock) {
         if (tempElement.content.firstChild.nodeType === 3 ||
@@ -124,33 +125,10 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
                     editableElement.innerHTML = replaceInnerHTML;
                 }
             }
-            const spinHTML = protyle.lute.SpinBlockDOM(removeEmbed(blockElement));
-            const scrollLeft = blockElement.firstElementChild.scrollLeft;
-            const blockPreviousElement = blockElement.previousElementSibling;
-            blockElement.outerHTML = spinHTML;
-            render = true;
-            // spin 后变成多个块需后续处理 https://github.com/siyuan-note/insider/issues/451
-            tempElement.innerHTML = spinHTML;
-            if (protyle.options.backlinkData) {
-                // 反链面板
-                blockElement = blockPreviousElement.nextElementSibling;
-            } else {
-                Array.from(protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${id}"]`)).find((item) => {
-                    if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed")) {
-                        blockElement = item;
-                        return true;
-                    }
-                });
-            }
-            if (tempElement.content.childElementCount === 1) {
-                if (blockElement.classList.contains("table") && scrollLeft > 0) {
-                    blockElement.firstElementChild.scrollLeft = scrollLeft;
-                }
-                mathRender(blockElement);
-                updateTransaction(protyle, id, blockElement.outerHTML, oldHTML);
-                focusByWbr(protyle.wysiwyg.element, range);
-                return;
-            }
+            mathRender(blockElement);
+            updateTransaction(protyle, id, blockElement.outerHTML, oldHTML);
+            focusByWbr(protyle.wysiwyg.element, range);
+            return;
         }
     }
     const cursorLiElement = hasClosestByClassName(blockElement, "li");
@@ -204,14 +182,12 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
                 id: addId,
             });
         }
-        if (!render) {
-            blockElement.after(item);
-        }
+        blockElement.after(item);
         if (!lastElement) {
             lastElement = item;
         }
     });
-    if (editableElement && editableElement.textContent === "") {
+    if (editableElement && editableElement.textContent === "" && blockElement.classList.contains("p")) {
         // 选中当前块所有内容粘贴再撤销会导致异常 https://ld246.com/article/1662542137636
         doOperation.find((item, index) => {
             if (item.id === id) {

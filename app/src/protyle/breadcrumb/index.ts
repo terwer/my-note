@@ -35,17 +35,12 @@ export class Breadcrumb {
     constructor(protyle: IProtyle) {
         const element = document.createElement("div");
         element.className = "protyle-breadcrumb";
-        const isFocus = protyle.options.action.includes(Constants.CB_GET_ALL);
-        let html = `<div class="protyle-breadcrumb__bar"></div>
+        const isFocus = protyle.options.action.includes(Constants.CB_GET_ALL) && !isMobile();
+        element.innerHTML = `<div class="protyle-breadcrumb__bar"></div>
 <span class="protyle-breadcrumb__space"></span>
 <button class="block__icon block__icon--show ft__smaller fn__flex-center${isFocus ? "" : " fn__none"}" style="line-height: 14px" data-type="exit-focus">${window.siyuan.languages.exitFocus}</button>
 <span class="fn__space${isFocus ? "" : " fn__none"}"></span>
 <button class="b3-tooltips b3-tooltips__w block__icon block__icon--show fn__flex-center" data-menu="true" aria-label="${window.siyuan.languages.more}"><svg><use xlink:href="#iconMore"></use></svg></button>`;
-        if (protyle.options.render.breadcrumbContext) {
-            html += `<span class="fn__space"></span>
-<div class="b3-tooltips b3-tooltips__w block__icon block__icon--show fn__flex-center" data-type="context" aria-label="${window.siyuan.languages.context}"><svg><use xlink:href="#iconAlignCenter"></use></svg></div>`;
-        }
-        element.innerHTML = html;
         this.element = element.firstElementChild as HTMLElement;
         element.addEventListener("click", (event) => {
             let target = event.target as HTMLElement;
@@ -54,7 +49,10 @@ export class Breadcrumb {
                 if (id) {
                     if (protyle.options.render.breadcrumbDocName && window.siyuan.ctrlIsPressed) {
                         /// #if !MOBILE
-                        openFileById({id, action: [Constants.CB_GET_FOCUS]});
+                        openFileById({
+                            id,
+                            action: id === protyle.block.rootID ? [Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL]
+                        });
                         /// #endif
                     } else {
                         zoomOut(protyle, id);
@@ -69,18 +67,13 @@ export class Breadcrumb {
                     event.preventDefault();
                     break;
                 } else if (target.getAttribute("data-type") === "exit-focus") {
-                    zoomOut(protyle, protyle.block.rootID);
+                    zoomOut(protyle, protyle.block.rootID, protyle.block.id);
                     event.preventDefault();
                     break;
                 } else if (target.getAttribute("data-type") === "context") {
+                    event.preventDefault();
                     if (target.classList.contains("block__icon--active")) {
-                        fetchPost("/api/filetree/getDoc", {
-                            id: protyle.options.blockId,
-                            mode: 0,
-                            size: window.siyuan.config.editor.dynamicLoadBlocks,
-                        }, getResponse => {
-                            onGet(getResponse, protyle);
-                        });
+                        zoomOut(protyle, protyle.options.blockId);
                         target.classList.remove("block__icon--active");
                     } else {
                         fetchPost("/api/filetree/getDoc", {
@@ -89,10 +82,12 @@ export class Breadcrumb {
                             size: window.siyuan.config.editor.dynamicLoadBlocks,
                         }, getResponse => {
                             onGet(getResponse, protyle, [Constants.CB_GET_HL]);
+                            const exitFocusElement = this.element.parentElement.querySelector('[data-type="exit-focus"]');
+                            exitFocusElement.classList.add("fn__none");
+                            exitFocusElement.nextElementSibling.classList.add("fn__none");
                         });
                         target.classList.add("block__icon--active");
                     }
-                    event.preventDefault();
                     break;
                 }
                 target = target.parentElement;
@@ -152,7 +147,7 @@ export class Breadcrumb {
         this.mediaRecorder.startRecordingNewWavFile();
     }
 
-    private showMenu(protyle: IProtyle, position: { x: number, y: number }) {
+    public showMenu(protyle: IProtyle, position: { x: number, y: number }) {
         let id;
         const cursorNodeElement = hasClosestBlock(getEditorRange(protyle.element).startContainer);
         if (cursorNodeElement) {
@@ -160,7 +155,6 @@ export class Breadcrumb {
         }
         fetchPost("/api/block/getTreeStat", {id: id || protyle.block.id}, (response) => {
             window.siyuan.menus.menu.remove();
-
             if (!protyle.contentElement.classList.contains("fn__none") && !protyle.disabled) {
                 let uploadHTML = "";
                 uploadHTML = '<input class="b3-form__upload" type="file" multiple="multiple"';
@@ -173,7 +167,9 @@ export class Breadcrumb {
                     icon: "iconDownload",
                     label: `${window.siyuan.languages.insertAsset}${uploadHTML}`,
                 }).element;
-                uploadMenu.querySelector("input").addEventListener("change", (event: InputEvent & { target: HTMLInputElement }) => {
+                uploadMenu.querySelector("input").addEventListener("change", (event: InputEvent & {
+                    target: HTMLInputElement
+                }) => {
                     if (event.target.files.length === 0) {
                         return;
                     }
@@ -280,7 +276,7 @@ export class Breadcrumb {
                 }).element);
                 window.siyuan.menus.menu.append(new MenuItem({
                     label: window.siyuan.languages.uploadAssets2CDN,
-                    icon: "iconCloud",
+                    icon: "iconCloudSucc",
                     click() {
                         if (!needSubscribe()) {
                             confirmDialog("📦 " + window.siyuan.languages.uploadAssets2CDN, window.siyuan.languages.uploadAssets2CDNConfirmTip, () => {
@@ -289,7 +285,7 @@ export class Breadcrumb {
                         }
                     }
                 }).element);
-                if (!needSubscribe("")) {
+                if (window.siyuan.user) { // 登录链滴账号后即可使用 `分享到链滴` https://github.com/siyuan-note/siyuan/issues/7392
                     window.siyuan.menus.menu.append(new MenuItem({
                         label: window.siyuan.languages.share2Liandi,
                         icon: "iconLiandi",
@@ -329,7 +325,7 @@ export class Breadcrumb {
             }).element);
             if (!isMobile()) {
                 window.siyuan.menus.menu.append(new MenuItem({
-                    icon: "iconFullscreen",
+                    icon: protyle.element.className.includes("fullscreen") ? "iconFullscreenExit" : "iconFullscreen",
                     accelerator: window.siyuan.config.keymap.editor.general.fullscreen.custom,
                     label: window.siyuan.languages.fullscreen,
                     click: () => {
@@ -370,9 +366,10 @@ export class Breadcrumb {
                 type: "submenu",
                 submenu: editSubmenu
             }).element);
-            window.siyuan.menus.menu.append(exportMd(protyle.block.parentID));
+            window.siyuan.menus.menu.append(exportMd(protyle.block.id));
             window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
             window.siyuan.menus.menu.append(new MenuItem({
+                iconHTML: Constants.ZWSP,
                 type: "readonly",
                 label: `<div class="fn__flex">${window.siyuan.languages.runeCount}<span class="fn__space fn__flex-1"></span>${response.data.runeCount}</div>
 <div class="fn__flex">${window.siyuan.languages.wordCount}<span class="fn__space fn__flex-1"></span>${response.data.wordCount}</div>
@@ -380,7 +377,11 @@ export class Breadcrumb {
 <div class="fn__flex">${window.siyuan.languages.image}<span class="fn__space fn__flex-1"></span>${response.data.imageCount}</div>
 <div class="fn__flex">${window.siyuan.languages.ref}<span class="fn__space fn__flex-1"></span>${response.data.refCount}</div>`,
             }).element);
-            window.siyuan.menus.menu.popup(position);
+            if (isMobile()) {
+                window.siyuan.menus.menu.fullscreen();
+            } else {
+                window.siyuan.menus.menu.popup(position);
+            }
         });
     }
 
@@ -411,7 +412,7 @@ export class Breadcrumb {
         }
         this.id = id;
         const excludeTypes: string[] = [];
-        if (this.element.parentElement?.parentElement && this.element.parentElement.parentElement.classList.contains("b3-dialog__cardblock")) {
+        if (this.element.parentElement?.parentElement && this.element.parentElement.parentElement.classList.contains("card__block")) {
             // 闪卡面包屑不能显示答案
             excludeTypes.push("NodeTextMark-mark");
         }
@@ -425,11 +426,11 @@ export class Breadcrumb {
                     isCurrent = true;
                 }
                 if (index === 0 && !protyle.options.render.breadcrumbDocName) {
-                    html += `<span class="protyle-breadcrumb__item${isCurrent ? " protyle-breadcrumb__item--active" : ""}" data-node-id="${item.id}">
+                    html += `<span class="protyle-breadcrumb__item${isCurrent ? " protyle-breadcrumb__item--active" : ""}" data-node-id="${item.id}"${response.data.length === 1 ? ' style="max-width:none"' : ""}>
     <svg class="popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>
 </span>`;
                 } else {
-                    html += `<span class="protyle-breadcrumb__item${isCurrent ? " protyle-breadcrumb__item--active" : ""}" data-node-id="${item.id}">
+                    html += `<span class="protyle-breadcrumb__item${isCurrent ? " protyle-breadcrumb__item--active" : ""}" data-node-id="${item.id}"${(response.data.length === 1 || index === 0) ? ' style="max-width:none"' : ""}>
     <svg class="popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>
     <span class="protyle-breadcrumb__text" title="${item.name}">${item.name}</span>
 </span>`;
@@ -445,25 +446,22 @@ export class Breadcrumb {
                 return;
             }
             let jump = false;
-            while (this.element.scrollHeight > 30 && !jump) {
+            while (this.element.scrollHeight > 30 && !jump && itemElements.length > 1) {
                 itemElements.find((item, index) => {
-                    if (itemElements.length === 1) {
-                        item.classList.add("protyle-breadcrumb__text--ellipsis");
-                        jump = true;
-                        return true;
-                    }
-                    if (!item.classList.contains("protyle-breadcrumb__text--ellipsis")) {
-                        item.classList.add("protyle-breadcrumb__text--ellipsis");
-                        return true;
-                    }
-                    if (index === itemElements.length - 1 && item.classList.contains("protyle-breadcrumb__text--ellipsis")) {
-                        jump = true;
+                    if (index > 0) {
+                        if (!item.classList.contains("protyle-breadcrumb__text--ellipsis")) {
+                            item.classList.add("protyle-breadcrumb__text--ellipsis");
+                            return true;
+                        }
+                        if (index === itemElements.length - 1 && item.classList.contains("protyle-breadcrumb__text--ellipsis")) {
+                            jump = true;
+                        }
                     }
                 });
             }
             this.element.classList.add("protyle-breadcrumb__bar--nowrap");
             if (this.element.lastElementChild) {
-                this.element.scrollLeft = (this.element.lastElementChild as HTMLElement).offsetLeft - this.element.clientWidth - 8;
+                this.element.scrollLeft = (this.element.lastElementChild as HTMLElement).offsetLeft - this.element.clientWidth + 14;
             }
         });
     }

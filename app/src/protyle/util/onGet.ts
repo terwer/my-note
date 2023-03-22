@@ -1,4 +1,4 @@
-import {lockFile, setTitle} from "../../dialog/processSystem";
+import {setTitle} from "../../dialog/processSystem";
 import {Constants} from "../../constants";
 import {hideElements} from "../ui/hideElements";
 import {genEmptyElement} from "../../block/util";
@@ -16,6 +16,8 @@ import {hasClosestByAttribute, hasClosestByClassName} from "./hasClosest";
 import {preventScroll} from "../scroll/preventScroll";
 import {restoreScroll} from "../scroll/saveScroll";
 import {removeLoading} from "../ui/initUI";
+import {isMobile} from "../../util/functions";
+import {foldPassiveType} from "../wysiwyg/renderBacklink";
 
 export const onGet = (data: IWebSocketData, protyle: IProtyle, action: string[] = [], scrollAttr?: IScrollAttr, renderTitle = false) => {
     protyle.wysiwyg.element.removeAttribute("data-top");
@@ -34,12 +36,6 @@ export const onGet = (data: IWebSocketData, protyle: IProtyle, action: string[] 
     }
     protyle.notebookId = data.data.box;
     protyle.path = data.data.path;
-    if (data.code === 2) {
-        // 文件被锁定
-        protyle.block.rootID = data.data;
-        lockFile(data.data);
-        return;
-    }
 
     if (data.data.eof) {
         if (action.includes(Constants.CB_GET_BEFORE)) {
@@ -70,7 +66,7 @@ export const onGet = (data: IWebSocketData, protyle: IProtyle, action: string[] 
     protyle.block.showAll = false;
     protyle.block.mode = data.data.mode;
     protyle.block.blockCount = data.data.blockCount;
-    protyle.block.childBlockCount = data.data.childBlockCount;
+    protyle.block.scroll = data.data.scroll;
     protyle.block.action = action;
     if (!action.includes(Constants.CB_GET_UNCHANGEID)) {
         protyle.block.id = data.data.id;
@@ -181,25 +177,7 @@ const setHTML = (options: {
         protyle.wysiwyg.element.innerHTML = options.content;
     }
     if (options.action.includes(Constants.CB_GET_BACKLINK)) {
-        if (protyle.wysiwyg.element.firstElementChild.classList.contains("li")) {
-            if (options.expand) {
-                const thirdLiElement = protyle.wysiwyg.element.querySelector(".li .li .li");
-                if (thirdLiElement) {
-                    thirdLiElement.setAttribute("fold", "1");
-                }
-            } else {
-                protyle.wysiwyg.element.firstElementChild.setAttribute("fold", "1");
-            }
-        } else if (protyle.wysiwyg.element.firstElementChild.getAttribute("data-type") === "NodeHeading") {
-            Array.from(protyle.wysiwyg.element.children).forEach((item, index) => {
-                if ((options.expand && index > 2) || (!options.expand && index > 1)) {
-                    if ((options.expand && index === 3) || (!options.expand && index === 2)) {
-                        item.insertAdjacentHTML("beforebegin", "<div style=\"max-width: 100%;justify-content: center;\" contenteditable=\"false\" class=\"protyle-breadcrumb__item\"><svg><use xlink:href=\"#iconMore\"></use></svg></div>");
-                    }
-                    item.classList.add("fn__none");
-                }
-            });
-        }
+        foldPassiveType(options.expand, protyle.wysiwyg.element);
     }
     processRender(protyle.wysiwyg.element);
     highlightRender(protyle.wysiwyg.element);
@@ -283,8 +261,13 @@ const setHTML = (options: {
         protyle.options.defId = undefined;
     }
     // https://ld246.com/article/1653639418266
-    if (protyle.element.classList.contains("block__edit") && (protyle.element.nextElementSibling || protyle.element.previousElementSibling)) {
-        protyle.element.style.minHeight = Math.min(30 + protyle.wysiwyg.element.clientHeight, window.innerHeight / 3) + "px";
+    if (protyle.element.classList.contains("block__edit")) {
+        if (protyle.element.nextElementSibling || protyle.element.previousElementSibling) {
+            protyle.element.style.minHeight = Math.min(30 + protyle.wysiwyg.element.clientHeight, window.innerHeight / 3) + "px";
+        }
+        // 49 = 16（上图标）+16（下图标）+8（padding）+9（底部距离）
+        // @ts-ignore
+        protyle.scroll.element.parentElement.setAttribute("style", `--b3-dynamicscroll-width:${protyle.contentElement.clientHeight - 49}px;${isMobile() ? "" : "right:10px"}`);
     }
     // 屏幕太高的页签 https://github.com/siyuan-note/siyuan/issues/5018
     if (!protyle.scroll.element.classList.contains("fn__none") &&

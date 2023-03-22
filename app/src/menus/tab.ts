@@ -2,6 +2,9 @@ import {Tab} from "../layout/Tab";
 import {MenuItem} from "./Menu";
 import {Editor} from "../editor";
 import {copyTab} from "../layout/util";
+/// #if !BROWSER
+import {openNewWindow} from "../window/openNewWindow";
+/// #endif
 import {copySubMenu} from "./commonMenuItem";
 
 const closeMenu = (tab: Tab) => {
@@ -163,7 +166,7 @@ export const initTabMenu = (tab: Tab) => {
         submenu: splitSubMenu(tab)
     }).element);
     const model = tab.model;
-    let rootId;
+    let rootId: string;
     if ((model && model instanceof Editor)) {
         rootId = model.editor.protyle.block.rootID;
     } else {
@@ -198,5 +201,14 @@ export const initTabMenu = (tab: Tab) => {
             }
         }).element);
     }
+    /// #if !BROWSER
+    window.siyuan.menus.menu.append(new MenuItem({
+        label: window.siyuan.languages.tabToWindow,
+        icon: "iconOpenWindow",
+        click: () => {
+            openNewWindow(tab);
+        }
+    }).element);
+    /// #endif
     return window.siyuan.menus.menu;
 };

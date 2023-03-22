@@ -1,67 +1,31 @@
 import {Constants} from "../constants";
 import {fetchPost} from "../util/fetch";
 /// #if !MOBILE
-import {getAllModels} from "../layout/getAll";
-import {ipcRenderer} from "electron";
 import {exportLayout} from "../layout/util";
+/// #endif
+/// #if !BROWSER
+import {ipcRenderer} from "electron";
+import {getCurrentWindow} from "@electron/remote";
 /// #endif
 import {hideMessage, showMessage} from "./message";
 import {Dialog} from "./index";
 import {isMobile} from "../util/functions";
 import {confirmDialog} from "./confirmDialog";
-import {getCurrentWindow} from "@electron/remote";
 import {escapeHtml} from "../util/escape";
 import {getWorkspaceName} from "../util/noRelyPCFunction";
+import {needSubscribe} from "../util/needSubscribe";
 
 export const lockScreen = () => {
+    if (window.siyuan.config.readonly) {
+        return;
+    }
     /// #if BROWSER
     fetchPost("/api/system/logoutAuth", {}, () => {
-        window.location.href = "/";
+        window.location.href = `/check-auth?url=${window.location.href}`;
     });
     /// #else
-    ipcRenderer.send(Constants.SIYUAN_LOCK_SCREEN);
+    ipcRenderer.send(Constants.SIYUAN_SEND_WINDOWS, {cmd: "lockscreen"});
     /// #endif
-};
-
-export const lockFile = (id: string) => {
-    const html = `<div class="b3-dialog__scrim"></div>
-<div class="b3-dialog__container">
-    <div class="b3-dialog__header" onselectstart="return false;">🔒 ${window.siyuan.languages.lockFile0} <small>v${Constants.SIYUAN_VERSION}</small></div>
-    <div class="b3-dialog__content">
-        <p>${window.siyuan.languages.lockFile1}</p>
-        <p>${window.siyuan.languages.lockFile2}</p>
-    </div>
-    <div class="b3-dialog__action">
-        <button class="b3-button b3-button--cancel">${window.siyuan.languages.closeTab}</button>
-        <div class="fn__space"></div>
-        <button class="b3-button b3-button--text">${window.siyuan.languages.retry}</button>
-    </div>
-</div>`;
-    let logElement = document.getElementById("errorLog");
-    if (logElement) {
-        logElement.innerHTML = html;
-    } else {
-        document.body.insertAdjacentHTML("beforeend", `<div id="errorLog" class="b3-dialog b3-dialog--open">${html}</div>`);
-        logElement = document.getElementById("errorLog");
-    }
-    logElement.querySelector(".b3-button--cancel").addEventListener("click", () => {
-        /// #if !MOBILE
-        getAllModels().editor.find((item) => {
-            if (item.editor.protyle.block.rootID === id) {
-                item.parent.parent.removeTab(item.parent.id, false, false);
-                return true;
-            }
-        });
-        logElement.remove();
-        /// #endif
-    });
-    logElement.querySelector(".b3-button--text").addEventListener("click", () => {
-        fetchPost("/api/filetree/lockFile", {id}, (response) => {
-            if (response.code === 0) {
-                window.location.reload();
-            }
-        });
-    });
 };
 
 export const kernelError = () => {
@@ -105,7 +69,7 @@ export const exitSiYuan = () => {
                 buttonElement.addEventListener("click", () => {
                     fetchPost("/api/system/exit", {force: true}, () => {
                         /// #if !BROWSER
-                        ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
+                        ipcRenderer.send(Constants.SIYUAN_QUIT, location.port);
                         /// #else
                         if (["ios", "android"].includes(window.siyuan.config.system.container) && (window.webkit?.messageHandlers || window.JSAndroid)) {
                             window.location.href = "siyuan://api/system/exit";
@@ -129,7 +93,7 @@ export const exitSiYuan = () => {
                     }, 2000);
                     // 然后等待一段时间后再退出，避免界面主进程退出以后内核子进程被杀死
                     setTimeout(() => {
-                        ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
+                        ipcRenderer.send(Constants.SIYUAN_QUIT, location.port);
                     }, 4000);
                     /// #endif
                 });
@@ -139,13 +103,13 @@ export const exitSiYuan = () => {
                     execInstallPkg: 1 //  0：默认检查新版本，1：不执行新版本安装，2：执行新版本安装
                 }, () => {
                     /// #if !BROWSER
-                    ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
+                    ipcRenderer.send(Constants.SIYUAN_QUIT, location.port);
                     /// #endif
                 });
             });
         } else { // 正常退出
             /// #if !BROWSER
-            ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
+            ipcRenderer.send(Constants.SIYUAN_QUIT, location.port);
             /// #else
             if (["ios", "android"].includes(window.siyuan.config.system.container) && (window.webkit?.messageHandlers || window.JSAndroid)) {
                 window.location.href = "siyuan://api/system/exit";
@@ -155,11 +119,7 @@ export const exitSiYuan = () => {
     });
 };
 
-export const transactionError = (data: { code: number, data: string }) => {
-    if (data.code === 1) {
-        lockFile(data.data);
-        return;
-    }
+export const transactionError = () => {
     if (document.getElementById("transactionError")) {
         return;
     }
@@ -181,32 +141,33 @@ export const transactionError = (data: { code: number, data: string }) => {
         /// #else
         exportLayout(false, () => {
             exitSiYuan();
-        });
+        }, false, true);
         /// #endif
     });
     btnsElement[1].addEventListener("click", () => {
         fetchPost("/api/filetree/refreshFiletree", {});
+        dialog.destroy();
     });
 };
 
-let progressStatusTimeoutId: number;
 export const progressStatus = (data: IWebSocketData) => {
-    if (isMobile()) {
-        clearTimeout(progressStatusTimeoutId);
-        const statusElement = document.querySelector("#status") as HTMLElement;
-        statusElement.innerHTML = data.msg;
-        statusElement.classList.remove("status--hide");
-        if (document.querySelector("#keyboardToolbar").classList.contains("fn__none")) {
-            statusElement.style.bottom = "0";
-        } else {
-            statusElement.style.bottom = "30px";
-        }
-        progressStatusTimeoutId = window.setTimeout(() => {
-            statusElement.style.bottom = "";
-        }, 6000);
+    const statusElement = document.querySelector("#status") as HTMLElement;
+    if (!statusElement) {
         return;
     }
-    document.querySelector("#status .status__msg").innerHTML = data.msg;
+    if (isMobile()) {
+        if (!document.querySelector("#keyboardToolbar").classList.contains("fn__none")) {
+            return;
+        }
+        statusElement.innerHTML = data.msg;
+        statusElement.classList.remove("status--hide");
+        statusElement.style.bottom = "0";
+        return;
+    }
+    const msgElement = statusElement.querySelector(".status__msg");
+    if (msgElement) {
+        msgElement.innerHTML = data.msg;
+    }
 };
 
 export const progressLoading = (data: IWebSocketData) => {
@@ -237,6 +198,24 @@ export const progressLoading = (data: IWebSocketData) => {
     <div>${data.msg}</div>
 </div>`;
         }
+    }
+};
+
+export const progressBackgroundTask = (tasks: { action: string }[]) => {
+    const backgroundTaskElement = document.querySelector(".status__backgroundtask");
+    if (!backgroundTaskElement) {
+        return;
+    }
+    if (tasks.length === 0) {
+        backgroundTaskElement.classList.add("fn__none");
+        if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
+            window.siyuan.menus.menu.element.getAttribute("data-name") === "statusBackgroundTask") {
+            window.siyuan.menus.menu.remove();
+        }
+    } else {
+        backgroundTaskElement.classList.remove("fn__none");
+        backgroundTaskElement.setAttribute("data-tasks", JSON.stringify(tasks));
+        backgroundTaskElement.innerHTML = tasks[0].action + "<div><div></div></div>";
     }
 };
 
@@ -294,17 +273,83 @@ export const setTitle = (title: string) => {
 };
 
 export const downloadProgress = (data: { id: string, percent: number }) => {
-    const bazzarElement = document.getElementById("configBazaarReadme");
-    if (!bazzarElement) {
+    const bazzarSideElement = document.querySelector("#configBazaarReadme .item__side");
+    if (!bazzarSideElement) {
         return;
     }
-    const btnElement = bazzarElement.querySelector(`[data-url="${data.id}"]`) as HTMLElement;
+    if (data.id !== JSON.parse(bazzarSideElement.getAttribute("data-obj")).repoURL) {
+        return;
+    }
+    const btnElement = bazzarSideElement.querySelector('[data-type="install"]') as HTMLElement;
     if (btnElement) {
         if (data.percent >= 1) {
             btnElement.parentElement.classList.add("fn__none");
+            btnElement.parentElement.nextElementSibling.classList.add("fn__none");
         } else {
             btnElement.classList.add("b3-button--progress");
+            btnElement.parentElement.nextElementSibling.firstElementChild.classList.add("b3-button--progress");
             btnElement.innerHTML = `<span style="width: ${data.percent * 100}%"></span>`;
+            btnElement.parentElement.nextElementSibling.firstElementChild.innerHTML = `<span style="width: ${data.percent * 100}%"></span>`;
         }
     }
+};
+
+export const processSync = (data?: IWebSocketData) => {
+    /// #if MOBILE
+    const menuSyncUseElement = document.querySelector("#menuSyncNow use");
+    const barSyncUseElement = document.querySelector("#toolbarSync use");
+    if (!data) {
+        if (!window.siyuan.config.sync.enabled || (0 === window.siyuan.config.sync.provider && needSubscribe(""))) {
+            menuSyncUseElement?.setAttribute("xlink:href", "#iconCloudOff");
+            barSyncUseElement.setAttribute("xlink:href", "#iconCloudOff");
+        } else {
+            menuSyncUseElement?.setAttribute("xlink:href", "#iconCloudSucc");
+            barSyncUseElement.setAttribute("xlink:href", "#iconCloudSucc");
+        }
+        return;
+    }
+    menuSyncUseElement?.parentElement.classList.remove("fn__rotate");
+    barSyncUseElement.parentElement.classList.remove("fn__rotate");
+    if (data.code === 0) {  // syncing
+        menuSyncUseElement?.parentElement.classList.add("fn__rotate");
+        barSyncUseElement.parentElement.classList.add("fn__rotate");
+        menuSyncUseElement?.setAttribute("xlink:href", "#iconRefresh");
+        barSyncUseElement.setAttribute("xlink:href", "#iconRefresh");
+    } else if (data.code === 2) {    // error
+        menuSyncUseElement?.setAttribute("xlink:href", "#iconCloudError");
+        barSyncUseElement.setAttribute("xlink:href", "#iconCloudError");
+    } else if (data.code === 1) {   // success
+        menuSyncUseElement?.setAttribute("xlink:href", "#iconCloudSucc");
+        barSyncUseElement.setAttribute("xlink:href", "#iconCloudSucc");
+    }
+    /// #else
+    const iconElement = document.querySelector("#barSync");
+    if (!iconElement) {
+        return;
+    }
+    const useElement = iconElement.querySelector("use");
+    if (!data) {
+        iconElement.classList.remove("toolbar__item--active");
+        if (!window.siyuan.config.sync.enabled || (0 === window.siyuan.config.sync.provider && needSubscribe(""))) {
+            iconElement.setAttribute("aria-label", window.siyuan.languages["_kernel"]["53"]);
+            useElement.setAttribute("xlink:href", "#iconCloudOff");
+        } else {
+            useElement.setAttribute("xlink:href", "#iconCloudSucc");
+        }
+        return;
+    }
+    iconElement.firstElementChild.classList.remove("fn__rotate");
+    if (data.code === 0) {  // syncing
+        iconElement.classList.add("toolbar__item--active");
+        iconElement.firstElementChild.classList.add("fn__rotate");
+        useElement.setAttribute("xlink:href", "#iconRefresh");
+    } else if (data.code === 2) {    // error
+        iconElement.classList.remove("toolbar__item--active");
+        useElement.setAttribute("xlink:href", "#iconCloudError");
+    } else if (data.code === 1) {   // success
+        iconElement.classList.remove("toolbar__item--active");
+        useElement.setAttribute("xlink:href", "#iconCloudSucc");
+    }
+    iconElement.setAttribute("aria-label", data.msg);
+    /// #endif
 };

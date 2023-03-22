@@ -38,6 +38,7 @@
 * [文件](#文件)
     * [获取文件](#获取文件)
     * [写入文件](#写入文件)
+    * [删除文件](#删除文件)
 * [导出](#导出)
     * [导出 Markdown 文本](#导出-markdown-文本)
 * [通知](#通知)
@@ -377,20 +378,18 @@
 
 ### 移动文档
 
-* `/api/filetree/moveDoc`
+* `/api/filetree/moveDocs`
 * 参数
 
   ```json
   {
-    "fromNotebook": "20210831090520-7dvbdv0",
-    "fromPath": "/20210917220056-yxtyl7i.sy",
+    "fromPaths": ["/20210917220056-yxtyl7i.sy"],
     "toNotebook": "20210817205410-2kvfpfn",
     "toPath": "/"
   }
   ```
 
-    * `fromNotebook`：源笔记本 ID
-    * `fromPath`：源路径
+    * `fromPaths`：源路径
     * `toNotebook`：目标笔记本 ID
     * `toPath`：目标路径
 * 返回值
@@ -456,13 +455,11 @@
 * `/api/asset/upload`
 * 参数为 HTTP Multipart 表单
 
-    * `assetsDirPath`：资源文件存放的文件夹路径，实参有以下三种情况
+    * `assetsDirPath`：资源文件存放的文件夹路径，以 data 文件夹作为根路径，比如：
+        * `"/assets/"`：工作空间/data/assets/ 文件夹
+        * `"/assets/sub/"`：工作空间/data/assets/sub/ 文件夹
 
-        1. `"/assets/"`：工作空间/data/assets 文件夹
-        2. `"/测试笔记本/assets/"`：`测试笔记本`下的 assets 文件夹
-        3. `"/测试笔记本/foo/assets/"`：`测试笔记本`下 foo 文件夹下的 assets 文件夹
-
-      建议用第一种，统一存放到工作空间资源文件夹下。
+      常规情况下建议用第一种，统一存放到工作空间资源文件夹下。
     * `file[]`：上传的文件列表
 * 返回值
 
@@ -852,6 +849,27 @@
     * `isDir`：是否为创建文件夹，为 `true` 时仅创建文件夹，忽略 `file`
     * `modTime`：最近访问和修改时间，Unix time
     * `file`：上传的文件
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
+  }
+  ```
+
+### 删除文件
+
+* `/api/file/removeFile`
+* 参数
+
+  ```json
+  {
+    "path": "/data/20210808180117-6v0mkxr/20200923234011-ieuun1p.sy"
+  }
+  ```
+  * `path`：工作空间路径下的文件路径
 * 返回值
 
   ```json

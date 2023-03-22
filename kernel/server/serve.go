@@ -63,10 +63,7 @@ func Serve(fastMode bool) {
 	})
 	ginServer.Use(sessions.Sessions("siyuan", cookieStore))
 
-	if "dev" == util.Mode {
-		serveDebug(ginServer)
-	}
-
+	serveDebug(ginServer)
 	serveAssets(ginServer)
 	serveAppearance(ginServer)
 	serveWebSocket(ginServer)
@@ -87,7 +84,7 @@ func Serve(fastMode bool) {
 	if nil != err {
 		if !fastMode {
 			logging.LogErrorf("boot kernel failed: %s", err)
-			os.Exit(util.ExitCodeUnavailablePort)
+			os.Exit(logging.ExitCodeUnavailablePort)
 		}
 
 		// fast 模式下启动失败则直接返回
@@ -98,7 +95,7 @@ func Serve(fastMode bool) {
 	if nil != err {
 		if !fastMode {
 			logging.LogErrorf("boot kernel failed: %s", err)
-			os.Exit(util.ExitCodeUnavailablePort)
+			os.Exit(logging.ExitCodeUnavailablePort)
 		}
 	}
 	util.ServerPort = port
@@ -132,7 +129,7 @@ func Serve(fastMode bool) {
 	if err = http.Serve(ln, ginServer); nil != err {
 		if !fastMode {
 			logging.LogErrorf("boot kernel failed: %s", err)
-			os.Exit(util.ExitCodeUnavailablePort)
+			os.Exit(logging.ExitCodeUnavailablePort)
 		}
 	}
 }
@@ -220,12 +217,14 @@ func serveAppearance(ginServer *gin.Engine) {
 				enUSFilePath := filepath.Join(appearancePath, "langs", "en_US.json")
 				enUSData, err := os.ReadFile(enUSFilePath)
 				if nil != err {
-					logging.LogFatalf("read en_US.json [%s] failed: %s", enUSFilePath, err)
+					logging.LogErrorf("read en_US.json [%s] failed: %s", enUSFilePath, err)
+					util.ReportFileSysFatalError(err)
 					return
 				}
 				enUSMap := map[string]interface{}{}
 				if err = gulu.JSON.UnmarshalJSON(enUSData, &enUSMap); nil != err {
-					logging.LogFatalf("unmarshal en_US.json [%s] failed: %s", enUSFilePath, err)
+					logging.LogErrorf("unmarshal en_US.json [%s] failed: %s", enUSFilePath, err)
+					util.ReportFileSysFatalError(err)
 					return
 				}
 

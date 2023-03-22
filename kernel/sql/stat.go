@@ -43,36 +43,14 @@ func getDatabaseVer() (ret string) {
 
 func setDatabaseVer() {
 	key := "siyuan_database_ver"
-	tx, err := BeginTx()
+	tx, err := beginTx()
 	if nil != err {
 		return
 	}
 	if err = putStat(tx, key, util.DatabaseVer); nil != err {
-		RollbackTx(tx)
 		return
 	}
-	CommitTx(tx)
-}
-
-func ClearBoxHash(tx *sql.Tx) {
-	stmt := "DELETE FROM stat WHERE `key` LIKE '%_hash'"
-	execStmtTx(tx, stmt)
-}
-
-func RemoveBoxHash(tx *sql.Tx, box string) {
-	key := box + "_hash"
-	stmt := "DELETE FROM stat WHERE `key` = '" + key + "'"
-	execStmtTx(tx, stmt)
-}
-
-func PutBoxHash(tx *sql.Tx, box, hash string) {
-	key := box + "_hash"
-	putStat(tx, key, hash)
-}
-
-func GetBoxHash(box string) string {
-	key := box + "_hash"
-	return getStat(key)
+	commitTx(tx)
 }
 
 func putStat(tx *sql.Tx, key, value string) (err error) {

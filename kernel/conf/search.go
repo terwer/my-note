@@ -36,14 +36,15 @@ type Search struct {
 	SuperBlock bool `json:"superBlock"`
 	Paragraph  bool `json:"paragraph"`
 	HTMLBlock  bool `json:"htmlBlock"`
+	EmbedBlock bool `json:"embedBlock"`
 
 	Limit         int  `json:"limit"`
 	CaseSensitive bool `json:"caseSensitive"`
 
-	Name   bool `json:"name"`
-	Alias  bool `json:"alias"`
-	Memo   bool `json:"memo"`
-	Custom bool `json:"custom"`
+	Name  bool `json:"name"`
+	Alias bool `json:"alias"`
+	Memo  bool `json:"memo"`
+	IAL   bool `json:"ial"`
 
 	BacklinkMentionName          bool `json:"backlinkMentionName"`
 	BacklinkMentionAlias         bool `json:"backlinkMentionAlias"`
@@ -51,11 +52,10 @@ type Search struct {
 	BacklinkMentionDoc           bool `json:"backlinkMentionDoc"`
 	BacklinkMentionKeywordsLimit int  `json:"backlinkMentionKeywordsLimit"`
 
-	VirtualRefName          bool `json:"virtualRefName"`
-	VirtualRefAlias         bool `json:"virtualRefAlias"`
-	VirtualRefAnchor        bool `json:"virtualRefAnchor"`
-	VirtualRefDoc           bool `json:"virtualRefDoc"`
-	VirtualRefKeywordsLimit int  `json:"virtualRefKeywordsLimit"`
+	VirtualRefName   bool `json:"virtualRefName"`
+	VirtualRefAlias  bool `json:"virtualRefAlias"`
+	VirtualRefAnchor bool `json:"virtualRefAnchor"`
+	VirtualRefDoc    bool `json:"virtualRefDoc"`
 }
 
 func NewSearch() *Search {
@@ -71,14 +71,15 @@ func NewSearch() *Search {
 		SuperBlock: true,
 		Paragraph:  true,
 		HTMLBlock:  true,
+		EmbedBlock: false,
 
 		Limit:         64,
 		CaseSensitive: true,
 
-		Name:   true,
-		Alias:  true,
-		Memo:   true,
-		Custom: false,
+		Name:  true,
+		Alias: true,
+		Memo:  true,
+		IAL:   false,
 
 		BacklinkMentionName:          true,
 		BacklinkMentionAlias:         false,
@@ -86,11 +87,10 @@ func NewSearch() *Search {
 		BacklinkMentionDoc:           true,
 		BacklinkMentionKeywordsLimit: 512,
 
-		VirtualRefName:          true,
-		VirtualRefAlias:         false,
-		VirtualRefAnchor:        true,
-		VirtualRefDoc:           true,
-		VirtualRefKeywordsLimit: 512,
+		VirtualRefName:   true,
+		VirtualRefAlias:  false,
+		VirtualRefAnchor: true,
+		VirtualRefDoc:    true,
 	}
 }
 
@@ -105,9 +105,6 @@ func (s *Search) NAMFilter(keyword string) string {
 	}
 	if s.Memo {
 		buf.WriteString(" OR memo LIKE '%" + keyword + "%'")
-	}
-	if s.Custom {
-		buf.WriteString(" OR ial LIKE '%=%" + keyword + "%'")
 	}
 	return buf.String()
 }
@@ -180,8 +177,14 @@ func (s *Search) TypeFilter() string {
 		buf.WriteByte('\'')
 		buf.WriteString(",")
 	}
+	if s.EmbedBlock {
+		buf.WriteByte('\'')
+		buf.WriteString(treenode.TypeAbbr(ast.NodeBlockQueryEmbed.String()))
+		buf.WriteByte('\'')
+		buf.WriteString(",")
+	}
 	// 无法搜索到 iframe 块、视频块和音频块 https://github.com/siyuan-note/siyuan/issues/3604
-	buf.WriteString("'iframe','query_embed','video','audio',")
+	buf.WriteString("'iframe','video','audio',")
 	// 挂件块支持内置属性搜索 https://github.com/siyuan-note/siyuan/issues/4497
 	buf.WriteString("'widget',")
 

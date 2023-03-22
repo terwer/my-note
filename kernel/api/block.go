@@ -24,12 +24,37 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/html"
 	"github.com/gin-gonic/gin"
-	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/model"
-	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func transferBlockRef(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	fromID := arg["fromID"].(string)
+	if util.InvalidIDPattern(fromID, ret) {
+		return
+	}
+	toID := arg["toID"].(string)
+	if util.InvalidIDPattern(toID, ret) {
+		return
+	}
+
+	err := model.TransferBlockRef(fromID, toID)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		ret.Data = map[string]interface{}{"closeTimeout": 7000}
+		return
+	}
+}
 
 func swapBlockRef(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
@@ -155,7 +180,7 @@ func checkBlockFold(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
-	ret.Data = sql.IsBlockFolded(id)
+	ret.Data = model.IsBlockFolded(id)
 }
 
 func checkBlockExist(c *gin.Context) {
@@ -168,10 +193,10 @@ func checkBlockExist(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
-	b, err := model.GetBlock(id)
-	if errors.Is(err, filelock.ErrUnableAccessFile) {
-		ret.Code = 2
-		ret.Data = id
+	b, err := model.GetBlock(id, nil)
+	if errors.Is(err, model.ErrIndexing) {
+		ret.Code = 0
+		ret.Data = false
 		return
 	}
 	ret.Data = nil != b
@@ -257,6 +282,7 @@ func getRefText(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
+	model.WaitForWritingFiles()
 	ret.Data = model.GetBlockRefText(id)
 }
 
@@ -371,12 +397,15 @@ func getBlockInfo(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
-	block, err := model.GetBlock(id)
-	if errors.Is(err, filelock.ErrUnableAccessFile) {
-		ret.Code = 2
-		ret.Data = id
+
+	tree, err := model.LoadTreeByID(id)
+	if errors.Is(err, model.ErrIndexing) {
+		ret.Code = 3
+		ret.Msg = model.Conf.Language(56)
 		return
 	}
+
+	block, _ := model.GetBlock(id, tree)
 	if nil == block {
 		ret.Code = -1
 		ret.Msg = fmt.Sprintf(model.Conf.Language(15), id)
@@ -391,16 +420,16 @@ func getBlockInfo(c *gin.Context) {
 			rootChildID = b.ID
 			break
 		}
-		if b, _ = model.GetBlock(parentID); nil == b {
+		if b, _ = model.GetBlock(parentID, tree); nil == b {
 			logging.LogErrorf("not found parent")
 			break
 		}
 	}
 
-	root, err := model.GetBlock(block.RootID)
-	if errors.Is(err, filelock.ErrUnableAccessFile) {
-		ret.Code = 2
-		ret.Data = id
+	root, err := model.GetBlock(block.RootID, tree)
+	if errors.Is(err, model.ErrIndexing) {
+		ret.Code = 3
+		ret.Data = model.Conf.Language(56)
 		return
 	}
 	rootTitle := root.IAL["title"]
@@ -442,6 +471,10 @@ func getBlockKramdown(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
+	if util.InvalidIDPattern(id, ret) {
+		return
+	}
+
 	kramdown := model.GetBlockKramdown(id)
 	ret.Data = map[string]string{
 		"id":       id,

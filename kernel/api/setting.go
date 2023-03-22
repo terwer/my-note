@@ -29,6 +29,43 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func setFlashcard(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	param, err := gulu.JSON.MarshalJSON(arg)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	flashcard := &conf.Flashcard{}
+	if err = gulu.JSON.UnmarshalJSON(param, flashcard); nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	if 1 > flashcard.DailyNewCardLimit {
+		flashcard.DailyNewCardLimit = 1
+	}
+
+	if 1 > flashcard.DailyReviewCardLimit {
+		flashcard.DailyReviewCardLimit = 1
+	}
+
+	model.Conf.Flashcard = flashcard
+	model.Conf.Save()
+
+	ret.Data = flashcard
+}
+
 func setAccount(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -91,11 +128,27 @@ func setEditor(c *gin.Context) {
 		editor.KaTexMacros = "{}"
 	}
 
+	oldVirtualBlockRef := model.Conf.Editor.VirtualBlockRef
+	oldVirtualBlockRefInclude := model.Conf.Editor.VirtualBlockRefInclude
+	oldVirtualBlockRefExclude := model.Conf.Editor.VirtualBlockRefExclude
+	oldReadOnly := model.Conf.Editor.ReadOnly
+
 	model.Conf.Editor = editor
 	model.Conf.Save()
 
 	if oldGenerateHistoryInterval != model.Conf.Editor.GenerateHistoryInterval {
 		model.ChangeHistoryTick(editor.GenerateHistoryInterval)
+	}
+
+	if oldVirtualBlockRef != model.Conf.Editor.VirtualBlockRef ||
+		oldVirtualBlockRefInclude != model.Conf.Editor.VirtualBlockRefInclude ||
+		oldVirtualBlockRefExclude != model.Conf.Editor.VirtualBlockRefExclude {
+		model.ResetVirtualBlockRefCache()
+	}
+
+	if oldReadOnly != model.Conf.Editor.ReadOnly {
+		util.BroadcastByType("protyle", "readonly", 0, "", model.Conf.Editor.ReadOnly)
+		util.BroadcastByType("main", "readonly", 0, "", model.Conf.Editor.ReadOnly)
 	}
 
 	ret.Data = model.Conf.Editor
@@ -168,6 +221,12 @@ func setFiletree(c *gin.Context) {
 		}
 	}
 
+	fileTree.DocCreateSavePath = strings.TrimSpace(fileTree.DocCreateSavePath)
+	for strings.HasSuffix(fileTree.DocCreateSavePath, "/") {
+		fileTree.DocCreateSavePath = strings.TrimSuffix(fileTree.DocCreateSavePath, "/")
+		fileTree.DocCreateSavePath = strings.TrimSpace(fileTree.DocCreateSavePath)
+	}
+
 	if 1 > fileTree.MaxOpenTabCount {
 		fileTree.MaxOpenTabCount = 8
 	}
@@ -203,11 +262,15 @@ func setSearch(c *gin.Context) {
 		return
 	}
 
-	if 1 > s.Limit {
-		s.Limit = 64
+	if 32 > s.Limit {
+		s.Limit = 32
 	}
 
 	oldCaseSensitive := model.Conf.Search.CaseSensitive
+	oldVirtualRefName := model.Conf.Search.VirtualRefName
+	oldVirtualRefAlias := model.Conf.Search.VirtualRefAlias
+	oldVirtualRefAnchor := model.Conf.Search.VirtualRefAnchor
+	oldVirtualRefDoc := model.Conf.Search.VirtualRefDoc
 
 	model.Conf.Search = s
 	model.Conf.Save()
@@ -215,7 +278,13 @@ func setSearch(c *gin.Context) {
 	if s.CaseSensitive != oldCaseSensitive {
 		model.FullReindex()
 	}
-	sql.ClearVirtualRefKeywords()
+
+	if oldVirtualRefName != s.VirtualRefName ||
+		oldVirtualRefAlias != s.VirtualRefAlias ||
+		oldVirtualRefAnchor != s.VirtualRefAnchor ||
+		oldVirtualRefDoc != s.VirtualRefDoc {
+		model.ResetVirtualBlockRefCache()
+	}
 	ret.Data = s
 }
 
@@ -271,6 +340,7 @@ func setAppearance(c *gin.Context) {
 
 	model.Conf.Appearance = appearance
 	model.Conf.Lang = appearance.Lang
+	util.Lang = model.Conf.Lang
 	model.Conf.Save()
 	model.InitAppearance()
 

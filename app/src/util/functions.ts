@@ -1,5 +1,9 @@
 export const isMobile = () => {
-    return !document.getElementById("dockBottom");
+    return document.getElementById("sidebar") ? true : false;
+};
+
+export const isWindow = () => {
+    return document.getElementById("toolbar") ? false : true;
 };
 
 export const isTouchDevice = () => {
@@ -15,19 +19,11 @@ export const getRandom = (min: number, max: number) => {
 };
 
 export const getSearch = (key: string, link = window.location.search) => {
-    if (link.indexOf("?") === -1) {
-        return "";
-    }
-    let value = "";
-    const data = link.split("?")[1].split("&");
-    data.find(item => {
-        const keyValue = item.split("=");
-        if (keyValue[0] === key) {
-            value = keyValue[1];
-            return true;
-        }
-    });
-    return value;
+    const params = link.substring(link.indexOf("?"));
+    const hashIndex = params.indexOf("#");
+    // REF https://developer.mozilla.org/zh-CN/docs/Web/API/URLSearchParams
+    const urlSearchParams = new URLSearchParams(params.substring(0, hashIndex >= 0 ? hashIndex : undefined));
+    return urlSearchParams.get(key);
 };
 
 export const isBrowser = () => {

@@ -337,6 +337,7 @@ interface IHintData {
     html: string;
     value: string;
     filter?: string[]
+    focus?: boolean
 }
 
 interface IHintExtend {
@@ -377,7 +378,6 @@ interface IOptions {
         scroll?: boolean
         breadcrumb?: boolean
         breadcrumbDocName?: boolean
-        breadcrumbContext?: boolean
     }
     /** 内部调试时使用 */
     _lutePath?: string;
@@ -409,7 +409,7 @@ interface IProtyle {
     id: string,
     block: {
         id?: string,
-        childBlockCount?: number,
+        scroll?: boolean
         parentID?: string,
         parent2ID?: string,
         rootID?: string,

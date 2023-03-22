@@ -17,14 +17,29 @@
 package util
 
 import (
+	"github.com/88250/lute/ast"
+	"github.com/imroc/req/v3"
 	"github.com/siyuan-note/httpclient"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
 	"github.com/olahol/melody"
 )
+
+func IsOnline() bool {
+	c := req.C().SetTimeout(1 * time.Second)
+	resp, err := c.R().Head("https://www.baidu.com")
+	if nil != err {
+		resp, err = c.R().Head("https://icanhazip.com")
+		if nil != err {
+			resp, err = c.R().Head("https://api.ipify.org")
+		}
+	}
+	return nil == err && nil != resp && nil != resp.Response
+}
 
 func GetRemoteAddr(session *melody.Session) string {
 	ret := session.Request.Header.Get("X-forwarded-for")
@@ -49,6 +64,16 @@ func JsonArg(c *gin.Context, result *gulu.Result) (arg map[string]interface{}, o
 
 	ok = true
 	return
+}
+
+func InvalidIDPattern(idArg string, result *gulu.Result) bool {
+	if ast.IsNodeIDPattern(idArg) {
+		return false
+	}
+
+	result.Code = -1
+	result.Msg = "invalid ID argument"
+	return true
 }
 
 func initHttpClient() {

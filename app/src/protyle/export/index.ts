@@ -1,17 +1,16 @@
 import {hideMessage, showMessage} from "../../dialog/message";
 import {Constants} from "../../constants";
 /// #if !BROWSER
-import {OpenDialogReturnValue, ipcRenderer} from "electron";
+import {ipcRenderer, OpenDialogReturnValue} from "electron";
 import {app, BrowserWindow, dialog, getCurrentWindow} from "@electron/remote";
 import * as fs from "fs";
 import * as path from "path";
 import {afterExport} from "./util";
 /// #endif
 import {confirmDialog} from "../../dialog/confirmDialog";
-import {setInlineStyle} from "../../util/assets";
+import {getThemeMode, setInlineStyle} from "../../util/assets";
 import {fetchPost} from "../../util/fetch";
 import {Dialog} from "../../dialog";
-import {lockFile} from "../../dialog/processSystem";
 import {pathPosix} from "../../util/pathName";
 import {replaceLocalPath} from "../../editor/rename";
 import {setStorageVal} from "../util/compatibility";
@@ -33,14 +32,14 @@ export const saveExport = (option: { type: string, id: string }) => {
             content: `<div class="b3-dialog__content">
     <label class="fn__flex b3-label">
         <div class="fn__flex-1">
-            ${window.siyuan.languages.exportPDF4}
+            ${window.siyuan.languages.removeAssetsFolder}
         </div>
         <span class="fn__space"></span>
         <input id="removeAssets" class="b3-switch" type="checkbox" ${localData.removeAssets ? "checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
         <div class="fn__flex-1">
-            ${window.siyuan.languages.exportPDF6}
+            ${window.siyuan.languages.mergeSubdocs}
         </div>
         <span class="fn__space"></span>
         <input id="mergeSubdocs" class="b3-switch" type="checkbox" ${localData.mergeSubdocs ? "checked" : ""}>
@@ -79,7 +78,9 @@ const renderPDF = (id: string) => {
     if (!isDefault) {
         themeStyle = `<link rel="stylesheet" type="text/css" id="themeStyle" href="${servePath}/appearance/themes/${window.siyuan.config.appearance.themeLight}/${window.siyuan.config.appearance.customCSS ? "custom" : "theme"}.css?${Constants.SIYUAN_VERSION}"/>`;
     }
-    const html = `<!DOCTYPE html><html>
+    // data-theme-mode="light" https://github.com/siyuan-note/siyuan/issues/7379
+    const html = `<!DOCTYPE html>
+<html lang="${window.siyuan.config.appearance.lang}" data-theme-mode="light" data-light-theme="${window.siyuan.config.appearance.themeLight}" data-dark-theme="${window.siyuan.config.appearance.themeDark}">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -103,8 +104,9 @@ const renderPDF = (id: string) => {
           position: fixed;
           right: 0;
           top: 0;
-          overflow: auto;
+          overflow-y: auto;
           bottom: 0;
+          overflow-x: hidden;
         }
         
         #preview {
@@ -213,7 +215,7 @@ const renderPDF = (id: string) => {
     </label>
     <label class="b3-label">
         <div>
-            ${window.siyuan.languages.exportPDF6}
+            ${window.siyuan.languages.mergeSubdocs}
         </div>
         <span class="fn__hr"></span>
         <input id="mergeSubdocs" class="b3-switch" type="checkbox" ${localData.mergeSubdocs ? "checked" : ""}>
@@ -236,34 +238,21 @@ const renderPDF = (id: string) => {
     let pdfTop = 0;
     const previewElement = document.getElementById('preview');
     const setLineNumberWidth = (element) => {
-        let width = 800
-        switch (element.value) {
-            case "A3":
-              width = 842
-              break;
-            case "A4":
-              width = 595
-              break;
-            case "A5":
-              width = 420
-              break;
-            case "Legal":
-            case "Letter":
-              width = 612
-              break;
-            case "Tabloid":
-              width = 792
-              break;
-        }
-        previewElement.querySelectorAll('.hljs.protyle-linenumber').forEach((item) => {
-            item.parentElement.style.width = width + "px";
+        // 为保持代码块宽度一致，全部都进行宽度设定 https://github.com/siyuan-note/siyuan/issues/7692 
+        previewElement.querySelectorAll('.hljs').forEach((item) => {
+            // 强制换行 https://ld246.com/article/1679228783553
+            item.parentElement.setAttribute("linewrap", "true");
+            item.parentElement.style.width = "";
+            item.parentElement.style.width = item.parentElement.clientWidth + "px";
             item.removeAttribute('data-render');
         })
+        Protyle.highlightRender(previewElement, "${servePath}/stage/protyle");
         previewElement.querySelectorAll('[data-type="NodeMathBlock"]').forEach((item) => {
-            item.style.width = width + "px";
+            item.style.width = "";
+            item.style.width = item.clientWidth + "px";
+            item.removeAttribute('data-render');
         })
         Protyle.mathRender(previewElement, "${servePath}/stage/protyle", true);
-        Protyle.highlightRender(previewElement, "${servePath}/stage/protyle");
     }
     const setPadding = () => {
         const isLandscape = document.querySelector("#landscape").checked;
@@ -325,10 +314,7 @@ const renderPDF = (id: string) => {
         Protyle.mindmapRender(previewElement, "${servePath}/stage/protyle");
         Protyle.abcRender(previewElement, "${servePath}/stage/protyle");
         Protyle.plantumlRender(previewElement, "${servePath}/stage/protyle");
-        Protyle.highlightRender(previewElement, "${servePath}/stage/protyle");
-        setTimeout(() => {
-            setLineNumberWidth(document.querySelector("#action #pageSize"));
-        }, 600);
+        setLineNumberWidth(document.querySelector("#action #pageSize"));
     }
     fetchPost("/api/export/exportPreviewHTML", {
         id: "${id}",
@@ -446,6 +432,7 @@ const renderPDF = (id: string) => {
             previewElement.classList.add("exporting");
             previewElement.style.paddingTop = "6px";
             previewElement.style.paddingBottom = "0";
+            setLineNumberWidth(pageSizeElement);
         });
         setPadding();
         renderPreview(response.data.content);
@@ -466,6 +453,7 @@ const renderPDF = (id: string) => {
             nodeIntegration: true,
             webviewTag: true,
             webSecurity: false,
+            autoplayPolicy: "user-gesture-required" // 桌面端禁止自动播放多媒体 https://github.com/siyuan-note/siyuan/issues/7587
         },
     });
     ipcRenderer.send(Constants.SIYUAN_EXPORT_PREVENT, window.siyuan.printWin.id);
@@ -479,12 +467,10 @@ const getExportPath = (option: { type: string, id: string }, removeAssets?: bool
     fetchPost("/api/block/getBlockInfo", {
         id: option.id
     }, (response) => {
-        if (response.code === 2) {
-            // 文件被锁定
-            lockFile(response.data);
+        if (response.code === 3) {
+            showMessage(response.msg);
             return;
         }
-
         let exportType = "HTML (SiYuan)";
         switch (option.type) {
             case "htmlmd":
@@ -550,7 +536,8 @@ const onExport = (data: IWebSocketData, filePath: string, type: string, removeAs
     if (!isDefault) {
         themeStyle = `<link rel="stylesheet" type="text/css" id="themeStyle" href="appearance/themes/${themeName}/${window.siyuan.config.appearance.customCSS ? "custom" : "theme"}.css?${Constants.SIYUAN_VERSION}"/>`;
     }
-    const html = `<!DOCTYPE html><html>
+    const html = `<!DOCTYPE html>
+<html lang="${window.siyuan.config.appearance.lang}" data-theme-mode="${getThemeMode()}" data-light-theme="${window.siyuan.config.appearance.themeLight}" data-dark-theme="${window.siyuan.config.appearance.themeDark}">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">

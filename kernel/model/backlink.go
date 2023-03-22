@@ -40,24 +40,19 @@ import (
 func RefreshBacklink(id string) {
 	WaitForWritingFiles()
 
-	tx, err := sql.BeginTx()
-	if nil != err {
-		return
-	}
-	defer sql.CommitTx(tx)
-
 	refs := sql.QueryRefsByDefID(id, false)
 	trees := map[string]*parse.Tree{}
 	for _, ref := range refs {
 		tree := trees[ref.RootID]
 		if nil == tree {
-			tree, err = loadTreeByBlockID(ref.RootID)
-			if nil != err {
-				logging.LogErrorf("refresh tree refs failed: %s", err)
+			var loadErr error
+			tree, loadErr = loadTreeByBlockID(ref.RootID)
+			if nil != loadErr {
+				logging.LogErrorf("refresh tree refs failed: %s", loadErr)
 				continue
 			}
 			trees[ref.RootID] = tree
-			sql.UpsertRefs(tx, tree)
+			sql.UpdateRefsTreeQueue(tree)
 		}
 	}
 }
@@ -172,7 +167,7 @@ func buildBacklink(refID string, refTree *parse.Tree, keywords []string, luteEng
 					return ast.WalkContinue
 				}
 
-				markReplaceSpan(n, &unlinks, keywords, searchMarkDataType, luteEngine)
+				markReplaceSpan(n, &unlinks, keywords, search.MarkDataType, luteEngine)
 				return ast.WalkContinue
 			})
 
@@ -508,25 +503,35 @@ func buildLinkRefs(defRootID string, refs []*sql.Ref, keyword string) (ret []*Bl
 		refsCount += len(link.Refs)
 	}
 
-	processedParagraphs := hashset.New()
-	var paragraphParentIDs []string
+	parentRefParagraphs := map[string]*Block{}
 	for _, link := range links {
 		for _, ref := range link.Refs {
 			if "NodeParagraph" == ref.Type {
-				paragraphParentIDs = append(paragraphParentIDs, ref.ParentID)
+				parentRefParagraphs[ref.ParentID] = ref
 			}
 		}
 	}
-	paragraphParents := sql.GetBlocks(paragraphParentIDs)
-	for _, p := range paragraphParents {
-		if "i" == p.Type || "h" == p.Type {
-			processedParagraphs.Add(p.ID)
 
-			if !strings.Contains(p.Content, keyword) {
-				refsCount--
-				continue
+	var paragraphParentIDs []string
+	for parentID, _ := range parentRefParagraphs {
+		paragraphParentIDs = append(paragraphParentIDs, parentID)
+	}
+	paragraphParents := sql.GetBlocks(paragraphParentIDs)
+
+	processedParagraphs := hashset.New()
+	for _, p := range paragraphParents {
+		// 改进标题下方块和列表项子块引用时的反链定位 https://github.com/siyuan-note/siyuan/issues/7484
+		if "i" == p.Type {
+			refBlock := parentRefParagraphs[p.ID]
+			if nil != refBlock && p.FContent == refBlock.Content { // 使用内容判断是否是列表项下第一个子块
+				// 如果是列表项下第一个子块，则后续会通过列表项传递或关联处理，所以这里就不处理这个段落了
+				processedParagraphs.Add(p.ID)
+				if !strings.Contains(p.Content, keyword) {
+					refsCount--
+					continue
+				}
+				ret = append(ret, fromSQLBlock(p, "", 12))
 			}
-			ret = append(ret, fromSQLBlock(p, "", 12))
 		}
 	}
 	for _, link := range links {
@@ -637,7 +642,7 @@ func searchBackmention(mentionKeywords []string, keyword string, excludeBacklink
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString("SELECT * FROM " + table + " WHERE " + table + " MATCH '{content}:(")
+	buf.WriteString("SELECT * FROM " + table + " WHERE " + table + " MATCH '" + columnFilter() + ":(")
 	for i, mentionKeyword := range mentionKeywords {
 		if Conf.Search.BacklinkMentionKeywordsLimit < i {
 			util.PushMsg(fmt.Sprintf(Conf.Language(38), len(mentionKeywords)), 5000)
@@ -670,7 +675,7 @@ func searchBackmention(mentionKeywords []string, keyword string, excludeBacklink
 	}
 	blocks := fromSQLBlocks(&sqlBlocks, strings.Join(terms, search.TermSep), beforeLen)
 
-	luteEngine := NewLute()
+	luteEngine := util.NewLute()
 	var tmp []*Block
 	for _, b := range blocks {
 		tree := parse.Parse("", gulu.Str.ToBytes(b.Markdown), luteEngine.ParseOptions)
@@ -683,7 +688,7 @@ func searchBackmention(mentionKeywords []string, keyword string, excludeBacklink
 			if !entering || n.IsBlock() {
 				return ast.WalkContinue
 			}
-			if ast.NodeText == n.Type {
+			if ast.NodeText == n.Type { // 这里包含了标签命中的情况，因为 Lute 没有启用 TextMark
 				textBuf.Write(n.Tokens)
 			}
 			return ast.WalkContinue
@@ -695,9 +700,17 @@ func searchBackmention(mentionKeywords []string, keyword string, excludeBacklink
 			continue
 		}
 
-		newText := markReplaceSpanWithSplit(text, mentionKeywords, getMarkSpanStart(searchMarkDataType), getMarkSpanEnd())
+		newText := markReplaceSpanWithSplit(text, mentionKeywords, search.GetMarkSpanStart(search.MarkDataType), search.GetMarkSpanEnd())
 		if text != newText {
 			tmp = append(tmp, b)
+		} else {
+			// columnFilter 中的命名、别名和备注命中的情况
+			// 反链提及搜索范围增加命名、别名和备注 https://github.com/siyuan-note/siyuan/issues/7639
+			if gulu.Str.Contains(trimMarkTags(b.Name), mentionKeywords) ||
+				gulu.Str.Contains(trimMarkTags(b.Alias), mentionKeywords) ||
+				gulu.Str.Contains(trimMarkTags(b.Memo), mentionKeywords) {
+				tmp = append(tmp, b)
+			}
 		}
 	}
 	blocks = tmp
@@ -720,6 +733,10 @@ func searchBackmention(mentionKeywords []string, keyword string, excludeBacklink
 		return ret[i].ID > ret[j].ID
 	})
 	return
+}
+
+func trimMarkTags(str string) string {
+	return strings.TrimSuffix(strings.TrimPrefix(str, "<mark>"), "</mark>")
 }
 
 func getContainStr(str string, strs []string) string {

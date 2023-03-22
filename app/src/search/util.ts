@@ -12,7 +12,7 @@ import {reloadProtyle} from "../protyle/util/reload";
 import {MenuItem} from "../menus/Menu";
 import {getDisplayName, getNotebookIcon, getNotebookName, movePathTo, pathPosix} from "../util/pathName";
 import {Protyle} from "../protyle";
-import {onGet} from "../protyle/util/onGet";
+import {disabledProtyle, onGet} from "../protyle/util/onGet";
 import {addLoading, setPadding} from "../protyle/ui/initUI";
 import {getIconByType} from "../editor/getIcon";
 import {unicode2Emoji} from "../emoji";
@@ -159,7 +159,7 @@ export const genSearch = (config: ISearchOption, element: Element, closeCB?: () 
         <div class="fn__flex${config.group === 0 ? " fn__none" : ""}">
             <span class="fn__space"></span>
             <span id="searchExpand" class="block__icon b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.expand}">
-                <svg><use xlink:href="#iconFullscreen"></use></svg>
+                <svg><use xlink:href="#iconExpand"></use></svg>
             </span>
             <span class="fn__space"></span>
             <span id="searchCollapse" class="block__icon b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.collapse}">
@@ -188,6 +188,9 @@ export const genSearch = (config: ISearchOption, element: Element, closeCB?: () 
             breadcrumbDocName: true
         },
     });
+    if (window.siyuan.config.editor.readOnly) {
+        disabledProtyle(edit.protyle);
+    }
     if (closeCB) {
         if (data.layout === 1) {
             if (data.col) {
@@ -304,7 +307,7 @@ export const genSearch = (config: ISearchOption, element: Element, closeCB?: () 
                                 hPathList.push(escapeHtml(getNotebookName(toNotebook[index])));
                             } else {
                                 enableIncludeChild = true;
-                                config.idPath.push(pathPosix().join(toNotebook[index], item));
+                                config.idPath.push(pathPosix().join(toNotebook[index], item.replace(".sy", "")));
                             }
                         });
                         if (response.data) {
@@ -489,9 +492,16 @@ export const genSearch = (config: ISearchOption, element: Element, closeCB?: () 
                                     k: getKey(target)
                                 });
                                 searchInputElement.focus();
+                            } else if (target.classList.contains("b3-list-item--focus")) {
+                                renderNextSearchMark({
+                                    edit,
+                                    id: target.getAttribute("data-node-id"),
+                                    target,
+                                });
+                                searchInputElement.focus();
                             }
                         }, Constants.TIMEOUT_DBLCLICK);
-                    } else if (event.detail === 2) {
+                    } else if (event.detail === 2 && !event.ctrlKey) {
                         clearTimeout(clickTimeout);
                         const id = target.getAttribute("data-node-id");
                         fetchPost("/api/block/checkBlockFold", {id}, (foldResponse) => {
@@ -613,6 +623,7 @@ export const genSearch = (config: ISearchOption, element: Element, closeCB?: () 
 };
 
 const addConfigMoreMenu = async (config: ISearchOption, edit: Protyle, element: Element, event: MouseEvent) => {
+    const criteria = await fetchSyncPost("/api/storage/getCriteria");
     window.siyuan.menus.menu.remove();
     const sortMenu = [{
         label: window.siyuan.languages.type,
@@ -788,7 +799,6 @@ const addConfigMoreMenu = async (config: ISearchOption, edit: Protyle, element: 
             });
         }
     }).element);
-    const criteria = await fetchSyncPost("/api/storage/getCriteria");
     const searchSubMenu: IMenu[] = [];
     criteria.data.forEach((item: ISearchOption) => {
         searchSubMenu.push({
@@ -846,6 +856,7 @@ const addConfigMoreMenu = async (config: ISearchOption, edit: Protyle, element: 
                     blockquote: window.siyuan.config.search.blockquote,
                     superBlock: window.siyuan.config.search.superBlock,
                     paragraph: window.siyuan.config.search.paragraph,
+                    embedBlock: window.siyuan.config.search.embedBlock,
                 }
             }, config, edit);
         }
@@ -902,6 +913,22 @@ const updateConfig = (element: Element, item: ISearchOption, config: ISearchOpti
     }
     (element.querySelector("#searchInput") as HTMLInputElement).value = item.k;
     (element.querySelector("#replaceInput") as HTMLInputElement).value = item.r;
+    let methodTip = window.siyuan.languages.searchMethod + " ";
+    switch (item.method) {
+        case 0:
+            methodTip += window.siyuan.languages.keyword;
+            break;
+        case 1:
+            methodTip += window.siyuan.languages.querySyntax;
+            break;
+        case 2:
+            methodTip += "SQL";
+            break;
+        case 3:
+            methodTip += window.siyuan.languages.regex;
+            break;
+    }
+    element.querySelector("#searchSyntaxCheck").setAttribute("aria-label", methodTip);
     Object.assign(config, item);
     window.siyuan.storage[Constants.LOCAL_SEARCHEDATA] = Object.assign({}, config);
     setStorageVal(Constants.LOCAL_SEARCHEDATA, window.siyuan.storage[Constants.LOCAL_SEARCHEDATA]);
@@ -914,6 +941,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         title: window.siyuan.languages.type,
         content: `<div class="b3-dialog__content" style="height:calc(70vh - 45px);overflow: auto">
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconMath"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.math}
         </div>
@@ -921,6 +950,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="mathBlock" type="checkbox"${config.types.mathBlock ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconTable"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.table}
         </div>
@@ -928,6 +959,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="table" type="checkbox"${config.types.table ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconQuote"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.quote}
         </div>
@@ -935,6 +968,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="blockquote" type="checkbox"${config.types.blockquote ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconSuper"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.superBlock}
         </div>
@@ -942,6 +977,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="superBlock" type="checkbox"${config.types.superBlock ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconParagraph"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.paragraph}
         </div>
@@ -949,6 +986,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="paragraph" type="checkbox"${config.types.paragraph ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconFile"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.doc}
         </div>
@@ -956,6 +995,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="document" type="checkbox"${config.types.document ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconHeadings"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.headings}
         </div>
@@ -963,6 +1004,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="heading" type="checkbox"${config.types.heading ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconList"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.list1}
         </div>
@@ -970,6 +1013,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="list" type="checkbox"${config.types.list ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconListItem"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.listItem}
         </div>
@@ -977,6 +1022,8 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="listItem" type="checkbox"${config.types.listItem ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconCode"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             ${window.siyuan.languages.code}
         </div>
@@ -984,11 +1031,22 @@ const addConfigFilterMenu = (config: ISearchOption, edit: Protyle, element: Elem
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="codeBlock" type="checkbox"${config.types.codeBlock ? " checked" : ""}>
     </label>
     <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconHTML5"></use></svg>
+        <span class="fn__space"></span>
         <div class="fn__flex-1 fn__flex-center">
             HTML
         </div>
         <span class="fn__space"></span>
         <input id="removeAssets" class="b3-switch fn__flex-center" data-type="htmlBlock" type="checkbox"${config.types.htmlBlock ? " checked" : ""}>
+    </label>
+    <label class="fn__flex b3-label">
+        <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconSQL"></use></svg>
+        <span class="fn__space"></span>
+        <div class="fn__flex-1 fn__flex-center">
+            ${window.siyuan.languages.embedBlock}
+        </div>
+        <span class="fn__space"></span>
+        <input id="removeAssets" class="b3-switch fn__flex-center" data-type="embedBlock" type="checkbox"${config.types.embedBlock ? " checked" : ""}>
     </label>
 </div>
 <div class="b3-dialog__action">
@@ -1058,6 +1116,30 @@ const getKey = (element: HTMLElement) => {
     return [...new Set(keys)].join(" ");
 };
 
+const renderNextSearchMark = (options: {
+    id: string,
+    edit: Protyle,
+    target: Element,
+}) => {
+    let matchElement;
+    const allMatchElements = Array.from(options.edit.protyle.wysiwyg.element.querySelectorAll(`div[data-node-id="${options.id}"] span[data-type~="search-mark"]`));
+    allMatchElements.find((item, itemIndex) => {
+        if (item.classList.contains("search-mark--hl")) {
+            item.classList.remove("search-mark--hl");
+            matchElement = allMatchElements[itemIndex + 1];
+            return;
+        }
+    });
+    if (!matchElement) {
+        matchElement = allMatchElements[0];
+    }
+    if (matchElement) {
+        matchElement.classList.add("search-mark--hl");
+        const contentRect = options.edit.protyle.contentElement.getBoundingClientRect();
+        options.edit.protyle.contentElement.scrollTop = options.edit.protyle.contentElement.scrollTop + matchElement.getBoundingClientRect().top - contentRect.top - contentRect.height / 2;
+    }
+};
+
 const getArticle = (options: {
     id: string,
     k: string,
@@ -1071,11 +1153,22 @@ const getArticle = (options: {
             k: options.k,
             mode: foldResponse.data ? 0 : 3,
             size: foldResponse.data ? Constants.SIZE_GET_MAX : window.siyuan.config.editor.dynamicLoadBlocks,
+            zoom: foldResponse.data,
         }, getResponse => {
             onGet(getResponse, options.edit.protyle, foldResponse.data ? [Constants.CB_GET_ALL, Constants.CB_GET_HTML] : [Constants.CB_GET_HL, Constants.CB_GET_HTML]);
-            const matchElement = options.edit.protyle.wysiwyg.element.querySelector(`div[data-node-id="${options.id}"] span[data-type="search-mark"]`);
+            const matchElement = options.edit.protyle.wysiwyg.element.querySelector(`div[data-node-id="${options.id}"] span[data-type~="search-mark"]`);
             if (matchElement) {
-                matchElement.scrollIntoView();
+                matchElement.classList.add("search-mark--hl");
+                const contentRect = options.edit.protyle.contentElement.getBoundingClientRect();
+                options.edit.protyle.contentElement.scrollTop = options.edit.protyle.contentElement.scrollTop + matchElement.getBoundingClientRect().top - contentRect.top - contentRect.height / 2;
+            }
+            const exitFocusElement = options.edit.protyle.breadcrumb.element.parentElement.querySelector('[data-type="exit-focus"]');
+            if (!foldResponse.data) {
+                exitFocusElement.classList.add("fn__none");
+                exitFocusElement.nextElementSibling.classList.add("fn__none");
+            } else {
+                exitFocusElement.classList.remove("fn__none");
+                exitFocusElement.nextElementSibling.classList.remove("fn__none");
             }
         });
     });

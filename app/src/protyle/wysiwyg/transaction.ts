@@ -6,7 +6,6 @@ import {blockRender} from "../markdown/blockRender";
 import {processRender} from "../util/processCode";
 import {highlightRender} from "../markdown/highlightRender";
 import {hasClosestBlock, hasClosestByAttribute} from "../util/hasClosest";
-import {lockFile} from "../../dialog/processSystem";
 import {setFold} from "../../menus/protyle";
 import {onGet} from "../util/onGet";
 /// #if !MOBILE
@@ -17,6 +16,7 @@ import {genEmptyElement, genSBElement} from "../../block/util";
 import {hideElements} from "../ui/hideElements";
 import {reloadProtyle} from "../util/reload";
 import {countBlockWord} from "../../layout/status";
+import {needSubscribe} from "../../util/needSubscribe";
 
 const removeTopElement = (updateElement: Element, protyle: IProtyle) => {
     // 移动到其他文档中，该块需移除
@@ -68,11 +68,14 @@ const promiseTransaction = () => {
         } else {
             promiseTransaction();
         }
-        if (response.code === 1) {
-            lockFile(protyle.block.rootID);
-            return;
-        }
+
         countBlockWord([], protyle.block.rootID, true);
+        /// #if MOBILE
+        if ((0 !== window.siyuan.config.sync.provider || (0 === window.siyuan.config.sync.provider && !needSubscribe(""))) &&
+            window.siyuan.config.repo.key && window.siyuan.config.sync.enabled) {
+            document.getElementById("toolbarSync").classList.remove("fn__none");
+        }
+        /// #endif
         if (response.data[0].doOperations[0].action === "setAttrs") {
             const gutterFoldElement = protyle.gutter.element.querySelector('[data-type="fold"]');
             if (gutterFoldElement) {
@@ -419,30 +422,53 @@ export const onTransaction = (protyle: IProtyle, operation: IOperation, focus: b
         return;
     }
     if (operation.action === "updateAttrs") { // 调用接口才推送
-        let nodeAttrHTML = "";
         const data = operation.data as any;
         const attrsResult: IObject = {};
+        let bookmarkHTML = "";
+        let nameHTML = "";
+        let aliasHTML = "";
+        let memoHTML = "";
         Object.keys(data.new).forEach(key => {
             attrsResult[key] = data.new[key];
-            const escapeHTML = data.new[key];
+            const escapeHTML = Lute.EscapeHTMLStr(data.new[key]);
             if (key === "bookmark") {
-                nodeAttrHTML += `<div class="protyle-attr--bookmark">${escapeHTML}</div>`;
+                bookmarkHTML = `<div class="protyle-attr--bookmark">${escapeHTML}</div>`;
             } else if (key === "name") {
-                nodeAttrHTML += `<div class="protyle-attr--name"><svg><use xlink:href="#iconN"></use></svg>${escapeHTML}</div>`;
+                nameHTML = `<div class="protyle-attr--name"><svg><use xlink:href="#iconN"></use></svg>${escapeHTML}</div>`;
             } else if (key === "alias") {
-                nodeAttrHTML += `<div class="protyle-attr--alias"><svg><use xlink:href="#iconA"></use></svg>${escapeHTML}</div>`;
+                aliasHTML = `<div class="protyle-attr--alias"><svg><use xlink:href="#iconA"></use></svg>${escapeHTML}</div>`;
             } else if (key === "memo") {
-                nodeAttrHTML += `<div class="protyle-attr--memo b3-tooltips b3-tooltips__sw" aria-label="${escapeHTML}"><svg><use xlink:href="#iconM"></use></svg></div>`;
+                memoHTML = `<div class="protyle-attr--memo b3-tooltips b3-tooltips__sw" aria-label="${escapeHTML}"><svg><use xlink:href="#iconM"></use></svg></div>`;
             }
         });
+        let nodeAttrHTML = bookmarkHTML + nameHTML + aliasHTML + memoHTML;
         if (protyle.block.rootID === operation.id && protyle.title) {
             // 文档
             const refElement = protyle.title.element.querySelector(".protyle-attr--refcount");
             if (refElement) {
                 nodeAttrHTML += refElement.outerHTML;
             }
+            if (data.new["custom-riff-decks"]) {
+                protyle.title.element.setAttribute("custom-riff-decks", data.new["custom-riff-decks"]);
+            } else {
+                protyle.title.element.removeAttribute("custom-riff-decks");
+            }
             protyle.title.element.querySelector(".protyle-attr").innerHTML = nodeAttrHTML;
             protyle.wysiwyg.renderCustom(attrsResult);
+            if (data.new.icon !== data.old.icon) {
+                /// #if MOBILE
+                if (window.siyuan.mobile.editor.protyle.background.ial.icon !== data.new.icon) {
+                    window.siyuan.mobile.editor.protyle.background.ial.icon = data.new.icon;
+                    window.siyuan.mobile.editor.protyle.background.render(window.siyuan.mobile.editor.protyle.background.ial, window.siyuan.mobile.editor.protyle.block.rootID);
+                }
+                /// #else
+                if (protyle.background.ial.icon !== data.new.icon) {
+                    protyle.background.ial.icon = data.new.icon;
+                    protyle.background.render(protyle.background.ial, protyle.block.rootID);
+                    protyle.model?.parent.setDocIcon(data.new.icon);
+                }
+                /// #endif
+            }
             return;
         }
         protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${operation.id}"]`).forEach(item => {
@@ -611,7 +637,12 @@ export const onTransaction = (protyle: IProtyle, operation: IOperation, focus: b
     }
 };
 
-export const turnsIntoOneTransaction = (options: { protyle: IProtyle, selectsElement: Element[], type: string, level?: string }) => {
+export const turnsIntoOneTransaction = (options: {
+    protyle: IProtyle,
+    selectsElement: Element[],
+    type: string,
+    level?: string
+}) => {
     let parentElement: Element;
     const id = Lute.NewNodeID();
     if (options.type === "BlocksMergeSuperBlock") {
@@ -696,6 +727,11 @@ export const turnsIntoOneTransaction = (options: { protyle: IProtyle, selectsEle
                 action: "delete",
                 id,
             });
+        }
+        // 超级块内嵌入块无面包屑，需重新渲染 https://github.com/siyuan-note/siyuan/issues/7574
+        if (item.getAttribute("data-type") === "NodeBlockQueryEmbed") {
+            item.removeAttribute("data-render");
+            blockRender(options.protyle, item);
         }
     });
     transaction(options.protyle, doOperations, undoOperations);

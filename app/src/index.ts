@@ -13,6 +13,7 @@ import {openFileById} from "./editor/util";
 import {
     bootSync,
     downloadProgress,
+    processSync, progressBackgroundTask,
     progressLoading,
     progressStatus,
     setTitle,
@@ -23,6 +24,8 @@ import {initMessage} from "./dialog/message";
 import {resizeDrag} from "./layout/util";
 import {getAllTabs} from "./layout/getAll";
 import {getLocalStorage} from "./protyle/util/compatibility";
+import {updateEditModeElement} from "./layout/topBar";
+import {getSearch} from "./util/functions";
 
 class App {
     constructor() {
@@ -44,10 +47,14 @@ class App {
                 msgCallback: (data) => {
                     if (data) {
                         switch (data.cmd) {
-                            case"progress":
+                            case "readonly":
+                                window.siyuan.config.editor.readOnly = data.data;
+                                updateEditModeElement();
+                                break;
+                            case "progress":
                                 progressLoading(data);
                                 break;
-                            case"setLocalStorageVal":
+                            case "setLocalStorageVal":
                                 window.siyuan.storage[data.data.key] = data.data.val;
                                 break;
                             case "rename":
@@ -89,22 +96,20 @@ class App {
                                     }
                                 });
                                 break;
-                            case"statusbar":
+                            case "statusbar":
                                 progressStatus(data);
                                 break;
-                            case"downloadProgress":
+                            case "downloadProgress":
                                 downloadProgress(data.data);
                                 break;
-                            case"txerr":
+                            case "txerr":
                                 transactionError(data);
                                 break;
-                            case"syncing":
-                                if (data.code === 0) {
-                                    document.querySelector("#barSync").classList.add("toolbar__item--active");
-                                } else {
-                                    document.querySelector("#barSync").classList.remove("toolbar__item--active");
-                                }
-                                document.querySelector("#barSync").setAttribute("aria-label", data.msg);
+                            case "syncing":
+                                processSync(data);
+                                break;
+                            case "backgroundtask":
+                                progressBackgroundTask(data.data.tasks);
                                 break;
                             case "refreshtheme":
                                 if (!window.siyuan.config.appearance.customCSS && data.data.theme.indexOf("custom.css") > -1) {
@@ -119,6 +124,9 @@ class App {
                             case "createdailynote":
                                 openFileById({id: data.data.id, action: [Constants.CB_GET_FOCUS]});
                                 break;
+                            case "openFileById":
+                                openFileById({id: data.data.id, action: [Constants.CB_GET_FOCUS]});
+                                break;
                         }
                     }
                 }
@@ -127,6 +135,21 @@ class App {
         };
         fetchPost("/api/system/getConf", {}, response => {
             window.siyuan.config = response.data.conf;
+            // 历史数据兼容，202306后可删除
+            if (window.siyuan.config.uiLayout.left && !window.siyuan.config.uiLayout.left.data) {
+                window.siyuan.config.uiLayout.left = {
+                    pin: true,
+                    data: response.data.conf.uiLayout.left
+                };
+                window.siyuan.config.uiLayout.right = {
+                    pin: true,
+                    data: response.data.conf.uiLayout.right
+                };
+                window.siyuan.config.uiLayout.bottom = {
+                    pin: true,
+                    data: response.data.conf.uiLayout.bottom
+                };
+            }
             getLocalStorage(() => {
                 fetchGet(`/appearance/langs/${window.siyuan.config.appearance.lang}.json?v=${Constants.SIYUAN_VERSION}`, (lauguages) => {
                     window.siyuan.languages = lauguages;
@@ -149,3 +172,13 @@ class App {
 }
 
 new App();
+window.openFileByURL = (openURL) => {
+    if (openURL && /^siyuan:\/\/blocks\/\d{14}-\w{7}/.test(openURL)) {
+        openFileById({
+            id: openURL.substr(16, 22),
+            action:getSearch("focus", openURL) === "1" ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]
+        });
+        return true;
+    }
+    return false;
+};

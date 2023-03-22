@@ -1,7 +1,7 @@
 import {Tab} from "../layout/Tab";
 import {Editor} from "./index";
 import {Wnd} from "../layout/Wnd";
-import {getDockByType, getInstanceById, getWndByLayout} from "../layout/util";
+import {getDockByType, getInstanceById, getWndByLayout, pdfIsLoading} from "../layout/util";
 import {getAllModels, getAllTabs} from "../layout/getAll";
 import {highlightById, scrollCenter} from "../util/highlightById";
 import {getDisplayName, pathPosix} from "../util/pathName";
@@ -19,10 +19,10 @@ import {pushBack} from "../util/backForward";
 import {Asset} from "../asset";
 import {Layout} from "../layout";
 import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName,} from "../protyle/util/hasClosest";
-import {getPreviousHeading} from "../protyle/wysiwyg/getBlock";
-import {lockFile, setTitle} from "../dialog/processSystem";
+import {setTitle} from "../dialog/processSystem";
 import {zoomOut} from "../menus/protyle";
 import {countBlockWord, countSelectWord} from "../layout/status";
+import {showMessage} from "../dialog/message";
 
 export const openFileById = (options: {
     id: string,
@@ -34,9 +34,8 @@ export const openFileById = (options: {
     removeCurrentTab?: boolean
 }) => {
     fetchPost("/api/block/getBlockInfo", {id: options.id}, (data) => {
-        if (data.code === 2) {
-            // 文件被锁定
-            lockFile(data.data);
+        if (data.code === 3) {
+            showMessage(data.msg);
             return;
         }
         if (typeof options.removeCurrentTab === "undefined") {
@@ -72,9 +71,11 @@ const openFile = (options: IOpenFileOptions) => {
     if (options.assetPath) {
         const asset = allModels.asset.find((item) => {
             if (item.path == options.assetPath) {
-                item.parent.parent.switchTab(item.parent.headElement);
-                item.parent.parent.showHeading();
-                item.goToPage(options.page);
+                if (!pdfIsLoading(item.parent.parent.element)) {
+                    item.parent.parent.switchTab(item.parent.headElement);
+                    item.parent.parent.showHeading();
+                    item.goToPage(options.page);
+                }
                 return true;
             }
         });
@@ -99,7 +100,9 @@ const openFile = (options: IOpenFileOptions) => {
             editor = activeEditor;
         }
         if (editor) {
-            switchEditor(editor, options, allModels);
+            if (!pdfIsLoading(editor.parent.parent.element)) {
+                switchEditor(editor, options, allModels);
+            }
             return true;
         }
         // 没有初始化的页签无法检测到
@@ -136,6 +139,9 @@ const openFile = (options: IOpenFileOptions) => {
                 });
             }
             if (targetWnd) {
+                if (pdfIsLoading(targetWnd.element)) {
+                    return;
+                }
                 // 在右侧/下侧打开已有页签将进行页签切换 https://github.com/siyuan-note/siyuan/issues/5366
                 let hasEditor = targetWnd.children.find(item => {
                     if (item.model && item.model instanceof Editor && item.model.editor.protyle.block.rootID === options.rootID) {
@@ -152,7 +158,13 @@ const openFile = (options: IOpenFileOptions) => {
             } else {
                 wnd.split(direction).addTab(newTab(options));
             }
-        } else if (options.keepCursor && wnd.children[0].headElement) {
+            wnd.showHeading();
+            return;
+        }
+        if (pdfIsLoading(wnd.element)) {
+            return;
+        }
+        if (options.keepCursor && wnd.children[0].headElement) {
             const tab = newTab(options);
             tab.headElement.setAttribute("keep-cursor", options.id);
             wnd.addTab(tab, options.keepCursor);
@@ -399,14 +411,7 @@ const updateOutline = (models: IModels, protyle: IProtyle, reload = false) => {
                         if (protyle.wysiwyg.element.contains(startContainer)) {
                             const currentElement = hasClosestByAttribute(startContainer, "data-node-id", null);
                             if (currentElement) {
-                                if (currentElement.getAttribute("data-type") === "NodeHeading") {
-                                    item.setCurrent(currentElement.getAttribute("data-node-id"));
-                                } else {
-                                    const headingElement = getPreviousHeading(currentElement);
-                                    if (headingElement) {
-                                        item.setCurrent(headingElement.getAttribute("data-node-id"));
-                                    }
-                                }
+                                item.setCurrent(currentElement);
                             }
                         }
                     }

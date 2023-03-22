@@ -5,6 +5,7 @@ import {Dialog} from "../dialog";
 import {confirmDialog} from "../dialog/confirmDialog";
 import {isMobile} from "../util/functions";
 import {account} from "../config/account";
+import {processSync} from "../dialog/processSystem";
 
 export const addCloudName = (cloudPanelElement: Element) => {
     const dialog = new Dialog({
@@ -112,6 +113,9 @@ export const getSyncCloudList = (cloudPanelElement: Element, reload = false, cb?
 };
 
 export const syncGuide = (element?: Element) => {
+    if (window.siyuan.config.readonly) {
+        return;
+    }
     if (element && element.classList.contains("toolbar__item--active")) {
         return;
     }
@@ -136,7 +140,53 @@ export const syncGuide = (element?: Element) => {
         setSync();
         return;
     }
-    fetchPost("/api/sync/performSync", {});
+    syncNow();
+};
+
+const syncNow = () => {
+    if (window.siyuan.config.sync.mode !== 3) {
+        fetchPost("/api/sync/performSync", {});
+        return;
+    }
+    const manualDialog = new Dialog({
+        title: window.siyuan.languages.chooseSyncDirection,
+        content: `<div class="b3-dialog__content">
+    <label class="fn__flex b3-label">
+        <input type="radio" name="upload" value="true">
+        <span class="fn__space"></span>
+        <div>
+            ${window.siyuan.languages.uploadData2Cloud}
+            <div class="b3-label__text">${window.siyuan.languages.uploadData2CloudTip}</div>
+        </div>
+    </label>
+    <label class="fn__flex b3-label">
+        <input type="radio" name="upload" value="false">
+        <span class="fn__space"></span>
+        <div>
+            ${window.siyuan.languages.downloadDataFromCloud}
+            <div class="b3-label__text">${window.siyuan.languages.downloadDataFromCloudTip}</div>
+        </div>
+    </label>
+</div>
+<div class="b3-dialog__action">
+    <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
+    <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
+</div>`,
+        width: isMobile() ? "80vw" : "520px",
+    });
+    const btnsElement = manualDialog.element.querySelectorAll(".b3-button");
+    btnsElement[0].addEventListener("click", () => {
+        manualDialog.destroy();
+    });
+    btnsElement[1].addEventListener("click", () => {
+        const uploadElement = manualDialog.element.querySelector("input[name=upload]:checked") as HTMLInputElement;
+        if (!uploadElement) {
+            showMessage(window.siyuan.languages.plsChoose);
+            return;
+        }
+        fetchPost("/api/sync/performSync", {upload: uploadElement.value === "true"});
+        manualDialog.destroy();
+    });
 };
 
 const setSync = (key?: string, dialog?: Dialog) => {
@@ -175,15 +225,12 @@ const setSync = (key?: string, dialog?: Dialog) => {
         });
         btnElement.addEventListener("click", () => {
             dialog.destroy();
-            fetchPost("/api/sync/setSyncEnable", {enabled: true}, (response) => {
-                if (response.code === 1) {
-                    showMessage(response.msg);
-                } else {
-                    window.siyuan.config.sync.enabled = true;
-                    confirmDialog(window.siyuan.languages.syncConfGuide4, window.siyuan.languages.syncConfGuide5, () => {
-                        fetchPost("/api/sync/performSync", {});
-                    });
-                }
+            fetchPost("/api/sync/setSyncEnable", {enabled: true}, () => {
+                window.siyuan.config.sync.enabled = true;
+                processSync();
+                confirmDialog(window.siyuan.languages.syncConfGuide4, window.siyuan.languages.syncConfGuide5, () => {
+                    syncNow();
+                });
             });
         });
     } else {
@@ -191,7 +238,7 @@ const setSync = (key?: string, dialog?: Dialog) => {
             dialog.destroy();
         }
         confirmDialog(window.siyuan.languages.syncConfGuide4, window.siyuan.languages.syncConfGuide5, () => {
-            fetchPost("/api/sync/performSync", {});
+            syncNow();
         });
     }
 };

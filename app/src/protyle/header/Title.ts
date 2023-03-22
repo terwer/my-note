@@ -32,6 +32,10 @@ import {deleteFile} from "../../editor/deleteFile";
 import {genEmptyElement} from "../../block/util";
 import {transaction} from "../wysiwyg/transaction";
 import {hideTooltip} from "../../dialog/tooltip";
+import {transferBlockRef} from "../../menus/block";
+import {openCardByData} from "../../card/openCard";
+import {makeCard, quickMakeCard} from "../../card/makeCard";
+import {viewCards} from "../../card/viewCards";
 
 export class Title {
     public element: HTMLElement;
@@ -129,6 +133,11 @@ export class Title {
                 });
                 event.preventDefault();
                 event.stopPropagation();
+            } else if (matchHotKey(window.siyuan.config.keymap.editor.general.quickMakeCard.custom, event)) {
+                quickMakeCard([this.element]);
+                event.preventDefault();
+                event.stopPropagation();
+                return true;
             } else if (matchHotKey("⌘A", event)) {
                 getEditorRange(this.editElement).selectNodeContents(this.editElement);
                 event.preventDefault();
@@ -229,7 +238,9 @@ export class Title {
             }).element);
             window.siyuan.menus.menu.popup({x: event.clientX, y: event.clientY});
         });
-        this.element.querySelector(".protyle-attr").addEventListener("click", (event: MouseEvent & { target: HTMLElement }) => {
+        this.element.querySelector(".protyle-attr").addEventListener("click", (event: MouseEvent & {
+            target: HTMLElement
+        }) => {
             fetchPost("/api/block/getDocInfo", {
                 id: protyle.block.rootID
             }, (response) => {
@@ -307,6 +318,10 @@ export class Title {
                     }
                 }).element);
                 window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
+                const countElement = this.element.lastElementChild.querySelector(".protyle-attr--refcount");
+                if (countElement && countElement.textContent) {
+                    transferBlockRef(protyle.block.rootID);
+                }
                 window.siyuan.menus.menu.append(new MenuItem({
                     label: window.siyuan.languages.attr,
                     accelerator: window.siyuan.config.keymap.editor.general.attr.custom + "/" + updateHotkeyTip("⇧Click"),
@@ -348,8 +363,42 @@ export class Title {
                     openFileWechatNotify(protyle);
                 }
             }).element);
+            window.siyuan.menus.menu.append(new MenuItem({
+                label: window.siyuan.languages.riffCard,
+                type: "submenu",
+                icon: "iconRiffCard",
+                submenu: [{
+                    iconHTML: Constants.ZWSP,
+                    label: window.siyuan.languages.spaceRepetition,
+                    click: () => {
+                        fetchPost("/api/riff/getTreeRiffDueCards", {rootID: protyle.block.rootID}, (response) => {
+                            openCardByData(response.data, `<span data-id="${protyle.block.rootID}"  class="fn__flex-center">${escapeHtml(this.editElement.textContent)}</span>`);
+                        });
+                    }
+                }, {
+                    iconHTML: Constants.ZWSP,
+                    label: window.siyuan.languages.mgmt,
+                    click: () => {
+                        viewCards(protyle.block.rootID, escapeHtml(this.editElement.textContent), "Tree");
+                    }
+                }, {
+                    iconHTML: Constants.ZWSP,
+                    label: window.siyuan.languages.quickMakeCard,
+                    accelerator: window.siyuan.config.keymap.editor.general.quickMakeCard.custom,
+                    click: () => {
+                        quickMakeCard([this.element]);
+                    }
+                }, {
+                    iconHTML: Constants.ZWSP,
+                    label: window.siyuan.languages.addToDeck,
+                    click: () => {
+                        makeCard([protyle.block.rootID]);
+                    }
+                }],
+            }).element);
             window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
             window.siyuan.menus.menu.append(new MenuItem({
+                iconHTML: Constants.ZWSP,
                 type: "readonly",
                 label: `${window.siyuan.languages.modifiedAt} ${dayjs(response.data.ial.updated).format("YYYY-MM-DD HH:mm:ss")}<br>
 ${window.siyuan.languages.createdAt} ${dayjs(response.data.ial.id.substr(0, 14)).format("YYYY-MM-DD HH:mm:ss")}`
@@ -367,6 +416,10 @@ ${window.siyuan.languages.createdAt} ${dayjs(response.data.ial.id.substr(0, 14))
     public render(protyle: IProtyle, response: IWebSocketData, refresh = false) {
         if (this.editElement.getAttribute("data-render") === "true" && !refresh) {
             return false;
+        }
+        this.element.setAttribute("data-node-id", protyle.block.rootID);
+        if (response.data.ial["custom-riff-decks"]) {
+            this.element.setAttribute("custom-riff-decks", response.data.ial["custom-riff-decks"]);
         }
         protyle.background.render(response.data.ial, protyle.block.rootID);
         protyle.wysiwyg.renderCustom(response.data.ial);

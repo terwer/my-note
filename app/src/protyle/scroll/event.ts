@@ -2,8 +2,6 @@ import {Constants} from "../../constants";
 import {hideElements} from "../ui/hideElements";
 import {fetchPost} from "../../util/fetch";
 import {onGet} from "../util/onGet";
-import {showMessage} from "../../dialog/message";
-import {updateHotkeyTip} from "../util/compatibility";
 import {isMobile} from "../../util/functions";
 import {hasClosestBlock, hasClosestByClassName} from "../util/hasClosest";
 
@@ -33,15 +31,7 @@ export const scrollEvent = (protyle: IProtyle, element: HTMLElement) => {
         if (!window.siyuan.dragElement) { // https://ld246.com/article/1649638389841
             hideElements(["gutter"], protyle);
         }
-        if (!protyle.selectElement.classList.contains("fn__none")) {
-            showMessage(window.siyuan.languages.crossPageUse.replace("${}", updateHotkeyTip("⇧Click")), 9000);
-        }
 
-        const panelContextElement = protyle.breadcrumb?.element.parentElement.querySelector('[data-type="context"]');
-        if (panelContextElement && !panelContextElement.classList.contains("ft__primary")) {
-            // 悬浮窗需展开上下文后才能进行滚动 https://github.com/siyuan-note/siyuan/issues/2311
-            return;
-        }
         if (protyle.scroll && !protyle.scroll.element.classList.contains("fn__none")) {
             clearTimeout(getIndexTimeout);
             getIndexTimeout = window.setTimeout(() => {

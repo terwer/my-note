@@ -43,7 +43,7 @@ import (
 var Mode = "prod"
 
 const (
-	Ver       = "2.7.0"
+	Ver       = "2.8.0"
 	IsInsider = false
 )
 
@@ -118,6 +118,8 @@ func Boot() {
 	bootBanner := figure.NewColorFigure("SiYuan", "isometric3", "green", true)
 	logging.LogInfof("\n" + bootBanner.String())
 	logBootInfo()
+
+	initOpenAI()
 }
 
 func setBootDetails(details string) {
@@ -180,18 +182,15 @@ var (
 	SnippetsPath   string        // 数据目录下的 snippets/ 路径
 
 	UIProcessIDs = sync.Map{} // UI 进程 ID
-
-	IsNewbie bool // 是否是第一次安装
 )
 
 func initWorkspaceDir(workspaceArg string) {
 	userHomeConfDir := filepath.Join(HomeDir, ".config", "siyuan")
 	workspaceConf := filepath.Join(userHomeConfDir, "workspace.json")
 	if !gulu.File.IsExist(workspaceConf) {
-		IsNewbie = ContainerStd == Container // 只有桌面端需要设置新手标识，前端自动挂载帮助文档
 		if err := os.MkdirAll(userHomeConfDir, 0755); nil != err && !os.IsExist(err) {
 			log.Printf("create user home conf folder [%s] failed: %s", userHomeConfDir, err)
-			os.Exit(ExitCodeCreateConfDirErr)
+			os.Exit(logging.ExitCodeCreateConfDirErr)
 		}
 	}
 
@@ -204,7 +203,7 @@ func initWorkspaceDir(workspaceArg string) {
 	}
 	if err := os.MkdirAll(defaultWorkspaceDir, 0755); nil != err && !os.IsExist(err) {
 		log.Printf("create default workspace folder [%s] failed: %s", defaultWorkspaceDir, err)
-		os.Exit(ExitCodeCreateWorkspaceDirErr)
+		os.Exit(logging.ExitCodeCreateWorkspaceDirErr)
 	}
 
 	var workspacePaths []string
@@ -253,7 +252,7 @@ func initWorkspaceDir(workspaceArg string) {
 	os.Setenv("TMP", osTmpDir)
 	DBPath = filepath.Join(TempDir, DBName)
 	HistoryDBPath = filepath.Join(TempDir, "history.db")
-	BlockTreePath = filepath.Join(TempDir, "blocktree.msgpack")
+	BlockTreePath = filepath.Join(TempDir, "blocktree")
 	SnippetsPath = filepath.Join(DataDir, "snippets")
 }
 
@@ -398,7 +397,7 @@ func initPandoc() {
 	}
 
 	pandocZip := filepath.Join(WorkingDir, "pandoc.zip")
-	if "dev" == Mode {
+	if "dev" == Mode || !gulu.File.IsExist(pandocZip) {
 		if gulu.OS.IsWindows() {
 			pandocZip = filepath.Join(WorkingDir, "pandoc/pandoc-windows-amd64.zip")
 		} else if gulu.OS.IsDarwin() {
@@ -482,7 +481,7 @@ func tryLockWorkspace() {
 	} else {
 		logging.LogErrorf("lock workspace [%s] failed", WorkspaceDir)
 	}
-	os.Exit(ExitCodeWorkspaceLocked)
+	os.Exit(logging.ExitCodeWorkspaceLocked)
 }
 
 func IsWorkspaceLocked(workspacePath string) bool {

@@ -1,7 +1,7 @@
-import {getEventName, setStorageVal, updateHotkeyTip} from "../util/compatibility";
+import {setStorageVal, updateHotkeyTip} from "../util/compatibility";
 import {ToolbarItem} from "./ToolbarItem";
 import {setPosition} from "../../util/setPosition";
-import {getSelectionPosition} from "../util/selection";
+import {focusByRange, getSelectionPosition} from "../util/selection";
 import {Constants} from "../../constants";
 import {hasClosestByAttribute} from "../util/hasClosest";
 
@@ -10,7 +10,7 @@ export class Font extends ToolbarItem {
 
     constructor(protyle: IProtyle, menuItem: IMenuItem) {
         super(protyle, menuItem);
-        this.element.addEventListener(getEventName(), () => {
+        this.element.addEventListener("click", () => {
             if (protyle.toolbar.range.toString() === "") {
                 return;
             }
@@ -21,26 +21,27 @@ export class Font extends ToolbarItem {
             protyle.toolbar.subElement.append(fontMenu(protyle));
             protyle.toolbar.subElement.classList.remove("fn__none");
             protyle.toolbar.subElementCloseCB = undefined;
+            focusByRange(protyle.toolbar.range);
             const position = getSelectionPosition(protyle.wysiwyg.element, protyle.toolbar.range);
             setPosition(protyle.toolbar.subElement, position.left, position.top + 18, 26);
         });
     }
 }
 
-export const fontMenu = (protyle: IProtyle) => {
+const fontMenu = (protyle: IProtyle) => {
     let colorHTML = "";
     ["var(--b3-font-color1)", "var(--b3-font-color2)", "var(--b3-font-color3)", "var(--b3-font-color4)",
         "var(--b3-font-color5)", "var(--b3-font-color6)", "var(--b3-font-color7)", "var(--b3-font-color8)",
         "var(--b3-font-color9)", "var(--b3-font-color10)", "var(--b3-font-color11)", "var(--b3-font-color12)",
         "var(--b3-font-color13)"].forEach((item) => {
-        colorHTML += `<button class="b3-color__square" data-type="color" style="background-color:${item}"></button>`;
+        colorHTML += `<button class="color__square" data-type="color" style="color:${item}">A</button>`;
     });
     let bgHTML = "";
     ["var(--b3-font-background1)", "var(--b3-font-background2)", "var(--b3-font-background3)", "var(--b3-font-background4)",
         "var(--b3-font-background5)", "var(--b3-font-background6)", "var(--b3-font-background7)", "var(--b3-font-background8)",
         "var(--b3-font-background9)", "var(--b3-font-background10)", "var(--b3-font-background11)", "var(--b3-font-background12)",
         "var(--b3-font-background13)"].forEach((item) => {
-        bgHTML += `<button class="b3-color__square" data-type="backgroundColor" style="background-color:${item}"></button>`;
+        bgHTML += `<button class="color__square" data-type="backgroundColor" style="background-color:${item}"></button>`;
     });
 
     const element = document.createElement("div");
@@ -56,10 +57,10 @@ export const fontMenu = (protyle: IProtyle) => {
             const lastFontStatus = item.split(Constants.ZWSP);
             switch (lastFontStatus[0]) {
                 case "color":
-                    lastColorHTML += `<button class="b3-color__square b3-tooltips b3-tooltips__s" aria-label="${window.siyuan.languages.colorFont}" data-type="${lastFontStatus[0]}" style="background-color:${lastFontStatus[1]}"></button>`;
+                    lastColorHTML += `<button class="color__square" data-type="${lastFontStatus[0]}" style="color:${lastFontStatus[1]}">A</button>`;
                     break;
                 case "backgroundColor":
-                    lastColorHTML += `<button class="b3-color__square b3-tooltips b3-tooltips__s" aria-label="${window.siyuan.languages["--b3-theme-background"]}" data-type="${lastFontStatus[0]}" style="background-color:${lastFontStatus[1]}"></button>`;
+                    lastColorHTML += `<button class="color__square" data-type="${lastFontStatus[0]}" style="background-color:${lastFontStatus[1]}"></button>`;
                     break;
                 case "style2":
                     lastColorHTML += `<button data-type="${lastFontStatus[0]}" class="protyle-font__style" style="-webkit-text-stroke: 0.2px var(--b3-theme-on-background);-webkit-text-fill-color : transparent;">${window.siyuan.languages.hollow}</button>`;
@@ -97,7 +98,7 @@ export const fontMenu = (protyle: IProtyle) => {
 </div>
 <div style="margin: 4px 0 2px">${window.siyuan.languages.fontSize}</div>
 <div class="fn__flex">
-    <select class="b3-select">
+    <select class="b3-select fn__block">
         <option ${fontSize === "12px" ? "selected" : ""} value="12px">12px</option>
         <option ${fontSize === "13px" ? "selected" : ""} value="13px">13px</option>
         <option ${fontSize === "14px" ? "selected" : ""} value="14px">14px</option>
@@ -114,15 +115,15 @@ export const fontMenu = (protyle: IProtyle) => {
 </div>
 <div class="fn__hr"></div>
 <button class="b3-button b3-button--cancel" data-type="clear"><svg><use xlink:href="#iconTrashcan"></use></svg>${window.siyuan.languages.clearFontStyle}</button>`;
-    element.addEventListener(getEventName(), function (event: Event) {
+    element.addEventListener("click", function (event: Event) {
         let target = event.target as HTMLElement;
         while (target && !target.isEqualNode(element)) {
             const dataType = target.getAttribute("data-type");
             if (target.tagName === "BUTTON") {
                 if (dataType === "clear") {
-                    protyle.toolbar.setInlineMark(protyle, "clear", "range", {type:"text"});
+                    protyle.toolbar.setInlineMark(protyle, "clear", "range", {type: "text"});
                 } else {
-                    fontEvent(protyle, dataType, target.style.backgroundColor || target.textContent);
+                    fontEvent(protyle, dataType, target.style.backgroundColor || target.style.color || target.textContent);
                 }
                 break;
             }

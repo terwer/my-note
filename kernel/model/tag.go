@@ -22,7 +22,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/facette/natsort"
@@ -41,7 +40,7 @@ func RemoveTag(label string) (err error) {
 	util.PushEndlessProgress(Conf.Language(116))
 	util.RandomSleep(1000, 2000)
 
-	tags := sql.QueryTagSpansByKeyword(label, 102400)
+	tags := sql.QueryTagSpansByLabel(label)
 	treeBlocks := map[string][]string{}
 	for _, tag := range tags {
 		if blocks, ok := treeBlocks[tag.RootID]; !ok {
@@ -101,8 +100,6 @@ func RemoveTag(label string) (err error) {
 		util.RandomSleep(50, 150)
 	}
 
-	util.PushEndlessProgress(Conf.Language(113))
-	sql.WaitForWritingDatabase()
 	util.ReloadUI()
 	return
 }
@@ -128,7 +125,7 @@ func RenameTag(oldLabel, newLabel string) (err error) {
 	util.PushEndlessProgress(Conf.Language(110))
 	util.RandomSleep(500, 1000)
 
-	tags := sql.QueryTagSpansByKeyword(oldLabel, 102400)
+	tags := sql.QueryTagSpansByLabel(oldLabel)
 	treeBlocks := map[string][]string{}
 	for _, tag := range tags {
 		if blocks, ok := treeBlocks[tag.RootID]; !ok {
@@ -157,12 +154,11 @@ func RenameTag(oldLabel, newLabel string) (err error) {
 					docTags := strings.Split(docTagsVal, ",")
 					var tmp []string
 					for _, docTag := range docTags {
-						if docTag != oldLabel {
+						if strings.HasPrefix(docTag, oldLabel+"/") || docTag == oldLabel {
+							docTag = strings.Replace(docTag, oldLabel, newLabel, 1)
 							tmp = append(tmp, docTag)
-							continue
-						}
-						if !gulu.Str.Contains(newLabel, tmp) {
-							tmp = append(tmp, newLabel)
+						} else {
+							tmp = append(tmp, docTag)
 						}
 					}
 					node.SetIALAttr("tags", strings.Join(tmp, ","))
@@ -174,7 +170,7 @@ func RenameTag(oldLabel, newLabel string) (err error) {
 			for _, nodeTag := range nodeTags {
 				if nodeTag.IsTextMarkType("tag") {
 					if strings.HasPrefix(nodeTag.TextMarkTextContent, oldLabel+"/") || nodeTag.TextMarkTextContent == oldLabel {
-						nodeTag.TextMarkTextContent = strings.ReplaceAll(nodeTag.TextMarkTextContent, oldLabel, newLabel)
+						nodeTag.TextMarkTextContent = strings.Replace(nodeTag.TextMarkTextContent, oldLabel, newLabel, 1)
 					}
 				}
 			}
@@ -187,8 +183,6 @@ func RenameTag(oldLabel, newLabel string) (err error) {
 		util.RandomSleep(50, 150)
 	}
 
-	util.PushEndlessProgress(Conf.Language(113))
-	sql.WaitForWritingDatabase()
 	util.ReloadUI()
 	return
 }
@@ -216,8 +210,6 @@ func BuildTags() (ret *Tags) {
 	WaitForWritingFiles()
 	if !sql.IsEmptyQueue() {
 		sql.WaitForWritingDatabase()
-	} else {
-		util.RandomSleep(200, 500)
 	}
 
 	ret = &Tags{}
@@ -314,7 +306,7 @@ func labelBlocksByKeyword(keyword string) (ret map[string]TagBlocks) {
 func labelTags() (ret map[string]Tags) {
 	ret = map[string]Tags{}
 
-	tagSpans := sql.QueryTagSpans("", 10240)
+	tagSpans := sql.QueryTagSpans("")
 	for _, tagSpan := range tagSpans {
 		label := tagSpan.Content
 		if _, ok := ret[label]; ok {

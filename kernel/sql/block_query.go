@@ -31,6 +31,22 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func QueryEmptyContentEmbedBlocks() (ret []*Block) {
+	stmt := "SELECT * FROM blocks WHERE type = 'query_embed' AND content = ''"
+	rows, err := query(stmt)
+	if nil != err {
+		logging.LogErrorf("sql query [%s] failed: %s", stmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if block := scanBlockRows(rows); nil != block {
+			ret = append(ret, block)
+		}
+	}
+	return
+}
+
 func queryBlockHashes(rootID string) (ret map[string]string) {
 	stmt := "SELECT id, hash FROM blocks WHERE root_id = ?"
 	rows, err := query(stmt, rootID)
@@ -77,25 +93,6 @@ func (block *Block) IsContainerBlock() bool {
 		return true
 	}
 	return false
-}
-
-func IsBlockFolded(id string) (ret bool) {
-	sqlStmt := "SELECT parent_id, ial FROM blocks WHERE id = ? AND type != 'd'"
-	for i := 0; i < 64; i++ {
-		row := queryRow(sqlStmt, id)
-		var pid, ial string
-		if err := row.Scan(&pid, &ial); nil != err {
-			if sql.ErrNoRows != err {
-				logging.LogErrorf("query scan field failed: %s", err)
-			}
-			return
-		}
-		id = pid
-		if strings.Contains(ial, "fold=\"1\"") {
-			return true
-		}
-	}
-	return
 }
 
 func queryBlockChildrenIDs(id string) (ret []string) {
@@ -250,7 +247,11 @@ func queryAliases() (ret []string) {
 func queryDocIDsByTitle(title string, excludeIDs []string) (ret []string) {
 	ret = []string{}
 	notIn := "('" + strings.Join(excludeIDs, "','") + "')"
-	sqlStmt := "SELECT id FROM blocks WHERE type = 'd' AND content = ? AND id NOT IN " + notIn + " LIMIT ?"
+
+	sqlStmt := "SELECT id FROM blocks WHERE type = 'd' AND content LIKE ? AND id NOT IN " + notIn + " LIMIT ?"
+	if caseSensitive {
+		sqlStmt = "SELECT id FROM blocks WHERE type = 'd' AND content = ? AND id NOT IN " + notIn + " LIMIT ?"
+	}
 	rows, err := query(sqlStmt, title, 32)
 	if nil != err {
 		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
@@ -273,8 +274,8 @@ func queryDocIDsByTitle(title string, excludeIDs []string) (ret []string) {
 
 func queryDocTitles() (ret []string) {
 	ret = []string{}
-	sqlStmt := "SELECT content FROM blocks WHERE type = 'd' LIMIT ?"
-	rows, err := query(sqlStmt, 10240)
+	sqlStmt := "SELECT content FROM blocks WHERE type = 'd'"
+	rows, err := query(sqlStmt)
 	if nil != err {
 		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
 		return
@@ -471,12 +472,18 @@ func selectBlocksRawStmt(stmt string, limit int) (ret []*Block) {
 	defer rows.Close()
 
 	confLimit := !strings.Contains(strings.ToLower(stmt), " limit ")
+	var count, errCount int
 	for rows.Next() {
+		count++
 		if block := scanBlockRows(rows); nil != block {
 			ret = append(ret, block)
-			if confLimit && limit < len(ret) {
-				break
-			}
+		} else {
+			logging.LogWarnf("raw sql query [%s] failed", stmt)
+			errCount++
+		}
+
+		if (confLimit && limit < count) || 0 < errCount {
+			break
 		}
 	}
 	return
@@ -532,31 +539,15 @@ func GetChildBlocks(parentID, condition string) (ret []*Block) {
 	return
 }
 
-func GetAllChildBlocks(rootID, condition string) (ret []*Block) {
+func GetAllChildBlocks(rootIDs []string, condition string) (ret []*Block) {
 	ret = []*Block{}
-	sqlStmt := "SELECT * FROM blocks AS ref WHERE ref.root_id = ?"
+	sqlStmt := "SELECT * FROM blocks AS ref WHERE ref.root_id IN ('" + strings.Join(rootIDs, "','") + "')"
 	if "" != condition {
 		sqlStmt += " AND " + condition
 	}
-	rows, err := query(sqlStmt, rootID)
+	rows, err := query(sqlStmt)
 	if nil != err {
 		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		if block := scanBlockRows(rows); nil != block {
-			ret = append(ret, block)
-		}
-	}
-	return
-}
-
-func GetRefExistedBlocks() (ret []*Block) {
-	stmt := "SELECT * FROM blocks WHERE markdown LIKE ? OR markdown LIKE ?"
-	rows, err := query(stmt, "%((20%", "%<<20%")
-	if nil != err {
-		logging.LogErrorf("sql query [%s] failed: %s", stmt, err)
 		return
 	}
 	defer rows.Close()
@@ -582,7 +573,7 @@ func GetBlock(id string) (ret *Block) {
 }
 
 func GetRootUpdated() (ret map[string]string, err error) {
-	rows, err := query("SELECT root_id, updated FROM blocks WHERE type = 'd'")
+	rows, err := query("SELECT root_id, updated FROM `blocks` WHERE type = 'd'")
 	if nil != err {
 		logging.LogErrorf("sql query failed: %s", err)
 		return
@@ -598,8 +589,8 @@ func GetRootUpdated() (ret map[string]string, err error) {
 	return
 }
 
-func GetDuplicatedRootIDs() (ret []string) {
-	rows, err := query("SELECT DISTINCT root_id FROM blocks GROUP BY id HAVING COUNT(*) > 1")
+func GetDuplicatedRootIDs(blocksTable string) (ret []string) {
+	rows, err := query("SELECT DISTINCT root_id FROM `" + blocksTable + "` GROUP BY id HAVING COUNT(*) > 1")
 	if nil != err {
 		logging.LogErrorf("sql query failed: %s", err)
 		return

@@ -37,6 +37,16 @@ export const hintSlash = (key: string, protyle: IProtyle) => {
         value: "{{",
         html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconSQL"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.blockEmbed}</span><span class="b3-list-item__meta">{{</span></div>`,
     }, {
+        filter: ["ai chat"],
+        value: Constants.ZWSP + 5,
+        html: '<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconSparkles"></use></svg><span class="b3-list-item__text">AI Chat</span></div>',
+    },
+    // {
+    //     filter: ["属性视图", "shuxingshitu", "sxst", "attribute view"],
+    //     value: '<div data-type="NodeAttributeView" data-av-type="table"></div>',
+    //     html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconDatabase"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.attributeView}</span></div>`,
+    // },
+    {
         filter: ["文档", "子文档", "wendang", "wd", "ziwendang", "zwd", "xjwd"],
         value: Constants.ZWSP + 4,
         html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconFile"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.newFile}</span><span class="b3-menu__accelerator">${updateHotkeyTip(window.siyuan.config.keymap.general.newFile.custom)}</span></div>`,
@@ -167,15 +177,15 @@ export const hintSlash = (key: string, protyle: IProtyle) => {
         value: '<iframe sandbox="allow-forms allow-presentation allow-same-origin allow-scripts allow-modals" src="" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>',
         html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconLanguage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.insertIframeURL}</span></div>`,
     }, {
-        filter: ["输入图片链接", "input image url", "shurutupianlianjie", "srtptp"],
+        filter: ["插入图片链接", "insert image link", "charutupianlianjie", "crtptp"],
         value: "![]()",
         html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.insertImgURL}</span></div>`,
     }, {
-        filter: ["输入视频链接", "shurushipinlianjie", "srsplj", "input video url"],
+        filter: ["插入视频链接", "charushipinlianjie", "crsplj", "insert video url"],
         value: '<video controls="controls" src=""></video>',
         html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconVideo"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.insertVideoURL}</span></div>`,
     }, {
-        filter: ["输入音频链接", "shuruyinpinlianjie", "sryplj", "input audio url"],
+        filter: ["插入音频链接", "charuyinpinlianjie", "cryplj", "insert audio url"],
         value: '<audio controls="controls" src=""></audio>',
         html: `<div class="b3-list-item__first"><svg class="b3-list-item__graphic"><use xlink:href="#iconRecord"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.insertAudioURL}</span></div>`,
     }, {
@@ -215,23 +225,23 @@ export const hintSlash = (key: string, protyle: IProtyle) => {
     }, {
         filter: ["信息样式", "xinxiyangshi", "xxys", "info style"],
         value: `style${Constants.ZWSP}color: var(--b3-card-info-color);background-color: var(--b3-card-info-background);`,
-        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-info-color);background-color: var(--b3-card-info-background);" class="b3-color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.infoStyle}</span></div>`,
+        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-info-color);background-color: var(--b3-card-info-background);" class="color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.infoStyle}</span></div>`,
     }, {
         filter: ["成功样式", "chenggongyangshi", "cgys", "success style"],
         value: `style${Constants.ZWSP}color: var(--b3-card-success-color);background-color: var(--b3-card-success-background);`,
-        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-success-color);background-color: var(--b3-card-success-background);" class="b3-color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.successStyle}</span></div>`,
+        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-success-color);background-color: var(--b3-card-success-background);" class="color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.successStyle}</span></div>`,
     }, {
         filter: ["警告样式", "jinggaoyangshi", "jgys", "warning style"],
         value: `style${Constants.ZWSP}color: var(--b3-card-warning-color);background-color: var(--b3-card-warning-background);`,
-        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-warning-color);background-color: var(--b3-card-warning-background);" class="b3-color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.warningStyle}</span></div>`,
+        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-warning-color);background-color: var(--b3-card-warning-background);" class="color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.warningStyle}</span></div>`,
     }, {
         filter: ["错误样式", "cuowuyangshi", "cwys", "error style"],
         value: `style${Constants.ZWSP}color: var(--b3-card-error-color);background-color: var(--b3-card-error-background);`,
-        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-error-color);background-color: var(--b3-card-error-background);" class="b3-color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.errorStyle}</span></div>`,
+        html: `<div class="b3-list-item__first"><div style="color: var(--b3-card-error-color);background-color: var(--b3-card-error-background);" class="color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.errorStyle}</span></div>`,
     }, {
         filter: ["移除样式", "yichuyangshi", "ycys", "remove style"],
         value: `style${Constants.ZWSP}`,
-        html: `<div class="b3-list-item__first"><div class="b3-color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.clearFontStyle}</span></div>`,
+        html: `<div class="b3-list-item__first"><div class="color__square">A</div><span class="b3-list-item__text">${window.siyuan.languages.clearFontStyle}</span></div>`,
     }];
     allList.splice(1, 0, {
         filter: ["挂件", "widget", "gj", "guajian"],
@@ -278,8 +288,11 @@ export const hintTag = (key: string, protyle: IProtyle): IHintData[] => {
         if (response.data.k && !hasKey) {
             dataList.splice(0, 0, {
                 value: `#${response.data.k}#`,
-                html: `<mark>${escapeHtml(response.data.k)}</mark>`,
+                html: `${window.siyuan.languages.new} <mark>${escapeHtml(response.data.k)}</mark>`,
             });
+            if (dataList.length > 1) {
+                dataList[1].focus = true;
+            }
         }
         protyle.hint.genHTML(dataList, protyle, true);
     });
@@ -309,13 +322,13 @@ export const hintRef = (key: string, protyle: IProtyle, isQuick = false): IHintD
             const iconName = getIconByType(item.type);
             let attrHTML = "";
             if (item.name) {
-                attrHTML += `<span class="fn__flex"><svg class="b3-list-item__hinticon"><use xlink:href="#iconN"></use></svg>${item.name}</span><span class="fn__space"></span>`;
+                attrHTML += `<span class="fn__flex"><svg class="b3-list-item__hinticon"><use xlink:href="#iconN"></use></svg><span>${item.name}</span></span><span class="fn__space"></span>`;
             }
             if (item.alias) {
-                attrHTML += `<span class="fn__flex"><svg class="b3-list-item__hinticon"><use xlink:href="#iconA"></use></svg>${item.alias}</span><span class="fn__space"></span>`;
+                attrHTML += `<span class="fn__flex"><svg class="b3-list-item__hinticon"><use xlink:href="#iconA"></use></svg><span>${item.alias}</span></span><span class="fn__space"></span>`;
             }
             if (item.memo) {
-                attrHTML += `<span class="fn__flex"><svg class="b3-list-item__hinticon"><use xlink:href="#iconM"></use></svg>${item.memo}</span>`;
+                attrHTML += `<span class="fn__flex"><svg class="b3-list-item__hinticon"><use xlink:href="#iconM"></use></svg><span>${item.memo}</span></span>`;
             }
             if (attrHTML) {
                 attrHTML = `<div class="fn__flex b3-list-item__meta b3-list-item__showall">${attrHTML}</div>`;
@@ -342,6 +355,8 @@ export const hintRef = (key: string, protyle: IProtyle, isQuick = false): IHintD
                 value: "",
                 html: window.siyuan.languages.emptyContent,
             });
+        } else if (response.data.newDoc && dataList.length > 1) {
+            dataList[1].focus = true;
         }
         protyle.hint.genHTML(dataList, protyle, true, isQuick);
     });

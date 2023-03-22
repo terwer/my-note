@@ -17,9 +17,15 @@
 package util
 
 import (
+	"bytes"
+	"fmt"
+	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
+	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,21 +37,22 @@ import (
 
 const DatabaseVer = "20220501" // 修改表结构的话需要修改这里
 
-const (
-	ExitCodeReadOnlyDatabase      = 20 // 数据库文件被锁
-	ExitCodeUnavailablePort       = 21 // 端口不可用
-	ExitCodeCreateConfDirErr      = 22 // 创建配置目录失败
-	ExitCodeBlockTreeErr          = 23 // 无法读写 blocktree.msgpack 文件
-	ExitCodeWorkspaceLocked       = 24 // 工作空间已被锁定
-	ExitCodeCreateWorkspaceDirErr = 25 // 创建工作空间失败
-	ExitCodeOk                    = 0  // 正常退出
-	ExitCodeFatal                 = 1  // 致命错误
-)
+// IsExiting 是否正在退出程序。
+var IsExiting = false
+
+// MobileOSVer 移动端操作系统版本。
+var MobileOSVer string
 
 func logBootInfo() {
+	plat, platVer := GetOSPlatform()
+	osInfo := plat
+	if "" != platVer {
+		osInfo += " " + platVer
+	}
 	logging.LogInfof("kernel is booting:\n"+
 		"    * ver [%s]\n"+
 		"    * arch [%s]\n"+
+		"    * os [%s]\n"+
 		"    * pid [%d]\n"+
 		"    * runtime mode [%s]\n"+
 		"    * working directory [%s]\n"+
@@ -53,7 +60,7 @@ func logBootInfo() {
 		"    * container [%s]\n"+
 		"    * database [ver=%s]\n"+
 		"    * workspace directory [%s]",
-		Ver, runtime.GOARCH, os.Getpid(), Mode, WorkingDir, ReadOnly, Container, DatabaseVer, WorkspaceDir)
+		Ver, runtime.GOARCH, osInfo, os.Getpid(), Mode, WorkingDir, ReadOnly, Container, DatabaseVer, WorkspaceDir)
 }
 
 func IsMutexLocked(m *sync.Mutex) bool {
@@ -101,3 +108,144 @@ const (
 	// SQLFlushInterval 为数据库事务队列写入间隔。
 	SQLFlushInterval = 3000 * time.Millisecond
 )
+
+var (
+	Langs           = map[string]map[int]string{}
+	TimeLangs       = map[string]map[string]interface{}{}
+	TaskActionLangs = map[string]map[string]interface{}{}
+)
+
+var (
+	thirdPartySyncCheckTicker = time.NewTicker(time.Minute * 10)
+)
+
+func ReportFileSysFatalError(err error) {
+	stack := debug.Stack()
+	output := string(stack)
+	if 5 < strings.Count(output, "\n") {
+		lines := strings.Split(output, "\n")
+		output = strings.Join(lines[5:], "\n")
+	}
+	logging.LogErrorf("check file system status failed: %s, %s", err, output)
+	os.Exit(logging.ExitCodeFileSysErr)
+}
+
+var checkFileSysStatusLock = sync.Mutex{}
+
+func CheckFileSysStatus() {
+	if ContainerStd != Container {
+		return
+	}
+
+	for {
+		<-thirdPartySyncCheckTicker.C
+		checkFileSysStatus()
+	}
+}
+
+func checkFileSysStatus() {
+	if IsMutexLocked(&checkFileSysStatusLock) {
+		logging.LogWarnf("check file system status is locked, skip")
+		return
+	}
+
+	checkFileSysStatusLock.Lock()
+	defer checkFileSysStatusLock.Unlock()
+
+	const fileSysStatusCheckFile = ".siyuan/filesys_status_check"
+	if IsCloudDrivePath(WorkspaceDir) {
+		ReportFileSysFatalError(fmt.Errorf("workspace dir [%s] is in third party sync dir", WorkspaceDir))
+		return
+	}
+
+	dir := filepath.Join(DataDir, fileSysStatusCheckFile)
+	if err := os.RemoveAll(dir); nil != err {
+		ReportFileSysFatalError(err)
+		return
+	}
+
+	if err := os.MkdirAll(dir, 0755); nil != err {
+		ReportFileSysFatalError(err)
+		return
+	}
+
+	for i := 0; i < 7; i++ {
+		tmp := filepath.Join(dir, "check_consistency")
+		data := make([]byte, 1024*4)
+		_, err := rand.Read(data)
+		if nil != err {
+			ReportFileSysFatalError(err)
+			return
+		}
+
+		if err = os.WriteFile(tmp, data, 0644); nil != err {
+			ReportFileSysFatalError(err)
+			return
+		}
+
+		time.Sleep(5 * time.Second)
+
+		for j := 0; j < 32; j++ {
+			renamed := tmp + "_renamed"
+			if err = os.Rename(tmp, renamed); nil != err {
+				ReportFileSysFatalError(err)
+				break
+			}
+
+			RandomSleep(500, 1000)
+
+			f, err := os.Open(renamed)
+			if nil != err {
+				ReportFileSysFatalError(err)
+				return
+			}
+
+			if err = f.Close(); nil != err {
+				ReportFileSysFatalError(err)
+				return
+			}
+
+			if err = os.Rename(renamed, tmp); nil != err {
+				ReportFileSysFatalError(err)
+				return
+			}
+
+			entries, err := os.ReadDir(dir)
+			if nil != err {
+				ReportFileSysFatalError(err)
+				return
+			}
+
+			checkFilenames := bytes.Buffer{}
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.Contains(entry.Name(), "check_") {
+					checkFilenames.WriteString(entry.Name())
+					checkFilenames.WriteString("\n")
+				}
+			}
+			lines := strings.Split(strings.TrimSpace(checkFilenames.String()), "\n")
+			if 1 < len(lines) {
+				buf := bytes.Buffer{}
+				for _, line := range lines {
+					buf.WriteString("  ")
+					buf.WriteString(line)
+					buf.WriteString("\n")
+				}
+				output := buf.String()
+				ReportFileSysFatalError(fmt.Errorf("dir [%s] has more than 1 file:\n%s", dir, output))
+				return
+			}
+		}
+
+		if err = os.RemoveAll(tmp); nil != err {
+			ReportFileSysFatalError(err)
+			return
+		}
+	}
+}
+
+func IsCloudDrivePath(absPath string) bool {
+	absPathLower := strings.ToLower(absPath)
+	return strings.Contains(absPathLower, "onedrive") || strings.Contains(absPathLower, "dropbox") ||
+		strings.Contains(absPathLower, "google drive") || strings.Contains(absPathLower, "pcloud")
+}

@@ -18,7 +18,6 @@ package model
 
 import (
 	"bytes"
-	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/siyuan/kernel/util"
 	"math"
 	"strings"
@@ -27,6 +26,7 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/html"
+	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
@@ -93,8 +93,8 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 
 	var sqlBlocks []*sql.Block
 	var rootID string
-	if "NodeDocument" == block.Type {
-		sqlBlocks = sql.GetAllChildBlocks(block.ID, stmt)
+	if ast.NodeDocument == node.Type {
+		sqlBlocks = sql.GetAllChildBlocks([]string{block.ID}, stmt)
 		rootID = block.ID
 	} else {
 		sqlBlocks = sql.GetChildBlocks(block.ID, stmt)
@@ -106,22 +106,55 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 		if nil != rootBlock {
 			// 按引用处理
 			sqlRootDefs := sql.QueryDefRootBlocksByRefRootID(rootID)
-			for _, sqlRootDef := range sqlRootDefs {
-				rootDef := fromSQLBlock(sqlRootDef, "", 0)
+			rootDefBlocks := fromSQLBlocks(&sqlRootDefs, "", 0)
+			var rootIDs []string
+			for _, rootDef := range rootDefBlocks {
 				blocks = append(blocks, rootDef)
+				rootIDs = append(rootIDs, rootDef.ID)
+			}
 
-				sqlRootRefs := sql.QueryRefRootBlocksByDefRootID(sqlRootDef.ID)
-				rootRefs := fromSQLBlocks(&sqlRootRefs, "", 0)
-				rootDef.Refs = append(rootDef.Refs, rootRefs...)
+			sqlRefBlocks := sql.QueryRefRootBlocksByDefRootIDs(rootIDs)
+			for defRootID, sqlRefBs := range sqlRefBlocks {
+				rootB := getBlockIn(rootDefBlocks, defRootID)
+				if nil == rootB {
+					continue
+				}
+
+				blocks = append(blocks, rootB)
+				refBlocks := fromSQLBlocks(&sqlRefBs, "", 0)
+				rootB.Refs = append(rootB.Refs, refBlocks...)
+				blocks = append(blocks, refBlocks...)
 			}
 
 			// 按定义处理
-			sqlRootRefs := sql.QueryRefRootBlocksByDefRootID(rootID)
-			for _, sqlRootRef := range sqlRootRefs {
-				rootRef := fromSQLBlock(sqlRootRef, "", 0)
-				blocks = append(blocks, rootRef)
+			blocks = append(blocks, rootBlock)
+			sqlRefBlocks = sql.QueryRefRootBlocksByDefRootIDs([]string{rootID})
 
-				rootBlock.Refs = append(rootBlock.Refs, rootRef)
+			// 关系图日记过滤失效 https://github.com/siyuan-note/siyuan/issues/7547
+			dailyNotesPaths := dailyNotePaths(true)
+			for _, sqlRefBs := range sqlRefBlocks {
+				refBlocks := fromSQLBlocks(&sqlRefBs, "", 0)
+
+				if 0 < len(dailyNotesPaths) {
+					filterDailyNote := false
+					var tmp []*Block
+					for _, refBlock := range refBlocks {
+						for _, dailyNotePath := range dailyNotesPaths {
+							if strings.HasPrefix(refBlock.HPath, dailyNotePath) {
+								filterDailyNote = true
+								break
+							}
+						}
+
+						if !filterDailyNote {
+							tmp = append(tmp, refBlock)
+						}
+					}
+					refBlocks = tmp
+				}
+
+				rootBlock.Refs = append(rootBlock.Refs, refBlocks...)
+				blocks = append(blocks, refBlocks...)
 			}
 		}
 	}
@@ -157,22 +190,29 @@ func BuildGraph(query string) (boxID string, nodes []*GraphNode, links []*GraphL
 	if 0 < len(roots) {
 		boxID = roots[0].Box
 	}
+	var rootIDs []string
 	for _, root := range roots {
-		sqlBlocks := sql.GetAllChildBlocks(root.ID, stmt)
-		treeBlocks := fromSQLBlocks(&sqlBlocks, "", 0)
-		genTreeNodes(treeBlocks, &nodes, &links, false, style)
-		blocks = append(blocks, treeBlocks...)
+		rootIDs = append(rootIDs, root.ID)
+	}
+	rootIDs = gulu.Str.RemoveDuplicatedElem(rootIDs)
 
-		// 文档块关联
-		rootBlock := getBlockIn(treeBlocks, root.ID)
+	sqlBlocks := sql.GetAllChildBlocks(rootIDs, stmt)
+	treeBlocks := fromSQLBlocks(&sqlBlocks, "", 0)
+	genTreeNodes(treeBlocks, &nodes, &links, false, style)
+	blocks = append(blocks, treeBlocks...)
+
+	// 文档块关联
+	sqlRootRefBlocks := sql.QueryRefRootBlocksByDefRootIDs(rootIDs)
+	for defRootID, sqlRefBlocks := range sqlRootRefBlocks {
+		rootBlock := getBlockIn(treeBlocks, defRootID)
 		if nil == rootBlock {
 			continue
 		}
 
-		sqlRootRefs := sql.QueryRefRootBlocksByDefRootID(root.ID)
-		rootRefs := fromSQLBlocks(&sqlRootRefs, "", 0)
-		rootBlock.Refs = append(rootBlock.Refs, rootRefs...)
+		refBlocks := fromSQLBlocks(&sqlRefBlocks, "", 0)
+		rootBlock.Refs = append(rootBlock.Refs, refBlocks...)
 	}
+
 	growTreeGraph(&forwardlinks, &backlinks, &nodes)
 	blocks = append(blocks, forwardlinks...)
 	blocks = append(blocks, backlinks...)
@@ -187,7 +227,7 @@ func BuildGraph(query string) (boxID string, nodes []*GraphNode, links []*GraphL
 }
 
 func linkTagBlocks(blocks *[]*Block, nodes *[]*GraphNode, links *[]*GraphLink, p string, style map[string]string) {
-	tagSpans := sql.QueryTagSpans(p, 1024)
+	tagSpans := sql.QueryTagSpans(p)
 	if 1 > len(tagSpans) {
 		return
 	}
@@ -630,23 +670,7 @@ func graphTypeFilter(local bool) string {
 }
 
 func graphDailyNoteFilter(local bool) string {
-	dailyNote := Conf.Graph.Local.DailyNote
-	if !local {
-		dailyNote = Conf.Graph.Global.DailyNote
-	}
-
-	if dailyNote {
-		return ""
-	}
-
-	var dailyNotesPaths []string
-	for _, box := range Conf.GetOpenedBoxes() {
-		boxConf := box.GetConf()
-		if 1 < strings.Count(boxConf.DailyNoteSavePath, "/") {
-			dailyNoteSaveDir := strings.Split(boxConf.DailyNoteSavePath, "/")[1]
-			dailyNotesPaths = append(dailyNotesPaths, "/"+dailyNoteSaveDir)
-		}
-	}
+	dailyNotesPaths := dailyNotePaths(local)
 	if 1 > len(dailyNotesPaths) {
 		return ""
 	}
@@ -656,6 +680,27 @@ func graphDailyNoteFilter(local bool) string {
 		buf.WriteString(" AND ref.hpath NOT LIKE '" + p + "%'")
 	}
 	return buf.String()
+}
+
+func dailyNotePaths(local bool) (ret []string) {
+	dailyNote := Conf.Graph.Local.DailyNote
+	if !local {
+		dailyNote = Conf.Graph.Global.DailyNote
+	}
+
+	if dailyNote {
+		return
+	}
+
+	for _, box := range Conf.GetOpenedBoxes() {
+		boxConf := box.GetConf()
+		if 1 < strings.Count(boxConf.DailyNoteSavePath, "/") {
+			dailyNoteSaveDir := strings.Split(boxConf.DailyNoteSavePath, "/")[1]
+			ret = append(ret, "/"+dailyNoteSaveDir)
+		}
+	}
+	ret = gulu.Str.RemoveDuplicatedElem(ret)
+	return
 }
 
 func graphStyle(local bool) (ret map[string]string) {
@@ -690,11 +735,11 @@ func nodeTitleLabel(node *GraphNode, blockContent string) {
 
 func query2Stmt(queryStr string) (ret string) {
 	buf := bytes.Buffer{}
-	if util.IsIDPattern(queryStr) {
+	if ast.IsNodeIDPattern(queryStr) {
 		buf.WriteString("id = '" + queryStr + "'")
 	} else {
 		var tags []string
-		luteEngine := NewLute()
+		luteEngine := util.NewLute()
 		t := parse.Inline("", []byte(queryStr), luteEngine.ParseOptions)
 		ast.Walk(t.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 			if !entering {

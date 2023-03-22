@@ -30,6 +30,7 @@ import (
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -37,14 +38,18 @@ import (
 func resetTree(tree *parse.Tree, titleSuffix string) {
 	tree.ID = ast.NewNodeID()
 	tree.Root.ID = tree.ID
-	if t, parseErr := time.Parse("20060102150405", util.TimeFromID(tree.ID)); nil == parseErr {
-		titleSuffix += " " + t.Format("2006-01-02 15:04:05")
-	} else {
-		titleSuffix = "Duplicated " + time.Now().Format("2006-01-02 15:04:05")
+
+	if "" != titleSuffix {
+		if t, parseErr := time.Parse("20060102150405", util.TimeFromID(tree.ID)); nil == parseErr {
+			titleSuffix += " " + t.Format("2006-01-02 15:04:05")
+		} else {
+			titleSuffix = "Duplicated " + time.Now().Format("2006-01-02 15:04:05")
+		}
+		titleSuffix = "(" + titleSuffix + ")"
+		titleSuffix = " " + titleSuffix
 	}
-	titleSuffix = "(" + titleSuffix + ")"
 	tree.Root.SetIALAttr("id", tree.ID)
-	tree.Root.SetIALAttr("title", tree.Root.IALAttr("title")+" "+titleSuffix)
+	tree.Root.SetIALAttr("title", tree.Root.IALAttr("title")+titleSuffix)
 	tree.Root.RemoveIALAttr("scroll")
 	p := path.Join(path.Dir(tree.Path), tree.ID) + ".sy"
 	tree.Path = p
@@ -103,8 +108,11 @@ func pagedPaths(localPath string, pageSize int) (ret map[int][]string) {
 	ret = map[int][]string{}
 	page := 1
 	filepath.Walk(localPath, func(path string, info fs.FileInfo, err error) error {
-		if info.IsDir() && strings.HasPrefix(info.Name(), ".") {
-			return filepath.SkipDir
+		if info.IsDir() {
+			if strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 
 		if !strings.HasSuffix(info.Name(), ".sy") {
@@ -127,7 +135,7 @@ func loadTree(localPath string, luteEngine *lute.Lute) (ret *parse.Tree, err err
 		return
 	}
 
-	ret, err = parse.ParseJSONWithoutFix(data, luteEngine.ParseOptions)
+	ret, err = filesys.ParseJSONWithoutFix(data, luteEngine.ParseOptions)
 	if nil != err {
 		logging.LogErrorf("parse json to tree [%s] failed: %s", localPath, err)
 		return
@@ -135,9 +143,16 @@ func loadTree(localPath string, luteEngine *lute.Lute) (ret *parse.Tree, err err
 	return
 }
 
-var ErrBoxNotFound = errors.New("notebook not found")
-var ErrBlockNotFound = errors.New("block not found")
-var ErrTreeNotFound = errors.New("tree not found")
+var (
+	ErrBoxNotFound   = errors.New("notebook not found")
+	ErrBlockNotFound = errors.New("block not found")
+	ErrTreeNotFound  = errors.New("tree not found")
+	ErrIndexing      = errors.New("indexing")
+)
+
+func LoadTreeByID(id string) (ret *parse.Tree, err error) {
+	return loadTreeByBlockID(id)
+}
 
 func loadTreeByBlockID(id string) (ret *parse.Tree, err error) {
 	if "" == id {
@@ -146,21 +161,15 @@ func loadTreeByBlockID(id string) (ret *parse.Tree, err error) {
 
 	bt := treenode.GetBlockTree(id)
 	if nil == bt {
+		if task.Contain(task.DatabaseIndex, task.DatabaseIndexFull) {
+			err = ErrIndexing
+			return
+		}
+
 		return nil, ErrBlockNotFound
 	}
-	ret, err = LoadTree(bt.BoxID, bt.Path)
-	if nil != err {
-		return
-	}
-	return
-}
 
-func LoadTree(boxID, p string) (*parse.Tree, error) {
-	luteEngine := NewLute()
-	tree, err := filesys.LoadTree(boxID, p, luteEngine)
-	if nil != err {
-		logging.LogErrorf("load tree [%s] failed: %s", boxID+p, err)
-		return nil, err
-	}
-	return tree, nil
+	luteEngine := util.NewLute()
+	ret, err = filesys.LoadTree(bt.BoxID, bt.Path, luteEngine)
+	return
 }

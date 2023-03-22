@@ -248,9 +248,9 @@
   position: absolute;
   height: 4px;
   background-color: var(--b3-theme-on-background);
-  border-bottom: 1px solid var(--b3-theme-surface-lighter);
   transition-duration: 200ms;
   transition-timing-function: ease;
+  z-index: 1;
 }
 
 #loadingBar {
@@ -272,7 +272,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 0%;
+  width: var(--progressBar-percent);
   height: 100%;
   background-color: var(--b3-theme-primary-light);
   overflow: hidden;
@@ -319,6 +319,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  overflow: initial;
 
   #findInput {
     width: 120px;
@@ -397,12 +398,18 @@
   }
 }
 
-.dropdownToolbarButton select {
-  min-width: 124px;
-  height: 24px;
-  margin: 4px 8px 0 0;
-  line-height: 24px;
-  padding: 0 8px;
+.dropdownToolbarButton {
+  --scale-select-width: 140px;
+  width: var(--scale-select-width);
+
+  select {
+    width: inherit;
+    min-width: auto;
+    height: 24px;
+    margin: 4px 8px 0 0;
+    line-height: 24px;
+    padding: 0 8px;
+  }
 }
 
 #customScaleOption {
@@ -616,10 +623,10 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
 #dialogContainer > .dialog {
   padding: 8px;
   box-shadow: var(--b3-dialog-shadow);
+  border: 1px solid var(--b3-theme-surface-lighter);
   background-color: var(--b3-menu-background);
   border-radius: 4px;
   width: 520px;
-  border: 0;
   position: absolute;
   inset-inline-start: 0px;
   inset-inline-end: 0px;

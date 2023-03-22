@@ -8,6 +8,7 @@ import {fullscreen} from "../../protyle/breadcrumb/action";
 import {fetchPost} from "../../util/fetch";
 import {isCurrentEditor, openFileById} from "../../editor/util";
 import {updateHotkeyTip} from "../../protyle/util/compatibility";
+import {openGlobalSearch} from "../../search/util";
 
 declare const vis: any;
 
@@ -21,7 +22,7 @@ export class Graph extends Model {
     public rootId: string; // "local" 必填
     private timeout: number;
     public graphData: {
-        nodes: { box: string, id: string, path: string }[],
+        nodes: { box: string, id: string, path: string, type: string }[],
         links: Record<string, unknown>[],
         box: string
     };
@@ -492,7 +493,7 @@ export class Graph extends Model {
             return;
         }
         clearTimeout(this.timeout);
-        addScript(`${Constants.PROTYLE_CDN}/js/vis/vis-network.min.js?v=9.0.4`, "protyleVisScript").then(() => {
+        addScript(`${Constants.PROTYLE_CDN}/js/vis/vis-network.min.js?v=9.1.2`, "protyleVisScript").then(() => {
             this.timeout = window.setTimeout(() => {
                 this.graphElement.firstElementChild.classList.remove("fn__none");
                 this.graphElement.firstElementChild.firstElementChild.setAttribute("style", "width:3%");
@@ -589,6 +590,10 @@ export class Graph extends Model {
                     }
                     const node = this.graphData.nodes.find((item) => item.id === params.nodes[0]);
                     if (!node) {
+                        return;
+                    }
+                    if (node.type === "textmark tag") {
+                        openGlobalSearch(`#${node.id}#`, !window.siyuan.ctrlIsPressed);
                         return;
                     }
                     if (window.siyuan.shiftIsPressed) {

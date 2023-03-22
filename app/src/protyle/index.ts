@@ -22,10 +22,9 @@ import {updatePanelByEditor} from "../editor/util";
 import {setPanelFocus} from "../layout/util";
 /// #endif
 import {Background} from "./header/Background";
-import {onGet} from "./util/onGet";
+import {disabledProtyle, enableProtyle, onGet} from "./util/onGet";
 import {reloadProtyle} from "./util/reload";
 import {renderBacklink} from "./wysiwyg/renderBacklink";
-import {showKeyboardToolbar} from "../mobile/util/showKeyboardToolbar";
 
 export class Protyle {
 
@@ -91,6 +90,13 @@ export class Protyle {
                             data.data[0].doOperations.forEach((item: IOperation) => {
                                 onTransaction(this.protyle, item, false);
                             });
+                            break;
+                        case "readonly":
+                            if (data.data) {
+                                disabledProtyle(this.protyle);
+                            } else {
+                                enableProtyle(this.protyle);
+                            }
                             break;
                         case "heading2doc":
                         case "li2doc":
@@ -207,8 +213,6 @@ export class Protyle {
                             item.classList.remove("layout__wnd--active");
                         });
                     }
-                    /// #else
-                    showKeyboardToolbar();
                     /// #endif
                 });
                 // 需等渲染完后再回调，用于定位搜索字段 https://github.com/siyuan-note/siyuan/issues/3171
@@ -217,6 +221,7 @@ export class Protyle {
                 }
             });
         }
+        this.protyle.contentElement.classList.add("protyle-content--transition");
     }
 
     private init() {

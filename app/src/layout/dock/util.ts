@@ -85,3 +85,15 @@ export const openOutline = (protyle: IProtyle) => {
     newWnd.element.style.width = "200px";
     switchWnd(newWnd, protyle.model.parent.parent);
 };
+
+export const resetFloatDockSize = () => {
+    if (!window.siyuan.layout.leftDock.pin && window.siyuan.layout.leftDock.layout.element.style.opacity === "1") {
+        window.siyuan.layout.leftDock.showDock(true);
+    }
+    if (!window.siyuan.layout.rightDock.pin && window.siyuan.layout.rightDock.layout.element.style.opacity === "1") {
+        window.siyuan.layout.rightDock.showDock(true);
+    }
+    if (!window.siyuan.layout.bottomDock.pin && window.siyuan.layout.bottomDock.layout.element.style.opacity === "1") {
+        window.siyuan.layout.bottomDock.showDock(true);
+    }
+};

@@ -20,8 +20,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/imroc/req/v3"
-	"github.com/siyuan-note/httpclient"
 	"net/http"
 	"net/url"
 	"os"
@@ -44,8 +42,11 @@ import (
 	"github.com/88250/pdfcpu/pkg/pdfcpu"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/emirpasic/gods/stacks/linkedliststack"
+	"github.com/imroc/req/v3"
 	"github.com/siyuan-note/filelock"
+	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
@@ -75,7 +76,7 @@ func Export2Liandi(id string) (err error) {
 		result := gulu.Ret.NewResult()
 		request := httpclient.NewCloudRequest30s()
 		resp, getErr := request.
-			SetResult(result).
+			SetSuccessResult(result).
 			SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 			Get(util.LiandiServer + "/api/v2/article/update/" + articleId)
 		if nil != getErr {
@@ -114,7 +115,7 @@ func Export2Liandi(id string) (err error) {
 	result := gulu.Ret.NewResult()
 	request := httpclient.NewCloudRequest30s()
 	request = request.
-		SetResult(result).
+		SetSuccessResult(result).
 		SetCookies(&http.Cookie{Name: "symphony", Value: Conf.User.UserToken}).
 		SetBody(map[string]interface{}{
 			"articleTitle":   title,
@@ -360,7 +361,12 @@ func ExportDocx(id, savePath string, removeAssets, merge bool) (err error) {
 }
 
 func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string) {
-	tree, _ := loadTreeByBlockID(id)
+	bt := treenode.GetBlockTree(id)
+	if nil == bt {
+		return
+	}
+
+	tree := prepareExportTree(bt)
 
 	if merge {
 		var mergeErr error
@@ -466,7 +472,13 @@ func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string
 
 func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, dom string) {
 	savePath = strings.TrimSpace(savePath)
-	tree, _ := loadTreeByBlockID(id)
+
+	bt := treenode.GetBlockTree(id)
+	if nil == bt {
+		return
+	}
+
+	tree := prepareExportTree(bt)
 
 	if merge {
 		var mergeErr error
@@ -586,6 +598,29 @@ func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, do
 	return
 }
 
+func prepareExportTree(bt *treenode.BlockTree) (ret *parse.Tree) {
+	luteEngine := NewLute()
+	ret, _ = filesys.LoadTree(bt.BoxID, bt.Path, luteEngine)
+	if "d" != bt.Type {
+		node := treenode.GetNodeInTree(ret, bt.ID)
+		nodes := []*ast.Node{node}
+		if "h" == bt.Type {
+			children := treenode.HeadingChildren(node)
+			for _, child := range children {
+				nodes = append(nodes, child)
+			}
+		}
+
+		ret = parse.Parse("", []byte(""), luteEngine.ParseOptions)
+		first := ret.Root.FirstChild
+		for _, node := range nodes {
+			first.InsertBefore(node)
+		}
+	}
+	ret.HPath = bt.HPath
+	return
+}
+
 func processIFrame(tree *parse.Tree) {
 	// 导出 PDF/Word 时 IFrame 块使用超链接 https://github.com/siyuan-note/siyuan/issues/4035
 	var unlinks []*ast.Node
@@ -619,9 +654,65 @@ func processIFrame(tree *parse.Tree) {
 	}
 }
 
-func AddPDFOutline(id, p string, merge bool) (err error) {
-	inFile := p
-	links, err := api.ListToCLinks(inFile)
+func ProcessPDF(id, p string, merge, removeAssets bool) (err error) {
+	tree, _ := loadTreeByBlockID(id)
+	if nil == tree {
+		return
+	}
+
+	if merge {
+		var mergeErr error
+		tree, mergeErr = mergeSubDocs(tree)
+		if nil != mergeErr {
+			logging.LogErrorf("merge sub docs failed: %s", mergeErr)
+			return
+		}
+	}
+
+	var headings []*ast.Node
+	var assetDests []string
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if n.IsTextMarkType("a") {
+			dest := n.TextMarkAHref
+			if util.IsAssetLinkDest([]byte(dest)) {
+				assetDests = append(assetDests, dest)
+			}
+		} else if ast.NodeLinkDest == n.Type {
+			if util.IsAssetLinkDest(n.Tokens) {
+				assetDests = append(assetDests, string(n.Tokens))
+			}
+		}
+
+		if ast.NodeHeading == n.Type && !n.ParentIs(ast.NodeBlockquote) {
+			headings = append(headings, n)
+			return ast.WalkSkipChildren
+		}
+		return ast.WalkContinue
+	})
+
+	pdfCtx, ctxErr := api.ReadContextFile(p)
+	if nil != ctxErr {
+		logging.LogErrorf("read pdf context failed: %s", ctxErr)
+		return
+	}
+
+	processPDFBookmarks(pdfCtx, headings)
+	processPDFLinkEmbedAssets(pdfCtx, assetDests, removeAssets)
+
+	pdfcpu.VersionStr = "SiYuan v" + util.Ver
+	if writeErr := api.WriteContextFile(pdfCtx, p); nil != writeErr {
+		logging.LogErrorf("write pdf context failed: %s", writeErr)
+		return
+	}
+	return
+}
+
+func processPDFBookmarks(pdfCtx *pdfcpu.Context, headings []*ast.Node) {
+	links, err := api.ListToCLinks(pdfCtx)
 	if nil != err {
 		return
 	}
@@ -631,7 +722,6 @@ func AddPDFOutline(id, p string, merge bool) (err error) {
 	})
 
 	bms := map[string]*pdfcpu.Bookmark{}
-	footnotes := map[string]*pdfcpu.Bookmark{}
 	for _, link := range links {
 		linkID := link.URI[strings.LastIndex(link.URI, "/")+1:]
 		b := sql.GetBlock(linkID)
@@ -649,31 +739,9 @@ func AddPDFOutline(id, p string, merge bool) (err error) {
 		bms[linkID] = bm
 	}
 
-	if 1 > len(bms) && 1 > len(footnotes) {
+	if 1 > len(bms) {
 		return
 	}
-
-	tree, _ := loadTreeByBlockID(id)
-	if nil == tree {
-		return
-	}
-	if merge {
-		var mergeErr error
-		tree, mergeErr = mergeSubDocs(tree)
-		if nil != mergeErr {
-			logging.LogErrorf("merge sub docs failed: %s", mergeErr)
-			return
-		}
-	}
-
-	var headings []*ast.Node
-	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if entering && ast.NodeHeading == n.Type && !n.ParentIs(ast.NodeBlockquote) {
-			headings = append(headings, n)
-			return ast.WalkSkipChildren
-		}
-		return ast.WalkContinue
-	})
 
 	var topBms []*pdfcpu.Bookmark
 	stack := linkedliststack.New()
@@ -704,25 +772,215 @@ func AddPDFOutline(id, p string, merge bool) (err error) {
 		}
 	}
 
-	//if 4 == Conf.Export.BlockRefMode { // 块引转脚注
-	//	var footnotesBms []*pdfcpu.Bookmark
-	//	for _, bm := range footnotes {
-	//		footnotesBms = append(footnotesBms, bm)
-	//	}
-	//	sort.Slice(footnotesBms, func(i, j int) bool { return footnotesBms[i].PageFrom < footnotesBms[j].PageFrom })
-	//	for _, bm := range footnotesBms {
-	//		topBms = append(topBms, bm)
-	//	}
-	//}
-
-	outFile := inFile + ".tmp"
-	err = api.AddBookmarksFile(inFile, outFile, topBms, nil)
+	err = pdfCtx.AddBookmarks(topBms)
 	if nil != err {
 		logging.LogErrorf("add bookmark failed: %s", err)
 		return
 	}
-	err = os.Rename(outFile, inFile)
-	return
+}
+
+// processPDFLinkEmbedAssets 处理资源文件超链接，根据 removeAssets 参数决定是否将资源文件嵌入到 PDF 中。
+// 导出 PDF 时支持将资源文件作为附件嵌入 https://github.com/siyuan-note/siyuan/issues/7414
+func processPDFLinkEmbedAssets(pdfCtx *pdfcpu.Context, assetDests []string, removeAssets bool) {
+	var assetAbsPaths []string
+	for _, dest := range assetDests {
+		if absPath, _ := GetAssetAbsPath(dest); "" != absPath {
+			assetAbsPaths = append(assetAbsPaths, absPath)
+		}
+	}
+
+	if 1 > len(assetAbsPaths) {
+		return
+	}
+
+	assetLinks, otherLinks, listErr := api.ListLinks(pdfCtx)
+	if nil != listErr {
+		logging.LogErrorf("list asset links failed: %s", listErr)
+		return
+	}
+
+	if _, removeErr := pdfCtx.RemoveAnnotations(nil, nil, nil, false); nil != removeErr {
+		logging.LogWarnf("remove annotations failed: %s", removeErr)
+	}
+
+	linkMap := map[int][]pdfcpu.AnnotationRenderer{}
+	for _, link := range otherLinks {
+		link.URI, _ = url.PathUnescape(link.URI)
+		if 1 > len(linkMap[link.Page]) {
+			linkMap[link.Page] = []pdfcpu.AnnotationRenderer{link}
+		} else {
+			linkMap[link.Page] = append(linkMap[link.Page], link)
+		}
+	}
+
+	attachmentMap := map[int][]*pdfcpu.IndirectRef{}
+	now := pdfcpu.StringLiteral(pdfcpu.DateString(time.Now()))
+	for _, link := range assetLinks {
+		link.URI = strings.ReplaceAll(link.URI, "http://"+util.LocalHost+":"+util.ServerPort+"/export/temp/", "")
+		link.URI, _ = url.PathUnescape(link.URI)
+
+		if !removeAssets {
+			// 不移除资源文件夹的话将超链接指向资源文件夹
+			if 1 > len(linkMap[link.Page]) {
+				linkMap[link.Page] = []pdfcpu.AnnotationRenderer{link}
+			} else {
+				linkMap[link.Page] = append(linkMap[link.Page], link)
+			}
+
+			continue
+		}
+
+		// 移除资源文件夹的话使用内嵌附件
+
+		absPath, getErr := GetAssetAbsPath(link.URI)
+		if nil != getErr {
+			continue
+		}
+
+		ir, newErr := pdfCtx.XRefTable.NewEmbeddedFileStreamDict(absPath)
+		if nil != newErr {
+			logging.LogWarnf("new embedded file stream dict failed: %s", newErr)
+			continue
+		}
+
+		fn := filepath.Base(absPath)
+		fileSpecDict, newErr := pdfCtx.XRefTable.NewFileSpecDict(fn, pdfcpu.EncodeUTF16String(fn), "attached by SiYuan", *ir)
+		if nil != newErr {
+			logging.LogWarnf("new file spec dict failed: %s", newErr)
+			continue
+		}
+
+		ir, indErr := pdfCtx.XRefTable.IndRefForNewObject(fileSpecDict)
+		if nil != indErr {
+			logging.LogWarnf("ind ref for new object failed: %s", indErr)
+			continue
+		}
+
+		lx := link.Rect.LL.X + link.Rect.Width()
+		ly := link.Rect.LL.Y + link.Rect.Height()/2
+		ux := lx + link.Rect.Height()/2
+		uy := ly + link.Rect.Height()/2
+
+		d := pdfcpu.Dict(
+			map[string]pdfcpu.Object{
+				"Type":         pdfcpu.Name("Annot"),
+				"Subtype":      pdfcpu.Name("FileAttachment"),
+				"Contents":     pdfcpu.StringLiteral(""),
+				"Rect":         pdfcpu.Rect(lx, ly, ux, uy).Array(),
+				"P":            link.P,
+				"M":            now,
+				"F":            pdfcpu.Integer(0),
+				"Border":       pdfcpu.NewIntegerArray(0, 0, 1),
+				"C":            pdfcpu.NewNumberArray(0.5, 0.0, 0.5),
+				"CA":           pdfcpu.Float(0.95),
+				"CreationDate": now,
+				"Name":         pdfcpu.Name("FileAttachment"),
+				"FS":           *ir,
+				"NM":           pdfcpu.StringLiteral(""),
+			},
+		)
+
+		ann, indErr := pdfCtx.XRefTable.IndRefForNewObject(d)
+		if nil != indErr {
+			logging.LogWarnf("ind ref for new object failed: %s", indErr)
+			continue
+		}
+
+		pageDictIndRef, pageErr := pdfCtx.PageDictIndRef(link.Page)
+		if nil != pageErr {
+			logging.LogWarnf("page dict ind ref failed: %s", pageErr)
+			continue
+		}
+
+		d, defErr := pdfCtx.DereferenceDict(*pageDictIndRef)
+		if nil != defErr {
+			logging.LogWarnf("dereference dict failed: %s", defErr)
+			continue
+		}
+
+		if 1 > len(attachmentMap[link.Page]) {
+			attachmentMap[link.Page] = []*pdfcpu.IndirectRef{ann}
+		} else {
+			attachmentMap[link.Page] = append(attachmentMap[link.Page], ann)
+		}
+	}
+
+	if 0 < len(linkMap) {
+		if _, addErr := pdfCtx.AddAnnotationsMap(linkMap, false); nil != addErr {
+			logging.LogErrorf("add annotations map failed: %s", addErr)
+		}
+	}
+
+	// 添加附件注解指向内嵌的附件
+	for page, anns := range attachmentMap {
+		pageDictIndRef, pageErr := pdfCtx.PageDictIndRef(page)
+		if nil != pageErr {
+			logging.LogWarnf("page dict ind ref failed: %s", pageErr)
+			continue
+		}
+
+		pageDict, defErr := pdfCtx.DereferenceDict(*pageDictIndRef)
+		if nil != defErr {
+			logging.LogWarnf("dereference dict failed: %s", defErr)
+			continue
+		}
+
+		array := pdfcpu.Array{}
+		for _, ann := range anns {
+			array = append(array, *ann)
+		}
+
+		obj, found := pageDict.Find("Annots")
+		if !found {
+			pageDict.Insert("Annots", array)
+			pdfCtx.EnsureVersionForWriting()
+			continue
+		}
+
+		ir, ok := obj.(pdfcpu.IndirectRef)
+		if !ok {
+			pageDict.Update("Annots", append(obj.(pdfcpu.Array), array...))
+			pdfCtx.EnsureVersionForWriting()
+			continue
+		}
+
+		// Annots array is an IndirectReference.
+
+		o, err := pdfCtx.Dereference(ir)
+		if err != nil || o == nil {
+			continue
+		}
+
+		annots, _ := o.(pdfcpu.Array)
+		entry, ok := pdfCtx.FindTableEntryForIndRef(&ir)
+		if !ok {
+			continue
+		}
+		entry.Object = append(annots, array...)
+		pdfCtx.EnsureVersionForWriting()
+	}
+}
+
+func annotRect(i int, w, h, d, l float64) *pdfcpu.Rectangle {
+	// d..distance between annotation rectangles
+	// l..side length of rectangle
+
+	// max number of rectangles fitting into w
+	xmax := int((w - d) / (l + d))
+
+	// max number of rectangles fitting into h
+	ymax := int((h - d) / (l + d))
+
+	col := float64(i % xmax)
+	row := float64(i / xmax % ymax)
+
+	llx := d + col*(l+d)
+	lly := d + row*(l+d)
+
+	urx := llx + l
+	ury := lly + l
+
+	return pdfcpu.Rect(llx, lly, urx, ury)
 }
 
 func ExportStdMarkdown(id string) string {
@@ -907,6 +1165,10 @@ func exportMarkdownZip(boxID, baseFolderName string, docPaths []string) (zipPath
 
 func yfm(docIAL map[string]string) string {
 	// 导出 Markdown 文件时开头附上一些元数据 https://github.com/siyuan-note/siyuan/issues/6880
+	// 导出 Markdown 时在文档头添加 YFM 开关https://github.com/siyuan-note/siyuan/issues/7727
+	if !Conf.Export.MarkdownYFM {
+		return ""
+	}
 
 	buf := bytes.Buffer{}
 	buf.WriteString("---\n")
@@ -1373,7 +1635,7 @@ func exportTree(tree *parse.Tree, wysiwyg, expandKaTexMacros, keepFold bool,
 			if n.IsTextMarkType("inline-math") {
 				n.TextMarkInlineMathContent = strings.TrimSpace(n.TextMarkInlineMathContent)
 				return ast.WalkContinue
-			} else if n.IsTextMarkType("file-annotation-ref") {
+			} else if treenode.IsFileAnnotationRef(n) {
 				refID := n.TextMarkFileAnnotationRefID
 				status := processFileAnnotationRef(refID, n, fileAnnotationRefMode)
 				unlinks = append(unlinks, n)
@@ -1397,6 +1659,7 @@ func exportTree(tree *parse.Tree, wysiwyg, expandKaTexMacros, keepFold bool,
 		if "" == linkText {
 			linkText = sql.GetRefText(defID)
 		}
+		linkText = html.UnescapeHTMLStr(linkText) // 块引锚文本导出时 `&` 变为实体 `&amp;` https://github.com/siyuan-note/siyuan/issues/7659
 		if Conf.Editor.BlockRefDynamicAnchorTextMaxLen < utf8.RuneCountInString(linkText) {
 			linkText = gulu.Str.SubStr(linkText, Conf.Editor.BlockRefDynamicAnchorTextMaxLen) + "..."
 		}
@@ -1443,7 +1706,7 @@ func exportTree(tree *parse.Tree, wysiwyg, expandKaTexMacros, keepFold bool,
 	}
 
 	if addTitle {
-		if root, _ := getBlock(id); nil != root {
+		if root, _ := getBlock(id, tree); nil != root {
 			title := &ast.Node{Type: ast.NodeHeading, HeadingLevel: 1, KramdownIAL: parse.Map2IAL(root.IAL)}
 			content := html.UnescapeString(root.Content)
 			title.AppendChild(&ast.Node{Type: ast.NodeText, Tokens: []byte(content)})
@@ -1484,6 +1747,11 @@ func exportTree(tree *parse.Tree, wysiwyg, expandKaTexMacros, keepFold bool,
 				unlinks = append(unlinks, n)
 				return ast.WalkContinue
 			}
+		}
+
+		// 导出时去掉内容块闪卡样式 https://github.com/siyuan-note/siyuan/issues/7374
+		if n.IsBlock() {
+			n.RemoveIALAttr("custom-riff-decks")
 		}
 
 		switch n.Type {

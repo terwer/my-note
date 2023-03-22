@@ -70,8 +70,6 @@ func RemoveBookmark(bookmark string) (err error) {
 		util.RandomSleep(50, 150)
 	}
 
-	util.PushEndlessProgress(Conf.Language(113))
-	sql.WaitForWritingDatabase()
 	util.ReloadUI()
 	return
 }
@@ -130,8 +128,6 @@ func RenameBookmark(oldBookmark, newBookmark string) (err error) {
 		util.RandomSleep(50, 150)
 	}
 
-	util.PushEndlessProgress(Conf.Language(113))
-	sql.WaitForWritingDatabase()
 	util.ReloadUI()
 	return
 }
@@ -162,8 +158,6 @@ func BuildBookmark() (ret *Bookmarks) {
 	WaitForWritingFiles()
 	if !sql.IsEmptyQueue() {
 		sql.WaitForWritingDatabase()
-	} else {
-		util.RandomSleep(200, 500)
 	}
 
 	ret = &Bookmarks{}

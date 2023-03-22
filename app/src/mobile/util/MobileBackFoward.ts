@@ -8,17 +8,18 @@ import {highlightRender} from "../../protyle/markdown/highlightRender";
 import {blockRender} from "../../protyle/markdown/blockRender";
 import {disabledForeverProtyle, disabledProtyle, enableProtyle} from "../../protyle/util/onGet";
 import {setStorageVal} from "../../protyle/util/compatibility";
+import {closePanel} from "./closePanel";
 
 const forwardStack: IBackStack[] = [];
 
 const focusStack = (backStack: IBackStack) => {
-    const protyle = window.siyuan.mobileEditor.protyle;
+    const protyle = window.siyuan.mobile.editor.protyle;
     window.siyuan.storage[Constants.LOCAL_DOCINFO] = {
         id: backStack.id,
         action: backStack.callback,
     };
     setStorageVal(Constants.LOCAL_DOCINFO, window.siyuan.storage[Constants.LOCAL_DOCINFO]);
-    hideElements(["toolbar", "hint", "util"], window.siyuan.mobileEditor.protyle);
+    hideElements(["toolbar", "hint", "util"], window.siyuan.mobile.editor.protyle);
     if (protyle.contentElement.classList.contains("fn__none")) {
         setEditMode(protyle, "wysiwyg");
     }
@@ -26,7 +27,7 @@ const focusStack = (backStack: IBackStack) => {
     const startEndId = backStack.endId.split(Constants.ZWSP);
     if (startEndId[0] === protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-id") &&
         startEndId[1] === protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id")) {
-        window.siyuan.mobileEditor.protyle.contentElement.scrollTo({
+        window.siyuan.mobile.editor.protyle.contentElement.scrollTo({
             top: backStack.scrollTop,
             behavior: "smooth"
         });
@@ -81,12 +82,12 @@ const focusStack = (backStack: IBackStack) => {
             }
         }
         protyle.contentElement.scrollTop = backStack.scrollTop;
-        window.siyuan.mobileEditor.protyle.breadcrumb?.render(protyle);
+        window.siyuan.mobile.editor.protyle.breadcrumb?.render(protyle);
     });
 };
 
 export const pushBack = () => {
-    const protyle = window.siyuan.mobileEditor.protyle;
+    const protyle = window.siyuan.mobile.editor.protyle;
     window.siyuan.backStack.push({
         id: protyle.block.showAll ? protyle.block.id : protyle.block.rootID,
         endId: protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-id") + Constants.ZWSP + protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),
@@ -97,6 +98,16 @@ export const pushBack = () => {
 };
 
 export const goForward = () => {
+    if (window.siyuan.menus.menu.element.classList.contains("b3-menu--fullscreen") &&
+        !window.siyuan.menus.menu.element.classList.contains("fn__none")) {
+        window.siyuan.menus.menu.element.dispatchEvent(new CustomEvent("click", {detail: "back"}));
+        return;
+    } else if (document.getElementById("model").style.top === "0px" ||
+        document.getElementById("menu").style.right === "0px" ||
+        document.getElementById("sidebar").style.left === "0px") {
+        closePanel();
+        return;
+    }
     if (window.JSAndroid && forwardStack.length < 2) {
         window.JSAndroid.returnDesktop();
         return;
@@ -109,6 +120,16 @@ export const goForward = () => {
 };
 
 export const goBack = () => {
+    if (window.siyuan.menus.menu.element.classList.contains("b3-menu--fullscreen") &&
+        !window.siyuan.menus.menu.element.classList.contains("fn__none")) {
+        window.siyuan.menus.menu.element.dispatchEvent(new CustomEvent("click", {detail: "back"}));
+        return;
+    } else if (document.getElementById("model").style.top === "0px" ||
+        document.getElementById("menu").style.right === "0px" ||
+        document.getElementById("sidebar").style.left === "0px") {
+        closePanel();
+        return;
+    }
     if (window.JSAndroid && window.siyuan.backStack.length < 1) {
         window.JSAndroid.returnDesktop();
         return;
@@ -116,7 +137,7 @@ export const goBack = () => {
     if (window.siyuan.backStack.length < 1) {
         return;
     }
-    const protyle = window.siyuan.mobileEditor.protyle;
+    const protyle = window.siyuan.mobile.editor.protyle;
     if (forwardStack.length === 0) {
         forwardStack.push({
             id: protyle.block.showAll ? protyle.block.id : protyle.block.rootID,

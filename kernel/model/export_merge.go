@@ -19,6 +19,8 @@ package model
 import (
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
+	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/siyuan/kernel/treenode"
 )
 
 func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
@@ -29,14 +31,22 @@ func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
 	}
 
 	insertPoint := rootTree.Root.LastChild
-	if nil == insertPoint {
-		insertPoint = rootTree.Root
-	}
 
 	// 跳过空段落插入点，向上寻找非空段落
 	for ; nil != insertPoint && ast.NodeParagraph == insertPoint.Type; insertPoint = insertPoint.Previous {
 		if nil != insertPoint.FirstChild {
 			break
+		}
+	}
+
+	// 导出空文档 Word 和 PDF 时合并子文档失败 https://github.com/siyuan-note/siyuan/issues/7429
+	if nil == insertPoint {
+		// 如果找不到非空段落，则使用第一个段落作为插入点
+		insertPoint = rootTree.Root.FirstChild
+		if nil == insertPoint {
+			// 如果文档为空，则创建一个空段落作为插入点
+			insertPoint = treenode.NewParagraph()
+			rootTree.Root.AppendChild(insertPoint)
 		}
 	}
 
@@ -74,7 +84,8 @@ func walkBlock(insertPoint *ast.Node, block *Block, level int) (err error) {
 }
 
 func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error) {
-	tree, err := LoadTree(box, p)
+	luteEngine := NewLute()
+	tree, err := filesys.LoadTree(box, p, luteEngine)
 	if nil != err {
 		return
 	}

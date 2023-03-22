@@ -17,17 +17,13 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
-	"github.com/siyuan-note/filelock"
-	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/model"
-	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -63,21 +59,7 @@ func performTransactions(c *gin.Context) {
 		return
 	}
 
-	if err = model.PerformTransactions(&transactions); errors.Is(err, filelock.ErrUnableAccessFile) {
-		ret.Code = 1
-		return
-	}
-	if nil != err {
-		tx, txErr := sql.BeginTx()
-		if nil != txErr {
-			logging.LogFatalf("transaction failed: %s", txErr)
-			return
-		}
-		sql.ClearBoxHash(tx)
-		sql.CommitTx(tx)
-		logging.LogFatalf("transaction failed: %s", err)
-		return
-	}
+	model.PerformTransactions(&transactions)
 
 	ret.Data = transactions
 

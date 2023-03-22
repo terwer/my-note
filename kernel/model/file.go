@@ -19,7 +19,6 @@ package model
 import (
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,6 +29,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/88250/gulu"
+	"github.com/88250/lute"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/html"
 	"github.com/88250/lute/parse"
@@ -43,6 +43,7 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/search"
 	"github.com/siyuan-note/siyuan/kernel/sql"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -91,33 +92,8 @@ func (box *Box) docFromFileInfo(fileInfo *FileInfo, ial map[string]string) (ret 
 	}
 
 	ret.Mtime = mTime.Unix()
-	ret.HMtime = HumanizeTime(mTime)
+	ret.HMtime = util.HumanizeTime(mTime, Conf.Lang)
 	return
-}
-
-func HumanizeTime(then time.Time) string {
-	labels := timeLangs[Conf.Lang]
-
-	defaultMagnitudes := []humanize.RelTimeMagnitude{
-		{time.Second, labels["now"].(string), time.Second},
-		{2 * time.Second, labels["1s"].(string), 1},
-		{time.Minute, labels["xs"].(string), time.Second},
-		{2 * time.Minute, labels["1m"].(string), 1},
-		{time.Hour, labels["xm"].(string), time.Minute},
-		{2 * time.Hour, labels["1h"].(string), 1},
-		{humanize.Day, labels["xh"].(string), time.Hour},
-		{2 * humanize.Day, labels["1d"].(string), 1},
-		{humanize.Week, labels["xd"].(string), humanize.Day},
-		{2 * humanize.Week, labels["1w"].(string), 1},
-		{humanize.Month, labels["xw"].(string), humanize.Week},
-		{2 * humanize.Month, labels["1M"].(string), 1},
-		{humanize.Year, labels["xM"].(string), humanize.Month},
-		{18 * humanize.Month, labels["1y"].(string), 1},
-		{2 * humanize.Year, labels["2y"].(string), 1},
-		{humanize.LongTime, labels["xy"].(string), humanize.Year},
-		{math.MaxInt64, labels["max"].(string), 1},
-	}
-	return humanize.CustomRelTime(then, time.Now(), labels["albl"].(string), labels["blbl"].(string), defaultMagnitudes)
 }
 
 func (box *Box) docIAL(p string) (ret map[string]string) {
@@ -232,6 +208,11 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 		return nil, 0, errors.New(Conf.Language(0))
 	}
 
+	boxConf := box.GetConf()
+	if util.SortModeFileTree != boxConf.SortMode {
+		sortMode = boxConf.SortMode
+	}
+
 	var files []*FileInfo
 	start := time.Now()
 	files, totals, err = box.Ls(path)
@@ -248,7 +229,7 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 	var docs []*File
 	for _, file := range files {
 		if file.isdir {
-			if !util.IsIDPattern(file.name) {
+			if !ast.IsNodeIDPattern(file.name) {
 				continue
 			}
 
@@ -285,7 +266,7 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 	}
 	elapsed = time.Now().Sub(start).Milliseconds()
 	if 500 < elapsed {
-		logging.LogWarnf("build docs elapsed [%dms]", elapsed)
+		logging.LogWarnf("build docs [%d] elapsed [%dms]", len(docs), elapsed)
 	}
 
 	start = time.Now()
@@ -372,7 +353,7 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 }
 
 func ContentStat(content string) (ret *util.BlockStatResult) {
-	luteEngine := NewLute()
+	luteEngine := util.NewLute()
 	tree := luteEngine.BlockDOM2Tree(content)
 	runeCnt, wordCnt, linkCnt, imgCnt, refCnt := tree.Root.Stat()
 	return &util.BlockStatResult{
@@ -387,6 +368,7 @@ func ContentStat(content string) (ret *util.BlockStatResult) {
 func BlocksWordCount(ids []string) (ret *util.BlockStatResult) {
 	ret = &util.BlockStatResult{}
 	trees := map[string]*parse.Tree{} // 缓存
+	luteEngine := util.NewLute()
 	for _, id := range ids {
 		bt := treenode.GetBlockTree(id)
 		if nil == bt {
@@ -396,7 +378,7 @@ func BlocksWordCount(ids []string) (ret *util.BlockStatResult) {
 
 		tree := trees[bt.RootID]
 		if nil == tree {
-			tree, _ = LoadTree(bt.BoxID, bt.Path)
+			tree, _ = filesys.LoadTree(bt.BoxID, bt.Path, luteEngine)
 			if nil == tree {
 				continue
 			}
@@ -432,20 +414,12 @@ func StatTree(id string) (ret *util.BlockStatResult) {
 	}
 }
 
-const (
-	searchMarkDataType      = "search-mark"
-	virtualBlockRefDataType = "virtual-block-ref"
-)
+func GetDoc(startID, endID, id string, index int, keyword string, mode int, size int, isBacklink bool) (blockCount int, dom, parentID, parent2ID, rootID, typ string, eof, scroll bool, boxID, docPath string, isBacklinkExpand bool, err error) {
+	//os.MkdirAll("pprof", 0755)
+	//cpuProfile, _ := os.Create("pprof/GetDoc")
+	//pprof.StartCPUProfile(cpuProfile)
+	//defer pprof.StopCPUProfile()
 
-func getMarkSpanStart(dataType string) string {
-	return fmt.Sprintf("<span data-type=\"%s\">", dataType)
-}
-
-func getMarkSpanEnd() string {
-	return "</span>"
-}
-
-func GetDoc(startID, endID, id string, index int, keyword string, mode int, size int, isBacklink bool) (blockCount, childBlockCount int, dom, parentID, parent2ID, rootID, typ string, eof bool, boxID, docPath string, isBacklinkExpand bool, err error) {
 	WaitForWritingFiles() // 写入数据时阻塞，避免获取到的数据不一致
 
 	inputIndex := index
@@ -566,7 +540,6 @@ func GetDoc(startID, endID, id string, index int, keyword string, mode int, size
 	}
 
 	blockCount = tree.DocBlockCount()
-	childBlockCount = treenode.CountBlockNodes(tree.Root)
 	if ast.NodeDocument == node.Type {
 		parentID = node.ID
 		parent2ID = parentID
@@ -587,6 +560,26 @@ func GetDoc(startID, endID, id string, index int, keyword string, mode int, size
 		typ = node.Type.String()
 	}
 
+	// 判断是否需要显示动态加载滚动条 https://github.com/siyuan-note/siyuan/issues/7693
+	childCount := 0
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if 1 > childCount {
+			childCount = 1
+		} else {
+			childCount += treenode.CountBlockNodes(n)
+		}
+
+		if childCount > Conf.Editor.DynamicLoadBlocks {
+			scroll = true
+			return ast.WalkStop
+		}
+		return ast.WalkContinue
+	})
+
 	var nodes []*ast.Node
 	if isBacklink {
 		// 引用计数浮窗请求，需要按照反链逻辑组装 https://github.com/siyuan-note/siyuan/issues/6853
@@ -605,7 +598,7 @@ func GetDoc(startID, endID, id string, index int, keyword string, mode int, size
 	}
 
 	refCount := sql.QueryRootChildrenRefCount(rootID)
-	virtualBlockRefKeywords := getVirtualRefKeywords(tree.Root.IALAttr("title"))
+	virtualBlockRefKeywords := getBlockVirtualRefKeywords(tree.Root)
 
 	subTree := &parse.Tree{ID: rootID, Root: &ast.Node{Type: ast.NodeDocument}, Marks: tree.Marks}
 	keyword = strings.Join(strings.Split(keyword, " "), search.TermSep)
@@ -646,7 +639,7 @@ func GetDoc(startID, endID, id string, index int, keyword string, mode int, size
 					}
 				}
 				if hitBlock {
-					if markReplaceSpan(n, &unlinks, keywords, searchMarkDataType, luteEngine) {
+					if markReplaceSpan(n, &unlinks, keywords, search.MarkDataType, luteEngine) {
 						return ast.WalkContinue
 					}
 				}
@@ -873,67 +866,49 @@ func writeJSONQueueWithoutChangeTime(tree *parse.Tree) (err error) {
 }
 
 func indexWriteJSONQueue(tree *parse.Tree) (err error) {
-	treenode.ReindexBlockTree(tree)
+	treenode.IndexBlockTree(tree)
 	return writeJSONQueue(tree)
 }
 
 func indexWriteJSONQueueWithoutChangeTime(tree *parse.Tree) (err error) {
-	treenode.ReindexBlockTree(tree)
+	treenode.IndexBlockTree(tree)
 	return writeJSONQueueWithoutChangeTime(tree)
 }
 
-func renameWriteJSONQueue(tree *parse.Tree, oldHPath string) (err error) {
+func renameWriteJSONQueue(tree *parse.Tree) (err error) {
 	if err = filesys.WriteTree(tree); nil != err {
 		return
 	}
-	sql.RenameTreeQueue(tree, oldHPath)
-	treenode.ReindexBlockTree(tree)
+	sql.RenameTreeQueue(tree)
+	treenode.IndexBlockTree(tree)
 	return
 }
 
-func DuplicateDoc(rootID string) (ret *parse.Tree, err error) {
+func DuplicateDoc(tree *parse.Tree) {
 	msgId := util.PushMsg(Conf.Language(116), 30000)
 	defer util.PushClearMsg(msgId)
 
+	resetTree(tree, "Duplicated")
+	createTreeTx(tree)
 	WaitForWritingFiles()
-	ret, err = loadTreeByBlockID(rootID)
-	if nil != err {
-		return
-	}
-
-	resetTree(ret, "Duplicated")
-	createTreeTx(ret)
-	sql.WaitForWritingDatabase()
 	return
 }
 
 func createTreeTx(tree *parse.Tree) {
 	transaction := &Transaction{DoOperations: []*Operation{{Action: "create", Data: tree}}}
-	err := PerformTransactions(&[]*Transaction{transaction})
-	if nil != err {
-		tx, txErr := sql.BeginTx()
-		if nil != txErr {
-			logging.LogFatalf("transaction failed: %s", txErr)
-			return
-		}
-		sql.ClearBoxHash(tx)
-		sql.CommitTx(tx)
-		logging.LogFatalf("transaction failed: %s", err)
-		return
-	}
+	PerformTransactions(&[]*Transaction{transaction})
 }
 
-func CreateDocByMd(boxID, p, title, md string, sorts []string) (err error) {
-	WaitForWritingFiles()
-
+func CreateDocByMd(boxID, p, title, md string, sorts []string) (tree *parse.Tree, err error) {
 	box := Conf.Box(boxID)
 	if nil == box {
-		return errors.New(Conf.Language(0))
+		err = errors.New(Conf.Language(0))
+		return
 	}
 
-	luteEngine := NewLute()
+	luteEngine := util.NewLute()
 	dom := luteEngine.Md2BlockDOM(md, false)
-	err = createDoc(box.ID, p, title, dom)
+	tree, err = createDoc(box.ID, p, title, dom)
 	if nil != err {
 		return
 	}
@@ -950,7 +925,7 @@ func CreateWithMarkdown(boxID, hPath, md string) (id string, err error) {
 	}
 
 	WaitForWritingFiles()
-	luteEngine := NewLute()
+	luteEngine := util.NewLute()
 	dom := luteEngine.Md2BlockDOM(md, false)
 	id, _, err = createDocsByHPath(box.ID, hPath, dom)
 	return
@@ -962,7 +937,8 @@ func GetHPathByPath(boxID, p string) (hPath string, err error) {
 		return
 	}
 
-	tree, err := LoadTree(boxID, p)
+	luteEngine := util.NewLute()
+	tree, err := filesys.LoadTree(boxID, p, luteEngine)
 	if nil != err {
 		return
 	}
@@ -1042,8 +1018,9 @@ func MoveDocs(fromPaths []string, toBoxID, toPath string) (err error) {
 	}
 
 	WaitForWritingFiles()
+	luteEngine := util.NewLute()
 	for fromPath, fromBox := range pathsBoxes {
-		_, err = moveDoc(fromBox, fromPath, toBox, toPath)
+		_, err = moveDoc(fromBox, fromPath, toBox, toPath, luteEngine)
 		if nil != err {
 			return
 		}
@@ -1059,7 +1036,7 @@ func MoveDocs(fromPaths []string, toBoxID, toPath string) (err error) {
 	return
 }
 
-func moveDoc(fromBox *Box, fromPath string, toBox *Box, toPath string) (newPath string, err error) {
+func moveDoc(fromBox *Box, fromPath string, toBox *Box, toPath string, luteEngine *lute.Lute) (newPath string, err error) {
 	isSameBox := fromBox.ID == toBox.ID
 
 	if isSameBox {
@@ -1074,7 +1051,7 @@ func moveDoc(fromBox *Box, fromPath string, toBox *Box, toPath string) (newPath 
 		}
 	}
 
-	tree, err := LoadTree(fromBox.ID, fromPath)
+	tree, err := filesys.LoadTree(fromBox.ID, fromPath, luteEngine)
 	if nil != err {
 		err = ErrBlockNotFound
 		return
@@ -1087,9 +1064,9 @@ func moveDoc(fromBox *Box, fromPath string, toBox *Box, toPath string) (newPath 
 	if !moveToRoot {
 		var toTree *parse.Tree
 		if isSameBox {
-			toTree, err = LoadTree(fromBox.ID, toPath)
+			toTree, err = filesys.LoadTree(fromBox.ID, toPath, luteEngine)
 		} else {
-			toTree, err = LoadTree(toBox.ID, toPath)
+			toTree, err = filesys.LoadTree(toBox.ID, toPath, luteEngine)
 		}
 		if nil != err {
 			err = ErrBlockNotFound
@@ -1140,7 +1117,7 @@ func moveDoc(fromBox *Box, fromPath string, toBox *Box, toPath string) (newPath 
 			return
 		}
 
-		tree, err = LoadTree(fromBox.ID, newPath)
+		tree, err = filesys.LoadTree(fromBox.ID, newPath, luteEngine)
 		if nil != err {
 			return
 		}
@@ -1156,7 +1133,7 @@ func moveDoc(fromBox *Box, fromPath string, toBox *Box, toPath string) (newPath 
 			return
 		}
 
-		tree, err = LoadTree(toBox.ID, newPath)
+		tree, err = filesys.LoadTree(toBox.ID, newPath, luteEngine)
 		if nil != err {
 			return
 		}
@@ -1177,41 +1154,36 @@ func moveDoc(fromBox *Box, fromPath string, toBox *Box, toPath string) (newPath 
 	return
 }
 
-func RemoveDoc(boxID, p string) (err error) {
+func RemoveDoc(boxID, p string) {
 	box := Conf.Box(boxID)
 	if nil == box {
-		err = errors.New(Conf.Language(0))
 		return
 	}
 
 	WaitForWritingFiles()
-	err = removeDoc(box, p)
-	if nil != err {
-		return
-	}
+	luteEngine := util.NewLute()
+	removeDoc(box, p, luteEngine)
 	IncSync()
 	return
 }
 
-func RemoveDocs(paths []string) (err error) {
+func RemoveDocs(paths []string) {
 	util.PushEndlessProgress(Conf.Language(116))
 	defer util.PushClearProgress()
 
 	paths = util.FilterSelfChildDocs(paths)
 	pathsBoxes := getBoxesByPaths(paths)
 	WaitForWritingFiles()
+	luteEngine := util.NewLute()
 	for p, box := range pathsBoxes {
-		err = removeDoc(box, p)
-		if nil != err {
-			return
-		}
+		removeDoc(box, p, luteEngine)
 	}
 	return
 }
 
-func removeDoc(box *Box, p string) (err error) {
-	tree, err := LoadTree(box.ID, p)
-	if nil != err {
+func removeDoc(box *Box, p string, luteEngine *lute.Lute) {
+	tree, _ := filesys.LoadTree(box.ID, p, luteEngine)
+	if nil == tree {
 		return
 	}
 
@@ -1224,15 +1196,13 @@ func removeDoc(box *Box, p string) (err error) {
 	historyPath := filepath.Join(historyDir, box.ID, p)
 	absPath := filepath.Join(util.DataDir, box.ID, p)
 	if err = filelock.Copy(absPath, historyPath); nil != err {
-		return errors.New(fmt.Sprintf(Conf.Language(70), box.Name, absPath, err))
+		logging.LogErrorf("backup [path=%s] to history [%s] failed: %s", absPath, historyPath, err)
+		return
 	}
 
 	copyDocAssetsToDataAssets(box.ID, p)
 
-	var removeIDs []string
-	ids := treenode.RootChildIDs(tree.ID)
-	removeIDs = append(removeIDs, ids...)
-
+	removeIDs := treenode.RootChildIDs(tree.ID)
 	dir := path.Dir(p)
 	childrenDir := path.Join(dir, tree.ID)
 	existChildren := box.Exist(childrenDir)
@@ -1240,10 +1210,11 @@ func removeDoc(box *Box, p string) (err error) {
 		absChildrenDir := filepath.Join(util.DataDir, tree.Box, childrenDir)
 		historyPath = filepath.Join(historyDir, tree.Box, childrenDir)
 		if err = filelock.Copy(absChildrenDir, historyPath); nil != err {
+			logging.LogErrorf("backup [path=%s] to history [%s] failed: %s", absChildrenDir, historyPath, err)
 			return
 		}
 	}
-	indexHistoryDir(filepath.Base(historyDir), NewLute())
+	indexHistoryDir(filepath.Base(historyDir), util.NewLute())
 
 	if existChildren {
 		if err = box.Remove(childrenDir); nil != err {
@@ -1254,11 +1225,7 @@ func removeDoc(box *Box, p string) (err error) {
 		return
 	}
 	box.removeSort(removeIDs)
-
-	treenode.RemoveBlockTreesByPathPrefix(childrenDir)
-	sql.RemoveTreePathQueue(box.ID, childrenDir)
 	RemoveRecentDoc(removeIDs)
-
 	if "/" != dir {
 		others, err := os.ReadDir(filepath.Join(util.DataDir, box.ID, dir))
 		if nil == err && 1 > len(others) {
@@ -1266,13 +1233,19 @@ func removeDoc(box *Box, p string) (err error) {
 		}
 	}
 
-	cache.RemoveDocIAL(p)
-
 	evt := util.NewCmdResult("removeDoc", 0, util.PushModeBroadcast)
 	evt.Data = map[string]interface{}{
 		"ids": removeIDs,
 	}
 	util.PushEvent(evt)
+
+	task.AppendTask(task.DatabaseIndex, removeDoc0, box, p, childrenDir)
+}
+
+func removeDoc0(box *Box, p, childrenDir string) {
+	treenode.RemoveBlockTreesByPathPrefix(childrenDir)
+	sql.RemoveTreePathQueue(box.ID, childrenDir)
+	cache.RemoveDocIAL(p)
 	return
 }
 
@@ -1284,7 +1257,8 @@ func RenameDoc(boxID, p, title string) (err error) {
 	}
 
 	WaitForWritingFiles()
-	tree, err := LoadTree(box.ID, p)
+	luteEngine := util.NewLute()
+	tree, err := filesys.LoadTree(box.ID, p, luteEngine)
 	if nil != err {
 		return
 	}
@@ -1304,12 +1278,10 @@ func RenameDoc(boxID, p, title string) (err error) {
 	}
 	title = strings.ReplaceAll(title, "/", "")
 
-	oldHPath := tree.HPath
 	tree.HPath = path.Join(path.Dir(tree.HPath), title)
 	tree.Root.SetIALAttr("title", title)
 	tree.Root.SetIALAttr("updated", util.CurrentTimeSecondsStr())
-
-	if err = renameWriteJSONQueue(tree, oldHPath); nil != err {
+	if err = renameWriteJSONQueue(tree); nil != err {
 		return
 	}
 
@@ -1380,7 +1352,7 @@ func CreateDailyNote(boxID string) (p string, existed bool, err error) {
 		if nil == err {
 			tree.Root.FirstChild.Unlink()
 
-			luteEngine := NewLute()
+			luteEngine := util.NewLute()
 			newTree := luteEngine.BlockDOM2Tree(dom)
 			var children []*ast.Node
 			for c := newTree.Root.FirstChild; nil != c; c = c.Next {
@@ -1402,26 +1374,30 @@ func CreateDailyNote(boxID string) (p string, existed bool, err error) {
 	return
 }
 
-func createDoc(boxID, p, title, dom string) (err error) {
+func createDoc(boxID, p, title, dom string) (tree *parse.Tree, err error) {
 	title = gulu.Str.RemoveInvisible(title)
 	if 512 < utf8.RuneCountInString(title) {
 		// 限制笔记本名和文档名最大长度为 `512` https://github.com/siyuan-note/siyuan/issues/6299
-		return errors.New(Conf.Language(106))
+		err = errors.New(Conf.Language(106))
+		return
 	}
 	title = strings.ReplaceAll(title, "/", "")
 
 	baseName := strings.TrimSpace(path.Base(p))
 	if "" == strings.TrimSuffix(baseName, ".sy") {
-		return errors.New(Conf.Language(16))
+		err = errors.New(Conf.Language(16))
+		return
 	}
 
 	if strings.HasPrefix(baseName, ".") {
-		return errors.New(Conf.Language(13))
+		err = errors.New(Conf.Language(13))
+		return
 	}
 
 	box := Conf.Box(boxID)
 	if nil == box {
-		return errors.New(Conf.Language(0))
+		err = errors.New(Conf.Language(0))
+		return
 	}
 
 	id := strings.TrimSuffix(path.Base(p), ".sy")
@@ -1429,10 +1405,11 @@ func createDoc(boxID, p, title, dom string) (err error) {
 	folder := path.Dir(p)
 	if "/" != folder {
 		parentID := path.Base(folder)
-		parentTree, err := loadTreeByBlockID(parentID)
-		if nil != err {
-			logging.LogErrorf("get parent tree [id=%s] failed", parentID)
-			return ErrBlockNotFound
+		parentTree, loadErr := loadTreeByBlockID(parentID)
+		if nil != loadErr {
+			logging.LogErrorf("get parent tree [%s] failed", parentID)
+			err = ErrBlockNotFound
+			return
 		}
 		hPath = path.Join(parentTree.HPath, title)
 	} else {
@@ -1446,16 +1423,16 @@ func createDoc(boxID, p, title, dom string) (err error) {
 
 	if !box.Exist(folder) {
 		if err = box.MkdirAll(folder); nil != err {
-			return err
+			return
 		}
 	}
 
 	if box.Exist(p) {
-		return errors.New(Conf.Language(1))
+		err = errors.New(Conf.Language(1))
+		return
 	}
 
-	var tree *parse.Tree
-	luteEngine := NewLute()
+	luteEngine := util.NewLute()
 	tree = luteEngine.BlockDOM2Tree(dom)
 	tree.Box = boxID
 	tree.Path = p
@@ -1466,22 +1443,11 @@ func createDoc(boxID, p, title, dom string) (err error) {
 	updated := util.TimeFromID(id)
 	tree.Root.KramdownIAL = [][]string{{"id", id}, {"title", html.EscapeAttrVal(title)}, {"updated", updated}}
 	if nil == tree.Root.FirstChild {
-		tree.Root.AppendChild(parse.NewParagraph())
+		tree.Root.AppendChild(treenode.NewParagraph())
 	}
 
 	transaction := &Transaction{DoOperations: []*Operation{{Action: "create", Data: tree}}}
-	err = PerformTransactions(&[]*Transaction{transaction})
-	if nil != err {
-		tx, txErr := sql.BeginTx()
-		if nil != txErr {
-			logging.LogFatalf("transaction failed: %s", txErr)
-			return
-		}
-		sql.ClearBoxHash(tx)
-		sql.CommitTx(tx)
-		logging.LogFatalf("transaction failed: %s", err)
-		return
-	}
+	PerformTransactions(&[]*Transaction{transaction})
 	WaitForWritingFiles()
 	return
 }

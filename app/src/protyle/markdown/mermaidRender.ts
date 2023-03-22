@@ -1,6 +1,6 @@
 import {addScript} from "../util/addScript";
 import {Constants} from "../../constants";
-import {hasClosestByClassName} from "../util/hasClosest";
+import {hasClosestByAttribute} from "../util/hasClosest";
 
 declare const mermaid: {
     initialize(options: any): void,
@@ -18,7 +18,7 @@ export const mermaidRender = (element: Element, cdn = Constants.PROTYLE_CDN) => 
     if (mermaidElements.length === 0) {
         return;
     }
-    addScript(`${cdn}/js/mermaid/mermaid.min.js?v=9.3.0`, "protyleMermaidScript").then(() => {
+    addScript(`${cdn}/js/mermaid/mermaid.min.js?v=9.4.3`, "protyleMermaidScript").then(() => {
         const config: any = {
             securityLevel: "loose", // 升级后无 https://github.com/siyuan-note/siyuan/issues/3587，可使用该选项
             altFontFamily: "sans-serif",
@@ -45,15 +45,15 @@ export const mermaidRender = (element: Element, cdn = Constants.PROTYLE_CDN) => 
         }
         mermaid.initialize(config);
         if (mermaidElements[0].firstElementChild.clientWidth === 0) {
-            const tabElement = hasClosestByClassName(mermaidElements[0], "protyle", true);
-            if (!tabElement) {
+            const hideElement = hasClosestByAttribute(mermaidElements[0], "fold", "1");
+            if (!hideElement) {
                 return;
             }
             const observer = new MutationObserver(() => {
                 initMermaid(mermaidElements);
                 observer.disconnect();
             });
-            observer.observe(tabElement, {attributeFilter: ["class"]});
+            observer.observe(hideElement, {attributeFilter: ["fold"]});
         } else {
             initMermaid(mermaidElements);
         }

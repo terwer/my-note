@@ -40,7 +40,41 @@ func getBootSync(c *gin.Context) {
 func performSync(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
-	model.SyncData(false, false, true)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	// Android 端前后台切换时自动触发同步 https://github.com/siyuan-note/siyuan/issues/7122
+	var mobileSwitch bool
+	if mobileSwitchArg := arg["mobileSwitch"]; nil != mobileSwitchArg {
+		mobileSwitch = mobileSwitchArg.(bool)
+	}
+	if mobileSwitch {
+		if nil == model.Conf.User || !model.Conf.Sync.Enabled {
+			return
+		}
+	}
+
+	if 3 != model.Conf.Sync.Mode {
+		model.SyncData(false, false, true)
+		return
+	}
+
+	// 云端同步模式支持 `完全手动同步` 模式 https://github.com/siyuan-note/siyuan/issues/7295
+	uploadArg := arg["upload"]
+	if nil == uploadArg {
+		// 必须传入同步方向，未传的话不执行同步
+		return
+	}
+
+	upload := uploadArg.(bool)
+	if upload {
+		model.SyncDataUpload()
+	} else {
+		model.SyncDataDownload()
+	}
 }
 
 func performBootSync(c *gin.Context) {
@@ -132,13 +166,7 @@ func setSyncEnable(c *gin.Context) {
 	}
 
 	enabled := arg["enabled"].(bool)
-	err := model.SetSyncEnable(enabled)
-	if nil != err {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		ret.Data = map[string]interface{}{"closeTimeout": 5000}
-		return
-	}
+	model.SetSyncEnable(enabled)
 }
 
 func setSyncMode(c *gin.Context) {
@@ -153,7 +181,7 @@ func setSyncMode(c *gin.Context) {
 	mode := int(arg["mode"].(float64))
 	err := model.SetSyncMode(mode)
 	if nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
@@ -172,7 +200,7 @@ func setSyncProvider(c *gin.Context) {
 	provider := int(arg["provider"].(float64))
 	err := model.SetSyncProvider(provider)
 	if nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
@@ -191,7 +219,7 @@ func setSyncProviderS3(c *gin.Context) {
 	s3Arg := arg["s3"].(interface{})
 	data, err := gulu.JSON.MarshalJSON(s3Arg)
 	if nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
@@ -199,7 +227,7 @@ func setSyncProviderS3(c *gin.Context) {
 
 	s3 := &conf.S3{}
 	if err = gulu.JSON.UnmarshalJSON(data, s3); nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
@@ -207,7 +235,7 @@ func setSyncProviderS3(c *gin.Context) {
 
 	err = model.SetSyncProviderS3(s3)
 	if nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
@@ -226,7 +254,7 @@ func setSyncProviderWebDAV(c *gin.Context) {
 	webdavArg := arg["webdav"].(interface{})
 	data, err := gulu.JSON.MarshalJSON(webdavArg)
 	if nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
@@ -234,7 +262,7 @@ func setSyncProviderWebDAV(c *gin.Context) {
 
 	webdav := &conf.WebDAV{}
 	if err = gulu.JSON.UnmarshalJSON(data, webdav); nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
@@ -242,7 +270,7 @@ func setSyncProviderWebDAV(c *gin.Context) {
 
 	err = model.SetSyncProviderWebDAV(webdav)
 	if nil != err {
-		ret.Code = 1
+		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return

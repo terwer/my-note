@@ -18,35 +18,50 @@ package model
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"runtime/debug"
-	"sort"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/88250/gulu"
+	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
 	"github.com/dustin/go-humanize"
-	"github.com/emirpasic/gods/sets/hashset"
+	"github.com/panjf2000/ants/v2"
 	"github.com/siyuan-note/eventbus"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/cache"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func (box *Box) Index(fullRebuildIndex bool) (treeCount int, treeSize int64) {
-	defer debug.FreeOSMemory()
+func (box *Box) Unindex() {
+	task.AppendTask(task.DatabaseIndex, unindex, box.ID)
+}
 
-	sql.IndexMode()
-	defer sql.NormalMode()
+func unindex(boxID string) {
+	ids := treenode.RemoveBlockTreesByBoxID(boxID)
+	RemoveRecentDoc(ids)
+	sql.DeleteBoxQueue(boxID)
+}
 
-	//os.MkdirAll("pprof", 0755)
-	//cpuProfile, _ := os.Create("pprof/cpu_profile_index")
-	//pprof.StartCPUProfile(cpuProfile)
-	//defer pprof.StopCPUProfile()
+func (box *Box) Index() {
+	task.AppendTask(task.DatabaseIndex, index, box.ID)
+	task.AppendTask(task.DatabaseIndexRef, IndexRefs)
+}
+
+func index(boxID string) {
+	box := Conf.Box(boxID)
+	if nil == box {
+		return
+	}
 
 	util.SetBootDetails("Listing files...")
 	files := box.ListFiles("/")
@@ -54,227 +69,232 @@ func (box *Box) Index(fullRebuildIndex bool) (treeCount int, treeSize int64) {
 	if 1 > boxLen {
 		boxLen = 1
 	}
-	bootProgressPart := 10.0 / float64(boxLen) / float64(len(files))
+	bootProgressPart := 30.0 / float64(boxLen) / float64(len(files))
 
-	luteEngine := NewLute()
-	idTitleMap := map[string]string{}
-	idHashMap := map[string]string{}
-
-	util.PushEndlessProgress(fmt.Sprintf("["+box.Name+"] "+Conf.Language(64), len(files)))
-
+	start := time.Now()
+	luteEngine := util.NewLute()
+	var treeCount int
+	var treeSize int64
 	i := 0
-	// 读取并缓存路径映射
-	for _, file := range files {
-		if file.isdir || !strings.HasSuffix(file.name, ".sy") {
-			continue
-		}
+	util.PushStatusBar(fmt.Sprintf("["+box.Name+"] "+Conf.Language(64), len(files)))
 
-		p := file.path
+	poolSize := runtime.NumCPU()
+	if 4 < poolSize {
+		poolSize = 4
+	}
+	waitGroup := &sync.WaitGroup{}
+	p, _ := ants.NewPoolWithFunc(poolSize, func(arg interface{}) {
+		defer waitGroup.Done()
 
-		tree, err := filesys.LoadTree(box.ID, p, luteEngine)
+		file := arg.(*FileInfo)
+		tree, err := filesys.LoadTree(box.ID, file.path, luteEngine)
 		if nil != err {
-			logging.LogErrorf("read box [%s] tree [%s] failed: %s", box.ID, p, err)
-			continue
+			logging.LogErrorf("read box [%s] tree [%s] failed: %s", box.ID, file.path, err)
+			return
 		}
 
 		docIAL := parse.IAL2MapUnEsc(tree.Root.KramdownIAL)
-		if "" == docIAL["updated"] {
+		if "" == docIAL["updated"] { // 早期的数据可能没有 updated 属性，这里进行订正
 			updated := util.TimeFromID(tree.Root.ID)
 			tree.Root.SetIALAttr("updated", updated)
 			docIAL["updated"] = updated
-			writeJSONQueue(tree)
+			if writeErr := filesys.WriteTree(tree); nil != writeErr {
+				logging.LogErrorf("write tree [%s] failed: %s", tree.Path, writeErr)
+			}
 		}
 
-		cache.PutDocIAL(p, docIAL)
+		cache.PutDocIAL(file.path, docIAL)
+		treenode.IndexBlockTree(tree)
+		sql.IndexTreeQueue(box.ID, file.path)
 
 		util.IncBootProgress(bootProgressPart, fmt.Sprintf(Conf.Language(92), util.ShortPathForBootingDisplay(tree.Path)))
 		treeSize += file.size
 		treeCount++
-		// 缓存文档标题，后面做 Path -> HPath 路径映射时需要
-		idTitleMap[tree.ID] = tree.Root.IALAttr("title")
-		// 缓存块树
-		treenode.IndexBlockTree(tree)
-		// 缓存 ID-Hash，后面需要用于判断是否要重建库
-		idHashMap[tree.ID] = tree.Hash
 		if 1 < i && 0 == i%64 {
-			util.PushEndlessProgress(fmt.Sprintf(Conf.Language(88), i, len(files)-i))
+			util.PushStatusBar(fmt.Sprintf(Conf.Language(88), i, len(files)-i))
 		}
 		i++
-	}
-
-	box.UpdateHistoryGenerated() // 初始化历史生成时间为当前时间
-
-	// 检查是否需要重新建库
-	util.SetBootDetails("Checking data hashes...")
-	var ids []string
-	for id := range idTitleMap {
-		ids = append(ids, id)
-	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] >= ids[j] })
-	buf := bytes.Buffer{}
-	for _, id := range ids {
-		hash, _ := idHashMap[id]
-		buf.WriteString(hash)
-		util.SetBootDetails("Checking hash " + hash)
-	}
-	boxHash := fmt.Sprintf("%x", sha256.Sum256(buf.Bytes()))
-
-	dbBoxHash := sql.GetBoxHash(box.ID)
-	if boxHash == dbBoxHash {
-		//logging.LogInfof("use existing database for box [%s]", box.ID)
-		util.SetBootDetails("Use existing database for notebook " + box.ID)
-		return
-	}
-
-	// 开始重建库
-
-	sql.DisableCache()
-	defer sql.EnableCache()
-
-	start := time.Now()
-	if !fullRebuildIndex {
-		tx, err := sql.BeginTx()
-		if nil != err {
-			return
-		}
-		sql.PutBoxHash(tx, box.ID, boxHash)
-		util.SetBootDetails("Cleaning obsolete indexes...")
-		util.PushEndlessProgress(Conf.Language(108))
-		sql.DeleteByBoxTx(tx, box.ID)
-		if err = sql.CommitTx(tx); nil != err {
-			return
-		}
-	}
-
-	bootProgressPart = 20.0 / float64(boxLen) / float64(treeCount)
-
-	context := map[string]interface{}{eventbus.CtxPushMsg: eventbus.CtxPushMsgToStatusBarAndProgress}
-	i = 0
-	// 块级行级入库，缓存块
-	// 这里不能并行插入，因为 SQLite 不支持
+	})
 	for _, file := range files {
 		if file.isdir || !strings.HasSuffix(file.name, ".sy") {
 			continue
 		}
 
-		tree, err := filesys.LoadTree(box.ID, file.path, luteEngine)
-		if nil != err {
-			logging.LogErrorf("read box [%s] tree [%s] failed: %s", box.ID, file.path, err)
-			continue
-		}
-
-		util.IncBootProgress(bootProgressPart, fmt.Sprintf(Conf.Language(93), util.ShortPathForBootingDisplay(tree.Path)))
-		tx, err := sql.BeginTx()
-		if nil != err {
-			continue
-		}
-		if err = sql.InsertBlocksSpans(tx, tree, context); nil != err {
-			sql.RollbackTx(tx)
-			continue
-		}
-		if err = sql.CommitTx(tx); nil != err {
-			continue
-		}
-		if 1 < i && 0 == i%64 {
-			util.PushEndlessProgress(fmt.Sprintf("["+box.Name+"] "+Conf.Language(53), i, treeCount-i))
-		}
-		i++
+		waitGroup.Add(1)
+		p.Invoke(file)
 	}
+	waitGroup.Wait()
+	p.Release()
 
+	box.UpdateHistoryGenerated() // 初始化历史生成时间为当前时间
 	end := time.Now()
 	elapsed := end.Sub(start).Seconds()
 	logging.LogInfof("rebuilt database for notebook [%s] in [%.2fs], tree [count=%d, size=%s]", box.ID, elapsed, treeCount, humanize.Bytes(uint64(treeSize)))
-
-	util.PushEndlessProgress(fmt.Sprintf(Conf.Language(56), treeCount))
+	debug.FreeOSMemory()
 	return
 }
 
 func IndexRefs() {
-	sql.EnableCache()
-	defer sql.ClearBlockCache()
-
 	start := time.Now()
 	util.SetBootDetails("Resolving refs...")
-	util.PushEndlessProgress(Conf.Language(54))
+	util.PushStatusBar(Conf.Language(54))
 
-	// 引用入库
 	util.SetBootDetails("Indexing refs...")
-	refBlocks := sql.GetRefExistedBlocks()
-	refTreeIDs := hashset.New()
-	for _, refBlock := range refBlocks {
-		refTreeIDs.Add(refBlock.RootID)
-	}
-	if 0 < refTreeIDs.Size() {
-		luteEngine := NewLute()
-		bootProgressPart := 10.0 / float64(refTreeIDs.Size())
-		for _, box := range Conf.GetOpenedBoxes() {
-			tx, err := sql.BeginTx()
-			if nil != err {
-				return
-			}
-			sql.DeleteRefsByBoxTx(tx, box.ID)
-			sql.CommitTx(tx)
 
-			files := box.ListFiles("/")
-			i := 0
-			for _, file := range files {
-				if file.isdir || !strings.HasSuffix(file.name, ".sy") {
+	var defBlockIDs []string
+	luteEngine := util.NewLute()
+	boxes := Conf.GetOpenedBoxes()
+	for _, box := range boxes {
+		sql.DeleteBoxRefsQueue(box.ID)
+
+		pages := pagedPaths(filepath.Join(util.DataDir, box.ID), 32)
+		for _, paths := range pages {
+			for _, treeAbsPath := range paths {
+				data, readErr := filelock.ReadFile(treeAbsPath)
+				if nil != readErr {
+					logging.LogWarnf("get data [path=%s] failed: %s", treeAbsPath, readErr)
 					continue
 				}
 
-				if file.isdir || !strings.HasSuffix(file.name, ".sy") {
+				if !bytes.Contains(data, []byte("TextMarkBlockRefID")) && !bytes.Contains(data, []byte("TextMarkFileAnnotationRefID")) {
 					continue
 				}
 
-				id := strings.TrimSuffix(file.name, ".sy")
-				if !refTreeIDs.Contains(id) {
+				p := filepath.ToSlash(strings.TrimPrefix(treeAbsPath, filepath.Join(util.DataDir, box.ID)))
+				tree, parseErr := filesys.LoadTreeByData(data, box.ID, p, luteEngine)
+				if nil != parseErr {
+					logging.LogWarnf("parse json to tree [%s] failed: %s", treeAbsPath, parseErr)
 					continue
 				}
 
-				util.IncBootProgress(bootProgressPart, "Indexing ref "+util.ShortPathForBootingDisplay(file.path))
+				ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+					if !entering {
+						return ast.WalkContinue
+					}
 
-				tree, err := filesys.LoadTree(box.ID, file.path, luteEngine)
-				if nil != err {
-					logging.LogErrorf("parse box [%s] tree [%s] failed", box.ID, file.path)
-					continue
-				}
-
-				tx, err = sql.BeginTx()
-				if nil != err {
-					continue
-				}
-				sql.InsertRefs(tx, tree)
-				if err = sql.CommitTx(tx); nil != err {
-					continue
-				}
-				if 1 < i && 0 == i%64 {
-					util.PushEndlessProgress(fmt.Sprintf(Conf.Language(55), i))
-				}
-				i++
+					if treenode.IsBlockRef(n) || treenode.IsFileAnnotationRef(n) {
+						defBlockIDs = append(defBlockIDs, tree.Root.ID)
+					}
+					return ast.WalkContinue
+				})
 			}
 		}
 	}
-	logging.LogInfof("resolved refs [%d] in [%dms]", len(refBlocks), time.Now().Sub(start).Milliseconds())
+
+	defBlockIDs = gulu.Str.RemoveDuplicatedElem(defBlockIDs)
+
+	i := 0
+	size := len(defBlockIDs)
+	if 0 < size {
+		bootProgressPart := 10.0 / float64(size)
+
+		for _, defBlockID := range defBlockIDs {
+			defTree, loadErr := LoadTreeByID(defBlockID)
+			if nil != loadErr {
+				continue
+			}
+
+			util.IncBootProgress(bootProgressPart, "Indexing ref "+defTree.ID)
+			sql.InsertRefsTreeQueue(defTree)
+			if 1 < i && 0 == i%64 {
+				util.PushStatusBar(fmt.Sprintf(Conf.Language(55), i))
+			}
+			i++
+		}
+	}
+	logging.LogInfof("resolved refs [%d] in [%dms]", size, time.Now().Sub(start).Milliseconds())
+	util.PushStatusBar(fmt.Sprintf(Conf.Language(55), i))
+}
+
+// IndexEmbedBlockJob 嵌入块支持搜索 https://github.com/siyuan-note/siyuan/issues/7112
+func IndexEmbedBlockJob() {
+	embedBlocks := sql.QueryEmptyContentEmbedBlocks()
+	task.AppendTaskWithTimeout(task.DatabaseIndexEmbedBlock, 30*time.Second, autoIndexEmbedBlock, embedBlocks)
+}
+
+func autoIndexEmbedBlock(embedBlocks []*sql.Block) {
+	for i, embedBlock := range embedBlocks {
+		stmt := strings.TrimPrefix(embedBlock.Markdown, "{{")
+		stmt = strings.TrimSuffix(stmt, "}}")
+		if !strings.Contains(strings.ToLower(stmt), "select") {
+			continue
+		}
+
+		queryResultBlocks := sql.SelectBlocksRawStmtNoParse(stmt, 102400)
+		for _, block := range queryResultBlocks {
+			embedBlock.Content += block.Content
+		}
+		if "" == embedBlock.Content {
+			embedBlock.Content = "no query result"
+		}
+		sql.UpdateBlockContentQueue(embedBlock)
+
+		if 63 <= i { // 一次任务中最多处理 64 个嵌入块，防止卡顿
+			break
+		}
+	}
+}
+
+func updateEmbedBlockContent(embedBlockID string, queryResultBlocks []*EmbedBlock) {
+	embedBlock := sql.GetBlock(embedBlockID)
+	if nil == embedBlock {
+		return
+	}
+
+	embedBlock.Content = "" // 嵌入块每查询一次多一个结果 https://github.com/siyuan-note/siyuan/issues/7196
+	for _, block := range queryResultBlocks {
+		embedBlock.Content += block.Block.Markdown
+	}
+	if "" == embedBlock.Content {
+		embedBlock.Content = "no query result"
+	}
+	sql.UpdateBlockContentQueue(embedBlock)
 }
 
 func init() {
-	eventbus.Subscribe(eventbus.EvtSQLInsertBlocks, func(context map[string]interface{}, blockCount int, hash string) {
-		if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
-			// Android/iOS 端不显示数据索引和搜索索引状态提示 https://github.com/siyuan-note/siyuan/issues/6392
-			return
-		}
-
-		msg := fmt.Sprintf(Conf.Language(89), blockCount, hash)
-		util.SetBootDetails(msg)
-		util.ContextPushMsg(context, msg)
-	})
+	//eventbus.Subscribe(eventbus.EvtSQLInsertBlocks, func(context map[string]interface{}, current, total, blockCount int, hash string) {
+	//	if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
+	//		// Android/iOS 端不显示数据索引和搜索索引状态提示 https://github.com/siyuan-note/siyuan/issues/6392
+	//		return
+	//	}
+	//
+	//	msg := fmt.Sprintf(Conf.Language(89), current, total, blockCount, hash)
+	//	util.SetBootDetails(msg)
+	//	util.ContextPushMsg(context, msg)
+	//})
 	eventbus.Subscribe(eventbus.EvtSQLInsertBlocksFTS, func(context map[string]interface{}, blockCount int, hash string) {
 		if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
 			// Android/iOS 端不显示数据索引和搜索索引状态提示 https://github.com/siyuan-note/siyuan/issues/6392
 			return
 		}
 
-		msg := fmt.Sprintf(Conf.Language(90), blockCount, hash)
+		current := context["current"].(int)
+		total := context["total"]
+		msg := fmt.Sprintf(Conf.Language(90), current, total, blockCount, hash)
+		util.SetBootDetails(msg)
+		util.ContextPushMsg(context, msg)
+	})
+	eventbus.Subscribe(eventbus.EvtSQLDeleteBlocks, func(context map[string]interface{}, rootID string) {
+		if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
+			// Android/iOS 端不显示数据索引和搜索索引状态提示 https://github.com/siyuan-note/siyuan/issues/6392
+			return
+		}
+
+		current := context["current"].(int)
+		total := context["total"]
+		msg := fmt.Sprintf(Conf.Language(93), current, total, rootID)
+		util.SetBootDetails(msg)
+		util.ContextPushMsg(context, msg)
+	})
+
+	eventbus.Subscribe(eventbus.EvtSQLInsertHistory, func(context map[string]interface{}) {
+		if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
+			return
+		}
+
+		current := context["current"].(int)
+		total := context["total"]
+		msg := fmt.Sprintf(Conf.Language(191), current, total)
 		util.SetBootDetails(msg)
 		util.ContextPushMsg(context, msg)
 	})

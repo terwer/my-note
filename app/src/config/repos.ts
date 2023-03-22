@@ -3,6 +3,7 @@ import {fetchPost} from "../util/fetch";
 import {showMessage} from "../dialog/message";
 import {bindSyncCloudListEvent, getSyncCloudList} from "../sync/syncGuide";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
+import {processSync} from "../dialog/processSystem";
 
 const renderProvider = (provider: number) => {
     if (provider === 0) {
@@ -300,6 +301,7 @@ export const repos = {
     <select id="syncMode" class="b3-select fn__flex-center fn__size200">
         <option value="1" ${window.siyuan.config.sync.mode === 1 ? "selected" : ""}>${window.siyuan.languages.syncMode1}</option>
         <option value="2" ${window.siyuan.config.sync.mode === 2 ? "selected" : ""}>${window.siyuan.languages.syncMode2}</option>
+        <option value="3" ${window.siyuan.config.sync.mode === 3 ? "selected" : ""}>${window.siyuan.languages.syncMode3}</option>
     </select>
 </label>
 <div class="b3-label">
@@ -327,13 +329,9 @@ export const repos = {
                 showMessage(window.siyuan.languages._kernel[123]);
                 return;
             }
-            fetchPost("/api/sync/setSyncEnable", {enabled: switchElement.checked}, (response) => {
-                if (response.code === 1) {
-                    showMessage(response.msg);
-                    switchElement.checked = false;
-                } else {
-                    window.siyuan.config.sync.enabled = switchElement.checked;
-                }
+            fetchPost("/api/sync/setSyncEnable", {enabled: switchElement.checked}, () => {
+                window.siyuan.config.sync.enabled = switchElement.checked;
+                processSync();
             });
         });
         const switchConflictElement = repos.element.querySelector("#generateConflictDoc") as HTMLInputElement;

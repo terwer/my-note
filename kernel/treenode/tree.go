@@ -54,7 +54,7 @@ func NodeHash(node *ast.Node, tree *parse.Tree, luteEngine *lute.Lute) string {
 		md = FormatNode(node, luteEngine)
 	}
 	hpath := tree.HPath
-	data := tree.Path + hpath + string(ial) + md
+	data := tree.Box + tree.Path + hpath + string(ial) + md
 	return fmt.Sprintf("%x", sha256.Sum256(gulu.Str.ToBytes(data)))[:7]
 }
 
@@ -69,16 +69,13 @@ func TreeRoot(node *ast.Node) *ast.Node {
 
 func NewTree(boxID, p, hp, title string) *parse.Tree {
 	id := strings.TrimSuffix(path.Base(p), ".sy")
-	root := &ast.Node{Type: ast.NodeDocument, ID: id}
+	root := &ast.Node{Type: ast.NodeDocument, ID: id, Spec: "1", Box: boxID, Path: p}
 	root.SetIALAttr("title", title)
 	root.SetIALAttr("id", id)
 	root.SetIALAttr("updated", util.TimeFromID(id))
-	ret := &parse.Tree{Root: root}
-	ret.Box = boxID
-	ret.Path = p
-	ret.HPath = hp
+	ret := &parse.Tree{Root: root, ID: id, Box: boxID, Path: p, HPath: hp}
 	ret.Root.Spec = "1"
-	newPara := &ast.Node{Type: ast.NodeParagraph, ID: ast.NewNodeID()}
+	newPara := &ast.Node{Type: ast.NodeParagraph, ID: ast.NewNodeID(), Box: boxID, Path: p}
 	newPara.SetIALAttr("id", newPara.ID)
 	newPara.SetIALAttr("updated", util.TimeFromID(newPara.ID))
 	ret.Root.AppendChild(newPara)
@@ -112,5 +109,13 @@ func RootChildIDs(rootID string) (ret []string) {
 		}
 		return nil
 	})
+	return
+}
+
+func NewParagraph() (ret *ast.Node) {
+	newID := ast.NewNodeID()
+	ret = &ast.Node{ID: newID, Type: ast.NodeParagraph}
+	ret.SetIALAttr("id", newID)
+	ret.SetIALAttr("updated", newID[:14])
 	return
 }

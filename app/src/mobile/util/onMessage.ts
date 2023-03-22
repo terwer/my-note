@@ -1,24 +1,41 @@
 import {openMobileFileById} from "../editor";
-import {progressLoading, progressStatus, transactionError} from "../../dialog/processSystem";
+import {processSync, progressLoading, progressStatus, transactionError} from "../../dialog/processSystem";
+import {Constants} from "../../constants";
+
+const processReadonly = () => {
+    const inputElement = document.getElementById("toolbarName") as HTMLInputElement;
+    const editIconElement = document.querySelector("#toolbarEdit use");
+    if (!window.siyuan.config.editor.readOnly) {
+        inputElement.readOnly = false;
+        editIconElement.setAttribute("xlink:href", "#iconEdit");
+    } else {
+        inputElement.readOnly = true;
+        editIconElement.setAttribute("xlink:href", "#iconPreview");
+    }
+};
 
 export const onMessage = (data: IWebSocketData) => {
     if (data) {
         switch (data.cmd) {
+            case "readonly":
+                window.siyuan.config.editor.readOnly = data.data;
+                processReadonly();
+                break;
             case"progress":
                 progressLoading(data);
                 break;
             case"syncing":
-                if (document.querySelector("#menuSyncNow")) {
-                    if (data.code === 0) {
-                        document.querySelector("#menuSyncNow svg").classList.add("fn__rotate");
-                    } else {
-                        document.querySelector("#menuSyncNow svg").classList.remove("fn__rotate");
-                    }
+                processSync(data);
+                if (data.code !== 0) {
+                    document.getElementById("toolbarSync").classList.add("fn__none");
                 }
                 break;
             case "create":
             case "createdailynote":
                 openMobileFileById(data.data.id);
+                break;
+            case "openFileById":
+                openMobileFileById(data.data.id, [Constants.CB_GET_FOCUS]);
                 break;
             case"txerr":
                 transactionError(data);

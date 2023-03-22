@@ -28,13 +28,88 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/dustin/go-humanize"
+	"github.com/siyuan-note/dejavu"
 	"github.com/siyuan-note/dejavu/cloud"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/conf"
+	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func SyncDataDownload() {
+	defer logging.Recover()
+
+	if !checkSync(false, false, true) {
+		return
+	}
+
+	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
+	if !util.IsOnline() { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
+		util.BroadcastByType("main", "syncing", 2, Conf.Language(28), nil)
+		return
+	}
+
+	syncLock.Lock()
+	defer syncLock.Unlock()
+
+	now := util.CurrentTimeMillis()
+	Conf.Sync.Synced = now
+
+	err := syncRepoDownload()
+	synced := util.Millisecond2Time(Conf.Sync.Synced).Format("2006-01-02 15:04:05") + "\n\n"
+	if nil == err {
+		synced += Conf.Sync.Stat
+	} else {
+		synced += fmt.Sprintf(Conf.Language(80), formatErrorMsg(err))
+	}
+	msg := fmt.Sprintf(Conf.Language(82), synced)
+	Conf.Sync.Stat = msg
+	Conf.Save()
+	code := 1
+	if nil != err {
+		code = 2
+	}
+	util.BroadcastByType("main", "syncing", code, msg, nil)
+}
+
+func SyncDataUpload() {
+	defer logging.Recover()
+
+	if !checkSync(false, false, true) {
+		return
+	}
+
+	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
+	if !util.IsOnline() { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
+		util.BroadcastByType("main", "syncing", 2, Conf.Language(28), nil)
+		return
+	}
+
+	syncLock.Lock()
+	defer syncLock.Unlock()
+
+	now := util.CurrentTimeMillis()
+	Conf.Sync.Synced = now
+
+	err := syncRepoUpload()
+	synced := util.Millisecond2Time(Conf.Sync.Synced).Format("2006-01-02 15:04:05") + "\n\n"
+	if nil == err {
+		synced += Conf.Sync.Stat
+	} else {
+		synced += fmt.Sprintf(Conf.Language(80), formatErrorMsg(err))
+	}
+	msg := fmt.Sprintf(Conf.Language(82), synced)
+	Conf.Sync.Stat = msg
+	Conf.Save()
+	code := 1
+	if nil != err {
+		code = 2
+	}
+	util.BroadcastByType("main", "syncing", code, msg, nil)
+	return
+}
 
 var (
 	syncSameCount        = 0
@@ -46,21 +121,24 @@ var (
 	ExitSyncSucc = -1
 )
 
-func AutoSync() {
-	for {
-		time.Sleep(5 * time.Second)
-		if time.Now().After(syncPlanTime) {
-			SyncData(false, false, false)
-		}
+func SyncDataJob() {
+	if time.Now().Before(syncPlanTime) {
+		return
 	}
+
+	SyncData(false, false, false)
 }
 
 func BootSyncData() {
 	defer logging.Recover()
 
-	if util.IsMutexLocked(&syncLock) {
-		logging.LogWarnf("sync is in progress")
-		planSyncAfter(30 * time.Second)
+	if !checkSync(true, false, false) {
+		return
+	}
+
+	if !util.IsOnline() {
+		BootSyncSucc = 1
+		util.PushErrMsg(Conf.Language(28), 7000)
 		return
 	}
 
@@ -69,27 +147,10 @@ func BootSyncData() {
 
 	util.IncBootProgress(3, "Syncing data from the cloud...")
 	BootSyncSucc = 0
-
-	if !Conf.Sync.Enabled || !cloud.IsValidCloudDirName(Conf.Sync.CloudName) {
-		return
-	}
-
-	if !IsSubscriber() && conf.ProviderSiYuan == Conf.Sync.Provider {
-		return
-	}
-
 	logging.LogInfof("sync before boot")
-
-	if 7 < syncDownloadErrCount {
-		logging.LogErrorf("sync download error too many times, cancel auto sync, try to sync by hand")
-		util.PushErrMsg(Conf.Language(125), 1000*60*60)
-		planSyncAfter(64 * time.Minute)
-		return
-	}
 
 	now := util.CurrentTimeMillis()
 	Conf.Sync.Synced = now
-
 	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
 	err := bootSyncRepo()
 	synced := util.Millisecond2Time(Conf.Sync.Synced).Format("2006-01-02 15:04:05") + "\n\n"
@@ -101,20 +162,28 @@ func BootSyncData() {
 	msg := fmt.Sprintf(Conf.Language(82), synced)
 	Conf.Sync.Stat = msg
 	Conf.Save()
-	util.BroadcastByType("main", "syncing", 1, msg, nil)
+	code := 1
+	if nil != err {
+		code = 2
+	}
+	util.BroadcastByType("main", "syncing", code, msg, nil)
 	return
 }
 
 func SyncData(boot, exit, byHand bool) {
+	syncData(boot, exit, byHand)
+}
+
+func syncData(boot, exit, byHand bool) {
 	defer logging.Recover()
 
-	if !boot && !exit && 2 == Conf.Sync.Mode && !byHand {
+	if !checkSync(boot, exit, byHand) {
 		return
 	}
 
-	if util.IsMutexLocked(&syncLock) {
-		logging.LogWarnf("sync is in progress")
-		planSyncAfter(30 * time.Second)
+	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
+	if !util.IsOnline() { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
+		util.BroadcastByType("main", "syncing", 2, Conf.Language(28), nil)
 		return
 	}
 
@@ -124,52 +193,17 @@ func SyncData(boot, exit, byHand bool) {
 	if boot {
 		util.IncBootProgress(3, "Syncing data from the cloud...")
 		BootSyncSucc = 0
-	}
-	if exit {
-		ExitSyncSucc = 0
-	}
-
-	if !Conf.Sync.Enabled {
-		if byHand {
-			util.PushMsg(Conf.Language(124), 5000)
-		}
-		return
-	}
-
-	if !cloud.IsValidCloudDirName(Conf.Sync.CloudName) {
-		if byHand {
-			util.PushMsg(Conf.Language(123), 5000)
-		}
-		return
-	}
-
-	if !IsSubscriber() && conf.ProviderSiYuan == Conf.Sync.Provider {
-		return
-	}
-
-	if !cloud.IsValidCloudDirName(Conf.Sync.CloudName) {
-		return
-	}
-
-	if boot {
 		logging.LogInfof("sync before boot")
 	}
 	if exit {
+		ExitSyncSucc = 0
 		logging.LogInfof("sync before exit")
 		util.PushMsg(Conf.Language(81), 1000*60*15)
-	}
-
-	if 7 < syncDownloadErrCount && !byHand {
-		logging.LogErrorf("sync download error too many times, cancel auto sync, try to sync by hand")
-		util.PushErrMsg(Conf.Language(125), 1000*60*60)
-		planSyncAfter(64 * time.Minute)
-		return
 	}
 
 	now := util.CurrentTimeMillis()
 	Conf.Sync.Synced = now
 
-	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
 	err := syncRepo(exit, byHand)
 	synced := util.Millisecond2Time(Conf.Sync.Synced).Format("2006-01-02 15:04:05") + "\n\n"
 	if nil == err {
@@ -180,21 +214,63 @@ func SyncData(boot, exit, byHand bool) {
 	msg := fmt.Sprintf(Conf.Language(82), synced)
 	Conf.Sync.Stat = msg
 	Conf.Save()
-	util.BroadcastByType("main", "syncing", 1, msg, nil)
+	code := 1
+	if nil != err {
+		code = 2
+	}
+	util.BroadcastByType("main", "syncing", code, msg, nil)
 	return
+}
+
+func checkSync(boot, exit, byHand bool) bool {
+	if 2 == Conf.Sync.Mode && !boot && !exit && !byHand { // 手动模式下只有启动和退出进行同步
+		return false
+	}
+
+	if 3 == Conf.Sync.Mode && !byHand { // 完全手动模式下只有手动进行同步
+		return false
+	}
+
+	if !Conf.Sync.Enabled {
+		if byHand {
+			util.PushMsg(Conf.Language(124), 5000)
+		}
+		return false
+	}
+
+	if !cloud.IsValidCloudDirName(Conf.Sync.CloudName) {
+		if byHand {
+			util.PushMsg(Conf.Language(123), 5000)
+		}
+		return false
+	}
+
+	if !IsSubscriber() && conf.ProviderSiYuan == Conf.Sync.Provider {
+		return false
+	}
+
+	if util.IsMutexLocked(&syncLock) {
+		logging.LogWarnf("sync is in progress")
+		planSyncAfter(30 * time.Second)
+		return false
+	}
+
+	if 7 < syncDownloadErrCount && !byHand {
+		logging.LogErrorf("sync download error too many times, cancel auto sync, try to sync by hand")
+		util.PushErrMsg(Conf.Language(125), 1000*60*60)
+		planSyncAfter(64 * time.Minute)
+		return false
+	}
+	return true
 }
 
 // incReindex 增量重建索引。
 func incReindex(upserts, removes []string) {
 	util.IncBootProgress(3, "Sync reindexing...")
-	needPushRemoveProgress := 32 < len(removes)
-	needPushUpsertProgress := 32 < len(upserts)
 	msg := fmt.Sprintf(Conf.Language(35))
 	util.PushStatusBar(msg)
-	if needPushRemoveProgress || needPushUpsertProgress {
-		util.PushEndlessProgress(msg)
-	}
 
+	luteEngine := util.NewLute()
 	// 先执行 remove，否则移动文档时 upsert 会被忽略，导致未被索引
 	bootProgressPart := 10 / float64(len(removes))
 	for _, removeFile := range removes {
@@ -208,9 +284,6 @@ func incReindex(upserts, removes []string) {
 			msg = fmt.Sprintf(Conf.Language(39), block.RootID)
 			util.IncBootProgress(bootProgressPart, msg)
 			util.PushStatusBar(msg)
-			if needPushRemoveProgress {
-				util.PushEndlessProgress(msg)
-			}
 
 			treenode.RemoveBlockTreesByRootID(block.RootID)
 			sql.RemoveTreeQueue(block.BoxID, block.RootID)
@@ -219,9 +292,6 @@ func incReindex(upserts, removes []string) {
 
 	msg = fmt.Sprintf(Conf.Language(35))
 	util.PushStatusBar(msg)
-	if needPushRemoveProgress || needPushUpsertProgress {
-		util.PushEndlessProgress(msg)
-	}
 
 	bootProgressPart = 10 / float64(len(upserts))
 	for _, upsertFile := range upserts {
@@ -244,21 +314,13 @@ func incReindex(upserts, removes []string) {
 		msg = fmt.Sprintf(Conf.Language(40), strings.TrimSuffix(path.Base(p), ".sy"))
 		util.IncBootProgress(bootProgressPart, msg)
 		util.PushStatusBar(msg)
-		if needPushUpsertProgress {
-			util.PushEndlessProgress(msg)
-		}
 
-		tree, err0 := LoadTree(box, p)
+		tree, err0 := filesys.LoadTree(box, p, luteEngine)
 		if nil != err0 {
 			continue
 		}
-		treenode.ReindexBlockTree(tree)
+		treenode.IndexBlockTree(tree)
 		sql.UpsertTreeQueue(tree)
-	}
-
-	util.PushStatusBar(Conf.Language(58))
-	if needPushRemoveProgress || needPushUpsertProgress {
-		util.PushEndlessProgress(Conf.Language(58))
 	}
 }
 
@@ -267,53 +329,35 @@ func SetCloudSyncDir(name string) {
 		return
 	}
 
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
 	Conf.Sync.CloudName = name
 	Conf.Save()
 }
 
 func SetSyncGenerateConflictDoc(b bool) {
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
 	Conf.Sync.GenerateConflictDoc = b
 	Conf.Save()
 	return
 }
 
-func SetSyncEnable(b bool) (err error) {
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
+func SetSyncEnable(b bool) {
 	Conf.Sync.Enabled = b
 	Conf.Save()
 	return
 }
 
 func SetSyncMode(mode int) (err error) {
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
 	Conf.Sync.Mode = mode
 	Conf.Save()
 	return
 }
 
 func SetSyncProvider(provider int) (err error) {
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
 	Conf.Sync.Provider = provider
 	Conf.Save()
 	return
 }
 
 func SetSyncProviderS3(s3 *conf.S3) (err error) {
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
 	s3.Endpoint = strings.TrimSpace(s3.Endpoint)
 	s3.Endpoint = util.NormalizeEndpoint(s3.Endpoint)
 	s3.AccessKey = strings.TrimSpace(s3.AccessKey)
@@ -328,11 +372,15 @@ func SetSyncProviderS3(s3 *conf.S3) (err error) {
 }
 
 func SetSyncProviderWebDAV(webdav *conf.WebDAV) (err error) {
-	syncLock.Lock()
-	defer syncLock.Unlock()
-
 	webdav.Endpoint = strings.TrimSpace(webdav.Endpoint)
 	webdav.Endpoint = util.NormalizeEndpoint(webdav.Endpoint)
+
+	// 不支持配置坚果云 WebDAV 进行同步 https://github.com/siyuan-note/siyuan/issues/7657
+	if strings.Contains(strings.ToLower(webdav.Endpoint), "dav.jianguoyun.com") {
+		err = errors.New(Conf.Language(194))
+		return
+	}
+
 	webdav.Username = strings.TrimSpace(webdav.Username)
 	webdav.Password = strings.TrimSpace(webdav.Password)
 	webdav.Timeout = util.NormalizeTimeout(webdav.Timeout)
@@ -349,9 +397,6 @@ func CreateCloudSyncDir(name string) (err error) {
 		err = errors.New(Conf.Language(131))
 		return
 	}
-
-	syncLock.Lock()
-	defer syncLock.Unlock()
 
 	name = strings.TrimSpace(name)
 	name = gulu.Str.RemoveInvisible(name)
@@ -379,9 +424,6 @@ func RemoveCloudSyncDir(name string) (err error) {
 	}
 
 	msgId := util.PushMsg(Conf.Language(116), 15000)
-
-	syncLock.Lock()
-	defer syncLock.Unlock()
 
 	if "" == name {
 		return
@@ -452,28 +494,34 @@ func ListCloudSyncDir() (syncDirs []*Sync, hSize string, err error) {
 }
 
 func formatErrorMsg(err error) string {
-	if errors.Is(err, cloud.ErrCloudAuthFailed) {
-		return Conf.Language(31) + " v" + util.Ver
-	}
-
 	msg := err.Error()
-	msgLowerCase := strings.ToLower(msg)
-	if strings.Contains(msgLowerCase, "permission denied") || strings.Contains(msg, "access is denied") {
-		msg = Conf.Language(33) + " " + err.Error()
-	} else if strings.Contains(msgLowerCase, "device or resource busy") || strings.Contains(msg, "is being used by another") {
-		msg = fmt.Sprintf(Conf.Language(85), err)
-	} else if strings.Contains(msgLowerCase, "cipher: message authentication failed") {
-		msg = Conf.Language(135)
-	} else if strings.Contains(msgLowerCase, "repo fatal error") {
-		msg = Conf.Language(23)
-	} else if strings.Contains(msgLowerCase, "no such host") || strings.Contains(msgLowerCase, "connection failed") || strings.Contains(msgLowerCase, "hostname resolution") || strings.Contains(msgLowerCase, "No address associated with hostname") {
-		msg = Conf.Language(24)
-	} else if strings.Contains(msgLowerCase, "net/http: request canceled while waiting for connection") || strings.Contains(msgLowerCase, "exceeded while awaiting") || strings.Contains(msgLowerCase, "context deadline exceeded") || strings.Contains(msgLowerCase, "timeout") || strings.Contains(msgLowerCase, "context cancellation while reading body") {
-		msg = Conf.Language(24)
-	} else if strings.Contains(msgLowerCase, "connection was") || strings.Contains(msgLowerCase, "reset by peer") || strings.Contains(msgLowerCase, "refused") || strings.Contains(msgLowerCase, "socket") {
-		msg = Conf.Language(28)
-	} else if strings.Contains(msgLowerCase, "cloud object not found") {
+	if errors.Is(err, cloud.ErrCloudAuthFailed) {
+		msg = Conf.Language(31)
+	} else if errors.Is(err, cloud.ErrCloudObjectNotFound) {
 		msg = Conf.Language(129)
+	} else if errors.Is(err, dejavu.ErrLockCloudFailed) {
+		msg = Conf.Language(188)
+	} else if errors.Is(err, dejavu.ErrCloudLocked) {
+		msg = Conf.Language(189)
+	} else if errors.Is(err, dejavu.ErrRepoFatalErr) {
+		msg = Conf.Language(23)
+	} else if errors.Is(err, cloud.ErrSystemTimeIncorrect) {
+		msg = Conf.Language(195)
+	} else {
+		msgLowerCase := strings.ToLower(msg)
+		if strings.Contains(msgLowerCase, "permission denied") || strings.Contains(msg, "access is denied") {
+			msg = Conf.Language(33)
+		} else if strings.Contains(msgLowerCase, "device or resource busy") || strings.Contains(msg, "is being used by another") {
+			msg = fmt.Sprintf(Conf.Language(85), err)
+		} else if strings.Contains(msgLowerCase, "cipher: message authentication failed") {
+			msg = Conf.Language(135)
+		} else if strings.Contains(msgLowerCase, "no such host") || strings.Contains(msgLowerCase, "connection failed") || strings.Contains(msgLowerCase, "hostname resolution") || strings.Contains(msgLowerCase, "No address associated with hostname") {
+			msg = Conf.Language(24)
+		} else if strings.Contains(msgLowerCase, "net/http: request canceled while waiting for connection") || strings.Contains(msgLowerCase, "exceeded while awaiting") || strings.Contains(msgLowerCase, "context deadline exceeded") || strings.Contains(msgLowerCase, "timeout") || strings.Contains(msgLowerCase, "context cancellation while reading body") {
+			msg = Conf.Language(24)
+		} else if strings.Contains(msgLowerCase, "connection was") || strings.Contains(msgLowerCase, "reset by peer") || strings.Contains(msgLowerCase, "refused") || strings.Contains(msgLowerCase, "socket") {
+			msg = Conf.Language(28)
+		}
 	}
 	msg = msg + " v" + util.Ver
 	return msg

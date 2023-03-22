@@ -68,7 +68,7 @@ export class Toolbar {
     public render(protyle: IProtyle, range: Range, event?: KeyboardEvent) {
         this.range = range;
         let nodeElement = hasClosestBlock(range.startContainer);
-        if (!nodeElement || protyle.disabled) {
+        if (isMobile() || !nodeElement || protyle.disabled) {
             this.element.classList.add("fn__none");
             return;
         }
@@ -282,11 +282,16 @@ export class Toolbar {
             // **aaa**bbb 选中 bbb 加粗
             previousElement = previousSibling as HTMLElement;
         }
+        let isEndSpan = false;
         const nextSibling = hasNextSibling(this.range.endContainer);
         if (!["DIV", "TD", "TH", "TR"].includes(this.range.endContainer.parentElement.tagName)) {
             if (this.range.endOffset === this.range.endContainer.textContent.length && !nextSibling) {
                 nextElement = this.range.endContainer.parentElement.nextSibling as HTMLElement;
                 this.range.setEndAfter(this.range.endContainer.parentElement);
+                if (selectText === "") {
+                    isEndSpan = true;
+                    this.range.collapse(false);
+                }
             } else {
                 nextElement = this.range.endContainer.parentElement;
             }
@@ -310,7 +315,8 @@ export class Toolbar {
                 item.replaceWith(spanElement);
             });
         }
-        const actionBtn = action === "toolbar" ? this.element.querySelector(`[data-type="${type}"]`) : undefined;
+        const toolbarElement = isMobile() ? document.querySelector("#keyboardToolbar .keyboard__dynamic").nextElementSibling : this.element;
+        const actionBtn = action === "toolbar" ? toolbarElement.querySelector(`[data-type="${type}"]`) : undefined;
         const newNodes: Node[] = [];
 
         if (type === "clear" || actionBtn?.classList.contains("protyle-toolbar__item--current") || (
@@ -318,7 +324,7 @@ export class Toolbar {
         )) {
             // 移除
             if (type === "clear") {
-                this.element.querySelectorAll('[data-type="em"],[data-type="u"],[data-type="s"],[data-type="mark"],[data-type="sup"],[data-type="sub"],[data-type="strong"]').forEach(item => {
+                toolbarElement.querySelectorAll('[data-type="em"],[data-type="u"],[data-type="s"],[data-type="mark"],[data-type="sup"],[data-type="sub"],[data-type="strong"]').forEach(item => {
                     item.classList.remove("protyle-toolbar__item--current");
                 });
             } else if (actionBtn) {
@@ -334,6 +340,15 @@ export class Toolbar {
                 if (rangeTypes.length === 0) {
                     newNodes.push(document.createTextNode(Constants.ZWSP));
                 } else {
+                    // 遇到以下类型结尾不应继承 https://github.com/siyuan-note/siyuan/issues/7200
+                    let removeIndex = 0;
+                    while (removeIndex < rangeTypes.length) {
+                        if (["inline-memo", "text", "block-ref", "file-annotation-ref", "a"].includes(rangeTypes[removeIndex])) {
+                            rangeTypes.splice(removeIndex, 1);
+                        } else {
+                            ++removeIndex;
+                        }
+                    }
                     const inlineElement = document.createElement("span");
                     inlineElement.setAttribute("data-type", rangeTypes.join(" "));
                     inlineElement.textContent = Constants.ZWSP;
@@ -400,17 +415,37 @@ export class Toolbar {
             });
         } else {
             // 添加
-            if (!this.element.classList.contains("fn__none") && type !== "text") {
-                this.element.querySelector(`[data-type="${type}"]`).classList.add("protyle-toolbar__item--current");
+            if (!this.element.classList.contains("fn__none") && type !== "text" && actionBtn) {
+                actionBtn.classList.add("protyle-toolbar__item--current");
             }
             if (selectText === "") {
                 const inlineElement = document.createElement("span");
                 rangeTypes.push(type);
+
+                // 遇到以下类型结尾不应继承 https://github.com/siyuan-note/siyuan/issues/7200
+                if (isEndSpan) {
+                    let removeIndex = 0;
+                    while (removeIndex < rangeTypes.length) {
+                        if (["inline-memo", "text", "block-ref", "file-annotation-ref", "a"].includes(rangeTypes[removeIndex])) {
+                            rangeTypes.splice(removeIndex, 1);
+                        } else {
+                            ++removeIndex;
+                        }
+                    }
+                }
                 inlineElement.setAttribute("data-type", [...new Set(rangeTypes)].join(" "));
                 inlineElement.textContent = Constants.ZWSP;
                 setFontStyle(inlineElement, textObj);
                 newNodes.push(inlineElement);
             } else {
+                //  https://github.com/siyuan-note/siyuan/issues/7477
+                if (type === "block-ref") {
+                    contents.childNodes.forEach((item: HTMLElement, index) => {
+                        if (index !== 0) {
+                            item.remove();
+                        }
+                    });
+                }
                 contents.childNodes.forEach((item: HTMLElement, index) => {
                     if (item.nodeType === 3) {
                         if (index === 0 && previousElement && previousElement.nodeType !== 3 &&
@@ -445,9 +480,7 @@ export class Toolbar {
                             types.find((item, index) => {
                                 if (item === "sup") {
                                     types.splice(index, 1);
-                                    if (!this.element.classList.contains("fn__none")) {
-                                        this.element.querySelector('[data-type="sup"]').classList.remove("protyle-toolbar__item--current");
-                                    }
+                                    toolbarElement.querySelector('[data-type="sup"]').classList.remove("protyle-toolbar__item--current");
                                     return true;
                                 }
                             });
@@ -455,9 +488,7 @@ export class Toolbar {
                             types.find((item, index) => {
                                 if (item === "sub") {
                                     types.splice(index, 1);
-                                    if (!this.element.classList.contains("fn__none")) {
-                                        this.element.querySelector('[data-type="sub"]').classList.remove("protyle-toolbar__item--current");
-                                    }
+                                    toolbarElement.querySelector('[data-type="sub"]').classList.remove("protyle-toolbar__item--current");
                                     return true;
                                 }
                             });
@@ -522,7 +553,7 @@ export class Toolbar {
             }
         }
         if (this.range.startContainer.nodeType !== 3 && (this.range.startContainer as HTMLElement).tagName === "SPAN" &&
-            this.range.startContainer.isSameNode(this.range.endContainer)) {
+            this.range.startContainer.isSameNode(this.range.endContainer) && !isEndSpan) {
             // 切割元素
             const startContainer = this.range.startContainer as HTMLElement;
             const afterElement = document.createElement("span");
@@ -555,8 +586,9 @@ export class Toolbar {
                 if (currentType.indexOf("inline-math") > -1) {
                     // 数学公式合并 data-content https://github.com/siyuan-note/siyuan/issues/6028
                     nextNewNode.setAttribute("data-content", currentNewNode.getAttribute("data-content") + nextNewNode.getAttribute("data-content"));
-                } else if (currentType.indexOf("block-ref") === -1) {
-                    // 引用不需合并内容 https://ld246.com/article/1664454663564
+                } else {
+                    // 测试不存在 https://ld246.com/article/1664454663564 情况，故移除引用合并限制
+                    // 搜索结果引用被高亮隔断需进行合并 https://github.com/siyuan-note/siyuan/issues/7588
                     nextNewNode.innerHTML = currentNewNode.innerHTML + nextNewNode.innerHTML;
                     // 如果为备注时，合并备注内容
                     if (currentType.indexOf("inline-memo") > -1) {
@@ -591,7 +623,12 @@ export class Toolbar {
             }
         }
         if (previousElement) {
-            this.mergeNode(previousElement.childNodes);
+            if (previousElement.nodeType !== 3 && previousElement.textContent === Constants.ZWSP) {
+                // https://github.com/siyuan-note/siyuan/issues/7548
+                previousElement.remove();
+            } else {
+                this.mergeNode(previousElement.childNodes);
+            }
         }
         if (nextElement) {
             this.mergeNode(nextElement.childNodes);
@@ -699,6 +736,8 @@ export class Toolbar {
         if (!nodeElement) {
             return;
         }
+        hideElements(["hint"], protyle);
+        window.siyuan.menus.menu.remove();
         const id = nodeElement.getAttribute("data-node-id");
         const html = nodeElement.outerHTML;
         this.subElement.style.width = isMobile() ? "80vw" : Math.min(480, window.innerWidth) + "px";
@@ -772,6 +811,8 @@ export class Toolbar {
         if (!nodeElement) {
             return;
         }
+        hideElements(["hint"], protyle);
+        window.siyuan.menus.menu.remove();
         const id = nodeElement.getAttribute("data-node-id");
         const types = (renderElement.getAttribute("data-type") || "").split(" ");
         const html = oldHTML || protyle.lute.SpinBlockDOM(nodeElement.outerHTML);
@@ -916,6 +957,20 @@ export class Toolbar {
         });
         const exportImg = () => {
             const msgId = showMessage(window.siyuan.languages.exporting, 0);
+            if (renderElement.getAttribute("data-subtype") === "plantuml") {
+                fetch(renderElement.querySelector("img").getAttribute("src")).then(function (response) {
+                    return response.blob();
+                }).then(function (blob) {
+                    const formData = new FormData();
+                    formData.append("file", blob);
+                    formData.append("type", "image/png");
+                    fetchPost("/api/export/exportAsFile", formData, (response) => {
+                        openByMobile(response.data.file);
+                        hideMessage(msgId);
+                    });
+                });
+                return;
+            }
             setTimeout(() => {
                 addScript("stage/protyle/js/html2canvas.min.js?v=1.4.1", "protyleHtml2canvas").then(() => {
                     window.html2canvas(renderElement).then((canvas) => {
@@ -1147,6 +1202,8 @@ export class Toolbar {
         if (!nodeElement) {
             return;
         }
+        hideElements(["hint"], protyle);
+        window.siyuan.menus.menu.remove();
         this.range = getEditorRange(nodeElement);
         const id = nodeElement.getAttribute("data-node-id");
         let oldHtml = nodeElement.outerHTML;
@@ -1266,6 +1323,8 @@ export class Toolbar {
 
     public showTpl(protyle: IProtyle, nodeElement: HTMLElement, range: Range) {
         this.range = range;
+        hideElements(["hint"], protyle);
+        window.siyuan.menus.menu.remove();
         fetchPost("/api/search/searchTemplate", {
             k: "",
         }, (response) => {
@@ -1394,6 +1453,8 @@ export class Toolbar {
 
     public showWidget(protyle: IProtyle, nodeElement: HTMLElement, range: Range) {
         this.range = range;
+        hideElements(["hint"], protyle);
+        window.siyuan.menus.menu.remove();
         fetchPost("/api/search/searchWidget", {
             k: "",
         }, (response) => {
@@ -1454,6 +1515,8 @@ export class Toolbar {
 
     public showAssets(protyle: IProtyle, nodeElement: HTMLElement, range: Range) {
         this.range = range;
+        hideElements(["hint"], protyle);
+        window.siyuan.menus.menu.remove();
         fetchPost("/api/search/searchAsset", {
             k: "",
         }, (response) => {
@@ -1566,5 +1629,3 @@ export class Toolbar {
         });
     }
 }
-
-

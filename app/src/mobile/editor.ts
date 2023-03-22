@@ -7,23 +7,23 @@ import {disabledProtyle, onGet} from "../protyle/util/onGet";
 import {addLoading} from "../protyle/ui/initUI";
 import {focusBlock} from "../protyle/util/selection";
 import {scrollCenter} from "../util/highlightById";
-import {lockFile} from "../dialog/processSystem";
 import {hasClosestByAttribute} from "../protyle/util/hasClosest";
 import {setEditMode} from "../protyle/util/setEditMode";
 import {hideElements} from "../protyle/ui/hideElements";
 import {pushBack} from "./util/MobileBackFoward";
 import {setStorageVal} from "../protyle/util/compatibility";
+import {showMessage} from "../dialog/message";
 
 export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) => {
     window.siyuan.storage[Constants.LOCAL_DOCINFO] = {id, action};
     setStorageVal(Constants.LOCAL_DOCINFO, window.siyuan.storage[Constants.LOCAL_DOCINFO]);
-    if (window.siyuan.mobileEditor) {
-        hideElements(["toolbar", "hint", "util"], window.siyuan.mobileEditor.protyle);
-        if (window.siyuan.mobileEditor.protyle.contentElement.classList.contains("fn__none")) {
-            setEditMode(window.siyuan.mobileEditor.protyle, "wysiwyg");
+    if (window.siyuan.mobile.editor) {
+        hideElements(["toolbar", "hint", "util"], window.siyuan.mobile.editor.protyle);
+        if (window.siyuan.mobile.editor.protyle.contentElement.classList.contains("fn__none")) {
+            setEditMode(window.siyuan.mobile.editor.protyle, "wysiwyg");
         }
         let blockElement;
-        Array.from(window.siyuan.mobileEditor.protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${id}"]`)).find((item: HTMLElement) => {
+        Array.from(window.siyuan.mobile.editor.protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${id}"]`)).find((item: HTMLElement) => {
             if (!hasClosestByAttribute(item.parentElement, "data-type", "NodeBlockQueryEmbed")) {
                 blockElement = item;
                 return true;
@@ -32,32 +32,39 @@ export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) =
         if (blockElement) {
             pushBack();
             focusBlock(blockElement);
-            scrollCenter(window.siyuan.mobileEditor.protyle, blockElement, true);
+            scrollCenter(window.siyuan.mobile.editor.protyle, blockElement, true);
             closePanel();
             return;
         }
     }
 
     fetchPost("/api/block/getBlockInfo", {id}, (data) => {
-        if (data.code === 2) {
-            // 文件被锁定
-            lockFile(data.data);
+        if (data.code === 3) {
+            showMessage(data.msg);
             return;
         }
-        if (window.siyuan.mobileEditor) {
+        if (window.siyuan.mobile.editor) {
             pushBack();
-            addLoading(window.siyuan.mobileEditor.protyle);
+            addLoading(window.siyuan.mobile.editor.protyle);
             fetchPost("/api/filetree/getDoc", {
                 id,
                 size: action.includes(Constants.CB_GET_ALL) ? Constants.SIZE_GET_MAX : window.siyuan.config.editor.dynamicLoadBlocks,
                 mode: action.includes(Constants.CB_GET_CONTEXT) ? 3 : 0,
             }, getResponse => {
-                onGet(getResponse, window.siyuan.mobileEditor.protyle, action);
-                window.siyuan.mobileEditor.protyle.breadcrumb?.render(window.siyuan.mobileEditor.protyle);
+                onGet(getResponse, window.siyuan.mobile.editor.protyle, action);
+                window.siyuan.mobile.editor.protyle.breadcrumb?.render(window.siyuan.mobile.editor.protyle);
+                const exitFocusElement = window.siyuan.mobile.editor.protyle.breadcrumb.element.parentElement.querySelector('[data-type="exit-focus"]');
+                if (action.includes(Constants.CB_GET_ALL)) {
+                    exitFocusElement.classList.remove("fn__none");
+                    exitFocusElement.nextElementSibling.classList.remove("fn__none");
+                } else {
+                    exitFocusElement.classList.add("fn__none");
+                    exitFocusElement.nextElementSibling.classList.add("fn__none");
+                }
             });
-            window.siyuan.mobileEditor.protyle.undo.clear();
+            window.siyuan.mobile.editor.protyle.undo.clear();
         } else {
-            window.siyuan.mobileEditor = new Protyle(document.getElementById("editor"), {
+            window.siyuan.mobile.editor = new Protyle(document.getElementById("editor"), {
                 blockId: id,
                 action,
                 render: {

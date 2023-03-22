@@ -17,7 +17,6 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"path"
@@ -27,7 +26,7 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
-	"github.com/siyuan-note/filelock"
+	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -86,7 +85,8 @@ func heading2Doc(c *gin.Context) {
 	}
 
 	model.WaitForWritingFiles()
-	tree, err := model.LoadTree(targetNotebook, targetPath)
+	luteEngine := util.NewLute()
+	tree, err := filesys.LoadTree(targetNotebook, targetPath, luteEngine)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -130,7 +130,8 @@ func li2Doc(c *gin.Context) {
 	}
 
 	model.WaitForWritingFiles()
-	tree, err := model.LoadTree(targetNotebook, targetPath)
+	luteEngine := util.NewLute()
+	tree, err := filesys.LoadTree(targetNotebook, targetPath, luteEngine)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -163,6 +164,10 @@ func getHPathByPath(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
 	p := arg["path"].(string)
 
 	hPath, err := model.GetHPathByPath(notebook, p)
@@ -207,6 +212,10 @@ func getHPathByID(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
+	if util.InvalidIDPattern(id, ret) {
+		return
+	}
+
 	hPath, err := model.GetHPathByID(id)
 	if nil != err {
 		ret.Code = -1
@@ -254,6 +263,9 @@ func moveDocs(c *gin.Context) {
 	}
 	toPath := arg["toPath"].(string)
 	toNotebook := arg["toNotebook"].(string)
+	if util.InvalidIDPattern(toNotebook, ret) {
+		return
+	}
 
 	err := model.MoveDocs(fromPaths, toNotebook, toPath)
 	if nil != err {
@@ -274,14 +286,12 @@ func removeDoc(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
-	p := arg["path"].(string)
-
-	err := model.RemoveDoc(notebook, p)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
+	if util.InvalidIDPattern(notebook, ret) {
 		return
 	}
+
+	p := arg["path"].(string)
+	model.RemoveDoc(notebook, p)
 }
 
 func removeDocs(c *gin.Context) {
@@ -298,12 +308,7 @@ func removeDocs(c *gin.Context) {
 	for _, path := range pathsArg {
 		paths = append(paths, path.(string))
 	}
-	err := model.RemoveDocs(paths)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
+	model.RemoveDocs(paths)
 }
 
 func renameDoc(c *gin.Context) {
@@ -316,6 +321,10 @@ func renameDoc(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
 	p := arg["path"].(string)
 	title := arg["title"].(string)
 
@@ -338,7 +347,7 @@ func duplicateDoc(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
-	newTree, err := model.DuplicateDoc(id)
+	tree, err := model.LoadTreeByID(id)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -346,24 +355,17 @@ func duplicateDoc(c *gin.Context) {
 		return
 	}
 
-	block, _ := model.GetBlock(id)
-	p := block.Path
-	notebook := block.Box
+	p := tree.Path
+	notebook := tree.Box
 	box := model.Conf.Box(notebook)
-	tree, err := model.LoadTree(box.ID, p)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-
+	model.DuplicateDoc(tree)
 	pushCreate(box, p, tree.Root.ID, arg)
 
 	ret.Data = map[string]interface{}{
-		"id":       newTree.Root.ID,
+		"id":       tree.Root.ID,
 		"notebook": notebook,
-		"path":     newTree.Path,
-		"hPath":    newTree.HPath,
+		"path":     tree.Path,
+		"hPath":    tree.HPath,
 	}
 }
 
@@ -388,7 +390,7 @@ func createDoc(c *gin.Context) {
 		}
 	}
 
-	err := model.CreateDocByMd(notebook, p, title, md, sorts)
+	tree, err := model.CreateDocByMd(notebook, p, title, md, sorts)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -397,13 +399,6 @@ func createDoc(c *gin.Context) {
 	}
 
 	box := model.Conf.Box(notebook)
-	tree, err := model.LoadTree(box.ID, p)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-
 	pushCreate(box, p, tree.Root.ID, arg)
 }
 
@@ -430,7 +425,8 @@ func createDailyNote(c *gin.Context) {
 
 	box := model.Conf.Box(notebook)
 	model.WaitForWritingFiles()
-	tree, err := model.LoadTree(box.ID, p)
+	luteEngine := util.NewLute()
+	tree, err := filesys.LoadTree(box.ID, p, luteEngine)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -472,6 +468,10 @@ func createDocWithMd(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
 	hPath := arg["path"].(string)
 	markdown := arg["markdown"].(string)
 
@@ -496,30 +496,12 @@ func createDocWithMd(c *gin.Context) {
 	ret.Data = id
 
 	box := model.Conf.Box(notebook)
-	b, _ := model.GetBlock(id)
+	b, _ := model.GetBlock(id, nil)
 	p := b.Path
 	pushCreate(box, p, id, arg)
 }
 
-func lockFile(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	id := arg["id"].(string)
-	locked := model.TryAccessFileByBlockID(id)
-	if !locked {
-		ret.Code = -1
-		ret.Msg = fmt.Sprintf(model.Conf.Language(75))
-		ret.Data = map[string]interface{}{"closeTimeout": 5000}
-	}
-}
-
-func getDocNameTemplate(c *gin.Context) {
+func getDocCreateSavePath(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
 
@@ -530,22 +512,22 @@ func getDocNameTemplate(c *gin.Context) {
 
 	notebook := arg["notebook"].(string)
 	box := model.Conf.Box(notebook)
-	nameTemplate := model.Conf.FileTree.CreateDocNameTemplate
+	docCreateSavePathTpl := model.Conf.FileTree.DocCreateSavePath
 	if nil != box {
-		nameTemplate = box.GetConf().CreateDocNameTemplate
+		docCreateSavePathTpl = box.GetConf().DocCreateSavePath
 	}
-	if "" == nameTemplate {
-		nameTemplate = model.Conf.FileTree.CreateDocNameTemplate
+	if "" == docCreateSavePathTpl {
+		docCreateSavePathTpl = model.Conf.FileTree.DocCreateSavePath
 	}
 
-	name, err := model.RenderGoTemplate(nameTemplate)
+	p, err := model.RenderGoTemplate(docCreateSavePathTpl)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 	ret.Data = map[string]interface{}{
-		"name": name,
+		"path": p,
 	}
 }
 
@@ -641,10 +623,6 @@ func listDocsByPath(c *gin.Context) {
 		"path":  p,
 		"files": files,
 	}
-
-	// 持久化文档面板排序
-	model.Conf.FileTree.Sort = sortMode
-	model.Conf.Save()
 }
 
 func getDoc(c *gin.Context) {
@@ -692,12 +670,7 @@ func getDoc(c *gin.Context) {
 		isBacklink = isBacklinkArg.(bool)
 	}
 
-	blockCount, childBlockCount, content, parentID, parent2ID, rootID, typ, eof, boxID, docPath, isBacklinkExpand, err := model.GetDoc(startID, endID, id, index, keyword, mode, size, isBacklink)
-	if errors.Is(err, filelock.ErrUnableAccessFile) {
-		ret.Code = 2
-		ret.Data = id
-		return
-	}
+	blockCount, content, parentID, parent2ID, rootID, typ, eof, scroll, boxID, docPath, isBacklinkExpand, err := model.GetDoc(startID, endID, id, index, keyword, mode, size, isBacklink)
 	if model.ErrBlockNotFound == err {
 		ret.Code = 3
 		return
@@ -721,8 +694,8 @@ func getDoc(c *gin.Context) {
 		"type":             typ,
 		"content":          content,
 		"blockCount":       blockCount,
-		"childBlockCount":  childBlockCount,
 		"eof":              eof,
+		"scroll":           scroll,
 		"box":              boxID,
 		"path":             docPath,
 		"isSyncing":        isSyncing,

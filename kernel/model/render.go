@@ -18,6 +18,7 @@ package model
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 
 	"github.com/88250/gulu"
@@ -46,6 +47,14 @@ func renderOutline(node *ast.Node, luteEngine *lute.Lute) (ret string) {
 		if !entering {
 			return ast.WalkContinue
 		}
+
+		if style := n.IALAttr("style"); "" != style {
+			if strings.Contains(style, "font-size") { // 大纲字号不应该跟随字体设置 https://github.com/siyuan-note/siyuan/issues/7202
+				style = regexp.MustCompile("font-size:.*?;").ReplaceAllString(style, "font-size: inherit;")
+				n.SetIALAttr("style", style)
+			}
+		}
+
 		switch n.Type {
 		case ast.NodeText, ast.NodeLinkText, ast.NodeCodeBlockCode, ast.NodeMathBlockContent:
 			tokens := html.EscapeHTML(n.Tokens)
@@ -69,7 +78,7 @@ func renderOutline(node *ast.Node, luteEngine *lute.Lute) (ret string) {
 }
 
 func renderBlockText(node *ast.Node, excludeTypes []string) (ret string) {
-	ret = treenode.NodeStaticContent(node, excludeTypes)
+	ret = treenode.NodeStaticContent(node, excludeTypes, false)
 	ret = strings.TrimSpace(ret)
 	ret = strings.ReplaceAll(ret, "\n", "")
 	ret = util.EscapeHTML(ret)
@@ -116,6 +125,25 @@ func renderBlockDOMByNodes(nodes []*ast.Node, luteEngine *lute.Lute) string {
 		h = "<ul>" + h + "</ul>"
 	}
 	return h
+}
+
+func renderBlockContentByNodes(nodes []*ast.Node) string {
+	var subNodes []*ast.Node
+	for _, n := range nodes {
+		if ast.NodeDocument == n.Type {
+			for c := n.FirstChild; nil != c; c = c.Next {
+				subNodes = append(subNodes, c)
+			}
+		} else {
+			subNodes = append(subNodes, n)
+		}
+	}
+
+	buf := bytes.Buffer{}
+	for _, n := range subNodes {
+		buf.WriteString(treenode.NodeStaticContent(n, nil, false))
+	}
+	return buf.String()
 }
 
 func renderBlockMarkdownR(id string) string {

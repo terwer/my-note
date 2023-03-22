@@ -3,12 +3,10 @@ import {closePanel} from "./closePanel";
 import {openMobileFileById} from "../editor";
 import {validateName} from "../../editor/rename";
 import {getEventName} from "../../protyle/util/compatibility";
-import {mountHelp} from "../../util/mount";
 import {fetchPost} from "../../util/fetch";
 import {setInlineStyle} from "../../util/assets";
 import {renderSnippet} from "../../config/util/snippets";
 import {setEmpty} from "./setEmpty";
-import {disabledProtyle, enableProtyle} from "../../protyle/util/onGet";
 import {getOpenNotebookCount} from "../../util/pathName";
 import {popMenu} from "./menu";
 import {MobileFiles} from "./MobileFiles";
@@ -17,25 +15,32 @@ import {hasTopClosestByTag} from "../../protyle/util/hasClosest";
 import {MobileBacklinks} from "./MobileBacklinks";
 import {MobileBookmarks} from "./MobileBookmarks";
 import {MobileTags} from "./MobileTags";
-import {hideKeyboardToolbar, initKeyboardToolbar} from "./showKeyboardToolbar";
+import {activeBlur, hideKeyboardToolbar, initKeyboardToolbar} from "./keyboardToolbar";
 import {getSearch} from "../../util/functions";
+import {syncGuide} from "../../sync/syncGuide";
 
 export const initFramework = () => {
     setInlineStyle();
     renderSnippet();
     initKeyboardToolbar();
-    const scrimElement = document.querySelector(".scrim");
     const sidebarElement = document.getElementById("sidebar");
     let outline: MobileOutline;
     let backlink: MobileBacklinks;
     let bookmark: MobileBookmarks;
     let tag: MobileTags;
-    sidebarElement.querySelector(".toolbar--border").addEventListener(getEventName(), (event: Event & { target: Element }) => {
+    // 不能使用 getEventName，否则点击返回会展开右侧栏
+    sidebarElement.querySelector(".toolbar--border").addEventListener("click", (event: Event & {
+        target: Element
+    }) => {
         const svgElement = hasTopClosestByTag(event.target, "svg");
         if (!svgElement || svgElement.classList.contains("toolbar__icon--active")) {
             return;
         }
         const type = svgElement.getAttribute("data-type");
+        if (!type) {
+            closePanel();
+            return;
+        }
         sidebarElement.querySelectorAll(".toolbar--border svg").forEach(item => {
             const itemType = item.getAttribute("data-type");
             if (itemType === type) {
@@ -72,10 +77,11 @@ export const initFramework = () => {
             }
         });
     });
-    new MobileFiles();
+    window.siyuan.mobile.files = new MobileFiles();
     document.getElementById("toolbarFile").addEventListener("click", () => {
+        hideKeyboardToolbar();
+        activeBlur();
         sidebarElement.style.left = "0";
-        document.querySelector(".scrim").classList.remove("fn__none");
         const type = sidebarElement.querySelector(".toolbar--border .toolbar__icon--active").getAttribute("data-type");
         if (type === "sidebar-outline-tab") {
             outline.update();
@@ -105,65 +111,59 @@ export const initFramework = () => {
         editIconElement.setAttribute("xlink:href", "#iconEdit");
     }
     editElement.addEventListener(getEventName(), () => {
-        const isReadonly = editIconElement.getAttribute("xlink:href") === "#iconEdit";
-        window.siyuan.config.editor.readOnly = isReadonly;
-        fetchPost("/api/setting/setEditor", window.siyuan.config.editor, () => {
-            if (!isReadonly) {
-                enableProtyle(window.siyuan.mobileEditor.protyle);
-                inputElement.readOnly = false;
-                editIconElement.setAttribute("xlink:href", "#iconEdit");
-            } else {
-                disabledProtyle(window.siyuan.mobileEditor.protyle);
-                inputElement.readOnly = true;
-                editIconElement.setAttribute("xlink:href", "#iconPreview");
-            }
-        });
+        window.siyuan.config.editor.readOnly = editIconElement.getAttribute("xlink:href") === "#iconEdit";
+        fetchPost("/api/setting/setEditor", window.siyuan.config.editor);
     });
-
-    scrimElement.addEventListener(getEventName(), () => {
-        closePanel();
+    document.getElementById("toolbarSync").addEventListener(getEventName(), () => {
+        syncGuide();
     });
+    if (navigator.userAgent.indexOf("iPhone") > -1 && !window.siyuan.config.readonly && !window.siyuan.config.editor.readOnly) {
+        // 不知道为什么 iPhone 中如果是编辑状态，点击文档后无法点击标题
+        setTimeout(() => {
+            editElement.dispatchEvent(new CustomEvent(getEventName()));
+            setTimeout(() => {
+                editElement.dispatchEvent(new CustomEvent(getEventName()));
+            }, Constants.TIMEOUT_INPUT);
+        }, Constants.TIMEOUT_INPUT);
+    }
     document.getElementById("modelClose").addEventListener(getEventName(), () => {
         closePanel();
     });
     initEditorName();
     if (getOpenNotebookCount() > 0) {
+        if (window.JSAndroid && window.openFileByURL(window.JSAndroid.getBlockURL())) {
+            return;
+        }
         const openId = getSearch("id");
         if (openId) {
             openMobileFileById(openId,
                 getSearch("focus") === "1" ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]);
-        } else {
-            const localDoc = window.siyuan.storage[Constants.LOCAL_DOCINFO];
-            fetchPost("/api/block/checkBlockExist", {id: localDoc.id}, existResponse => {
-                if (existResponse.data) {
-                    openMobileFileById(localDoc.id, localDoc.action);
-                } else {
-                    fetchPost("/api/block/getRecentUpdatedBlocks", {}, (response) => {
-                        if (response.data.length !== 0) {
-                            openMobileFileById(response.data[0].id, [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
-                        } else {
-                            setEmpty();
-                        }
-                    });
-                }
-            });
+            return;
         }
-    } else {
-        setEmpty();
+        const localDoc = window.siyuan.storage[Constants.LOCAL_DOCINFO];
+        fetchPost("/api/block/checkBlockExist", {id: localDoc.id}, existResponse => {
+            if (existResponse.data) {
+                openMobileFileById(localDoc.id, localDoc.action);
+            } else {
+                fetchPost("/api/block/getRecentUpdatedBlocks", {}, (response) => {
+                    if (response.data.length !== 0) {
+                        openMobileFileById(response.data[0].id, [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
+                    } else {
+                        setEmpty();
+                    }
+                });
+            }
+        });
+        return;
     }
-    if (window.siyuan.config.newbie) {
-        mountHelp();
-    }
+    setEmpty();
 };
 
 const initEditorName = () => {
     const inputElement = document.getElementById("toolbarName") as HTMLInputElement;
     inputElement.setAttribute("placeholder", window.siyuan.languages._kernel[16]);
-    inputElement.addEventListener("focus", () => {
-        hideKeyboardToolbar();
-    });
     inputElement.addEventListener("blur", () => {
-        if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly || window.siyuan.mobileEditor.protyle.disabled) {
+        if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly || window.siyuan.mobile.editor.protyle.disabled) {
             return;
         }
         if (!validateName(inputElement.value)) {
@@ -172,8 +172,8 @@ const initEditorName = () => {
         }
 
         fetchPost("/api/filetree/renameDoc", {
-            notebook: window.siyuan.mobileEditor.protyle.notebookId,
-            path: window.siyuan.mobileEditor.protyle.path,
+            notebook: window.siyuan.mobile.editor.protyle.notebookId,
+            path: window.siyuan.mobile.editor.protyle.path,
             title: inputElement.value,
         });
     });

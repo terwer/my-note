@@ -30,6 +30,7 @@ import (
 	"github.com/88250/lute"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
@@ -57,34 +58,6 @@ func extensionCopy(c *gin.Context) {
 		return
 	}
 
-	luteEngine := model.NewLute()
-	md := luteEngine.HTML2Md(dom)
-	md = strings.TrimSpace(md)
-
-	var unlinks []*ast.Node
-	tree := parse.Parse("", []byte(md), luteEngine.ParseOptions)
-	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if !entering {
-			return ast.WalkContinue
-		}
-
-		if ast.NodeText == n.Type {
-			// 剔除行首空白
-			if ast.NodeParagraph == n.Parent.Type && n.Parent.FirstChild == n {
-				n.Tokens = bytes.TrimLeft(n.Tokens, " \t\n")
-			}
-		}
-		return ast.WalkContinue
-	})
-	for _, unlink := range unlinks {
-		unlink.Unlink()
-	}
-
-	md, _ = lute.FormatNodeSync(tree.Root, luteEngine.ParseOptions, luteEngine.RenderOptions)
-	ret.Data = map[string]interface{}{
-		"md": md,
-	}
-
 	uploaded := map[string]string{}
 	for originalName, file := range form.File {
 		oName, err := url.PathUnescape(originalName)
@@ -108,7 +81,7 @@ func extensionCopy(c *gin.Context) {
 			continue
 		}
 		fName := path.Base(u.Path)
-		fName = util.FilterUploadFileName(fName)
+
 		f, err := file[0].Open()
 		if nil != err {
 			ret.Code = -1
@@ -124,10 +97,19 @@ func extensionCopy(c *gin.Context) {
 		}
 
 		ext := path.Ext(fName)
-		fName = fName[0 : len(fName)-len(ext)]
+		originalExt := ext
+		if "" == ext || strings.Contains(ext, "!") {
+			// 改进浏览器剪藏扩展转换本地图片后缀 https://github.com/siyuan-note/siyuan/issues/7467
+			if mtype := mimetype.Detect(data); nil != mtype {
+				ext = mtype.Extension()
+			}
+		}
 		if "" == ext && bytes.HasPrefix(data, []byte("<svg ")) && bytes.HasSuffix(data, []byte("</svg>")) {
 			ext = ".svg"
 		}
+
+		fName = fName[0 : len(fName)-len(originalExt)]
+		fName = util.FilterUploadFileName(fName)
 		fName = fName + "-" + ast.NewNodeID() + ext
 		writePath := filepath.Join(assets, fName)
 		if err = filelock.WriteFile(writePath, data); nil != err {
@@ -139,20 +121,37 @@ func extensionCopy(c *gin.Context) {
 		uploaded[oName] = "assets/" + fName
 	}
 
-	for k, v := range uploaded {
-		if "" == md {
-			// 复制单个图片的情况
-			md = "![](" + v + ")"
-			break
+	luteEngine := lute.New()
+	md := luteEngine.HTML2Md(dom)
+	md = strings.TrimSpace(md)
+
+	var unlinks []*ast.Node
+	tree := parse.Parse("", []byte(md), luteEngine.ParseOptions)
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
 		}
-		md = strings.ReplaceAll(md, "]("+k+")", "]("+v+")")
-		p, err := url.Parse(k)
-		if nil != err {
-			continue
+
+		if ast.NodeText == n.Type {
+			// 剔除行首空白
+			if ast.NodeParagraph == n.Parent.Type && n.Parent.FirstChild == n {
+				n.Tokens = bytes.TrimLeft(n.Tokens, " \t\n")
+			}
+		} else if ast.NodeImage == n.Type {
+			if dest := n.ChildByType(ast.NodeLinkDest); nil != dest {
+				assetPath := uploaded[string(dest.Tokens)]
+				if "" != assetPath {
+					dest.Tokens = []byte(assetPath)
+				}
+			}
 		}
-		md = strings.ReplaceAll(md, "]("+p.Path+")", "]("+v+")")
+		return ast.WalkContinue
+	})
+	for _, unlink := range unlinks {
+		unlink.Unlink()
 	}
 
+	md, _ = lute.FormatNodeSync(tree.Root, luteEngine.ParseOptions, luteEngine.RenderOptions)
 	ret.Data = map[string]interface{}{
 		"md": md,
 	}

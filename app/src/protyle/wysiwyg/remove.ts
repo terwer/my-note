@@ -1,4 +1,4 @@
-import {focusBlock, focusByWbr} from "../util/selection";
+import {focusBlock, focusByRange, focusByWbr, setLastNodeRange} from "../util/selection";
 import {
     getContenteditableElement,
     getLastBlock,
@@ -14,6 +14,7 @@ import {setFold, zoomOut} from "../../menus/protyle";
 import {preventScroll} from "../scroll/preventScroll";
 import {hideElements} from "../ui/hideElements";
 import {Constants} from "../../constants";
+import {scrollCenter} from "../../util/highlightById";
 
 const removeLi = (protyle: IProtyle, blockElement: Element, range: Range) => {
     if (!blockElement.parentElement.previousElementSibling && blockElement.parentElement.nextElementSibling && blockElement.parentElement.nextElementSibling.classList.contains("protyle-attr")) {
@@ -119,18 +120,21 @@ const removeLi = (protyle: IProtyle, blockElement: Element, range: Range) => {
     }];
     const previousLastElement = listItemElement.previousElementSibling.lastElementChild;
     if (listItemElement.previousElementSibling.getAttribute("fold") === "1") {
-        if (getContenteditableElement(blockElement).textContent.trim() === "") {
+        if (getContenteditableElement(blockElement).textContent.trim() === "" &&
+            blockElement.nextElementSibling.classList.contains("protyle-attr")) {
             doOperations.push({
                 action: "delete",
                 id: listItemId
             });
             undoOperations[0].data = listItemElement.outerHTML;
-            range.selectNodeContents(getContenteditableElement(listItemElement.previousElementSibling));
-            range.collapse(false);
+            setLastNodeRange(getContenteditableElement(listItemElement.previousElementSibling), range);
+            range.collapse(true);
             listItemElement.remove();
         } else {
-            range.selectNodeContents(getContenteditableElement(listItemElement.previousElementSibling));
-            range.collapse(false);
+            setLastNodeRange(getContenteditableElement(listItemElement.previousElementSibling), range);
+            range.collapse(true);
+            focusByRange(range);
+            blockElement.querySelector("wbr")?.remove();
             return;
         }
     } else {
@@ -259,6 +263,7 @@ export const removeBlock = (protyle: IProtyle, blockElement: Element, range: Ran
                 }
 
                 focusBlock(sideElement, undefined, false);
+                scrollCenter(protyle, sideElement);
                 if (listElement) {
                     inserts.push({
                         action: "update",

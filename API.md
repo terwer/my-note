@@ -16,7 +16,7 @@
     * [Create a document with Markdown](#Create-a-document-with-Markdown)
     * [Rename a document](#Rename-a-document)
     * [Remove a document](#Remove-a-document)
-    * [Move a document](#Move-a-document)
+    * [Move documents](#Move-documents)
     * [Get human-readable path based on path](#Get-human-readable-path-based-on-path)
     * [Get human-readable path based on ID](#Get-human-readable-path-based-on-ID)
 * [Assets](#Assets)
@@ -38,6 +38,7 @@
 * [File](#File)
     * [Get file](#Get-file)
     * [Put file](#Put-file)
+    * [Remove file](#Remove-file)
 * [Export](#Export)
     * [Export Markdown](#Export-Markdown)
 * [Notification](#Notification)
@@ -378,22 +379,20 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   }
   ```
 
-### Move a document
+### Move documents
 
-* `/api/filetree/moveDoc`
+* `/api/filetree/moveDocs`
 * Parameters
 
   ```json
   {
-    "fromNotebook": "20210831090520-7dvbdv0",
-    "fromPath": "/20210917220056-yxtyl7i.sy",
+    "fromPaths": ["/20210917220056-yxtyl7i.sy"],
     "toNotebook": "20210817205410-2kvfpfn",
     "toPath": "/"
   }
   ```
 
-    * `fromNotebook`: Source notebook ID
-    * `fromPath`: Source path
+    * `fromPaths`: Source paths
     * `toNotebook`: Target notebook ID
     * `toPath`: Target path
 * Return value
@@ -441,7 +440,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   }
   ```
 
-    * `id`：Block ID
+    * `id`: Block ID
 * Return value
 
   ```json
@@ -459,13 +458,12 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
 * `/api/asset/upload`
 * The parameter is an HTTP Multipart form
 
-    * `assetsDirPath`: The folder path where the assets are stored. The arguments have the following three cases
+    * `assetsDirPath`: The folder path where assets are stored, with the data folder as the root path, for example:
+        * `"/assets/"`: workspace/data/assets/ folder
+        * `"/assets/sub/"`: workspace/data/assets/sub/ folder
 
-        1. `"/assets/"`: Workspace/data/assets folder
-        2. `"/Test Notebook/assets/"`: Assets folder under `Test Notebook`
-        3. `"/Test Notebook/foo/assets/"`: Assets folder under foo folder under `Test notebook`
-
-      It is recommended to use the first one, which is stored in the workspace assets folder uniformly.
+      Under normal circumstances, it is recommended to use the first method, which is stored in the assets folder
+      of the workspace.
     * `file[]`: Uploaded file list
 * Return value
 
@@ -707,7 +705,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   }
   ```
 
-  * `id`: ID of the block to be got
+    * `id`: ID of the block to be got
 * Return value
 
   ```json
@@ -720,7 +718,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     }
   }
   ```
-  
+
 ## Attributes
 
 ### Set block attributes
@@ -816,8 +814,9 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     "path": "F:\\SiYuan\\data\\templates\\foo.md"
   }
   ```
-  * `id`: The ID of the document where the rendering is called
-  * `path`: Template file absolute path
+
+    * `id`: The ID of the document where the rendering is called
+    * `path`: Template file absolute path
 * Return value
 
   ```json
@@ -856,7 +855,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     * `isDir`: whether to create a folder, when `true` only create a folder, ignore `file`
     * `modTime`: last access and modification time, Unix time
     * `file`: the uploaded file
-* return value
+* Return value
 
    ```json
    {
@@ -865,6 +864,28 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
      "data": null
    }
    ```
+
+### Remove file
+
+* `/api/file/removeFile`
+* Parameters
+
+  ```json
+  {
+    "path": "/data/20210808180117-6v0mkxr/20200923234011-ieuun1p.sy"
+  }
+  ```
+  * `path`: the file path under the workspace path
+* Return value
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
+  }
+  ```
+
 
 ## Export
 
@@ -948,7 +969,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     }
   }
   ```
-    * `id`：Message ID
+    * `id`: Message ID
 
 ## System
 
