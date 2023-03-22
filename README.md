@@ -25,7 +25,7 @@ merge pull request to main or push to main
 
 ```
 docker login
-docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v8 -t terwer/my-note:latest -t terwer/my-note:v2.7.0 .
+docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v8 -t terwer/my-note:latest -t terwer/my-note:v2.8.0 .
 ```
 
 ## Build
