@@ -31,8 +31,6 @@ type TBazaarType = "templates" | "icons" | "widgets" | "themes"
 declare module "blueimp-md5"
 
 interface Window {
-    __localStorage__removeItem: (key: string) => void
-    __localStorage__setItem: (key: string, value: string) => void
     dataLayer: any[]
     siyuan: ISiyuan
     webkit: any
@@ -46,6 +44,12 @@ interface Window {
         readClipboard(): string
         getBlockURL(): string
     }
+
+    newWindow: {
+        positionPDF(pathStr: string, page: string | number): void
+    }
+
+    Protyle: import("../protyle/method").default
 
     goBack(): void
 
@@ -81,6 +85,7 @@ interface ICard {
 }
 
 interface ISearchOption {
+    removed?: boolean  // 移除后需记录搜索内容 https://github.com/siyuan-note/siyuan/issues/7745
     name?: string
     sort: number,  //  0：按块类型（默认），1：按创建时间升序，2：按创建时间降序，3：按更新时间升序，4：按更新时间降序，5：按内容顺序（仅在按文档分组时），6：按相关度升序，7：按相关度降序
     group: number,  // 0：不分组，1：按文档分组
@@ -336,6 +341,7 @@ declare interface IEditor {
     virtualBlockRefInclude: string;
     blockRefDynamicAnchorTextMaxLen: number;
     backlinkExpandCount: number;
+    backmentionExpandCount: number;
 
     emoji: string[];
 }
@@ -392,6 +398,23 @@ declare interface IConfig {
     repo: {
         key: string
     },
+    flashcard: {
+        newCardLimit: number
+        reviewCardLimit: number
+        mark: boolean
+        list: boolean
+        superBlock: boolean
+        deck: boolean
+    }
+    ai: {
+        openAI: {
+            apiBaseURL: string
+            apiKey: string
+            apiMaxTokens: number
+            apiProxy: string
+            apiTimeout: number
+        },
+    }
     sync: {
         generateConflictDoc: boolean
         enabled: boolean
@@ -590,6 +613,7 @@ declare interface IBlockTree {
 }
 
 declare interface IBlock {
+    riffCardReps?: number   // 闪卡复习次数
     depth?: number,
     box?: string;
     path?: string;

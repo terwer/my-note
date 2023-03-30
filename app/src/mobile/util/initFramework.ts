@@ -8,7 +8,7 @@ import {setInlineStyle} from "../../util/assets";
 import {renderSnippet} from "../../config/util/snippets";
 import {setEmpty} from "./setEmpty";
 import {getOpenNotebookCount} from "../../util/pathName";
-import {popMenu} from "./menu";
+import {popMenu} from "../menu";
 import {MobileFiles} from "./MobileFiles";
 import {MobileOutline} from "./MobileOutline";
 import {hasTopClosestByTag} from "../../protyle/util/hasClosest";
@@ -29,7 +29,8 @@ export const initFramework = () => {
     let bookmark: MobileBookmarks;
     let tag: MobileTags;
     // 不能使用 getEventName，否则点击返回会展开右侧栏
-    sidebarElement.querySelector(".toolbar--border").addEventListener("click", (event: Event & {
+    const firstToolbarElement = sidebarElement.querySelector(".toolbar--border");
+    firstToolbarElement.addEventListener("click", (event: Event & {
         target: Element
     }) => {
         const svgElement = hasTopClosestByTag(event.target, "svg");
@@ -41,8 +42,11 @@ export const initFramework = () => {
             closePanel();
             return;
         }
-        sidebarElement.querySelectorAll(".toolbar--border svg").forEach(item => {
+        firstToolbarElement.querySelectorAll(".toolbar__icon").forEach(item => {
             const itemType = item.getAttribute("data-type");
+            if (!itemType) {
+                return;
+            }
             if (itemType === type) {
                 if (type === "sidebar-outline-tab") {
                     if (!outline) {
@@ -57,13 +61,13 @@ export const initFramework = () => {
                         backlink.update();
                     }
                 } else if (type === "sidebar-bookmark-tab") {
-                    if (!backlink) {
+                    if (!bookmark) {
                         bookmark = new MobileBookmarks();
                     } else {
                         backlink.update();
                     }
                 } else if (type === "sidebar-tag-tab") {
-                    if (!backlink) {
+                    if (!tag) {
                         tag = new MobileTags();
                     } else {
                         tag.update();
@@ -126,8 +130,8 @@ export const initFramework = () => {
             }, Constants.TIMEOUT_INPUT);
         }, Constants.TIMEOUT_INPUT);
     }
-    document.getElementById("modelClose").addEventListener(getEventName(), () => {
-        closePanel();
+    document.getElementById("modelClose").addEventListener("click", () => {
+        document.getElementById("model").style.top = "-200vh";
     });
     initEditorName();
     if (getOpenNotebookCount() > 0) {

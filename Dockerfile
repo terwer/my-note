@@ -33,4 +33,4 @@ ENV RUN_IN_CONTAINER=true
 EXPOSE 6806
 
 USER siyuan
-ENTRYPOINT [ "/opt/siyuan/kernel" ]
+ENTRYPOINT ["/opt/siyuan/kernel"]

@@ -13,6 +13,7 @@ import {hideElements} from "../protyle/ui/hideElements";
 import {pushBack} from "./util/MobileBackFoward";
 import {setStorageVal} from "../protyle/util/compatibility";
 import {showMessage} from "../dialog/message";
+import {saveScroll} from "../protyle/scroll/saveScroll";
 
 export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) => {
     window.siyuan.storage[Constants.LOCAL_DOCINFO] = {id, action};
@@ -44,6 +45,7 @@ export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) =
             return;
         }
         if (window.siyuan.mobile.editor) {
+            saveScroll(window.siyuan.mobile.editor.protyle);
             pushBack();
             addLoading(window.siyuan.mobile.editor.protyle);
             fetchPost("/api/filetree/getDoc", {
@@ -53,14 +55,6 @@ export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) =
             }, getResponse => {
                 onGet(getResponse, window.siyuan.mobile.editor.protyle, action);
                 window.siyuan.mobile.editor.protyle.breadcrumb?.render(window.siyuan.mobile.editor.protyle);
-                const exitFocusElement = window.siyuan.mobile.editor.protyle.breadcrumb.element.parentElement.querySelector('[data-type="exit-focus"]');
-                if (action.includes(Constants.CB_GET_ALL)) {
-                    exitFocusElement.classList.remove("fn__none");
-                    exitFocusElement.nextElementSibling.classList.remove("fn__none");
-                } else {
-                    exitFocusElement.classList.add("fn__none");
-                    exitFocusElement.nextElementSibling.classList.add("fn__none");
-                }
             });
             window.siyuan.mobile.editor.protyle.undo.clear();
         } else {

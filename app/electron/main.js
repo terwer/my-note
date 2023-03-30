@@ -59,9 +59,13 @@ const exitApp = (port, errorWindowId) => {
         try {
             const currentURL = new URL(item.getURL());
             if (port.toString() === currentURL.port.toString()) {
-                if (currentURL.href.indexOf("/stage/build/app/?v=") > -1) {
-                    mainWindow = item;
-                } else {
+                const hasMain = workspaces.find((workspaceItem) => {
+                    if (workspaceItem.browserWindow.id === item.id) {
+                        mainWindow = item;
+                        return true;
+                    }
+                });
+                if (!hasMain) {
                     item.destroy();
                 }
             }
@@ -70,7 +74,7 @@ const exitApp = (port, errorWindowId) => {
         }
     });
     workspaces.find((item, index) => {
-        if (mainWindow.id === item.browserWindow.id) {
+        if (mainWindow && mainWindow.id === item.browserWindow.id) {
             if (workspaces.length > 1) {
                 item.browserWindow.destroy();
             }
@@ -202,11 +206,13 @@ const boot = () => {
         height: defaultHeight,
     }, oldWindowState);
 
+    // writeLog("windowStat [width=" + windowState.width + ", height=" + windowState.height + "], default [width=" + defaultWidth + ", height=" + defaultHeight + "], workArea [width=" + workArea.width + ", height=" + workArea.height + "]");
+
     let x = windowState.x;
     let y = windowState.y;
     if (workArea) {
-        // 窗口大小等同于或大于 workArea 时，缩小会隐藏到左下角
-        if (windowState.width >= workArea.width || windowState.height >= workArea.height) {
+        // 窗口大于 workArea 时缩小会隐藏到左下角，这里使用最小值重置
+        if (windowState.width > workArea.width || windowState.height > workArea.height) { // 重启后窗口大小恢复默认问题 https://github.com/siyuan-note/siyuan/issues/7755
             windowState.width = Math.min(defaultWidth, workArea.width);
             windowState.height = Math.min(defaultHeight, workArea.height);
         }
@@ -217,11 +223,11 @@ const boot = () => {
             y = 0;
         }
     }
-    if (windowState.width < 400) {
-        windowState.width = 400;
+    if (windowState.width < 493) {
+        windowState.width = 493;
     }
-    if (windowState.height < 300) {
-        windowState.height = 300;
+    if (windowState.height < 376) {
+        windowState.height = 376;
     }
     if (x < 0) {
         x = 0;
@@ -467,9 +473,6 @@ const initKernel = (workspace, port, lang) => {
                         case 21:
                             errorWindowId = showErrorWindow("⚠️ 监听端口 " + currentKernelPort + " 失败 Failed to listen to port " + currentKernelPort, "<div>监听 " + currentKernelPort + " 端口失败，请确保程序拥有网络权限并不受防火墙和杀毒软件阻止。</div><div>Failed to listen to port " + currentKernelPort + ", please make sure the program has network permissions and is not blocked by firewalls and antivirus software.</div>");
                             break;
-                        case 22:
-                            errorWindowId = showErrorWindow("⚠️ 创建配置目录失败 Failed to create config directory", "<div>思源需要在用户家目录下创建配置文件夹（~/.config/siyuan），请确保该路径具有写入权限。</div><div>SiYuan needs to create a configuration folder (~/.config/siyuan) in the user\'s home directory. Please make sure that the path has write permissions.</div>");
-                            break;
                         case 24: // 工作空间已被锁定，尝试切换到第一个打开的工作空间
                             if (workspaces && 0 < workspaces.length) {
                                 showWindow(workspaces[0].browserWindow);
@@ -478,10 +481,10 @@ const initKernel = (workspace, port, lang) => {
                             errorWindowId = showErrorWindow("⚠️ 工作空间已被锁定 The workspace is locked", "<div>该工作空间正在被使用。</div><div>The workspace is in use.</div>");
                             break;
                         case 25:
-                            errorWindowId = showErrorWindow("⚠️ 创建工作空间目录失败 Failed to create workspace directory", "<div>创建工作空间目录失败。</div><div>Failed to create workspace directory.</div>");
+                            errorWindowId = showErrorWindow("⚠️ 初始化工作空间失败 Failed to create workspace directory", "<div>初始化工作空间失败。</div><div>Failed to init workspace.</div>");
                             break;
                         case 26:
-                            errorWindowId = showErrorWindow("⚠️ 文件系统读写错误 File system access error", "<div>请检查文件系统权限，并确保没有其他程序正在读写文件；<br>请勿使用第三方同步盘进行数据同步，否则数据会被损坏（iCloud/OneDrive/Dropbox/Google Drive/坚果云/百度网盘/腾讯微云等）</div><div>Please check file system permissions and make sure no other programs are reading or writing to the file;<br>Do not use a third-party sync disk for data sync, otherwise the data will be damaged (OneDrive/Dropbox/Google Drive/Nutstore/Baidu Netdisk/Tencent Weiyun, etc.)</div>");
+                            errorWindowId = showErrorWindow("⚠️ 文件系统读写错误 File system access error", "<div>请检查文件系统权限，并确保没有其他程序正在读写文件；<br>请勿使用第三方同步盘进行数据同步，否则数据会被损坏（iCloud/OneDrive/Dropbox/Google Drive/坚果云/百度网盘/腾讯微云等）<br>解决方案：请将工作空间移动到其他路径后再打开</div><div>Please check file system permissions and make sure no other programs are reading or writing to the file;<br>Do not use a third-party sync disk for data sync, otherwise the data will be damaged (OneDrive/Dropbox/Google Drive/Nutstore/Baidu Netdisk/Tencent Weiyun, etc.)<br>Solution: Please move the workspace to another path before opening it</div>");
                             break;
                         case 0:
                             break;
@@ -942,18 +945,10 @@ powerMonitor.on("suspend", () => {
 powerMonitor.on("resume", async () => {
     // 桌面端系统休眠唤醒后判断网络连通性后再执行数据同步 https://github.com/siyuan-note/siyuan/issues/6687
     writeLog("system resume");
+
+    const eNet = require("electron").net
     const isOnline = async () => {
-        try {
-            const result = await fetch("https://www.baidu.com", {timeout: 1000});
-            return 200 === result.status;
-        } catch (e) {
-            try {
-                const result = await fetch("https://icanhazip.com", {timeout: 1000});
-                return 200 === result.status;
-            } catch (e) {
-                return false;
-            }
-        }
+        return eNet.isOnline()
     };
     let online = false;
     for (let i = 0; i < 7; i++) {

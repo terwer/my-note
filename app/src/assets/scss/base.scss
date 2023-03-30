@@ -362,10 +362,6 @@ html {
     opacity: .38;
   }
 
-  .block__icons .block__icon[disabled] {
-    opacity: 0;
-  }
-
   &__close {
     min-height: auto;
     transition: var(--b3-transition);
@@ -382,7 +378,7 @@ html {
   margin-left: 4px;
   line-height: 22px;
   padding: 0 8px;
-  color: var(--b3-theme-on-surface);
+  color: var(--b3-theme-on-surface-light);
   border-radius: 2px;
   font-size: 12px;
   user-select: none;

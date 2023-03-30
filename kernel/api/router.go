@@ -60,7 +60,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/storage/setLocalStorage", model.CheckAuth, setLocalStorage)
 	ginServer.Handle("POST", "/api/storage/getLocalStorage", model.CheckAuth, getLocalStorage)
 	ginServer.Handle("POST", "/api/storage/setLocalStorageVal", model.CheckAuth, setLocalStorageVal)
-	ginServer.Handle("POST", "/api/storage/removeLocalStorageVal", model.CheckAuth, model.CheckReadonly, removeLocalStorageVal)
+	ginServer.Handle("POST", "/api/storage/removeLocalStorageVals", model.CheckAuth, model.CheckReadonly, removeLocalStorageVals)
 	ginServer.Handle("POST", "/api/storage/setCriterion", model.CheckAuth, model.CheckReadonly, setCriterion)
 	ginServer.Handle("POST", "/api/storage/getCriteria", model.CheckAuth, getCriteria)
 	ginServer.Handle("POST", "/api/storage/removeCriterion", model.CheckAuth, model.CheckReadonly, removeCriterion)
@@ -135,6 +135,7 @@ func ServeAPI(ginServer *gin.Engine) {
 
 	ginServer.Handle("POST", "/api/search/searchTag", model.CheckAuth, searchTag)
 	ginServer.Handle("POST", "/api/search/searchTemplate", model.CheckAuth, searchTemplate)
+	ginServer.Handle("POST", "/api/search/removeTemplate", model.CheckAuth, removeTemplate)
 	ginServer.Handle("POST", "/api/search/searchWidget", model.CheckAuth, searchWidget)
 	ginServer.Handle("POST", "/api/search/searchRefBlock", model.CheckAuth, searchRefBlock)
 	ginServer.Handle("POST", "/api/search/searchEmbedBlock", model.CheckAuth, searchEmbedBlock)
@@ -175,6 +176,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/file/putFile", model.CheckAuth, model.CheckReadonly, putFile)
 	ginServer.Handle("POST", "/api/file/copyFile", model.CheckAuth, model.CheckReadonly, copyFile)
 	ginServer.Handle("POST", "/api/file/removeFile", model.CheckAuth, model.CheckReadonly, removeFile)
+	ginServer.Handle("POST", "/api/file/readDir", model.CheckAuth, model.CheckReadonly, readDir)
 
 	ginServer.Handle("POST", "/api/ref/refreshBacklink", model.CheckAuth, refreshBacklink)
 	ginServer.Handle("POST", "/api/ref/getBacklink", model.CheckAuth, getBacklink)
@@ -246,6 +248,7 @@ func ServeAPI(ginServer *gin.Engine) {
 
 	ginServer.Handle("POST", "/api/template/render", model.CheckAuth, renderTemplate)
 	ginServer.Handle("POST", "/api/template/docSaveAsTemplate", model.CheckAuth, model.CheckReadonly, docSaveAsTemplate)
+	ginServer.Handle("POST", "/api/template/renderSprig", model.CheckAuth, model.CheckReadonly, renderSprig)
 
 	ginServer.Handle("POST", "/api/transactions", model.CheckAuth, model.CheckReadonly, performTransactions)
 
@@ -263,6 +266,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/setting/setCustomCSS", model.CheckAuth, model.CheckReadonly, setCustomCSS)
 	ginServer.Handle("POST", "/api/setting/setEmoji", model.CheckAuth, model.CheckReadonly, setEmoji)
 	ginServer.Handle("POST", "/api/setting/setFlashcard", model.CheckAuth, model.CheckReadonly, setFlashcard)
+	ginServer.Handle("POST", "/api/setting/setAI", model.CheckAuth, model.CheckReadonly, setAI)
 
 	ginServer.Handle("POST", "/api/graph/resetGraph", model.CheckAuth, model.CheckReadonly, resetGraph)
 	ginServer.Handle("POST", "/api/graph/resetLocalGraph", model.CheckAuth, model.CheckReadonly, resetLocalGraph)

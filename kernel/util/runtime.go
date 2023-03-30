@@ -19,6 +19,7 @@ package util
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -31,6 +32,8 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/denisbrodbeck/machineid"
+	"github.com/go-ole/go-ole"
+	"github.com/go-ole/go-ole/oleutil"
 	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
 )
@@ -44,11 +47,7 @@ var IsExiting = false
 var MobileOSVer string
 
 func logBootInfo() {
-	plat, platVer := GetOSPlatform()
-	osInfo := plat
-	if "" != platVer {
-		osInfo += " " + platVer
-	}
+	plat := GetOSPlatform()
 	logging.LogInfof("kernel is booting:\n"+
 		"    * ver [%s]\n"+
 		"    * arch [%s]\n"+
@@ -60,7 +59,7 @@ func logBootInfo() {
 		"    * container [%s]\n"+
 		"    * database [ver=%s]\n"+
 		"    * workspace directory [%s]",
-		Ver, runtime.GOARCH, osInfo, os.Getpid(), Mode, WorkingDir, ReadOnly, Container, DatabaseVer, WorkspaceDir)
+		Ver, runtime.GOARCH, plat, os.Getpid(), Mode, WorkingDir, ReadOnly, Container, DatabaseVer, WorkspaceDir)
 }
 
 func IsMutexLocked(m *sync.Mutex) bool {
@@ -144,6 +143,8 @@ func CheckFileSysStatus() {
 }
 
 func checkFileSysStatus() {
+	defer logging.Recover()
+
 	if IsMutexLocked(&checkFileSysStatusLock) {
 		logging.LogWarnf("check file system status is locked, skip")
 		return
@@ -244,8 +245,131 @@ func checkFileSysStatus() {
 	}
 }
 
-func IsCloudDrivePath(absPath string) bool {
-	absPathLower := strings.ToLower(absPath)
-	return strings.Contains(absPathLower, "onedrive") || strings.Contains(absPathLower, "dropbox") ||
-		strings.Contains(absPathLower, "google drive") || strings.Contains(absPathLower, "pcloud")
+func IsCloudDrivePath(workspaceAbsPath string) bool {
+	if isICloudPath(workspaceAbsPath) {
+		return true
+	}
+
+	if isKnownCloudDrivePath(workspaceAbsPath) {
+		return true
+	}
+
+	if existAvailabilityStatus(workspaceAbsPath) {
+		return true
+	}
+
+	return false
+}
+
+func isKnownCloudDrivePath(workspaceAbsPath string) bool {
+	workspaceAbsPathLower := strings.ToLower(workspaceAbsPath)
+	return strings.Contains(workspaceAbsPathLower, "onedrive") || strings.Contains(workspaceAbsPathLower, "dropbox") ||
+		strings.Contains(workspaceAbsPathLower, "google drive") || strings.Contains(workspaceAbsPathLower, "pcloud") ||
+		strings.Contains(workspaceAbsPathLower, "坚果云")
+}
+
+func isICloudPath(workspaceAbsPath string) (ret bool) {
+	if !gulu.OS.IsDarwin() {
+		return false
+	}
+
+	workspaceAbsPathLower := strings.ToLower(workspaceAbsPath)
+
+	// macOS 端对工作空间放置在 iCloud 路径下做检查 https://github.com/siyuan-note/siyuan/issues/7747
+	iCloudRoot := filepath.Join(HomeDir, "Library", "Mobile Documents")
+	WalkWithSymlinks(iCloudRoot, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			return nil
+		}
+
+		if strings.HasPrefix(workspaceAbsPathLower, strings.ToLower(path)) {
+			ret = true
+			return io.EOF
+		}
+		return nil
+	})
+	return
+}
+
+func existAvailabilityStatus(workspaceAbsPath string) bool {
+	if !gulu.OS.IsWindows() {
+		return false
+	}
+
+	if !gulu.File.IsExist(workspaceAbsPath) {
+		return false
+	}
+
+	// 改进 Windows 端第三方同步盘检测 https://github.com/siyuan-note/siyuan/issues/7777
+
+	defer logging.Recover()
+
+	checkAbsPath := filepath.Join(workspaceAbsPath, "data")
+	if !gulu.File.IsExist(checkAbsPath) {
+		checkAbsPath = workspaceAbsPath
+	}
+	if !gulu.File.IsExist(checkAbsPath) {
+		logging.LogWarnf("check path [%s] not exist", checkAbsPath)
+		return false
+	}
+
+	runtime.LockOSThread()
+	defer runtime.LockOSThread()
+	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); nil != err {
+		logging.LogWarnf("initialize ole failed: %s", err)
+		return false
+	}
+	defer ole.CoUninitialize()
+	dir, file := filepath.Split(checkAbsPath)
+	unknown, err := oleutil.CreateObject("Shell.Application")
+	if nil != err {
+		logging.LogWarnf("create shell application failed: %s", err)
+		return false
+	}
+	shell, err := unknown.QueryInterface(ole.IID_IDispatch)
+	if nil != err {
+		logging.LogWarnf("query shell interface failed: %s", err)
+		return false
+	}
+	defer shell.Release()
+
+	result, err := oleutil.CallMethod(shell, "NameSpace", dir)
+	if nil != err {
+		logging.LogWarnf("call shell [NameSpace] failed: %s", err)
+		return false
+	}
+	folderObj := result.ToIDispatch()
+
+	result, err = oleutil.CallMethod(folderObj, "ParseName", file)
+	if nil != err {
+		logging.LogWarnf("call shell [ParseName] failed: %s", err)
+		return false
+	}
+	fileObj := result.ToIDispatch()
+	if nil == fileObj {
+		logging.LogWarnf("call shell [ParseName] file is nil [%s]", checkAbsPath)
+		return false
+	}
+
+	result, err = oleutil.CallMethod(folderObj, "GetDetailsOf", fileObj, 303)
+	if nil != err {
+		logging.LogWarnf("call shell [GetDetailsOf] failed: %s", err)
+		return false
+	}
+	value := result
+	if nil == value {
+		return false
+	}
+	status := strings.ToLower(value.ToString())
+	if "" == status || "availability status" == status || "可用性状态" == status {
+		return false
+	}
+
+	if strings.Contains(status, "sync") || strings.Contains(status, "同步") ||
+		strings.Contains(status, "available on this device") || strings.Contains(status, "在此设备上可用") ||
+		strings.Contains(status, "available when online") || strings.Contains(status, "联机时可用") {
+		logging.LogErrorf("[%s] third party sync status [%s]", checkAbsPath, status)
+		return true
+	}
+	return false
 }

@@ -233,17 +233,14 @@
         &:hover,
         &.item--focus {
           .item__close svg {
-            opacity: 1;
+            opacity: .68;
           }
         }
 
         &--readonly {
           padding-left: 13px;
+          padding-right: 8px;
           max-width: none;
-
-          .item__close svg {
-            opacity: 1;
-          }
         }
 
         &--pin {
