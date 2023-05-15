@@ -1,4 +1,4 @@
-import {isCtrl, isMac, setStorageVal, updateHotkeyTip, writeText} from "../protyle/util/compatibility";
+import {isCtrl, isMac, updateHotkeyTip, writeText} from "../protyle/util/compatibility";
 import {matchHotKey} from "../protyle/util/hotKey";
 import {openSearch} from "../search/spread";
 import {
@@ -43,7 +43,7 @@ import {editor} from "../config/editor";
 import {hintMoveBlock} from "../protyle/hint/extend";
 import {Backlink} from "../layout/dock/Backlink";
 /// #if !BROWSER
-import {webFrame} from "electron";
+import {setZoom} from "../layout/topBar";
 /// #endif
 import {openHistory} from "../history/history";
 import {openCard, openCardByData} from "../card/openCard";
@@ -76,7 +76,7 @@ const switchDialogEvent = (event: MouseEvent, switchDialog: Dialog) => {
                 if (currentType === "riffCard") {
                     openCard();
                 } else {
-                    getDockByType(currentType as TDockType).toggleModel(currentType as TDockType, true);
+                    getDockByType(currentType).toggleModel(currentType, true);
                 }
             } else {
                 const currentId = target.getAttribute("data-id");
@@ -369,7 +369,7 @@ export const globalShortcut = (app: App) => {
                     if (currentType === "riffCard") {
                         openCard();
                     } else {
-                        getDockByType(currentType as TDockType).toggleModel(currentType as TDockType, true);
+                        getDockByType(currentType).toggleModel(currentType, true);
                     }
                     if (document.activeElement) {
                         (document.activeElement as HTMLElement).blur();
@@ -398,14 +398,19 @@ export const globalShortcut = (app: App) => {
         if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey &&
             !["INPUT", "TEXTAREA"].includes(target.tagName) &&
             ["0", "1", "2", "3", "4", "j", "k", "l", ";", "s", " ", "p"].includes(event.key.toLowerCase())) {
-            const openCardDialog = window.siyuan.dialogs.find(item => {
+            let cardElement: Element;
+            window.siyuan.dialogs.find(item => {
                 if (item.element.getAttribute("data-key") === window.siyuan.config.keymap.general.riffCard.custom) {
+                    cardElement = item.element;
                     return true;
                 }
             });
-            if (openCardDialog) {
+            if (!cardElement) {
+                cardElement = document.querySelector(`.layout__wnd--active div[data-key="${window.siyuan.config.keymap.general.riffCard.custom}"]:not(.fn__none)`);
+            }
+            if (cardElement) {
                 event.preventDefault();
-                openCardDialog.element.dispatchEvent(new CustomEvent("click", {detail: event.key.toLowerCase()}));
+                cardElement.dispatchEvent(new CustomEvent("click", {detail: event.key.toLowerCase()}));
                 return;
             }
         }
@@ -487,8 +492,8 @@ export const globalShortcut = (app: App) => {
                 getAllDocks().forEach((item, index) => {
                     dockHtml += `<li data-type="${item.type}" data-index="${index + 1}" class="b3-list-item">
     <svg class="b3-list-item__graphic"><use xlink:href="#${item.icon}"></use></svg>
-    <span class="b3-list-item__text">${window.siyuan.languages[item.hotkeyLangId]}</span>
-    <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general[item.hotkeyLangId].custom)}</span>
+    <span class="b3-list-item__text">${item.title}</span>
+    <span class="b3-list-item__meta">${updateHotkeyTip(item.hotkey || "")}</span>
 </li>`;
                 });
                 dockHtml = dockHtml + "</ul>";
@@ -570,39 +575,17 @@ export const globalShortcut = (app: App) => {
 
         /// #if !BROWSER
         if (matchHotKey("⌘=", event) && !hasClosestByClassName(target, "pdf__outer")) {
-            Constants.SIZE_ZOOM.find((item, index) => {
-                if (item === window.siyuan.storage[Constants.LOCAL_ZOOM]) {
-                    window.siyuan.storage[Constants.LOCAL_ZOOM] = Constants.SIZE_ZOOM[index + 1] || 3;
-                    webFrame.setZoomFactor(window.siyuan.storage[Constants.LOCAL_ZOOM]);
-                    if (!isTabWindow) {
-                        setStorageVal(Constants.LOCAL_ZOOM, window.siyuan.storage[Constants.LOCAL_ZOOM]);
-                    }
-                    return true;
-                }
-            });
+            setZoom("zoomIn");
             event.preventDefault();
             return;
         }
         if (matchHotKey("⌘0", event)) {
-            webFrame.setZoomFactor(1);
-            window.siyuan.storage[Constants.LOCAL_ZOOM] = 1;
-            if (!isTabWindow) {
-                setStorageVal(Constants.LOCAL_ZOOM, 1);
-            }
+            setZoom("restore");
             event.preventDefault();
             return;
         }
         if (matchHotKey("⌘-", event) && !hasClosestByClassName(target, "pdf__outer")) {
-            Constants.SIZE_ZOOM.find((item, index) => {
-                if (item === window.siyuan.storage[Constants.LOCAL_ZOOM]) {
-                    window.siyuan.storage[Constants.LOCAL_ZOOM] = Constants.SIZE_ZOOM[index - 1] || 0.25;
-                    webFrame.setZoomFactor(window.siyuan.storage[Constants.LOCAL_ZOOM]);
-                    if (!isTabWindow) {
-                        setStorageVal(Constants.LOCAL_ZOOM, window.siyuan.storage[Constants.LOCAL_ZOOM]);
-                    }
-                    return true;
-                }
-            });
+            setZoom("zoomOut");
             event.preventDefault();
             return;
         }
@@ -610,7 +593,7 @@ export const globalShortcut = (app: App) => {
 
         if (!isTabWindow && matchHotKey(window.siyuan.config.keymap.general.syncNow.custom, event)) {
             event.preventDefault();
-            syncGuide(document.querySelector("#barSync"));
+            syncGuide(app);
             return;
         }
         if (matchHotKey(window.siyuan.config.keymap.general.editMode.custom, event)) {
@@ -640,7 +623,7 @@ export const globalShortcut = (app: App) => {
             return;
         }
         const matchDock = getAllDocks().find(item => {
-            if (matchHotKey(window.siyuan.config.keymap.general[item.hotkeyLangId].custom, event)) {
+            if (matchHotKey(item.hotkey, event)) {
                 getDockByType(item.type).toggleModel(item.type);
                 if (document.activeElement) {
                     (document.activeElement as HTMLElement).blur();
@@ -768,15 +751,15 @@ export const globalShortcut = (app: App) => {
             event.preventDefault();
             let activeTabElement = document.querySelector(".layout__tab--active");
             if (activeTabElement && activeTabElement.getBoundingClientRect().width > 0) {
-                let type: TDockType;
+                let type = "";
                 Array.from(activeTabElement.classList).find(item => {
                     if (item.startsWith("sy__")) {
-                        type = item.replace("sy__", "") as TDockType;
+                        type = item.replace("sy__", "");
                         return true;
                     }
                 });
                 if (type) {
-                    getDockByType(type).toggleModel(type, false, true);
+                    getDockByType(type)?.toggleModel(type, false, true);
                 }
                 return;
             }
@@ -949,7 +932,7 @@ const dialogArrow = (element: HTMLElement, event: KeyboardEvent) => {
                 if (currentType === "riffCard") {
                     openCard();
                 } else {
-                    getDockByType(currentType as TDockType).toggleModel(currentType as TDockType, true);
+                    getDockByType(currentType).toggleModel(currentType, true);
                 }
             } else {
                 openFileById({
@@ -1061,7 +1044,7 @@ const editKeydown = (event: KeyboardEvent) => {
         return false;
     }
     if (matchHotKey(window.siyuan.config.keymap.editor.general.refresh.custom, event)) {
-        reloadProtyle(protyle);
+        reloadProtyle(protyle, true);
         event.preventDefault();
         return true;
     }

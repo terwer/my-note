@@ -145,7 +145,11 @@ export const initAssets = () => {
         }, response => {
             if (window.siyuan.config.appearance.themeJS) {
                 /// #if !MOBILE
-                exportLayout(true);
+                exportLayout({
+                    reload: true,
+                    onlyData: false,
+                    errorExit: false,
+                });
                 /// #else
                 window.location.reload();
                 /// #endif
@@ -206,6 +210,7 @@ export const setInlineStyle = (set = true) => {
 .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h1, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h2, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h3, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h4, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h5, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h6 {line-height:${height + 8}px;}
 .protyle-wysiwyg [data-node-id].li > .protyle-action:after {height: ${window.siyuan.config.editor.fontSize}px;width: ${window.siyuan.config.editor.fontSize}px;margin:-${window.siyuan.config.editor.fontSize / 2}px 0 0 -${window.siyuan.config.editor.fontSize / 2}px}
 .protyle-wysiwyg [data-node-id].li > .protyle-action svg {height: ${Math.max(14, window.siyuan.config.editor.fontSize - 8)}px}
+.protyle-wysiwyg [data-node-id].li:before {height: calc(100% - ${height + 8}px);top:${(height + 8)}px}
 .protyle-wysiwyg [data-node-id] [spellcheck] {min-height:${height}px;}
 .protyle-wysiwyg [data-node-id] {${window.siyuan.config.editor.rtl ? " direction: rtl;" : ""}${window.siyuan.config.editor.justify ? " text-align: justify;" : ""}}
 .protyle-wysiwyg .li {min-height:${height + 8}px}
@@ -261,14 +266,22 @@ export const setMode = (modeElementValue: number) => {
                 window.siyuan.config.appearance.themeLight !== response.data.themeLight ||
                 window.siyuan.config.appearance.themeDark !== response.data.themeDark
             )) {
-                exportLayout(true);
+                exportLayout({
+                    reload: true,
+                    onlyData: false,
+                    errorExit: false,
+                });
                 return;
             }
             const OSTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
             if (response.data.modeOS && (
                 (response.data.mode === 1 && OSTheme === "light") || (response.data.mode === 0 && OSTheme === "dark")
             )) {
-                exportLayout(true);
+                exportLayout({
+                    reload: true,
+                    onlyData: false,
+                    errorExit: false,
+                });
                 return;
             }
         }

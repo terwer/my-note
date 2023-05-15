@@ -16,7 +16,6 @@ import {getEditorRange} from "../util/selection";
 import {setPadding} from "../ui/initUI";
 /// #if !MOBILE
 import {openFileById} from "../../editor/util";
-import {getAllModels} from "../../layout/getAll";
 /// #endif
 /// #if !BROWSER
 import {getCurrentWindow, systemPreferences} from "@electron/remote";
@@ -243,28 +242,6 @@ export class Breadcrumb {
                         hideElements(["toolbar"], protyle);
                         fetchPost("/api/format/autoSpace", {
                             id: protyle.block.rootID
-                        }, () => {
-                            /// #if MOBILE
-                            fetchPost("/api/filetree/getDoc", {
-                                id: protyle.block.id,
-                                mode: 0,
-                                size: window.siyuan.config.editor.dynamicLoadBlocks,
-                            }, getResponse => {
-                                onGet(getResponse, protyle, [Constants.CB_GET_FOCUS], saveScroll(protyle, true));
-                            });
-                            /// #else
-                            getAllModels().editor.forEach(item => {
-                                if (item.editor.protyle.block.rootID === protyle.block.rootID) {
-                                    fetchPost("/api/filetree/getDoc", {
-                                        id: item.editor.protyle.block.rootID,
-                                        mode: 0,
-                                        size: window.siyuan.config.editor.dynamicLoadBlocks,
-                                    }, getResponse => {
-                                        onGet(getResponse, item.editor.protyle, [Constants.CB_GET_FOCUS], saveScroll(protyle, true));
-                                    });
-                                }
-                            });
-                            /// #endif
                         });
                     }
                 }).element);
@@ -316,7 +293,7 @@ export class Breadcrumb {
                 accelerator: window.siyuan.config.keymap.editor.general.refresh.custom,
                 label: window.siyuan.languages.refresh,
                 click: () => {
-                    reloadProtyle(protyle);
+                    reloadProtyle(protyle, !isMobile());
                 }
             }).element);
             window.siyuan.menus.menu.append(new MenuItem({

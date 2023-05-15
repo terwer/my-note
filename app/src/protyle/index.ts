@@ -2,7 +2,7 @@ import {Constants} from "../constants";
 import {Hint} from "./hint";
 import {setLute} from "./markdown/setLute";
 import {Preview} from "./preview";
-import {initUI, removeLoading, setPadding} from "./ui/initUI";
+import {addLoading, initUI, removeLoading, setPadding} from "./ui/initUI";
 import {Undo} from "./undo";
 import {Upload} from "./upload";
 import {Options} from "./util/Options";
@@ -27,6 +27,7 @@ import {reloadProtyle} from "./util/reload";
 import {renderBacklink} from "./wysiwyg/renderBacklink";
 import {setEmpty} from "../mobile/util/setEmpty";
 import {resize} from "./util/resize";
+import {getDocByScroll} from "./scroll/saveScroll";
 
 export class Protyle {
 
@@ -88,6 +89,16 @@ export class Protyle {
                 type: "protyle",
                 msgCallback: (data) => {
                     switch (data.cmd) {
+                        case "reload":
+                            if (data.data === this.protyle.block.rootID) {
+                                reloadProtyle(this.protyle, false);
+                            }
+                            break;
+                        case "addLoading":
+                            if (data.data === this.protyle.block.rootID) {
+                                addLoading(this.protyle, data.msg);
+                            }
+                            break;
                         case "transactions":
                             data.data[0].doOperations.forEach((item: IOperation) => {
                                 onTransaction(this.protyle, item, false);
@@ -111,12 +122,18 @@ export class Protyle {
                                         onGet(getResponse, this.protyle);
                                     });
                                 } else {
-                                    reloadProtyle(this.protyle);
+                                    reloadProtyle(this.protyle, false);
                                 }
                                 /// #if !MOBILE
                                 if (data.cmd === "heading2doc") {
                                     // 文档标题互转后，需更新大纲
-                                    updatePanelByEditor(this.protyle, false, false, true);
+                                    updatePanelByEditor({
+                                        protyle: this.protyle,
+                                        focus: false,
+                                        pushBackStack: false,
+                                        reload: true,
+                                        resize: false
+                                    });
                                 }
                                 /// #endif
                             }
@@ -186,56 +203,115 @@ export class Protyle {
                 removeLoading(this.protyle);
                 return;
             }
-            fetchPost("/api/filetree/getDoc", {
-                id: options.blockId,
-                k: options.key || "",
-                isBacklink: mergedOptions.action.includes(Constants.CB_GET_BACKLINK),
-                // 0: 仅当前 ID（默认值），1：向上 2：向下，3：上下都加载，4：加载最后
-                mode: (mergedOptions.action && mergedOptions.action.includes(Constants.CB_GET_CONTEXT)) ? 3 : 0,
-                size: mergedOptions.action?.includes(Constants.CB_GET_ALL) ? Constants.SIZE_GET_MAX : window.siyuan.config.editor.dynamicLoadBlocks,
-            }, getResponse => {
-                onGet(getResponse, this.protyle, mergedOptions.action, options.scrollAttr);
-                if (this.protyle.model) {
-                    /// #if !MOBILE
-                    if (mergedOptions.action?.includes(Constants.CB_GET_FOCUS)) {
-                        setPanelFocus(this.protyle.model.element.parentElement.parentElement);
-                    }
-                    updatePanelByEditor(this.protyle, false);
-                    /// #endif
-                }
-
-                // 需等待 getDoc 完成后再执行，否则在无页签的时候 updatePanelByEditor 会执行2次
-                // 只能用 focusin，否则点击表格无法执行
-                this.protyle.wysiwyg.element.addEventListener("focusin", () => {
-                    /// #if !MOBILE
-                    if (this.protyle && this.protyle.model) {
-                        let needUpdate = true;
-                        if (this.protyle.model.element.parentElement.parentElement.classList.contains("layout__wnd--active") && this.protyle.model.headElement.classList.contains("item--focus")) {
-                            needUpdate = false;
+            if (options.scrollAttr ||
+                (mergedOptions.action.includes(Constants.CB_GET_SCROLL) && this.protyle.options.mode !== "preview")) {
+                if (!options.scrollAttr) {
+                    fetchPost("/api/block/getDocInfo", {
+                        id: options.blockId
+                    }, (response) => {
+                        let scrollObj;
+                        if (response.data.ial.scroll) {
+                            try {
+                                scrollObj = JSON.parse(response.data.ial.scroll.replace(/&quot;/g, '"'));
+                            } catch (e) {
+                                scrollObj = undefined;
+                            }
                         }
-                        if (!needUpdate) {
-                            return;
+                        if (scrollObj) {
+                            getDocByScroll({
+                                protyle: this.protyle,
+                                scrollAttr: scrollObj,
+                                mergedOptions,
+                                cb: () => {
+                                    this.afterOnGet(mergedOptions);
+                                }
+                            });
+                        } else {
+                            this.getDoc(mergedOptions);
                         }
-                        setPanelFocus(this.protyle.model.element.parentElement.parentElement);
-                        updatePanelByEditor(this.protyle, false);
-                    } else {
-                        // 悬浮层应移除其余面板高亮，否则按键会被面板监听到
-                        document.querySelectorAll(".layout__tab--active").forEach(item => {
-                            item.classList.remove("layout__tab--active");
-                        });
-                        document.querySelectorAll(".layout__wnd--active").forEach(item => {
-                            item.classList.remove("layout__wnd--active");
-                        });
-                    }
-                    /// #endif
-                });
-                // 需等渲染完后再回调，用于定位搜索字段 https://github.com/siyuan-note/siyuan/issues/3171
-                if (mergedOptions.after) {
-                    mergedOptions.after(this);
+                    });
+                } else {
+                    getDocByScroll({
+                        protyle: this.protyle,
+                        scrollAttr: options.scrollAttr,
+                        mergedOptions,
+                        cb: () => {
+                            this.afterOnGet(mergedOptions);
+                        }
+                    });
                 }
-            });
+            } else {
+                this.getDoc(mergedOptions);
+            }
         }
         this.protyle.contentElement.classList.add("protyle-content--transition");
+    }
+
+    private getDoc(mergedOptions: IOptions) {
+        fetchPost("/api/filetree/getDoc", {
+            id: mergedOptions.blockId,
+            k: mergedOptions.key || "",
+            isBacklink: mergedOptions.action.includes(Constants.CB_GET_BACKLINK),
+            // 0: 仅当前 ID（默认值），1：向上 2：向下，3：上下都加载，4：加载最后
+            mode: (mergedOptions.action && mergedOptions.action.includes(Constants.CB_GET_CONTEXT)) ? 3 : 0,
+            size: mergedOptions.action?.includes(Constants.CB_GET_ALL) ? Constants.SIZE_GET_MAX : window.siyuan.config.editor.dynamicLoadBlocks,
+        }, getResponse => {
+            onGet(getResponse, this.protyle, mergedOptions.action);
+            this.afterOnGet(mergedOptions);
+        });
+    }
+
+    private afterOnGet(mergedOptions: IOptions) {
+        if (this.protyle.model) {
+            /// #if !MOBILE
+            if (mergedOptions.action?.includes(Constants.CB_GET_FOCUS)) {
+                setPanelFocus(this.protyle.model.element.parentElement.parentElement);
+            }
+            updatePanelByEditor({
+                protyle: this.protyle,
+                focus: false,
+                pushBackStack: false,
+                reload: false,
+                resize: false
+            });
+            /// #endif
+        }
+
+        // 需等待 getDoc 完成后再执行，否则在无页签的时候 updatePanelByEditor 会执行2次
+        // 只能用 focusin，否则点击表格无法执行
+        this.protyle.wysiwyg.element.addEventListener("focusin", () => {
+            /// #if !MOBILE
+            if (this.protyle && this.protyle.model) {
+                let needUpdate = true;
+                if (this.protyle.model.element.parentElement.parentElement.classList.contains("layout__wnd--active") && this.protyle.model.headElement.classList.contains("item--focus")) {
+                    needUpdate = false;
+                }
+                if (!needUpdate) {
+                    return;
+                }
+                setPanelFocus(this.protyle.model.element.parentElement.parentElement);
+                updatePanelByEditor({
+                    protyle: this.protyle,
+                    focus: false,
+                    pushBackStack: false,
+                    reload: false,
+                    resize: false,
+                });
+            } else {
+                // 悬浮层应移除其余面板高亮，否则按键会被面板监听到
+                document.querySelectorAll(".layout__tab--active").forEach(item => {
+                    item.classList.remove("layout__tab--active");
+                });
+                document.querySelectorAll(".layout__wnd--active").forEach(item => {
+                    item.classList.remove("layout__wnd--active");
+                });
+            }
+            /// #endif
+        });
+        // 需等渲染完后再回调，用于定位搜索字段 https://github.com/siyuan-note/siyuan/issues/3171
+        if (mergedOptions.after) {
+            mergedOptions.after(this);
+        }
     }
 
     private init() {

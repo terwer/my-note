@@ -6,6 +6,10 @@ import {MenuItem} from "../menus/Menu";
 import {Menu as SiyuanMenu} from "../menus/Menu";
 import {fetchGet, fetchPost, fetchSyncPost} from "../util/fetch";
 import {isMobile} from "../util/functions";
+/// #if !MOBILE
+import {openFile} from "../editor/util";
+/// #endif
+import {updateHotkeyTip} from "../protyle/util/compatibility";
 
 export class Menu {
     private menu: SiyuanMenu;
@@ -67,14 +71,25 @@ export class Menu {
     }
 }
 
+let openTab;
+/// #if MOBILE
+openTab = () => {
+    // TODO: Mobile
+};
+/// #else
+openTab = openFile;
+/// #endif
+
 export const API = {
     confirm: confirmDialog,
     showMessage,
+    adaptHotkey: updateHotkeyTip,
     fetchPost,
     fetchSyncPost,
     fetchGet,
-    Plugin: Plugin,
+    isMobile,
+    openTab,
+    Plugin,
     Dialog,
     Menu,
-    isMobile
 };

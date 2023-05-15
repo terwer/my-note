@@ -325,10 +325,6 @@ export class Backlink extends Model {
         });
 
         this.searchBacklinks(true);
-
-        if (this.type === "pin") {
-            setPanelFocus(this.element);
-        }
     }
 
     private setFocus() {
@@ -641,6 +637,6 @@ export class Backlink extends Model {
         setTimeout(() => {
             this.tree.element.scrollTop = this.status[this.blockId].scrollTop;
             this.mTree.element.scrollTop = this.status[this.blockId].mScrollTop;
-        }, Constants.TIMEOUT_BLOCKLOAD);
+        }, Constants.TIMEOUT_LOAD);
     }
 }
