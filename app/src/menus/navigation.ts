@@ -13,11 +13,14 @@ import * as path from "path";
 import {MenuItem} from "./Menu";
 import {getDisplayName, getNotebookName, getTopPaths, pathPosix} from "../util/pathName";
 import {hideMessage, showMessage} from "../dialog/message";
-import {fetchPost} from "../util/fetch";
+import {fetchPost, fetchSyncPost} from "../util/fetch";
 import {onGetnotebookconf} from "./onGetnotebookconf";
 /// #if !MOBILE
 import {openSearch} from "../search/spread";
 import {openFileById} from "../editor/util";
+/// #else
+import {closePanel} from "../mobile/util/closePanel";
+import {popSearch} from "../mobile/menu/search";
 /// #endif
 import {Constants} from "../constants";
 import {newFile} from "../util/newFile";
@@ -27,10 +30,6 @@ import {getDockByType} from "../layout/util";
 import {Files} from "../layout/dock/Files";
 import {openNewWindowById} from "../window/openNewWindow";
 import {openCardByData} from "../card/openCard";
-import {escapeHtml} from "../util/escape";
-/// #if MOBILE
-import {closePanel} from "../mobile/util/closePanel";
-/// #endif
 import {viewCards} from "../card/viewCards";
 
 const initMultiMenu = (selectItemElements: NodeListOf<Element>) => {
@@ -94,7 +93,7 @@ export const initNavigationMenu = (liElement: HTMLElement) => {
                 });
             }
         }).element);
-        sortMenu("notebook", parseInt(liElement.parentElement.getAttribute("data-sortmode")), (sort) => {
+        const subMenu = sortMenu("notebook", parseInt(liElement.parentElement.getAttribute("data-sortmode")), (sort) => {
             fetchPost("/api/notebook/setNotebookConf", {
                 notebook: notebookId,
                 conf: {
@@ -117,6 +116,12 @@ export const initNavigationMenu = (liElement: HTMLElement) => {
             });
             return true;
         });
+        window.siyuan.menus.menu.append(new MenuItem({
+            icon: "iconSort",
+            label: window.siyuan.languages.sort,
+            type: "submenu",
+            submenu: subMenu,
+        }).element);
     }
     window.siyuan.menus.menu.append(new MenuItem({
         label: window.siyuan.languages.riffCard,
@@ -125,9 +130,10 @@ export const initNavigationMenu = (liElement: HTMLElement) => {
         submenu: [{
             iconHTML: Constants.ZWSP,
             label: window.siyuan.languages.spaceRepetition,
+            accelerator: window.siyuan.config.keymap.editor.general.spaceRepetition.custom,
             click: () => {
                 fetchPost("/api/riff/getNotebookRiffDueCards", {notebook: notebookId}, (response) => {
-                    openCardByData(response.data, `<span data-notebookid="${notebookId}" class="fn__flex-center">${escapeHtml(name)}</span>`);
+                    openCardByData(response.data, "notebook", notebookId, name);
                 });
                 /// #if MOBILE
                 closePanel();
@@ -144,25 +150,58 @@ export const initNavigationMenu = (liElement: HTMLElement) => {
             }
         }],
     }).element);
-    /// #if !MOBILE
     window.siyuan.menus.menu.append(new MenuItem({
         label: window.siyuan.languages.search,
         accelerator: window.siyuan.config.keymap.general.search.custom,
         icon: "iconSearch",
         click() {
+            /// #if MOBILE
+            const localData = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+            popSearch({
+                removed: localData.removed,
+                sort: localData.sort,
+                group: localData.group,
+                hasReplace: false,
+                method: localData.method,
+                hPath: getNotebookName(notebookId),
+                idPath: [notebookId],
+                k: localData.k,
+                r: localData.r,
+                page: 1,
+                types: Object.assign({}, localData.types)
+            });
+            /// #else
             openSearch(window.siyuan.config.keymap.general.search.custom, undefined, notebookId);
+            /// #endif
         }
     }).element);
     if (!window.siyuan.config.readonly) {
         window.siyuan.menus.menu.append(new MenuItem({
             label: window.siyuan.languages.replace,
             accelerator: window.siyuan.config.keymap.general.replace.custom,
+            icon: "iconReplace",
             click() {
+                /// #if MOBILE
+                const localData = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+                popSearch({
+                    removed: localData.removed,
+                    sort: localData.sort,
+                    group: localData.group,
+                    hasReplace: true,
+                    method: localData.method,
+                    hPath: getNotebookName(notebookId),
+                    idPath: [notebookId],
+                    k: localData.k,
+                    r: localData.r,
+                    page: 1,
+                    types: Object.assign({}, localData.types)
+                });
+                /// #else
                 openSearch(window.siyuan.config.keymap.general.replace.custom, undefined, notebookId);
+                /// #endif
             }
         }).element);
     }
-    /// #endif
     if (!window.siyuan.config.readonly) {
         window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
         window.siyuan.menus.menu.append(new MenuItem({
@@ -334,9 +373,10 @@ export const initFileMenu = (notebookId: string, pathString: string, liElement: 
             submenu: [{
                 iconHTML: Constants.ZWSP,
                 label: window.siyuan.languages.spaceRepetition,
+                accelerator: window.siyuan.config.keymap.editor.general.spaceRepetition.custom,
                 click: () => {
                     fetchPost("/api/riff/getTreeRiffDueCards", {rootID: id}, (response) => {
-                        openCardByData(response.data, `<span data-id="${id}"  class="fn__flex-center">${name}</span>`);
+                        openCardByData(response.data, "doc", id, name);
                     });
                     /// #if MOBILE
                     closePanel();
@@ -357,23 +397,66 @@ export const initFileMenu = (notebookId: string, pathString: string, liElement: 
                 }
             }],
         }).element);
-        /// #if !MOBILE
         window.siyuan.menus.menu.append(new MenuItem({
             label: window.siyuan.languages.search,
             icon: "iconSearch",
             accelerator: window.siyuan.config.keymap.general.search.custom,
-            click() {
-                openSearch(window.siyuan.config.keymap.general.search.custom, undefined, notebookId, getDisplayName(pathString, false, true));
+            async click() {
+                const searchPath = getDisplayName(pathString, false, true);
+                /// #if MOBILE
+                const response = await fetchSyncPost("/api/filetree/getHPathByPath", {
+                    notebook: notebookId,
+                    path: searchPath + ".sy"
+                });
+                const localData = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+                popSearch({
+                    removed: localData.removed,
+                    sort: localData.sort,
+                    group: localData.group,
+                    hasReplace: false,
+                    method: localData.method,
+                    hPath: pathPosix().join(getNotebookName(notebookId), response.data),
+                    idPath: [pathPosix().join(notebookId, searchPath)],
+                    k: localData.k,
+                    r: localData.r,
+                    page: 1,
+                    types: Object.assign({}, localData.types)
+                });
+                /// #else
+                openSearch(window.siyuan.config.keymap.general.search.custom, undefined, notebookId, searchPath);
+                /// #endif
             }
         }).element);
         window.siyuan.menus.menu.append(new MenuItem({
             label: window.siyuan.languages.replace,
             accelerator: window.siyuan.config.keymap.general.replace.custom,
-            click() {
-                openSearch(window.siyuan.config.keymap.general.replace.custom, undefined, notebookId, getDisplayName(pathString, false, true));
+            icon: "iconReplace",
+            async click() {
+                const searchPath = getDisplayName(pathString, false, true);
+                /// #if MOBILE
+                const response = await fetchSyncPost("/api/filetree/getHPathByPath", {
+                    notebook: notebookId,
+                    path: searchPath + ".sy"
+                });
+                const localData = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+                popSearch({
+                    removed: localData.removed,
+                    sort: localData.sort,
+                    group: localData.group,
+                    hasReplace: true,
+                    method: localData.method,
+                    hPath: pathPosix().join(getNotebookName(notebookId), response.data),
+                    idPath: [pathPosix().join(notebookId, searchPath)],
+                    k: localData.k,
+                    r: localData.r,
+                    page: 1,
+                    types: Object.assign({}, localData.types)
+                });
+                /// #else
+                openSearch(window.siyuan.config.keymap.general.replace.custom, undefined, notebookId, searchPath);
+                /// #endif
             }
         }).element);
-        /// #endif
         window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
     }
     /// #if !MOBILE
@@ -514,7 +597,7 @@ const genImportMenu = (notebookId: string, pathString: string) => {
 };
 
 export const sortMenu = (type: "notebooks" | "notebook", sortMode: number, clickEvent: (sort: number) => void) => {
-    const submenu: IMenu[] = [{
+    const sortMenu: IMenu[] = [{
         icon: sortMode === 0 ? "iconSelect" : undefined,
         label: window.siyuan.languages.fileNameASC,
         click: () => {
@@ -606,7 +689,7 @@ export const sortMenu = (type: "notebooks" | "notebook", sortMode: number, click
         }
     }];
     if (type === "notebook") {
-        submenu.push({
+        sortMenu.push({
             icon: sortMode === 15 ? "iconSelect" : undefined,
             label: window.siyuan.languages.sortByFiletree,
             click: () => {
@@ -614,10 +697,5 @@ export const sortMenu = (type: "notebooks" | "notebook", sortMode: number, click
             }
         });
     }
-    window.siyuan.menus.menu.append(new MenuItem({
-        icon: "iconSort",
-        label: window.siyuan.languages.sort,
-        type: "submenu",
-        submenu,
-    }).element);
+    return sortMenu;
 };

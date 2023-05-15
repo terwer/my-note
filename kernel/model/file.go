@@ -36,9 +36,9 @@ import (
 	util2 "github.com/88250/lute/util"
 	"github.com/dustin/go-humanize"
 	"github.com/facette/natsort"
-	"github.com/gin-gonic/gin"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/riff"
 	"github.com/siyuan-note/siyuan/kernel/cache"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/search"
@@ -66,6 +66,10 @@ type File struct {
 	HCtime       string `json:"hCtime"`
 	Sort         int    `json:"sort"`
 	SubFileCount int    `json:"subFileCount"`
+
+	NewFlashcardCount int `json:"newFlashcardCount"`
+	DueFlashcardCount int `json:"dueFlashcardCount"`
+	FlashcardCount    int `json:"flashcardCount"`
 }
 
 func (box *Box) docFromFileInfo(fileInfo *FileInfo, ial map[string]string) (ret *File) {
@@ -142,8 +146,19 @@ func (box *Box) moveCorruptedData(filePath string) {
 	logging.LogWarnf("moved corrupted data file [%s] to [%s]", filePath, to)
 }
 
-func SearchDocsByKeyword(keyword string) (ret []map[string]string) {
+func SearchDocsByKeyword(keyword string, flashcard bool) (ret []map[string]string) {
 	ret = []map[string]string{}
+
+	var deck *riff.Deck
+	var deckBlockIDs []string
+	if flashcard {
+		deck = Decks[builtinDeckID]
+		if nil == deck {
+			return
+		}
+
+		deckBlockIDs = deck.GetBlockIDs()
+	}
 
 	openedBoxes := Conf.GetOpenedBoxes()
 	boxes := map[string]*Box{}
@@ -155,7 +170,14 @@ func SearchDocsByKeyword(keyword string) (ret []map[string]string) {
 	if "" != keyword {
 		for _, box := range boxes {
 			if strings.Contains(box.Name, keyword) {
-				ret = append(ret, map[string]string{"path": "/", "hPath": box.Name + "/", "box": box.ID, "boxIcon": box.Icon})
+				if flashcard {
+					newFlashcardCount, dueFlashcardCount, flashcardCount := countBoxFlashcard(box.ID, deck, deckBlockIDs)
+					if 0 < flashcardCount {
+						ret = append(ret, map[string]string{"path": "/", "hPath": box.Name + "/", "box": box.ID, "boxIcon": box.Icon, "newFlashcardCount": strconv.Itoa(newFlashcardCount), "dueFlashcardCount": strconv.Itoa(dueFlashcardCount), "flashcardCount": strconv.Itoa(flashcardCount)})
+					}
+				} else {
+					ret = append(ret, map[string]string{"path": "/", "hPath": box.Name + "/", "box": box.ID, "boxIcon": box.Icon})
+				}
 			}
 		}
 
@@ -169,17 +191,31 @@ func SearchDocsByKeyword(keyword string) (ret []map[string]string) {
 		rootBlocks = sql.QueryRootBlockByCondition(condition)
 	} else {
 		for _, box := range boxes {
-			ret = append(ret, map[string]string{"path": "/", "hPath": box.Name + "/", "box": box.ID, "boxIcon": box.Icon})
+			if flashcard {
+				newFlashcardCount, dueFlashcardCount, flashcardCount := countBoxFlashcard(box.ID, deck, deckBlockIDs)
+				if 0 < flashcardCount {
+					ret = append(ret, map[string]string{"path": "/", "hPath": box.Name + "/", "box": box.ID, "boxIcon": box.Icon, "newFlashcardCount": strconv.Itoa(newFlashcardCount), "dueFlashcardCount": strconv.Itoa(dueFlashcardCount), "flashcardCount": strconv.Itoa(flashcardCount)})
+				}
+			} else {
+				ret = append(ret, map[string]string{"path": "/", "hPath": box.Name + "/", "box": box.ID, "boxIcon": box.Icon})
+			}
 		}
 	}
 
-	for _, block := range rootBlocks {
-		b := boxes[block.Box]
+	for _, rootBlock := range rootBlocks {
+		b := boxes[rootBlock.Box]
 		if nil == b {
 			continue
 		}
-		hPath := b.Name + block.HPath
-		ret = append(ret, map[string]string{"path": block.Path, "hPath": hPath, "box": block.Box, "boxIcon": b.Icon})
+		hPath := b.Name + rootBlock.HPath
+		if flashcard {
+			newFlashcardCount, dueFlashcardCount, flashcardCount := countTreeFlashcard(rootBlock.ID, deck, deckBlockIDs)
+			if 0 < flashcardCount {
+				ret = append(ret, map[string]string{"path": rootBlock.Path, "hPath": hPath, "box": rootBlock.Box, "boxIcon": b.Icon, "newFlashcardCount": strconv.Itoa(newFlashcardCount), "dueFlashcardCount": strconv.Itoa(dueFlashcardCount), "flashcardCount": strconv.Itoa(flashcardCount)})
+			}
+		} else {
+			ret = append(ret, map[string]string{"path": rootBlock.Path, "hPath": hPath, "box": rootBlock.Box, "boxIcon": b.Icon})
+		}
 	}
 
 	sort.Slice(ret, func(i, j int) bool {
@@ -195,7 +231,7 @@ type FileInfo struct {
 	isdir bool
 }
 
-func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err error) {
+func ListDocTree(boxID, path string, sortMode int, flashcard bool, maxListCount int) (ret []*File, totals int, err error) {
 	//os.MkdirAll("pprof", 0755)
 	//cpuProfile, _ := os.Create("pprof/cpu_profile_list_doc_tree")
 	//pprof.StartCPUProfile(cpuProfile)
@@ -203,14 +239,29 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 
 	ret = []*File{}
 
+	var deck *riff.Deck
+	var deckBlockIDs []string
+	if flashcard {
+		deck = Decks[builtinDeckID]
+		if nil == deck {
+			return
+		}
+
+		deckBlockIDs = deck.GetBlockIDs()
+	}
+
 	box := Conf.Box(boxID)
 	if nil == box {
 		return nil, 0, errors.New(Conf.Language(0))
 	}
 
 	boxConf := box.GetConf()
-	if util.SortModeFileTree != boxConf.SortMode {
-		sortMode = boxConf.SortMode
+
+	if util.SortModeUnassigned == sortMode {
+		sortMode = Conf.FileTree.Sort
+		if util.SortModeFileTree != boxConf.SortMode {
+			sortMode = boxConf.SortMode
+		}
 	}
 
 	var files []*FileInfo
@@ -248,7 +299,19 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 						}
 					}
 				}
-				docs = append(docs, doc)
+
+				if flashcard {
+					rootID := strings.TrimSuffix(filepath.Base(parentDocPath), ".sy")
+					newFlashcardCount, dueFlashcardCount, flashcardCount := countTreeFlashcard(rootID, deck, deckBlockIDs)
+					if 0 < flashcardCount {
+						doc.NewFlashcardCount = newFlashcardCount
+						doc.DueFlashcardCount = dueFlashcardCount
+						doc.FlashcardCount = flashcardCount
+						docs = append(docs, doc)
+					}
+				} else {
+					docs = append(docs, doc)
+				}
 			}
 			continue
 		}
@@ -260,8 +323,19 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 
 		if ial := box.docIAL(file.path); nil != ial {
 			doc := box.docFromFileInfo(file, ial)
-			docs = append(docs, doc)
-			continue
+
+			if flashcard {
+				rootID := strings.TrimSuffix(filepath.Base(file.path), ".sy")
+				newFlashcardCount, dueFlashcardCount, flashcardCount := countTreeFlashcard(rootID, deck, deckBlockIDs)
+				if 0 < flashcardCount {
+					doc.NewFlashcardCount = newFlashcardCount
+					doc.DueFlashcardCount = dueFlashcardCount
+					doc.FlashcardCount = flashcardCount
+					docs = append(docs, doc)
+				}
+			} else {
+				docs = append(docs, doc)
+			}
 		}
 	}
 	elapsed = time.Now().Sub(start).Milliseconds()
@@ -313,8 +387,8 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 			return fileTreeFiles[i].Sort < fileTreeFiles[j].Sort
 		})
 		ret = append(ret, fileTreeFiles...)
-		if Conf.FileTree.MaxListCount < len(ret) {
-			ret = ret[:Conf.FileTree.MaxListCount]
+		if maxListCount < len(ret) {
+			ret = ret[:maxListCount]
 		}
 		ret = ret[:]
 		return
@@ -340,8 +414,8 @@ func ListDocTree(boxID, path string, sortMode int) (ret []*File, totals int, err
 		ret = append(ret, docs...)
 	}
 
-	if Conf.FileTree.MaxListCount < len(ret) {
-		ret = ret[:Conf.FileTree.MaxListCount]
+	if maxListCount < len(ret) {
+		ret = ret[:maxListCount]
 	}
 	ret = ret[:]
 
@@ -448,10 +522,6 @@ func GetDoc(startID, endID, id string, index int, keyword string, mode int, size
 		if ast.NodeParagraph == node.Type {
 			if nil != node.Parent && ast.NodeListItem == node.Parent.Type {
 				node = node.Parent
-			} else {
-				if parent := treenode.HeadingParent(node); nil != parent && ast.NodeDocument != parent.Type {
-					node = parent
-				}
 			}
 		}
 	}
@@ -626,7 +696,7 @@ func GetDoc(startID, endID, id string, index int, keyword string, mode int, size
 			// 支持代码块搜索定位 https://github.com/siyuan-note/siyuan/issues/5520
 			if ast.NodeCodeBlockCode == n.Type && 0 < len(keywords) && !treenode.IsChartCodeBlockCode(n) {
 				text := string(n.Tokens)
-				text = search.EncloseHighlighting(text, keywords, search.SearchMarkLeft, search.SearchMarkRight, Conf.Search.CaseSensitive)
+				text = search.EncloseHighlighting(text, keywords, search.SearchMarkLeft, search.SearchMarkRight, Conf.Search.CaseSensitive, false)
 				n.Tokens = gulu.Str.ToBytes(text)
 			}
 
@@ -917,7 +987,7 @@ func CreateDocByMd(boxID, p, title, md string, sorts []string) (tree *parse.Tree
 	return
 }
 
-func CreateWithMarkdown(boxID, hPath, md string) (id string, err error) {
+func CreateWithMarkdown(boxID, hPath, md, parentID string) (id string, err error) {
 	box := Conf.Box(boxID)
 	if nil == box {
 		err = errors.New(Conf.Language(0))
@@ -927,7 +997,7 @@ func CreateWithMarkdown(boxID, hPath, md string) (id string, err error) {
 	WaitForWritingFiles()
 	luteEngine := util.NewLute()
 	dom := luteEngine.Md2BlockDOM(md, false)
-	id, _, err = createDocsByHPath(box.ID, hPath, dom)
+	id, _, err = createDocsByHPath(box.ID, hPath, dom, parentID)
 	return
 }
 
@@ -1330,7 +1400,7 @@ func CreateDailyNote(boxID string) (p string, existed bool, err error) {
 		return
 	}
 
-	id, existed, err := createDocsByHPath(box.ID, hPath, "")
+	id, existed, err := createDocsByHPath(box.ID, hPath, "", "")
 	if nil != err {
 		return
 	}
@@ -1640,10 +1710,4 @@ func (box *Box) removeSort(ids []string) {
 		logging.LogErrorf("write sort conf failed: %s", err)
 		return
 	}
-}
-
-func ServeFile(c *gin.Context, filePath string) (err error) {
-	WaitForWritingFiles()
-	c.File(filePath)
-	return
 }

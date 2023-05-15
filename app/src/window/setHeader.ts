@@ -2,6 +2,10 @@ import {isWindow} from "../util/functions";
 import {Wnd} from "../layout/Wnd";
 import {getCurrentWindow} from "@electron/remote";
 import {Layout} from "../layout";
+import {getAllTabs} from "../layout/getAll";
+import {Editor} from "../editor";
+import {Asset} from "../asset";
+import {Constants} from "../constants";
 
 const getAllWnds = (layout: Layout, wnds: Wnd[]) => {
     for (let i = 0; i < layout.children.length; i++) {
@@ -13,6 +17,7 @@ const getAllWnds = (layout: Layout, wnds: Wnd[]) => {
         }
     }
 };
+
 export const setTabPosition = () => {
     if (!isWindow()) {
         return;
@@ -34,19 +39,40 @@ export const setTabPosition = () => {
         const headersLastElement = headerElement.lastElementChild as HTMLElement;
         if ("darwin" === window.siyuan.config.system.os) {
             if (rect.top <= 0 && rect.left <= 0 && !getCurrentWindow().isFullScreen()) {
-                item.headersElement.style.paddingLeft = "69px";
+                item.headersElement.style.marginLeft = "var(--b3-toolbar-left-mac)";
                 headersLastElement.style.paddingRight = "42px";
             } else {
-                item.headersElement.style.paddingLeft = "";
-                headersLastElement.style.paddingRight = "";
-            }
-        } else {
-            // 显示器缩放后像素存在小数点偏差 https://github.com/siyuan-note/siyuan/issues/7355
-            if (rect.top <= 0 && rect.right + 8 >= window.innerWidth) {
-                headersLastElement.style.paddingRight = (42 * 4) + "px";
-            } else {
+                item.headersElement.style.marginLeft = "";
                 headersLastElement.style.paddingRight = "";
             }
         }
+        // 显示器缩放后像素存在小数点偏差 https://github.com/siyuan-note/siyuan/issues/7355
+        if (rect.top <= 0 && rect.right + 8 >= window.innerWidth) {
+            headersLastElement.style.paddingRight = (42 * ("darwin" === window.siyuan.config.system.os ? 1 : 4)) + "px";
+        } else {
+            headersLastElement.style.paddingRight = "";
+        }
     });
+};
+
+
+export const setModelsHash = () => {
+    if (!isWindow()) {
+        return;
+    }
+    let hash = "";
+    getAllTabs().forEach(tab => {
+        if (!tab.model) {
+            const initTab = tab.headElement.getAttribute("data-initdata");
+            if (initTab) {
+                const initTabData = JSON.parse(initTab);
+                hash += initTabData.rootId + Constants.ZWSP;
+            }
+        } else if (tab.model instanceof Editor) {
+            hash += tab.model.editor.protyle.block.rootID + Constants.ZWSP;
+        } else if (tab.model instanceof Asset) {
+            hash += tab.model.path + Constants.ZWSP;
+        }
+    });
+    window.location.hash = hash;
 };

@@ -29,14 +29,6 @@ export const exportConfig = {
 </label>
 <label class="fn__flex b3-label">
     <div class="fn__flex-1">
-        ${window.siyuan.languages.export21}
-        <div class="b3-label__text">${window.siyuan.languages.export22}</div>
-    </div>
-    <span class="fn__space"></span>
-    <input class="b3-switch fn__flex-center" id="addFooter" type="checkbox"${window.siyuan.config.export.addFooter ? " checked" : ""}/>
-</label>
-<label class="fn__flex b3-label">
-    <div class="fn__flex-1">
         ${window.siyuan.languages.export23}
         <div class="b3-label__text">${window.siyuan.languages.export24}</div>
     </div>
@@ -45,7 +37,7 @@ export const exportConfig = {
 </label>
 <label class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
-        ${window.siyuan.languages.blockRef}
+        ${window.siyuan.languages.ref}
         <div class="b3-label__text">${window.siyuan.languages.export11}</div>
     </div>
     <span class="fn__space"></span>
@@ -76,6 +68,13 @@ export const exportConfig = {
         <option value="0" ${window.siyuan.config.export.fileAnnotationRefMode === 0 ? "selected" : ""}>${window.siyuan.languages.export7}</option>
         <option value="1" ${window.siyuan.config.export.fileAnnotationRefMode === 1 ? "selected" : ""}>${window.siyuan.languages.export8}</option>
     </select>
+</label>
+<label class="fn__flex b3-label config__item">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.export21}
+        <div class="b3-label__text">${window.siyuan.languages.export22}</div>
+    </div>
+    <input class="b3-text-field fn__flex-center fn__size200" id="pdfFooter">
 </label>
 <label class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
@@ -128,6 +127,7 @@ export const exportConfig = {
 </div>`;
     },
     bindEvent: () => {
+        (exportConfig.element.querySelector("#pdfFooter") as HTMLInputElement).value = window.siyuan.config.export.pdfFooter;
         (exportConfig.element.querySelector("#blockRefTextLeft") as HTMLInputElement).value = window.siyuan.config.export.blockRefTextLeft;
         (exportConfig.element.querySelector("#blockRefTextRight") as HTMLInputElement).value = window.siyuan.config.export.blockRefTextRight;
         (exportConfig.element.querySelector("#tagOpenMarker") as HTMLInputElement).value = window.siyuan.config.export.tagOpenMarker;
@@ -137,11 +137,11 @@ export const exportConfig = {
             fetchPost("/api/setting/setExport", {
                 paragraphBeginningSpace: (exportConfig.element.querySelector("#paragraphBeginningSpace") as HTMLInputElement).checked,
                 addTitle: (exportConfig.element.querySelector("#addTitle") as HTMLInputElement).checked,
-                addFooter: (exportConfig.element.querySelector("#addFooter") as HTMLInputElement).checked,
                 markdownYFM: (exportConfig.element.querySelector("#markdownYFM") as HTMLInputElement).checked,
                 blockRefMode: parseInt((exportConfig.element.querySelector("#blockRefMode") as HTMLSelectElement).value, 10),
                 blockEmbedMode: parseInt((exportConfig.element.querySelector("#blockEmbedMode") as HTMLSelectElement).value, 10),
                 fileAnnotationRefMode: parseInt((exportConfig.element.querySelector("#fileAnnotationRefMode") as HTMLSelectElement).value, 10),
+                pdfFooter: (exportConfig.element.querySelector("#pdfFooter") as HTMLInputElement).value,
                 blockRefTextLeft: (exportConfig.element.querySelector("#blockRefTextLeft") as HTMLInputElement).value,
                 blockRefTextRight: (exportConfig.element.querySelector("#blockRefTextRight") as HTMLInputElement).value,
                 tagOpenMarker: (exportConfig.element.querySelector("#tagOpenMarker") as HTMLInputElement).value,

@@ -95,12 +95,12 @@ func setFlashcard(c *gin.Context) {
 		return
 	}
 
-	if 1 > flashcard.NewCardLimit {
-		flashcard.NewCardLimit = 1
+	if 0 > flashcard.NewCardLimit {
+		flashcard.NewCardLimit = 20
 	}
 
-	if 1 > flashcard.ReviewCardLimit {
-		flashcard.ReviewCardLimit = 1
+	if 0 > flashcard.ReviewCardLimit {
+		flashcard.ReviewCardLimit = 200
 	}
 
 	model.Conf.Flashcard = flashcard
@@ -437,43 +437,6 @@ func login2faCloudUser(c *gin.Context) {
 		return
 	}
 	ret.Data = data
-}
-
-func getCustomCSS(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	themeName := arg["theme"].(string)
-	customCSS, err := model.ReadCustomCSS(themeName)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-	ret.Data = customCSS
-}
-
-func setCustomCSS(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	themeName := arg["theme"].(string)
-	css := arg["css"].(map[string]interface{})
-	if err := model.WriteCustomCSS(themeName, css); nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
 }
 
 func setEmoji(c *gin.Context) {

@@ -17,7 +17,6 @@
 package model
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/fsnotify/fsnotify"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/bazaar"
 	"github.com/siyuan-note/siyuan/kernel/util"
@@ -42,7 +42,7 @@ func InitAppearance() {
 
 	unloadThemes()
 	from := filepath.Join(util.WorkingDir, "appearance")
-	if err := gulu.File.Copy(from, util.AppearancePath); nil != err {
+	if err := filelock.Copy(from, util.AppearancePath); nil != err {
 		logging.LogErrorf("copy appearance resources from [%s] to [%s] failed: %s", from, util.AppearancePath, err)
 		util.ReportFileSysFatalError(err)
 		return
@@ -116,7 +116,7 @@ func loadThemes() {
 			continue
 		}
 
-		modes := themeConf["modes"].([]interface{})
+		modes := themeConf.Modes
 		for _, mode := range modes {
 			if "dark" == mode {
 				Conf.Appearance.DarkThemes = append(Conf.Appearance.DarkThemes, name)
@@ -127,84 +127,18 @@ func loadThemes() {
 
 		if 0 == Conf.Appearance.Mode {
 			if Conf.Appearance.ThemeLight == name {
-				Conf.Appearance.ThemeVer = themeConf["version"].(string)
+				Conf.Appearance.ThemeVer = themeConf.Version
 				Conf.Appearance.ThemeJS = gulu.File.IsExist(filepath.Join(util.ThemesPath, name, "theme.js"))
 			}
 		} else {
 			if Conf.Appearance.ThemeDark == name {
-				Conf.Appearance.ThemeVer = themeConf["version"].(string)
+				Conf.Appearance.ThemeVer = themeConf.Version
 				Conf.Appearance.ThemeJS = gulu.File.IsExist(filepath.Join(util.ThemesPath, name, "theme.js"))
 			}
 		}
 
 		go watchTheme(filepath.Join(util.ThemesPath, name))
 	}
-}
-
-func iconJSON(iconName string) (ret map[string]interface{}, err error) {
-	p := filepath.Join(util.IconsPath, iconName, "icon.json")
-	if !gulu.File.IsExist(p) {
-		err = os.ErrNotExist
-		return
-	}
-	data, err := os.ReadFile(p)
-	if nil != err {
-		logging.LogErrorf("read icon.json [%s] failed: %s", p, err)
-		return
-	}
-	if err = gulu.JSON.UnmarshalJSON(data, &ret); nil != err {
-		logging.LogErrorf("parse icon.json [%s] failed: %s", p, err)
-		return
-	}
-	if 4 > len(ret) {
-		logging.LogWarnf("invalid icon.json [%s]", p)
-		return nil, errors.New("invalid icon.json")
-	}
-	return
-}
-
-func templateJSON(templateName string) (ret map[string]interface{}, err error) {
-	p := filepath.Join(util.DataDir, "templates", templateName, "template.json")
-	if !gulu.File.IsExist(p) {
-		err = os.ErrNotExist
-		return
-	}
-	data, err := os.ReadFile(p)
-	if nil != err {
-		logging.LogErrorf("read template.json [%s] failed: %s", p, err)
-		return
-	}
-	if err = gulu.JSON.UnmarshalJSON(data, &ret); nil != err {
-		logging.LogErrorf("parse template.json [%s] failed: %s", p, err)
-		return
-	}
-	if 4 > len(ret) {
-		logging.LogWarnf("invalid template.json [%s]", p)
-		return nil, errors.New("invalid template.json")
-	}
-	return
-}
-
-func widgetJSON(widgetName string) (ret map[string]interface{}, err error) {
-	p := filepath.Join(util.DataDir, "widgets", widgetName, "widget.json")
-	if !gulu.File.IsExist(p) {
-		err = os.ErrNotExist
-		return
-	}
-	data, err := os.ReadFile(p)
-	if nil != err {
-		logging.LogErrorf("read widget.json [%s] failed: %s", p, err)
-		return
-	}
-	if err = gulu.JSON.UnmarshalJSON(data, &ret); nil != err {
-		logging.LogErrorf("parse widget.json [%s] failed: %s", p, err)
-		return
-	}
-	if 4 > len(ret) {
-		logging.LogWarnf("invalid widget.json [%s]", p)
-		return nil, errors.New("invalid widget.json")
-	}
-	return
 }
 
 func loadIcons() {
@@ -221,13 +155,13 @@ func loadIcons() {
 			continue
 		}
 		name := iconDir.Name()
-		iconConf, err := iconJSON(name)
+		iconConf, err := bazaar.IconJSON(name)
 		if nil != err || nil == iconConf {
 			continue
 		}
 		Conf.Appearance.Icons = append(Conf.Appearance.Icons, name)
 		if Conf.Appearance.Icon == name {
-			Conf.Appearance.IconVer = iconConf["version"].(string)
+			Conf.Appearance.IconVer = iconConf.Version
 		}
 	}
 }
@@ -265,8 +199,7 @@ func watchTheme(folder string) {
 				}
 
 				//logging.LogInfof(event.String())
-				if event.Op&fsnotify.Write == fsnotify.Write &&
-					(strings.HasSuffix(event.Name, "theme.css") || strings.HasSuffix(event.Name, "custom.css")) {
+				if event.Op&fsnotify.Write == fsnotify.Write && (strings.HasSuffix(event.Name, "theme.css")) {
 					var themeName string
 					if themeName = isCurrentUseTheme(event.Name); "" == themeName {
 						break
@@ -275,13 +208,6 @@ func watchTheme(folder string) {
 					if strings.HasSuffix(event.Name, "theme.css") {
 						util.BroadcastByType("main", "refreshtheme", 0, "", map[string]interface{}{
 							"theme": "/appearance/themes/" + themeName + "/theme.css?" + fmt.Sprintf("%d", time.Now().Unix()),
-						})
-						break
-					}
-
-					if strings.HasSuffix(event.Name, "custom.css") {
-						util.BroadcastByType("main", "refreshtheme", 0, "", map[string]interface{}{
-							"theme": "/appearance/themes/" + themeName + "/custom.css?" + fmt.Sprintf("%d", time.Now().Unix()),
 						})
 						break
 					}

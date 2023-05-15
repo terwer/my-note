@@ -7,7 +7,7 @@
 		"id": "20211226115423-d5z1joq",
 		"title": "請從這裡開始",
 		"title-img": "background-color:#556;background-image: linear-gradient(30deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(150deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(30deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(150deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(60deg, #99a 25%, transparent 25.5%, transparent 75%, #99a 75%, #99a),linear-gradient(60deg, #99a 25%, transparent 25.5%, transparent 75%, #99a 75%, #99a);background-size:80px 140px;background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;",
-		"updated": "20211226115745"
+		"updated": "20230428165314"
 	},
 	"Children": [
 		{
@@ -32,19 +32,44 @@
 			"Properties": {
 				"id": "20211226115745-bygtonj",
 				"style": "color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);",
-				"updated": "20211228142856"
+				"updated": "20230415112512"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "在思源中，唯一重要的核心概念是"
+					"Data": "在"
 				},
 				{
 					"Type": "NodeTextMark",
+					"Properties": {
+						"parent-style": "color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);"
+					},
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20230415112040-xyakvb0",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "思源"
+				},
+				{
+					"Type": "NodeKramdownSpanIAL",
+					"Data": "{: parent-style=\"color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);\"}"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "中，唯一重要的核心概念是"
+				},
+				{
+					"Type": "NodeTextMark",
+					"Properties": {
+						"parent-style": "color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);"
+					},
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20211226120055-9mityht",
 					"TextMarkBlockRefSubtype": "s",
 					"TextMarkTextContent": "內容塊"
+				},
+				{
+					"Type": "NodeKramdownSpanIAL",
+					"Data": "{: parent-style=\"color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);\"}"
 				},
 				{
 					"Type": "NodeText",
@@ -57,7 +82,7 @@
 			"Type": "NodeSuperBlock",
 			"Properties": {
 				"id": "20211226115745-rorv31l",
-				"updated": "20211226115745"
+				"updated": "20230428165314"
 			},
 			"Children": [
 				{
@@ -72,8 +97,7 @@
 					"Type": "NodeSuperBlock",
 					"Properties": {
 						"id": "20211226115745-mwd9by9",
-						"style": "width: 70%; flex: 0 0 auto;",
-						"updated": "20211228143127"
+						"updated": "20230428165314"
 					},
 					"Children": [
 						{
@@ -104,7 +128,7 @@
 							"ListData": {},
 							"Properties": {
 								"id": "20211226115745-f8vrixq",
-								"updated": "20211228143127"
+								"updated": "20230428165314"
 							},
 							"Children": [
 								{
@@ -144,7 +168,7 @@
 									},
 									"Properties": {
 										"id": "20211226115745-uxdpk9r",
-										"updated": "20211225212507"
+										"updated": "20230428165314"
 									},
 									"Children": [
 										{
@@ -152,12 +176,20 @@
 											"Type": "NodeParagraph",
 											"Properties": {
 												"id": "20211226115745-dsexy7c",
-												"updated": "20211225212507"
+												"updated": "20230428165314"
 											},
 											"Children": [
 												{
 													"Type": "NodeText",
-													"Data": "在編輯器中輸入 "
+													"Data": "在"
+												},
+												{
+													"Type": "NodeText",
+													"Data": "編輯器"
+												},
+												{
+													"Type": "NodeText",
+													"Data": "中輸入 "
 												},
 												{
 													"Type": "NodeTextMark",
@@ -166,7 +198,7 @@
 												},
 												{
 													"Type": "NodeText",
-													"Data": " 觸發功能菜單"
+													"Data": "​​ 觸發功能菜單"
 												}
 											]
 										}
@@ -383,7 +415,6 @@
 					"Type": "NodeSuperBlock",
 					"Properties": {
 						"id": "20211226115745-7bnqf8y",
-						"style": "width: 70%; flex: 0 0 auto;",
 						"updated": "20211226115745"
 					},
 					"Children": [
@@ -603,8 +634,14 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226115803-fcyr6ye",
-				"updated": "20211117110704"
-			}
+				"updated": "20230428162727"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "我們希望在接下來的時間裡，思源能夠成為你生活和學習的效率工具，幫助你實現更多的目標和計劃🙏"
+				}
+			]
 		}
 	]
 }

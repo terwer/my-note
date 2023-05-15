@@ -1,6 +1,6 @@
 import {Constants} from "../constants";
 /// #if !BROWSER
-import {app, shell} from "electron";
+import {ipcRenderer, shell} from "electron";
 /// #endif
 import {isBrowser} from "../util/functions";
 import {fetchPost} from "../util/fetch";
@@ -11,7 +11,7 @@ import {openByMobile, writeText} from "../protyle/util/compatibility";
 import {showMessage} from "../dialog/message";
 import {Dialog} from "../dialog";
 import {confirmDialog} from "../dialog/confirmDialog";
-import {setProxy} from "../util/onGetConfig";
+import {setProxy} from "./util/setProxy";
 
 export const about = {
     element: undefined as Element,
@@ -108,6 +108,16 @@ export const about = {
         </button>
     </div>
 </div>
+<label class="fn__flex b3-label config__item">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.dataRepoPurge}
+        <div class="b3-label__text">${window.siyuan.languages.dataRepoPurgeTip}</div>
+    </div>
+    <div class="fn__space"></div>
+    <button id="purgeRepo" class="b3-button b3-button--outline fn__size200 fn__flex-center">
+        <svg><use xlink:href="#iconUpload"></use></svg>${window.siyuan.languages.purge}
+    </button>
+</label>
 <label class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.systemLog}
@@ -305,6 +315,11 @@ export const about = {
                 });
             });
         });
+        about.element.querySelector("#purgeRepo").addEventListener("click", () => {
+            confirmDialog("♻️ " + window.siyuan.languages.dataRepoPurge, window.siyuan.languages.dataRepoPurgeConfirm, () => {
+                fetchPost("/api/repo/purgeRepo");
+            });
+        });
         const networkServeElement = about.element.querySelector("#networkServe") as HTMLInputElement;
         networkServeElement.addEventListener("change", () => {
             fetchPost("/api/system/setNetworkServe", {networkServe: networkServeElement.checked}, () => {
@@ -338,7 +353,7 @@ export const about = {
         autoLaunchElement.addEventListener("change", () => {
             fetchPost("/api/system/setAutoLaunch", {autoLaunch: autoLaunchElement.checked}, () => {
                 window.siyuan.config.system.autoLaunch = autoLaunchElement.checked;
-                app.setLoginItemSettings({openAtLogin: autoLaunchElement.checked});
+                ipcRenderer.send(Constants.SIYUAN_AUTO_LAUNCH, {openAtLogin: autoLaunchElement.checked});
             });
         });
         /// #endif

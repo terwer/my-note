@@ -14,6 +14,113 @@ import {confirmDialog} from "./confirmDialog";
 import {escapeHtml} from "../util/escape";
 import {getWorkspaceName} from "../util/noRelyPCFunction";
 import {needSubscribe} from "../util/needSubscribe";
+import {redirectToCheckAuth, setNoteBook} from "../util/pathName";
+import {getAllModels} from "../layout/getAll";
+import {reloadProtyle} from "../protyle/util/reload";
+import {Tab} from "../layout/Tab";
+import {setEmpty} from "../mobile/util/setEmpty";
+import {hideElements} from "../protyle/ui/hideElements";
+
+const updateTitle = (rootID: string, tab: Tab) => {
+    fetchPost("/api/block/getDocInfo", {
+        id: rootID
+    }, (response) => {
+        tab.updateTitle(response.data.name);
+    });
+};
+
+export const reloadSync = (data: { upsertRootIDs: string[], removeRootIDs: string[] }) => {
+    hideMessage();
+    /// #if MOBILE
+    if (window.siyuan.mobile.popEditor) {
+        if (data.removeRootIDs.includes(window.siyuan.mobile.popEditor.protyle.block.rootID)) {
+            hideElements(["dialog"]);
+        } else {
+            reloadProtyle(window.siyuan.mobile.popEditor.protyle);
+            window.siyuan.mobile.popEditor.protyle.breadcrumb.render(window.siyuan.mobile.popEditor.protyle, true);
+        }
+    }
+    if (window.siyuan.mobile.editor) {
+        if (data.removeRootIDs.includes(window.siyuan.mobile.editor.protyle.block.rootID)) {
+            setEmpty();
+        } else {
+            reloadProtyle(window.siyuan.mobile.editor.protyle);
+            fetchPost("/api/block/getDocInfo", {
+                id: window.siyuan.mobile.editor.protyle.block.rootID
+            }, (response) => {
+                (document.getElementById("toolbarName") as HTMLInputElement).value = response.data.name === "Untitled" ? "" : response.data.name;
+            });
+        }
+    }
+    setNoteBook(() => {
+        window.siyuan.mobile.files.init(false);
+    });
+    /// #else
+    const allModels = getAllModels();
+    allModels.editor.forEach(item => {
+        if (data.upsertRootIDs.includes(item.editor.protyle.block.rootID)) {
+            reloadProtyle(item.editor.protyle);
+            updateTitle(item.editor.protyle.block.rootID, item.parent);
+        } else if (data.removeRootIDs.includes(item.editor.protyle.block.rootID)) {
+            item.parent.parent.removeTab(item.parent.id, false, false, false);
+        }
+    });
+    allModels.graph.forEach(item => {
+        if (item.type === "local" && data.removeRootIDs.includes(item.rootId)) {
+            item.parent.parent.removeTab(item.parent.id, false, false, false);
+        } else if (item.type !== "local" || data.upsertRootIDs.includes(item.rootId)) {
+            item.searchGraph(false);
+            if (item.type === "local") {
+                updateTitle(item.rootId, item.parent);
+            }
+        }
+    });
+    allModels.outline.forEach(item => {
+        if (item.type === "local" && data.removeRootIDs.includes(item.blockId)) {
+            item.parent.parent.removeTab(item.parent.id, false, false, false);
+        } else if (item.type !== "local" || data.upsertRootIDs.includes(item.blockId)) {
+            fetchPost("/api/outline/getDocOutline", {
+                id: item.blockId,
+            }, response => {
+                item.update(response);
+            });
+            if (item.type === "local") {
+                updateTitle(item.blockId, item.parent);
+            }
+        }
+    });
+    allModels.backlink.forEach(item => {
+        if (item.type === "local" && data.removeRootIDs.includes(item.rootId)) {
+            item.parent.parent.removeTab(item.parent.id, false, false, false);
+        } else {
+            item.refresh();
+            if (item.type === "local") {
+                updateTitle(item.rootId, item.parent);
+            }
+        }
+    });
+    allModels.files.forEach(item => {
+        setNoteBook(() => {
+            item.init(false);
+        });
+    });
+    allModels.bookmark.forEach(item => {
+        item.update();
+    });
+    allModels.tag.forEach(item => {
+        item.update();
+    });
+    // NOTE asset 无法获取推送地址，先不处理
+    allModels.search.forEach(item => {
+        item.parent.panelElement.querySelector("#searchInput").dispatchEvent(new CustomEvent("input"));
+    });
+    allModels.custom.forEach(item => {
+        if (item.update) {
+            item.update();
+        }
+    });
+    /// #endif
+};
 
 export const lockScreen = () => {
     if (window.siyuan.config.readonly) {
@@ -21,7 +128,7 @@ export const lockScreen = () => {
     }
     /// #if BROWSER
     fetchPost("/api/system/logoutAuth", {}, () => {
-        window.location.href = `/check-auth?url=${window.location.href}`;
+        redirectToCheckAuth();
     });
     /// #else
     ipcRenderer.send(Constants.SIYUAN_SEND_WINDOWS, {cmd: "lockscreen"});
@@ -29,32 +136,31 @@ export const lockScreen = () => {
 };
 
 export const kernelError = () => {
+    if (document.querySelector("#errorLog")) {
+        return;
+    }
     let iosReStart = "";
     if (window.siyuan.config.system.container === "ios" && window.webkit?.messageHandlers) {
         iosReStart = `<div class="fn__hr"></div><div class="fn__flex"><div class="fn__flex-1"></div><button class="b3-button">${window.siyuan.languages.retry}</button></div>`;
     }
-    const html = `<div class="b3-dialog__scrim"></div>
-<div class="b3-dialog__container" style="width: ${isMobile() ? "80vw" : "520px"}">
-    <div class="b3-dialog__header" onselectstart="return false;">💔 ${window.siyuan.languages.kernelFault0} <small>v${Constants.SIYUAN_VERSION}</small></div>
-    <div class="b3-dialog__content">
-        <p>${window.siyuan.languages.kernelFault1}</p>
-        <div class="fn__hr"></div>
-        <p>${window.siyuan.languages.kernelFault2}</p>
-        ${iosReStart}
-    </div>
-</div>`;
-    let logElement = document.getElementById("errorLog");
-    if (logElement) {
-        logElement.innerHTML = html;
-    } else {
-        document.body.insertAdjacentHTML("beforeend", `<div id="errorLog" class="b3-dialog b3-dialog--open">${html}</div>`);
-        logElement = document.getElementById("errorLog");
-    }
-
-    const restartElement = logElement.querySelector(".b3-button");
-    if (restartElement && window.webkit?.messageHandlers) {
+    const dialog = new Dialog({
+        disableClose: true,
+        title: `💔 ${window.siyuan.languages.kernelFault0} <small>v${Constants.SIYUAN_VERSION}</small>`,
+        width: isMobile() ? "92vw" : "520px",
+        content: `<div class="b3-dialog__content">
+<div class="ft__breakword">
+    <div>${window.siyuan.languages.kernelFault1}</div>
+    <div class="fn__hr"></div>
+    <div>${window.siyuan.languages.kernelFault2}</div>
+    ${iosReStart}
+</div>
+</div>`
+    });
+    dialog.element.id = "errorLog";
+    const restartElement = dialog.element.querySelector(".b3-button");
+    if (restartElement) {
         restartElement.addEventListener("click", () => {
-            logElement.remove();
+            dialog.destroy();
             window.webkit.messageHandlers.startKernelFast.postMessage("startKernelFast");
         });
     }
@@ -132,7 +238,7 @@ export const transactionError = () => {
     <div class="fn__space"></div>
     <button class="b3-button">${window.siyuan.languages.rebuildIndex}</button>
 </div>`,
-        width: isMobile() ? "80vw" : "520px",
+        width: isMobile() ? "92vw" : "520px",
     });
     const btnsElement = dialog.element.querySelectorAll(".b3-button");
     btnsElement[0].addEventListener("click", () => {
@@ -223,7 +329,7 @@ export const bootSync = () => {
     fetchPost("/api/sync/getBootSync", {}, response => {
         if (response.code === 1) {
             const dialog = new Dialog({
-                width: isMobile() ? "80vw" : "50vw",
+                width: isMobile() ? "92vw" : "50vw",
                 title: "🌩️ " + window.siyuan.languages.bootSyncFailed,
                 content: `<div class="b3-dialog__content">${response.msg}</div>
 <div class="b3-dialog__action">

@@ -43,7 +43,7 @@ import (
 var Mode = "prod"
 
 const (
-	Ver       = "2.8.2"
+	Ver       = "2.8.7"
 	IsInsider = false
 )
 
@@ -355,6 +355,11 @@ func initPathDir() {
 		logging.LogFatalf(logging.ExitCodeInitWorkspaceErr, "create data widgets folder [%s] failed: %s", widgets, err)
 	}
 
+	plugins := filepath.Join(DataDir, "plugins")
+	if err := os.MkdirAll(plugins, 0755); nil != err && !os.IsExist(err) {
+		logging.LogFatalf(logging.ExitCodeInitWorkspaceErr, "create data plugins folder [%s] failed: %s", widgets, err)
+	}
+
 	emojis := filepath.Join(DataDir, "emojis")
 	if err := os.MkdirAll(emojis, 0755); nil != err && !os.IsExist(err) {
 		logging.LogFatalf(logging.ExitCodeInitWorkspaceErr, "create data emojis folder [%s] failed: %s", widgets, err)
@@ -380,6 +385,9 @@ func initMime() {
 	mime.AddExtensionType(".dxf", "image/x-dxf")
 	mime.AddExtensionType(".dwf", "drawing/x-dwf")
 	mime.AddExtensionType(".pdf", "application/pdf")
+
+	// 文档数据文件
+	mime.AddExtensionType(".sy", "application/json")
 }
 
 func initPandoc() {

@@ -31,25 +31,18 @@ import (
 	"github.com/siyuan-note/logging"
 )
 
-func IsOnline(checkURL string) bool {
-	if "" == checkURL {
-		if isOnline("https://www.baidu.com") {
-			return true
-		}
-
-		if isOnline("https://icanhazip.com") {
-			return true
-		}
-
-		if isOnline("https://api.ipify.org") {
-			return true
-		}
-
-		logging.LogWarnf("network is offline")
+func IsOnline(checkURL string, skipTlsVerify bool) bool {
+	_, err := url.Parse(checkURL)
+	if nil != err {
+		logging.LogWarnf("invalid check URL [%s]", checkURL)
 		return false
 	}
 
-	if isOnline(checkURL) {
+	if "" == checkURL {
+		return false
+	}
+
+	if isOnline(checkURL, skipTlsVerify) {
 		return true
 	}
 
@@ -57,10 +50,20 @@ func IsOnline(checkURL string) bool {
 	return false
 }
 
-func isOnline(checkURL string) bool {
-	c := req.C().SetTimeout(1 * time.Second)
-	_, err := c.R().Head("https://www.baidu.com")
-	return nil == err
+func isOnline(checkURL string, skipTlsVerify bool) (ret bool) {
+	c := req.C().SetTimeout(3 * time.Second)
+	if skipTlsVerify {
+		c.EnableInsecureSkipVerify()
+	}
+
+	for i := 0; i < 3; i++ {
+		_, err := c.R().Get(checkURL)
+		ret = nil == err
+		if ret {
+			break
+		}
+	}
+	return
 }
 
 func GetRemoteAddr(session *melody.Session) string {

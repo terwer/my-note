@@ -2,6 +2,9 @@ import {Model} from "../layout/Model";
 import {Tab} from "../layout/Tab";
 import {Constants} from "../constants";
 import {setPanelFocus} from "../layout/util";
+/// #if !BROWSER
+import {setModelsHash} from "../window/setHeader";
+/// #endif
 /// #if !MOBILE
 // @ts-ignore
 import {webViewerLoad} from "./pdf/viewer";
@@ -267,10 +270,10 @@ export class Asset extends Model {
                 <button id="sidebarToggle" class="toolbarButton b3-tooltips b3-tooltips__se" aria-expanded="false" aria-controls="sidebarContainer" aria-label="${window.siyuan.languages.toggleSidebarNotification2Title} ${updateHotkeyTip("F4")}">
                     <svg><use xlink:href="#iconLayoutRight"></use></svg>
                 </button>
-                <button id="viewFind" class="toolbarButton b3-tooltips b3-tooltips__s" aria-expanded="false" aria-controls="findbar" aria-label="${window.siyuan.languages.search} ${updateHotkeyTip("⌘F")}">
+                <button id="viewFind" class="toolbarButton b3-tooltips b3-tooltips__se" aria-expanded="false" aria-controls="findbar" aria-label="${window.siyuan.languages.search} ${updateHotkeyTip("⌘F")}">
                   <svg><use xlink:href="#iconSearch"></use></svg>
                 </button>
-                <button id="rectAnno" class="toolbarButton b3-tooltips b3-tooltips__s" aria-expanded="false" aria-controls="findbar" aria-label="${window.siyuan.languages.rectAnnotation} ${updateHotkeyTip("⌘D")}/${updateHotkeyTip("⌥D")}">
+                <button id="rectAnno" class="toolbarButton b3-tooltips b3-tooltips__se" aria-expanded="false" aria-controls="findbar" aria-label="${window.siyuan.languages.rectAnnotation} ${updateHotkeyTip("⌘D")}/${updateHotkeyTip("⌥D")}">
                   <svg><use xlink:href="#iconLeftTop"></use></svg>
                 </button>
                 <input type="number" id="pageNumber" class="toolbarField pageNumber b3-text-field" value="1" size="4" min="1" autocomplete="off">
@@ -440,6 +443,11 @@ export class Asset extends Model {
         <input id="editorInkColor">
         <input id="editorInkThickness">
         <input id="editorInkOpacity">
+        <input id="download">
+        <input id="secondaryDownload">
+        <input id="editorFreeText">
+        <input id="openFile">
+        <input id="editorInk">
       </div>
     </div> <!-- outerContainer -->
     <div id="printContainer"></div>`;
@@ -492,6 +500,9 @@ export class Asset extends Model {
                         this.element, this.pdfPage, this.pdfId);
                     this.element.setAttribute("data-loading", "true");
                 }
+                /// #if !BROWSER
+                setModelsHash();
+                /// #endif
             }, Constants.TIMEOUT_BLOCKLOAD);
             /// #endif
         }

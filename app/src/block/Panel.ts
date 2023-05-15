@@ -243,7 +243,7 @@ export class BlockPanel {
 
     private initProtyle(editorElement: HTMLElement) {
         const index = parseInt(editorElement.getAttribute("data-index"));
-        fetchPost("api/block/getBlockInfo", {id: this.nodeIds[index]}, (response) => {
+        fetchPost("/api/block/getBlockInfo", {id: this.nodeIds[index]}, (response) => {
             if (response.code === 3) {
                 showMessage(response.msg);
                 return;
@@ -295,6 +295,8 @@ export class BlockPanel {
         });
         if (this.editors.length > 0) {
             this.editors.forEach(item => {
+                // https://github.com/siyuan-note/siyuan/issues/8199
+                hideElements(["util"], item.protyle);
                 item.destroy();
             });
             this.editors = [];
@@ -318,7 +320,7 @@ export class BlockPanel {
 <span class="fn__space"></span>`;
         }
         /// #endif
-        let html = `<div class="block__icons block__icons--border">
+        let html = `<div class="block__icons block__icons--menu">
     <span class="fn__space fn__flex-1"></span>${openHTML}
     <span data-type="pin" class="block__icon b3-tooltips b3-tooltips__sw" aria-label="${window.siyuan.languages.pin}"><svg><use xlink:href="#iconPin"></use></svg></span>
     <span class="fn__space"></span>

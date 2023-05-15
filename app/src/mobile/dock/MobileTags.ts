@@ -5,7 +5,8 @@ import {MenuItem} from "../../menus/Menu";
 import {Dialog} from "../../dialog";
 import {confirmDialog} from "../../dialog/confirmDialog";
 import {escapeHtml} from "../../util/escape";
-import {popSearch, toolbarSearchEvent} from "../menu/search";
+import {popSearch} from "../menu/search";
+import {Constants} from "../../constants";
 
 export class MobileTags {
     public element: HTMLElement;
@@ -44,7 +45,7 @@ export class MobileTags {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                            width: "80vw",
+                            width: "92vw",
                         });
                         const btnsElement = dialog.element.querySelectorAll(".b3-button");
                         btnsElement[0].addEventListener("click", () => {
@@ -65,9 +66,20 @@ export class MobileTags {
                         });
                     }
                 } else {
-                    popSearch();
-                    (document.getElementById("toolbarSearch") as HTMLInputElement).value = `#${element.getAttribute("data-label")}#`;
-                    toolbarSearchEvent();
+                    const searchOption = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+                    popSearch({
+                        removed: searchOption.removed,
+                        sort: searchOption.sort,
+                        group: searchOption.group,
+                        hasReplace: false,
+                        method: 0,
+                        hPath: "",
+                        idPath: [],
+                        k: `#${element.getAttribute("data-label")}#`,
+                        r: "",
+                        page: 1,
+                        types: Object.assign({}, searchOption.types)
+                    });
                 }
             },
             topExtHTML: window.siyuan.config.readonly ? undefined : '<span class="b3-list-item__action" data-type="edit"><svg><use xlink:href="#iconEdit"></use></svg></span><span class="b3-list-item__action" data-type="remove"><svg><use xlink:href="#iconTrashcan"></use></svg></span>'

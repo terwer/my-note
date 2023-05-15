@@ -29,6 +29,61 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func moveBlock(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	id := arg["id"].(string)
+	if util.InvalidIDPattern(id, ret) {
+		return
+	}
+
+	var parentID, previousID string
+	if nil != arg["parentID"] {
+		parentID = arg["parentID"].(string)
+		if util.InvalidIDPattern(parentID, ret) {
+			return
+		}
+	}
+	if nil != arg["previousID"] {
+		previousID = arg["previousID"].(string)
+		if util.InvalidIDPattern(previousID, ret) {
+			return
+		}
+
+		// Check the validity of the API `moveBlock` parameter `previousID` https://github.com/siyuan-note/siyuan/issues/8007
+		if bt := treenode.GetBlockTree(previousID); nil == bt || "d" == bt.Type {
+			ret.Code = -1
+			ret.Msg = "`previousID` can not be the ID of a document"
+			return
+		}
+	}
+
+	transactions := []*model.Transaction{
+		{
+			DoOperations: []*model.Operation{
+				{
+					Action:     "move",
+					ID:         id,
+					PreviousID: previousID,
+					ParentID:   parentID,
+				},
+			},
+		},
+	}
+
+	model.PerformTransactions(&transactions)
+	model.WaitForWritingFiles()
+
+	ret.Data = transactions
+	broadcastTransactions(transactions)
+}
+
 func appendBlock(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)

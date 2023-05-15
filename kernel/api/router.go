@@ -52,10 +52,11 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/system/setAppearanceMode", model.CheckAuth, setAppearanceMode)
 	ginServer.Handle("POST", "/api/system/getSysFonts", model.CheckAuth, getSysFonts)
 	ginServer.Handle("POST", "/api/system/exit", model.CheckAuth, exit)
-	ginServer.Handle("POST", "/api/system/setUILayout", model.CheckAuth, setUILayout)
+	ginServer.Handle("POST", "/api/system/setUILayout", setUILayout) // 这里不加鉴权 After modifying the access authentication code on the browser side, the other side does not refresh https://github.com/siyuan-note/siyuan/issues/8028
 	ginServer.Handle("POST", "/api/system/getConf", model.CheckAuth, getConf)
 	ginServer.Handle("POST", "/api/system/checkUpdate", model.CheckAuth, checkUpdate)
 	ginServer.Handle("POST", "/api/system/exportLog", model.CheckAuth, exportLog)
+	ginServer.Handle("POST", "/api/system/getChangelog", model.CheckAuth, getChangelog)
 
 	ginServer.Handle("POST", "/api/storage/setLocalStorage", model.CheckAuth, setLocalStorage)
 	ginServer.Handle("POST", "/api/storage/getLocalStorage", model.CheckAuth, getLocalStorage)
@@ -164,6 +165,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/block/appendBlock", model.CheckAuth, model.CheckReadonly, appendBlock)
 	ginServer.Handle("POST", "/api/block/updateBlock", model.CheckAuth, model.CheckReadonly, updateBlock)
 	ginServer.Handle("POST", "/api/block/deleteBlock", model.CheckAuth, model.CheckReadonly, deleteBlock)
+	ginServer.Handle("POST", "/api/block/moveBlock", model.CheckAuth, model.CheckReadonly, moveBlock)
 	ginServer.Handle("POST", "/api/block/setBlockReminder", model.CheckAuth, model.CheckReadonly, setBlockReminder)
 	ginServer.Handle("POST", "/api/block/getHeadingLevelTransaction", model.CheckAuth, getHeadingLevelTransaction)
 	ginServer.Handle("POST", "/api/block/getHeadingDeleteTransaction", model.CheckAuth, getHeadingDeleteTransaction)
@@ -224,6 +226,8 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/asset/removeUnusedAssets", model.CheckAuth, model.CheckReadonly, removeUnusedAssets)
 	ginServer.Handle("POST", "/api/asset/getDocImageAssets", model.CheckAuth, model.CheckReadonly, getDocImageAssets)
 	ginServer.Handle("POST", "/api/asset/renameAsset", model.CheckAuth, model.CheckReadonly, renameAsset)
+	ginServer.Handle("POST", "/api/asset/getImageOCRText", model.CheckAuth, model.CheckReadonly, getImageOCRText)
+	ginServer.Handle("POST", "/api/asset/setImageOCRText", model.CheckAuth, model.CheckReadonly, setImageOCRText)
 
 	ginServer.Handle("POST", "/api/export/batchExportMd", model.CheckAuth, batchExportMd)
 	ginServer.Handle("POST", "/api/export/exportMd", model.CheckAuth, exportMd)
@@ -262,8 +266,6 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/setting/getCloudUser", model.CheckAuth, getCloudUser)
 	ginServer.Handle("POST", "/api/setting/logoutCloudUser", model.CheckAuth, model.CheckReadonly, logoutCloudUser)
 	ginServer.Handle("POST", "/api/setting/login2faCloudUser", model.CheckAuth, model.CheckReadonly, login2faCloudUser)
-	ginServer.Handle("POST", "/api/setting/getCustomCSS", model.CheckAuth, getCustomCSS)
-	ginServer.Handle("POST", "/api/setting/setCustomCSS", model.CheckAuth, model.CheckReadonly, setCustomCSS)
 	ginServer.Handle("POST", "/api/setting/setEmoji", model.CheckAuth, model.CheckReadonly, setEmoji)
 	ginServer.Handle("POST", "/api/setting/setFlashcard", model.CheckAuth, model.CheckReadonly, setFlashcard)
 	ginServer.Handle("POST", "/api/setting/setAI", model.CheckAuth, model.CheckReadonly, setAI)
@@ -273,6 +275,10 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/graph/getGraph", model.CheckAuth, getGraph)
 	ginServer.Handle("POST", "/api/graph/getLocalGraph", model.CheckAuth, getLocalGraph)
 
+	ginServer.Handle("POST", "/api/bazaar/getBazaarPlugin", model.CheckAuth, getBazaarPlugin)
+	ginServer.Handle("POST", "/api/bazaar/getInstalledPlugin", model.CheckAuth, getInstalledPlugin)
+	ginServer.Handle("POST", "/api/bazaar/installBazaarPlugin", model.CheckAuth, model.CheckReadonly, installBazaarPlugin)
+	ginServer.Handle("POST", "/api/bazaar/uninstallBazaarPlugin", model.CheckAuth, model.CheckReadonly, uninstallBazaarPlugin)
 	ginServer.Handle("POST", "/api/bazaar/getBazaarWidget", model.CheckAuth, getBazaarWidget)
 	ginServer.Handle("POST", "/api/bazaar/getInstalledWidget", model.CheckAuth, getInstalledWidget)
 	ginServer.Handle("POST", "/api/bazaar/installBazaarWidget", model.CheckAuth, model.CheckReadonly, installBazaarWidget)
@@ -294,6 +300,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/repo/initRepoKey", model.CheckAuth, model.CheckReadonly, initRepoKey)
 	ginServer.Handle("POST", "/api/repo/initRepoKeyFromPassphrase", model.CheckAuth, model.CheckReadonly, initRepoKeyFromPassphrase)
 	ginServer.Handle("POST", "/api/repo/resetRepo", model.CheckAuth, model.CheckReadonly, resetRepo)
+	ginServer.Handle("POST", "/api/repo/purgeRepo", model.CheckAuth, model.CheckReadonly, purgeRepo)
 	ginServer.Handle("POST", "/api/repo/importRepoKey", model.CheckAuth, model.CheckReadonly, importRepoKey)
 	ginServer.Handle("POST", "/api/repo/createSnapshot", model.CheckAuth, model.CheckReadonly, createSnapshot)
 	ginServer.Handle("POST", "/api/repo/tagSnapshot", model.CheckAuth, model.CheckReadonly, tagSnapshot)
@@ -302,6 +309,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/repo/getRepoTagSnapshots", model.CheckAuth, getRepoTagSnapshots)
 	ginServer.Handle("POST", "/api/repo/removeRepoTagSnapshot", model.CheckAuth, model.CheckReadonly, removeRepoTagSnapshot)
 	ginServer.Handle("POST", "/api/repo/getCloudRepoTagSnapshots", model.CheckAuth, getCloudRepoTagSnapshots)
+	ginServer.Handle("POST", "/api/repo/getCloudRepoSnapshots", model.CheckAuth, getCloudRepoSnapshots)
 	ginServer.Handle("POST", "/api/repo/removeCloudRepoTagSnapshot", model.CheckAuth, model.CheckReadonly, removeCloudRepoTagSnapshot)
 	ginServer.Handle("POST", "/api/repo/uploadCloudSnapshot", model.CheckAuth, model.CheckReadonly, uploadCloudSnapshot)
 	ginServer.Handle("POST", "/api/repo/downloadCloudSnapshot", model.CheckAuth, model.CheckReadonly, downloadCloudSnapshot)
@@ -335,4 +343,7 @@ func ServeAPI(ginServer *gin.Engine) {
 
 	ginServer.Handle("POST", "/api/ai/chatGPT", model.CheckAuth, model.CheckReadonly, chatGPT)
 	ginServer.Handle("POST", "/api/ai/chatGPTWithAction", model.CheckAuth, model.CheckReadonly, chatGPTWithAction)
+
+	ginServer.Handle("POST", "/api/petal/loadPetals", model.CheckAuth, model.CheckReadonly, loadPetals)
+	ginServer.Handle("POST", "/api/petal/setPetalEnabled", model.CheckAuth, model.CheckReadonly, setPetalEnabled)
 }

@@ -27,7 +27,12 @@ type TOperation =
     | "append"
     | "insertAttrViewBlock"
     | "removeAttrViewBlock"
-type TBazaarType = "templates" | "icons" | "widgets" | "themes"
+    | "addFlashcards"
+    | "removeFlashcards"
+type TBazaarType = "templates" | "icons" | "widgets" | "themes" | "plugins"
+type TCardType = "doc" | "notebook" | "all"
+type TEventBus = "ws-main"
+
 declare module "blueimp-md5"
 
 interface Window {
@@ -47,6 +52,7 @@ interface Window {
 
     newWindow: {
         positionPDF(pathStr: string, page: string | number): void
+        switchTabById(id: string): void
     }
 
     Protyle: import("../protyle/method").default
@@ -85,6 +91,7 @@ interface ICard {
 }
 
 interface ISearchOption {
+    page: number
     removed?: boolean  // 移除后需记录搜索内容 https://github.com/siyuan-note/siyuan/issues/7745
     name?: string
     sort: number,  //  0：按块类型（默认），1：按创建时间升序，2：按创建时间降序，3：按更新时间升序，4：按更新时间降序，5：按内容顺序（仅在按文档分组时），6：按相关度升序，7：按相关度降序
@@ -176,6 +183,9 @@ interface INotebook {
     closed: boolean
     icon: string
     sort: number
+    dueFlashcardCount?: string;
+    newFlashcardCount?: string;
+    flashcardCount?: string;
     sortMode: number
 }
 
@@ -196,7 +206,8 @@ interface ISiyuan {
     backStack?: IBackStack[],
     mobile?: {
         editor?: import("../protyle").Protyle
-        files?: import("../mobile/util/MobileFiles").MobileFiles
+        popEditor?: import("../protyle").Protyle
+        files?: import("../mobile/dock/MobileFiles").MobileFiles
     },
     user?: {
         userId: string
@@ -205,7 +216,6 @@ interface ISiyuan {
         userHomeBImgURL: string
         userIntro: string
         userNickname: string
-        userPaymentSum: string
         userSiYuanProExpireTime: number // -1 终身会员；0 普通用户；> 0 过期时间
         userSiYuanSubscriptionPlan: number // 0 年付订阅/终生；1 教育优惠；2 订阅试用
         userSiYuanSubscriptionType: number // 0 年付；1 终生；2 月付
@@ -233,6 +243,11 @@ interface ISiyuan {
     bookmarkLabel?: string[]
     blockPanels: import("../block/Panel").BlockPanel[],
     dialogs: import("../dialog").Dialog[],
+    viewer?: {
+        destroyed: boolean,
+        show: () => void,
+        destroy: () => void,
+    }
 }
 
 interface IScrollAttr {
@@ -247,17 +262,42 @@ interface IScrollAttr {
 
 interface IOperation {
     action: TOperation, // move， delete 不需要传 data
-    id: string,
+    id?: string,
     data?: string, // updateAttr 时为  { old: IObject, new: IObject }
     parentID?: string   // 为 insertAttrViewBlock 传 avid
     previousID?: string
     retData?: any
     nextID?: string // insert 专享
     srcIDs?: string[] // insertAttrViewBlock 专享
+    deckID?: string // add/removeFlashcards 专享
+    blockIDs?: string[] // add/removeFlashcards 专享
 }
 
 interface IObject {
     [key: string]: string;
+}
+
+declare interface ILayoutJSON extends ILayoutOptions {
+    instance?: string,
+    width?: string,
+    height?: string,
+    title?: string,
+    lang?: string
+    docIcon?: string
+    page?: string
+    path?: string
+    blockId?: string
+    icon?: string
+    rootId?: string
+    active?: boolean
+    pin?: boolean
+    data?: {
+        cardType: TCardType,
+        id: string,
+        title?: string
+    }
+    config?: ISearchOption
+    children?: ILayoutJSON[] | ILayoutJSON
 }
 
 declare interface IDockTab {
@@ -269,6 +309,8 @@ declare interface IDockTab {
 }
 
 declare interface IOpenFileOptions {
+    searchData?: ISearchOption, // 搜索必填
+    customData?: any, // card 必填
     assetPath?: string, // asset 必填
     fileName?: string, // file 必填
     rootIcon?: string, // 文档图标
@@ -281,6 +323,7 @@ declare interface IOpenFileOptions {
     keepCursor?: boolean // file，是否跳转到新 tab 上
     zoomIn?: boolean // 是否缩放
     removeCurrentTab?: boolean // 在当前页签打开时需移除原有页签
+    afterOpen?: () => void // 打开后回调
 }
 
 declare interface ILayoutOptions {
@@ -310,8 +353,8 @@ declare interface IExport {
     pandocBin: string
     paragraphBeginningSpace: boolean;
     addTitle: boolean;
-    addFooter: boolean;
     markdownYFM: boolean;
+    pdfFooter: string;
 }
 
 declare interface IEditor {
@@ -320,6 +363,7 @@ declare interface IEditor {
     readOnly: boolean;
     listLogicalOutdent: boolean;
     spellcheck: boolean;
+    onlySearchForDoc: boolean;
     katexMacros: string;
     fullWidth: boolean;
     floatWindowMode: number;
@@ -336,7 +380,7 @@ declare interface IEditor {
     codeLigatures: boolean;
     codeTabSpaces: number;
     fontFamily: string;
-    virtualBlockRef: string;
+    virtualBlockRef: boolean;
     virtualBlockRefExclude: string;
     virtualBlockRefInclude: string;
     blockRefDynamicAnchorTextMaxLen: number;
@@ -347,19 +391,18 @@ declare interface IEditor {
 }
 
 declare interface IWebSocketData {
-    cmd: string
+    cmd?: string
     callback?: string
-    data: any
+    data?: any
     msg: string
     code: number
-    sid: string
+    sid?: string
 }
 
 declare interface IAppearance {
     modeOS: boolean,
     hideStatusBar: boolean,
     nativeEmoji: boolean,
-    customCSS: boolean,
     themeJS: boolean,
     mode: number, // 1 暗黑；0 明亮
     icon: string,
@@ -410,6 +453,7 @@ declare interface IConfig {
         openAI: {
             apiBaseURL: string
             apiKey: string
+            apiModel: string
             apiMaxTokens: number
             apiProxy: string
             apiTimeout: number
@@ -591,6 +635,9 @@ declare interface IFile {
     hMtime: string;
     hCtime: string;
     hSize: string;
+    dueFlashcardCount?: string;
+    newFlashcardCount?: string;
+    flashcardCount?: string;
     id: string;
     count: number;
     subFileCount: number;
@@ -640,8 +687,13 @@ declare interface IModels {
     graph: import("../layout/dock/Graph").Graph[],
     outline: import("../layout/dock/Outline").Outline[]
     backlink: import("../layout/dock/Backlink").Backlink[]
+    inbox: import("../layout/dock/Inbox").Inbox[]
+    files: import("../layout/dock/Files").Files[]
+    bookmark: import("../layout/dock/Bookmark").Bookmark[]
+    tag: import("../layout/dock/Tag").Tag[]
     asset: import("../asset").Asset[]
     search: import("../search").Search[]
+    custom: import("../layout/dock/Custom").Custom[]
 }
 
 declare interface IMenu {
@@ -660,7 +712,11 @@ declare interface IMenu {
 }
 
 declare interface IBazaarItem {
-    readme: string
+    enabled: boolean
+    preferredName: string
+    preferredDesc: string
+    preferredReadme: string
+    iconURL: string
     stars: string
     author: string
     updated: string
@@ -681,4 +737,5 @@ declare interface IBazaarItem {
     hInstallSize: string
     hInstallDate: string
     hUpdated: string
+    preferredFunding: string
 }

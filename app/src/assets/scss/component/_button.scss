@@ -18,6 +18,7 @@
     height: 16px;
     width: 16px;
     margin-right: 4px;
+    flex-shrink: 0;
   }
 
   &:hover,
@@ -53,6 +54,10 @@
     font-size: 12px;
   }
 
+  &--mid {
+    padding: 2px 8px;
+  }
+
   &--text,
   &--cancel {
     color: var(--b3-theme-primary);
@@ -76,7 +81,7 @@
 
   &--outline {
     color: var(--b3-theme-primary);
-    box-shadow: inset 0 0 0 .4px var(--b3-theme-primary);
+    box-shadow: inset 0 0 0 .6px var(--b3-theme-primary);
     background-color: transparent;
 
     &:hover,

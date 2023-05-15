@@ -16,13 +16,11 @@ import {
 import {getCurrentWindow} from "@electron/remote";
 /// #endif
 import {Constants} from "../../constants";
-import {hasClosestByClassName} from "../util/hasClosest";
 import {matchHotKey} from "../util/hotKey";
 import {readText, updateHotkeyTip, writeText} from "../util/compatibility";
-import {escapeHtml} from "../../util/escape";
 import * as dayjs from "dayjs";
 import {setPanelFocus} from "../../layout/util";
-import {updatePanelByEditor} from "../../editor/util";
+import {openFileById, updatePanelByEditor} from "../../editor/util";
 import {openBacklink, openGraph, openOutline} from "../../layout/dock/util";
 import {setTitle} from "../../dialog/processSystem";
 import {getNoContainerElement} from "../wysiwyg/getBlock";
@@ -37,6 +35,7 @@ import {openCardByData} from "../../card/openCard";
 import {makeCard, quickMakeCard} from "../../card/makeCard";
 import {viewCards} from "../../card/viewCards";
 import {getNotebookName, pathPosix} from "../../util/pathName";
+import {commonClick} from "../wysiwyg/commonClick";
 
 export class Title {
     public element: HTMLElement;
@@ -87,7 +86,18 @@ export class Title {
             if (commonHotkey(protyle, event)) {
                 return true;
             }
-
+            if (matchHotKey(window.siyuan.config.keymap.general.enterBack.custom, event)) {
+                const ids = protyle.path.split("/");
+                if (ids.length > 2) {
+                    openFileById({
+                        id: ids[ids.length - 2],
+                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL]
+                    });
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
             /// #if !BROWSER
             if (matchHotKey(window.siyuan.config.keymap.editor.general.undo.custom, event)) {
                 getCurrentWindow().webContents.undo();
@@ -135,7 +145,7 @@ export class Title {
                 event.preventDefault();
                 event.stopPropagation();
             } else if (matchHotKey(window.siyuan.config.keymap.editor.general.quickMakeCard.custom, event)) {
-                quickMakeCard([this.element]);
+                quickMakeCard(protyle, [this.element]);
                 event.preventDefault();
                 event.stopPropagation();
                 return true;
@@ -144,7 +154,9 @@ export class Title {
                 event.preventDefault();
                 event.stopPropagation();
             } else if (matchHotKey(window.siyuan.config.keymap.editor.general.copyBlockRef.custom, event)) {
-                writeText(`((${protyle.block.rootID} '${this.editElement.textContent.replace(/'/g, "&#39;")}'))`);
+                fetchPost("/api/block/getRefText", {id: protyle.block.rootID}, (response) => {
+                    writeText(`((${protyle.block.rootID} '${response.data}'))`);
+                });
                 event.preventDefault();
                 event.stopPropagation();
             } else if (matchHotKey(window.siyuan.config.keymap.editor.general.copyID.custom, event)) {
@@ -245,33 +257,7 @@ export class Title {
             fetchPost("/api/block/getDocInfo", {
                 id: protyle.block.rootID
             }, (response) => {
-                const attrBookmarkElement = hasClosestByClassName(event.target, "protyle-attr--bookmark");
-                if (attrBookmarkElement) {
-                    openFileAttr(response.data.ial, protyle.block.rootID, "bookmark");
-                    event.stopPropagation();
-                    return;
-                }
-
-                const attrNameElement = hasClosestByClassName(event.target, "protyle-attr--name");
-                if (attrNameElement) {
-                    openFileAttr(response.data.ial, protyle.block.rootID, "name");
-                    event.stopPropagation();
-                    return;
-                }
-
-                const attrAliasElement = hasClosestByClassName(event.target, "protyle-attr--alias");
-                if (attrAliasElement) {
-                    openFileAttr(response.data.ial, protyle.block.rootID, "alias");
-                    event.stopPropagation();
-                    return;
-                }
-
-                const attrMemoElement = hasClosestByClassName(event.target, "protyle-attr--memo");
-                if (attrMemoElement) {
-                    openFileAttr(response.data.ial, protyle.block.rootID, "memo");
-                    event.stopPropagation();
-                    return;
-                }
+                commonClick(event, protyle, response.data.ial);
             });
         });
     }
@@ -315,7 +301,7 @@ export class Title {
                     icon: "iconTrashcan",
                     label: window.siyuan.languages.delete,
                     click: () => {
-                        deleteFile(protyle.notebookId, protyle.path, escapeHtml(this.editElement.textContent));
+                        deleteFile(protyle.notebookId, protyle.path);
                     }
                 }).element);
                 window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
@@ -367,9 +353,10 @@ export class Title {
             const riffCardMenu = [{
                 iconHTML: Constants.ZWSP,
                 label: window.siyuan.languages.spaceRepetition,
+                accelerator: window.siyuan.config.keymap.editor.general.spaceRepetition.custom,
                 click: () => {
                     fetchPost("/api/riff/getTreeRiffDueCards", {rootID: protyle.block.rootID}, (response) => {
-                        openCardByData(response.data, `<span data-id="${protyle.block.rootID}"  class="fn__flex-center">${escapeHtml(this.editElement.textContent)}</span>`);
+                        openCardByData(response.data, "doc", protyle.block.rootID, this.editElement.textContent);
                     });
                 }
             }, {
@@ -387,7 +374,7 @@ export class Title {
                 label: window.siyuan.languages.quickMakeCard,
                 accelerator: window.siyuan.config.keymap.editor.general.quickMakeCard.custom,
                 click: () => {
-                    quickMakeCard([this.element]);
+                    quickMakeCard(protyle, [this.element]);
                 }
             }];
             if (window.siyuan.config.flashcard.deck) {

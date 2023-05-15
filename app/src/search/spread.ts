@@ -1,4 +1,3 @@
-import {escapeHtml} from "../util/escape";
 import {getNotebookName, pathPosix} from "../util/pathName";
 import {Constants} from "../constants";
 import {Dialog} from "../dialog";
@@ -49,14 +48,14 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
     let hPath = "";
     let idPath: string[] = [];
     if (notebookId) {
-        hPath = escapeHtml(getNotebookName(notebookId));
+        hPath = getNotebookName(notebookId);
         idPath.push(notebookId);
         if (searchPath && searchPath !== "/") {
             const response = await fetchSyncPost("/api/filetree/getHPathByPath", {
                 notebook: notebookId,
                 path: searchPath.endsWith(".sy") ? searchPath : searchPath + ".sy"
             });
-            hPath = pathPosix().join(hPath, escapeHtml(response.data));
+            hPath = pathPosix().join(hPath, response.data);
             idPath[0] = pathPosix().join(idPath[0], searchPath);
         }
     } else if (window.siyuan.config.keymap.general.globalSearch.custom === hotkey) {
@@ -76,8 +75,8 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
         content: "",
         width: "80vw",
         height: "90vh",
-        destroyCallback: () => {
-            if (range) {
+        destroyCallback(options: IObject) {
+            if (range && !options) {
                 focusByRange(range);
             }
             if (edit) {
@@ -96,9 +95,10 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
         idPath,
         group: localData.group,
         sort: localData.sort,
-        types: localData.types
+        types: Object.assign({}, localData.types),
+        page: key ? 1 : localData.page
     }, dialog.element.querySelector(".b3-dialog__container").lastElementChild, () => {
-        dialog.destroy();
+        dialog.destroy({focus: "false"});
     });
     // 搜索面板层级需高于 201（.protyle-hint） 且小于205（.block__popover）
     dialog.element.firstElementChild.setAttribute("style", "z-index:202"); // https://github.com/siyuan-note/siyuan/issues/3515

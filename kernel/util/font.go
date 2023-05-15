@@ -32,7 +32,11 @@ import (
 
 func GetSysFonts(currentLanguage string) (ret []string) {
 	fonts := loadFonts(currentLanguage)
-	ret = gulu.Str.RemoveDuplicatedElem(fonts)
+	ret = []string{}
+	for _, font := range fonts {
+		ret = append(ret, font.Family)
+	}
+	ret = gulu.Str.RemoveDuplicatedElem(ret)
 	ret = removeUnusedFonts(ret)
 	sort.Strings(ret)
 	return
@@ -49,47 +53,52 @@ func removeUnusedFonts(fonts []string) (ret []string) {
 	return
 }
 
-func loadFonts(currentLanguage string) (ret []string) {
-	ret = []string{}
-	for _, f := range findfont.List() {
-		if strings.HasSuffix(strings.ToLower(f), ".ttc") {
-			data, err := os.ReadFile(f)
+type Font struct {
+	Path   string
+	Family string
+}
+
+func loadFonts(currentLanguage string) (ret []*Font) {
+	ret = []*Font{}
+	for _, fontPath := range findfont.List() {
+		if strings.HasSuffix(strings.ToLower(fontPath), ".ttc") {
+			data, err := os.ReadFile(fontPath)
 			if nil != err {
-				logging.LogErrorf("read font file [%s] failed: %s", f, err)
+				logging.LogErrorf("read font file [%s] failed: %s", fontPath, err)
 				continue
 			}
 			collection, err := ttc.ParseCollection(data)
 			if nil != err {
-				//LogErrorf("parse font collection [%s] failed: %s", f, err)
+				//LogErrorf("parse font collection [%s] failed: %s", fontPath, err)
 				continue
 			}
 
 			for i := 0; i < collection.NumFonts(); i++ {
 				font, err := collection.Font(i)
 				if nil != err {
-					//LogErrorf("get font [%s] failed: %s", f, err)
+					//LogErrorf("get font [%s] failed: %s", fontPath, err)
 					continue
 				}
 				if family := parseFontFamily(font); "" != family {
-					ret = append(ret, family)
-					//LogInfof("[%s] [%s]", f, family)
+					ret = append(ret, &Font{fontPath, family})
+					//LogInfof("[%s] [%s]", fontPath, family)
 				}
 			}
-		} else if strings.HasSuffix(strings.ToLower(f), ".otf") || strings.HasSuffix(strings.ToLower(f), ".ttf") {
-			fontFile, err := os.Open(f)
+		} else if strings.HasSuffix(strings.ToLower(fontPath), ".otf") || strings.HasSuffix(strings.ToLower(fontPath), ".ttf") {
+			fontFile, err := os.Open(fontPath)
 			if nil != err {
-				//LogErrorf("open font file [%s] failed: %s", f, err)
+				//LogErrorf("open font file [%s] failed: %s", fontPath, err)
 				continue
 			}
 			font, err := sfnt.Parse(fontFile)
 			if nil != err {
-				//LogErrorf("parse font [%s] failed: %s", f, err)
+				//LogErrorf("parse font [%s] failed: %s", fontPath, err)
 				continue
 			}
 
 			t, err := font.NameTable()
 			if nil != err {
-				//LogErrorf("parse font name table [%s] failed: %s", f, err)
+				//LogErrorf("parse font name table [%s] failed: %s", fontPath, err)
 				return
 			}
 			fontFile.Close()
@@ -102,7 +111,7 @@ func loadFonts(currentLanguage string) (ret []string) {
 				if sfnt.PlatformLanguageID(1033) == e.LanguageID {
 					v, _, err := transform.Bytes(textUnicode.UTF16(textUnicode.BigEndian, textUnicode.IgnoreBOM).NewDecoder(), e.Value)
 					if nil != err {
-						//LogErrorf("decode font family [%s] failed: %s", f, err)
+						//LogErrorf("decode font family [%s] failed: %s", fontPath, err)
 						continue
 					}
 					val := string(v)
@@ -119,7 +128,7 @@ func loadFonts(currentLanguage string) (ret []string) {
 
 					v, _, err := transform.Bytes(textUnicode.UTF16(textUnicode.BigEndian, textUnicode.IgnoreBOM).NewDecoder(), e.Value)
 					if nil != err {
-						//LogErrorf("decode font family [%s] failed: %s", f, err)
+						//LogErrorf("decode font family [%s] failed: %s", fontPath, err)
 						continue
 					}
 					val := string(v)
@@ -132,12 +141,12 @@ func loadFonts(currentLanguage string) (ret []string) {
 				}
 			}
 			if "" != family && !strings.HasPrefix(family, ".") {
-				ret = append(ret, family)
-				//LogInfof("[%s] [%s]", f, family)
+				ret = append(ret, &Font{fontPath, family})
+				//LogInfof("[%s] [%s]", fontPath, family)
 			}
 			if "" != familyChinese && !strings.HasPrefix(familyChinese, ".") {
-				ret = append(ret, familyChinese)
-				//LogInfof("[%s] [%s]", f, family)
+				ret = append(ret, &Font{fontPath, familyChinese})
+				//LogInfof("[%s] [%s]", fontPath, family)
 			}
 		}
 	}

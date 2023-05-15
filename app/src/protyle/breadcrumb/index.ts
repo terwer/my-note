@@ -26,6 +26,7 @@ import {saveScroll} from "../scroll/saveScroll";
 import {hideElements} from "../ui/hideElements";
 import {confirmDialog} from "../../dialog/confirmDialog";
 import {reloadProtyle} from "../util/reload";
+import {deleteFile} from "../../editor/deleteFile";
 
 export class Breadcrumb {
     public element: HTMLElement;
@@ -318,6 +319,13 @@ export class Breadcrumb {
                     reloadProtyle(protyle);
                 }
             }).element);
+            window.siyuan.menus.menu.append(new MenuItem({
+                icon: "iconTrashcan",
+                label: window.siyuan.languages.delete,
+                click: () => {
+                    deleteFile(protyle.notebookId, protyle.path);
+                }
+            }).element);
             if (!isMobile()) {
                 window.siyuan.menus.menu.append(new MenuItem({
                     icon: protyle.element.className.includes("fullscreen") ? "iconFullscreenExit" : "iconFullscreen",
@@ -335,14 +343,6 @@ export class Breadcrumb {
                 accelerator: window.siyuan.config.keymap.editor.general.wysiwyg.custom,
                 click: () => {
                     setEditMode(protyle, "wysiwyg");
-                    protyle.scroll.lastScrollTop = 0;
-                    fetchPost("/api/filetree/getDoc", {
-                        id: protyle.block.rootID,
-                        size: window.siyuan.config.editor.dynamicLoadBlocks,
-                    }, getResponse => {
-                        onGet(getResponse, protyle);
-                        window.siyuan.menus.menu.remove();
-                    });
                 }
             }];
             editSubmenu.push({

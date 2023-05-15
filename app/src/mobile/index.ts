@@ -6,7 +6,7 @@ import {hasClosestByAttribute} from "../protyle/util/hasClosest";
 import {Model} from "../layout/Model";
 import "../assets/scss/mobile.scss";
 import {Menus} from "../menus";
-import {addBaseURL, setNoteBook} from "../util/pathName";
+import {addBaseURL, getIdFromSYProtocol, isSYProtocol, setNoteBook} from "../util/pathName";
 import {handleTouchEnd, handleTouchMove, handleTouchStart} from "./util/touch";
 import {fetchGet, fetchPost} from "../util/fetch";
 import {initFramework} from "./util/initFramework";
@@ -19,9 +19,18 @@ import {hideKeyboardToolbar, showKeyboardToolbar} from "./util/keyboardToolbar";
 import {getLocalStorage} from "../protyle/util/compatibility";
 import {openMobileFileById} from "./editor";
 import {getSearch} from "../util/functions";
+import {initRightMenu} from "./menu";
+import {openChangelog} from "../boot/openChangelog";
+import {registerServiceWorker} from "../util/serviceWorker";
+import {loadPlugins} from "../plugin/loader";
 
 class App {
+    public plugins: import("../plugin").Plugin[] = [];
+
     constructor() {
+        if (!window.webkit?.messageHandlers && !window.JSAndroid) {
+            registerServiceWorker(`${Constants.SERVICE_WORKER_PATH}?v=${Constants.SIYUAN_VERSION}`);
+        }
         addScriptSync(`${Constants.PROTYLE_CDN}/js/lute/lute.min.js?v=${Constants.SIYUAN_VERSION}`, "protyleLuteScript");
         addScript(`${Constants.PROTYLE_CDN}/js/protyle-html.js?v=${Constants.SIYUAN_VERSION}`, "protyleWcHtmlScript");
         addBaseURL();
@@ -32,11 +41,13 @@ class App {
             dialogs: [],
             blockPanels: [],
             mobile: {},
-            menus: new Menus(),
             ws: new Model({
                 id: genUUID(),
                 type: "main",
-                msgCallback(data) {
+                msgCallback: (data)=> {
+                    this.plugins.forEach((plugin) => {
+                        plugin.eventBus.emit("ws-main", data);
+                    });
                     onMessage(data);
                 }
             })
@@ -53,6 +64,7 @@ class App {
             getLocalStorage(() => {
                 fetchGet(`/appearance/langs/${window.siyuan.config.appearance.lang}.json?v=${Constants.SIYUAN_VERSION}`, (lauguages) => {
                     window.siyuan.languages = lauguages;
+                    window.siyuan.menus = new Menus();
                     document.title = window.siyuan.languages.siyuanNote;
                     bootSync();
                     loadAssets(confResponse.data.conf.appearance);
@@ -63,15 +75,16 @@ class App {
                         fetchPost("/api/system/getEmojiConf", {}, emojiResponse => {
                             window.siyuan.emojis = emojiResponse.data as IEmoji[];
                             initFramework();
+                            initRightMenu();
+                            loadPlugins(siyuanApp);
+                            openChangelog();
                         });
                     });
                     addGA();
                 });
             });
-            if (navigator.userAgent.indexOf("iPhone") > -1) {
-                document.addEventListener("touchstart", handleTouchStart, false);
-                document.addEventListener("touchmove", handleTouchMove, false);
-            }
+            document.addEventListener("touchstart", handleTouchStart, false);
+            document.addEventListener("touchmove", handleTouchMove, false);
             document.addEventListener("touchend", handleTouchEnd, false);
         });
         setNoteBook();
@@ -79,14 +92,17 @@ class App {
     }
 }
 
-new App();
+const siyuanApp = new App();
 
 window.goBack = goBack;
-window.showKeyboardToolbar = showKeyboardToolbar;
+window.showKeyboardToolbar = (height) => {
+    document.getElementById("keyboardToolbar").setAttribute("data-keyboardheight", (height ? height : window.innerHeight / 2 - 42).toString());
+    showKeyboardToolbar();
+};
 window.hideKeyboardToolbar = hideKeyboardToolbar;
 window.openFileByURL = (openURL) => {
-    if (openURL && /^siyuan:\/\/blocks\/\d{14}-\w{7}/.test(openURL)) {
-        openMobileFileById(openURL.substr(16, 22),
+    if (openURL && isSYProtocol(openURL)) {
+        openMobileFileById(getIdFromSYProtocol(openURL),
             getSearch("focus", openURL) === "1" ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]);
         return true;
     }

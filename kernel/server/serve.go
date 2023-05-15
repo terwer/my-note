@@ -51,9 +51,12 @@ func Serve(fastMode bool) {
 	gin.SetMode(gin.ReleaseMode)
 	ginServer := gin.New()
 	ginServer.MaxMultipartMemory = 1024 * 1024 * 32 // 插入较大的资源文件时内存占用较大 https://github.com/siyuan-note/siyuan/issues/5023
-	ginServer.Use(gin.Recovery())
-	ginServer.Use(corsMiddleware()) // 后端服务支持 CORS 预检请求验证 https://github.com/siyuan-note/siyuan/pull/5593
-	ginServer.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{".pdf", ".mp3", ".wav", ".ogg", ".mov", ".weba", ".mkv", ".mp4", ".webm"})))
+	ginServer.Use(
+		model.Timing,
+		model.Recover,
+		corsMiddleware(), // 后端服务支持 CORS 预检请求验证 https://github.com/siyuan-note/siyuan/pull/5593
+		gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{".pdf", ".mp3", ".wav", ".ogg", ".mov", ".weba", ".mkv", ".mp4", ".webm"})),
+	)
 
 	cookieStore.Options(sessions.Options{
 		Path:   "/",
@@ -69,6 +72,7 @@ func Serve(fastMode bool) {
 	serveWebSocket(ginServer)
 	serveExport(ginServer)
 	serveWidgets(ginServer)
+	servePlugins(ginServer)
 	serveEmojis(ginServer)
 	serveTemplates(ginServer)
 	api.ServeAPI(ginServer)
@@ -126,6 +130,8 @@ func Serve(fastMode bool) {
 		}
 	}()
 
+	go util.HookUILoaded()
+
 	if err = http.Serve(ln, ginServer); nil != err {
 		if !fastMode {
 			logging.LogErrorf("boot kernel failed: %s", err)
@@ -169,6 +175,10 @@ func serveWidgets(ginServer *gin.Engine) {
 	ginServer.Static("/widgets/", filepath.Join(util.DataDir, "widgets"))
 }
 
+func servePlugins(ginServer *gin.Engine) {
+	ginServer.Static("/plugins/", filepath.Join(util.DataDir, "plugins"))
+}
+
 func serveEmojis(ginServer *gin.Engine) {
 	ginServer.Static("/emojis/", filepath.Join(util.DataDir, "emojis"))
 }
@@ -178,22 +188,30 @@ func serveTemplates(ginServer *gin.Engine) {
 }
 
 func serveAppearance(ginServer *gin.Engine) {
+	ginServer.StaticFile("favicon.ico", filepath.Join(util.WorkingDir, "stage", "icon.png"))
+	ginServer.StaticFile("manifest.json", filepath.Join(util.WorkingDir, "stage", "manifest.webmanifest"))
+	ginServer.StaticFile("manifest.webmanifest", filepath.Join(util.WorkingDir, "stage", "manifest.webmanifest"))
+
 	siyuan := ginServer.Group("", model.CheckAuth)
 
 	siyuan.Handle("GET", "/", func(c *gin.Context) {
 		userAgentHeader := c.GetHeader("User-Agent")
+
+		/* Carry query parameters when redirecting */
+		location := url.URL{}
+		queryParams := c.Request.URL.Query()
+		queryParams.Set("r", gulu.Rand.String(7))
+		location.RawQuery = queryParams.Encode()
+
 		if strings.Contains(userAgentHeader, "Electron") {
-			c.Redirect(302, "/stage/build/app/?r="+gulu.Rand.String(7))
-			return
+			location.Path = "/stage/build/app/"
+		} else if user_agent.New(userAgentHeader).Mobile() {
+			location.Path = "/stage/build/mobile/"
+		} else {
+			location.Path = "/stage/build/desktop/"
 		}
 
-		ua := user_agent.New(userAgentHeader)
-		if ua.Mobile() {
-			c.Redirect(302, "/stage/build/mobile/?r="+gulu.Rand.String(7))
-			return
-		}
-
-		c.Redirect(302, "/stage/build/desktop/?r="+gulu.Rand.String(7))
+		c.Redirect(302, location.String())
 	})
 
 	appearancePath := util.AppearancePath
@@ -257,7 +275,7 @@ func serveAppearance(ginServer *gin.Engine) {
 	})
 
 	siyuan.Static("/stage/", filepath.Join(util.WorkingDir, "stage"))
-	siyuan.StaticFile("favicon.ico", filepath.Join(util.WorkingDir, "stage", "icon.png"))
+	ginServer.StaticFile("service-worker.js", filepath.Join(util.WorkingDir, "stage", "service-worker.js"))
 
 	siyuan.GET("/check-auth", serveCheckAuth)
 }

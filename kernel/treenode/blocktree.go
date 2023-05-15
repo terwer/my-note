@@ -130,6 +130,38 @@ func GetBlockTreeRootByHPath(boxID, hPath string) (ret *BlockTree) {
 	return
 }
 
+func GetBlockTreeRootByHPathPreferredParentID(boxID, hPath, preferredParentID string) (ret *BlockTree) {
+	var roots []*BlockTree
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID && b.HPath == hPath && b.RootID == b.ID {
+				if "" == preferredParentID {
+					ret = b
+					break
+				}
+
+				roots = append(roots, b)
+			}
+		}
+		slice.m.Unlock()
+		return nil == ret
+	})
+	if 1 > len(roots) {
+		return
+	}
+
+	for _, root := range roots {
+		if root.ID == preferredParentID {
+			ret = root
+			return
+		}
+	}
+	ret = roots[0]
+	return
+}
+
 func GetBlockTree(id string) (ret *BlockTree) {
 	if "" == id {
 		return
@@ -180,6 +212,21 @@ func RemoveBlockTreesByRootID(rootID string) {
 	}
 }
 
+func GetBlockTreesByPathPrefix(pathPrefix string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if strings.HasPrefix(b.Path, pathPrefix) {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
+}
+
 func RemoveBlockTreesByPathPrefix(pathPrefix string) {
 	var ids []string
 	blockTrees.Range(func(key, value interface{}) bool {
@@ -206,6 +253,21 @@ func RemoveBlockTreesByPathPrefix(pathPrefix string) {
 		slice.m.Unlock()
 		slice.changed = time.Now()
 	}
+}
+
+func GetBlockTreesByBoxID(boxID string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
 }
 
 func RemoveBlockTreesByBoxID(boxID string) (ids []string) {
@@ -271,7 +333,7 @@ func IndexBlockTree(tree *parse.Tree) {
 		slice.m.Unlock()
 
 		if nil != bt {
-			if bt.Updated != n.IALAttr("updated") || bt.Path != tree.Path || bt.BoxID != tree.Box || bt.HPath != tree.HPath {
+			if bt.Updated != n.IALAttr("updated") || bt.Type != TypeAbbr(n.Type.String()) || bt.Path != tree.Path || bt.BoxID != tree.Box || bt.HPath != tree.HPath {
 				children := ChildBlockNodes(n) // 需要考虑子块，因为一些操作（比如移动块）后需要同时更新子块
 				changedNodes = append(changedNodes, children...)
 			}

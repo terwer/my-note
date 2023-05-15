@@ -7,7 +7,7 @@
 		"id": "20200923234731-h3zkwm2",
 		"title": "FAQ",
 		"type": "doc",
-		"updated": "20230112002556"
+		"updated": "20230429085233"
 	},
 	"Children": [
 		{
@@ -268,7 +268,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20210428222603-moih9fe",
-				"updated": "20230103223700"
+				"updated": "20230429085233"
 			},
 			"Children": [
 				{
@@ -398,7 +398,7 @@
 					},
 					"Properties": {
 						"id": "20221202214811-2s26txl",
-						"updated": "20230103223700"
+						"updated": "20230429085233"
 					},
 					"Children": [
 						{
@@ -406,7 +406,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20221202214811-p1eevpi",
-								"updated": "20230103223700"
+								"updated": "20230429085233"
 							},
 							"Children": [
 								{
@@ -420,7 +420,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ is used to save named criteria and "
+									"Data": "​ is used to save query conditions, layouts and "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -723,8 +723,8 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "a",
-									"TextMarkAHref": "https://teracloud.jp/",
-									"TextMarkTextContent": "TeraCLOUD"
+									"TextMarkAHref": "https://infini-cloud.net/",
+									"TextMarkTextContent": "InfiniCLOUD"
 								},
 								{
 									"Type": "NodeText",
@@ -1979,50 +1979,140 @@
 			},
 			"Children": [
 				{
-					"Type": "NodeHeadingC8hMarker",
-					"Data": "## "
-				},
-				{
 					"Type": "NodeText",
 					"Data": "Do I need to pay for it?"
 				}
 			]
 		},
 		{
-			"ID": "20201224120448-20hmjfc",
+			"ID": "20230406111519-ro0o3iv",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20201224120448-20hmjfc",
-				"updated": "20220703000708"
+				"id": "20230406111519-ro0o3iv",
+				"updated": "20230406111521"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "Local functions are completely free to use, "
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "a",
-					"TextMarkAHref": "https://b3log.org/siyuan/en/pricing.html",
-					"TextMarkTextContent": "Cloud services"
-				},
-				{
-					"Type": "NodeText",
-					"Data": " requires annual subscription."
+					"Data": "All local features are free, even for commercial use."
 				}
 			]
 		},
 		{
-			"ID": "20220703000434-rpabrb5",
+			"ID": "20230406111508-0lt5im7",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20220703000434-rpabrb5",
-				"updated": "20221112210752"
+				"id": "20230406111508-0lt5im7",
+				"updated": "20230406111508"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "a",
+					"TextMarkAHref": "https://b3log.org/siyuan/pricing.html",
+					"TextMarkTextContent": "Cloud Service"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " requires an annual subscription. At present, only users in mainland China are supported to subscribe, and users outside of mainland China are not allowed to subscribe."
+				}
+			]
+		},
+		{
+			"ID": "20230406112010-97r5e5d",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230406112010-97r5e5d",
+				"updated": "20230406112010"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "Currently, only users in mainland China are supported to subscribe, and users who are not in mainland China should not subscribe."
+					"Data": "If you don't need a subscription but would like to support development, you are welcome to make a donation:"
+				}
+			]
+		},
+		{
+			"ID": "20230406112010-my4qnoy",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230406112010-my4qnoy",
+				"updated": "20230406112010"
+			},
+			"Children": [
+				{
+					"ID": "20230406112010-cmr795u",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230406112010-cmr795u",
+						"updated": "20230406112010"
+					},
+					"Children": [
+						{
+							"ID": "20230406112010-j8z0apy",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230406112010-j8z0apy",
+								"updated": "20230406112010"
+							},
+							"Children": [
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "a",
+									"TextMarkAHref": "https://opencollective.com/b3log",
+									"TextMarkTextContent": "B3log - Open Collective"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230415111951-vt4y4gg",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230415111951-vt4y4gg",
+				"updated": "20230415112008"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Origin of the name \"SiYuan\""
+				}
+			]
+		},
+		{
+			"ID": "20230415112018-2o1sxi9",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230415112018-2o1sxi9",
+				"updated": "20230415112018"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "The name \"SiYuan\" comes from the Chinese idiom \"饮水思源\", which means \"when drinking water, one should remember where it comes from\" and is used to describe the virtues of not forgetting one's roots and gratitude."
+				}
+			]
+		},
+		{
+			"ID": "20230415112018-tl4v3cu",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230415112018-tl4v3cu",
+				"updated": "20230415112018"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "We hope that users of SiYuan note-taking software for knowledge management will not forget the sources and connections of their knowledge, and more importantly, will not forget to contribute to society and all of humanity with what they have learned."
 				}
 			]
 		}

@@ -44,7 +44,11 @@ export class Gutter {
     constructor(protyle: IProtyle) {
         this.element = document.createElement("div");
         this.element.className = "protyle-gutters";
-        this.element.setAttribute("aria-label", window.siyuan.languages.gutterTip.replace("⌘Click", updateHotkeyTip("⌘Click")).replace("⌥Click", updateHotkeyTip("⌥Click")).replace("⇧Click", updateHotkeyTip("⇧Click")));
+        if (/Mac/.test(navigator.platform) || navigator.platform === "iPhone") {
+            this.element.setAttribute("aria-label", window.siyuan.languages.gutterTip);
+        } else {
+            this.element.setAttribute("aria-label", window.siyuan.languages.gutterTip.replace(/⌘/g, "Ctrl+").replace(/⌥/g, "Alt+").replace(/⇧/g, "Shift+").replace(/⌃/g, "Ctrl+"));
+        }
         this.element.setAttribute("data-type", "a");
         this.element.setAttribute("data-position", "right");
         this.element.addEventListener("dragstart", (event: DragEvent & { target: HTMLElement }) => {
@@ -680,7 +684,7 @@ export class Gutter {
             iconHTML: '<svg class="b3-menu__icon" style="color:var(--b3-theme-primary)"><use xlink:href="#iconRiffCard"></use></svg>',
             icon: "iconRiffCard",
             click() {
-                quickMakeCard(selectsElement);
+                quickMakeCard(protyle, selectsElement);
             }
         }).element);
         if (window.siyuan.config.flashcard.deck) {
@@ -1468,7 +1472,7 @@ export class Gutter {
                 iconHTML: '<svg class="b3-menu__icon" style="color:var(--b3-theme-primary)"><use xlink:href="#iconRiffCard"></use></svg>',
                 icon: "iconRiffCard",
                 click() {
-                    quickMakeCard([nodeElement]);
+                    quickMakeCard(protyle, [nodeElement]);
                 }
             }).element);
             if (window.siyuan.config.flashcard.deck) {

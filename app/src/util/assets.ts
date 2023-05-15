@@ -37,7 +37,7 @@ export const loadAssets = (data: IAppearance) => {
     }
 
     const defaultStyleElement = document.getElementById("themeDefaultStyle");
-    let defaultThemeAddress = `/appearance/themes/${data.mode === 1 ? "midnight" : "daylight"}/${data.customCSS ? "custom" : "theme"}.css?v=${data.customCSS ? new Date().getTime() : Constants.SIYUAN_VERSION}`;
+    let defaultThemeAddress = `/appearance/themes/${data.mode === 1 ? "midnight" : "daylight"}/theme.css?v=${Constants.SIYUAN_VERSION}`;
     if ((data.mode === 1 && data.themeDark !== "midnight") || (data.mode === 0 && data.themeLight !== "daylight")) {
         defaultThemeAddress = `/appearance/themes/${data.mode === 1 ? "midnight" : "daylight"}/theme.css?v=${Constants.SIYUAN_VERSION}`;
     }
@@ -51,7 +51,7 @@ export const loadAssets = (data: IAppearance) => {
     }
     const styleElement = document.getElementById("themeStyle");
     if ((data.mode === 1 && data.themeDark !== "midnight") || (data.mode === 0 && data.themeLight !== "daylight")) {
-        const themeAddress = `/appearance/themes/${data.mode === 1 ? data.themeDark : data.themeLight}/${data.customCSS ? "custom" : "theme"}.css?v=${data.customCSS ? new Date().getTime() : data.themeVer}`;
+        const themeAddress = `/appearance/themes/${data.mode === 1 ? data.themeDark : data.themeLight}/theme.css?v=${data.themeVer}`;
         if (styleElement) {
             if (!styleElement.getAttribute("href").startsWith(themeAddress)) {
                 styleElement.remove();
@@ -281,7 +281,7 @@ const updateMobileTheme = (OSTheme: string) => {
     if ((window.siyuan.config.system.container === "ios" && window.webkit?.messageHandlers) ||
         (window.siyuan.config.system.container === "android" && window.JSAndroid)) {
         setTimeout(() => {
-            const backgroundColor = getComputedStyle(document.body).getPropertyValue("--b3-theme-background");
+            const backgroundColor = getComputedStyle(document.body).getPropertyValue("--b3-theme-background").trim();
             let mode = window.siyuan.config.appearance.mode;
             if (window.siyuan.config.appearance.modeOS) {
                 if (OSTheme === "dark") {
@@ -291,7 +291,7 @@ const updateMobileTheme = (OSTheme: string) => {
                 }
             }
             if (window.siyuan.config.system.container === "ios" && window.webkit?.messageHandlers) {
-                window.webkit.messageHandlers.changeStatusBar.postMessage(backgroundColor + " " + mode);
+                window.webkit.messageHandlers.changeStatusBar.postMessage((backgroundColor || (mode === 0 ? "#fff" : "#1e1f22")) + " " + mode);
             } else if (window.siyuan.config.system.container === "android" && window.JSAndroid) {
                 window.JSAndroid.changeStatusBarColor(backgroundColor, mode);
             }

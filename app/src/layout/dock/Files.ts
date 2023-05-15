@@ -34,6 +34,11 @@ export class Files extends Model {
                         case "moveDoc":
                             this.onMove(data);
                             break;
+                        case "reloadFiletree":
+                            setNoteBook(() => {
+                                this.init(false);
+                            });
+                            break;
                         case "mount":
                             this.onMount(data);
                             break;
@@ -190,11 +195,15 @@ export class Files extends Model {
             }
             let target = event.target as HTMLElement;
             while (target && !target.isEqualNode(this.element)) {
-                if (target.tagName === "LI") {
+                if (target.tagName === "LI" && !target.getAttribute("data-opening")) {
+                    target.setAttribute("data-opening", "true");
                     openFileById({
                         removeCurrentTab: false,
                         id: target.getAttribute("data-node-id"),
-                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL]
+                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL],
+                        afterOpen() {
+                            target.removeAttribute("data-opening");
+                        }
                     });
                     event.stopPropagation();
                     event.preventDefault();
@@ -252,29 +261,45 @@ export class Files extends Model {
                             this.setCurrent(target, false);
                             if (target.getAttribute("data-type") === "navigation-file") {
                                 needFocus = false;
+                                if (target.getAttribute("data-opening")) {
+                                    return;
+                                }
+                                target.setAttribute("data-opening", "true");
                                 if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
                                     openFileById({
                                         id: target.getAttribute("data-node-id"),
                                         position: "right",
-                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL]
+                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL],
+                                        afterOpen() {
+                                            target.removeAttribute("data-opening");
+                                        }
                                     });
                                 } else if (!event.altKey && !event.metaKey && !event.ctrlKey && event.shiftKey) {
                                     openFileById({
                                         id: target.getAttribute("data-node-id"),
                                         position: "bottom",
-                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL]
+                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL],
+                                        afterOpen() {
+                                            target.removeAttribute("data-opening");
+                                        }
                                     });
                                 } else if (window.siyuan.config.fileTree.openFilesUseCurrentTab &&
                                     event.altKey && (event.metaKey || event.ctrlKey) && !event.shiftKey) {
                                     openFileById({
                                         removeCurrentTab: false,
                                         id: target.getAttribute("data-node-id"),
-                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL]
+                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL],
+                                        afterOpen() {
+                                            target.removeAttribute("data-opening");
+                                        }
                                     });
                                 } else {
                                     openFileById({
                                         id: target.getAttribute("data-node-id"),
-                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL]
+                                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL],
+                                        afterOpen() {
+                                            target.removeAttribute("data-opening");
+                                        }
                                     });
                                 }
                             } else if (target.getAttribute("data-type") === "navigation-root") {
@@ -562,8 +587,7 @@ export class Files extends Model {
                         if (hasMove) {
                             fetchPost("/api/filetree/listDocsByPath", {
                                 notebook: toURL,
-                                path:  toDir === "/" ? "/" : toDir + ".sy",
-                                sort: window.siyuan.config.fileTree.sort,
+                                path: toDir === "/" ? "/" : toDir + ".sy",
                             }, response => {
                                 if (response.data.path === "/" && response.data.files.length === 0) {
                                     showMessage(window.siyuan.languages.emptyContent);
@@ -616,7 +640,7 @@ export class Files extends Model {
         }
     }
 
-    private init(init = true) {
+    public init(init = true) {
         let html = "";
         let closeHtml = "";
         window.siyuan.notebooks.forEach((item) => {
@@ -858,8 +882,7 @@ export class Files extends Model {
             } else if (filePath.startsWith(item.path.replace(".sy", ""))) {
                 fetchPost("/api/filetree/listDocsByPath", {
                     notebook: data.box,
-                    path: item.path,
-                    sort: window.siyuan.config.fileTree.sort
+                    path: item.path
                 }, response => {
                     this.selectItem(response.data.box, filePath, response.data);
                 });
@@ -901,7 +924,6 @@ export class Files extends Model {
         fetchPost("/api/filetree/listDocsByPath", {
             notebook: notebookId,
             path: liElement.getAttribute("data-path"),
-            sort: window.siyuan.config.fileTree.sort,
         }, response => {
             if (response.data.path === "/" && response.data.files.length === 0) {
                 showMessage(window.siyuan.languages.emptyContent);
@@ -941,8 +963,7 @@ export class Files extends Model {
         } else {
             fetchPost("/api/filetree/listDocsByPath", {
                 notebook: notebookId,
-                path: currentPath,
-                sort: window.siyuan.config.fileTree.sort
+                path: currentPath
             }, response => {
                 this.onLsSelect(response.data, filePath);
             });
@@ -952,7 +973,7 @@ export class Files extends Model {
     private genFileHTML = (item: IFile) => {
         let countHTML = "";
         if (item.count && item.count > 0) {
-            countHTML = `<span class="popover__block counter b3-tooltips b3-tooltips__nw" aria-label="${window.siyuan.languages.blockRef}">${item.count}</span>`;
+            countHTML = `<span class="popover__block counter b3-tooltips b3-tooltips__nw" aria-label="${window.siyuan.languages.ref}">${item.count}</span>`;
         }
         return `<li title="${getDisplayName(item.name, true, true)} ${item.hSize}${item.bookmark ? "\n" + window.siyuan.languages.bookmark + " " + item.bookmark : ""}${item.name1 ? "\n" + window.siyuan.languages.name + " " + item.name1 : ""}${item.alias ? "\n" + window.siyuan.languages.alias + " " + item.alias : ""}${item.memo ? "\n" + window.siyuan.languages.memo + " " + item.memo : ""}${item.subFileCount !== 0 ? window.siyuan.languages.includeSubFile.replace("x", item.subFileCount) : ""}\n${window.siyuan.languages.modifiedAt} ${item.hMtime}\n${window.siyuan.languages.createdAt} ${item.hCtime}" 
 data-node-id="${item.id}" data-name="${Lute.EscapeHTMLStr(item.name)}" draggable="true" data-count="${item.subFileCount}" 
@@ -998,7 +1019,7 @@ class="b3-list-item b3-list-item--hide-action" data-path="${item.path}">
             }
         }).element);
         if (!window.siyuan.config.readonly) {
-            sortMenu("notebooks", window.siyuan.config.fileTree.sort, (sort: number) => {
+            const subMenu = sortMenu("notebooks", window.siyuan.config.fileTree.sort, (sort: number) => {
                 window.siyuan.config.fileTree.sort = sort;
                 fetchPost("/api/setting/setFiletree", {
                     sort: window.siyuan.config.fileTree.sort,
@@ -1013,6 +1034,12 @@ class="b3-list-item b3-list-item--hide-action" data-path="${item.path}">
                     });
                 });
             });
+            window.siyuan.menus.menu.append(new MenuItem({
+                icon: "iconSort",
+                label: window.siyuan.languages.sort,
+                type: "submenu",
+                submenu: subMenu,
+            }).element);
         }
         return window.siyuan.menus.menu;
     }

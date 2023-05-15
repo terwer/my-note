@@ -1,12 +1,26 @@
 .card {
+  &__main {
+    @extend .fn__flex-column;
+    box-sizing: border-box;
+    max-height: 100%;
+    background-color: var(--b3-theme-surface);
+  }
+
   &__empty {
     display: flex;
-    justify-content: center;
-    flex-direction: column;
     flex: 1;
     text-align: center;
     background-color: var(--b3-theme-background);
     font-size: 16px;
+    box-sizing: border-box;
+    flex-direction: column;
+    justify-content: center;
+    color: var(--b3-theme-on-surface);
+    align-items: center;
+
+    &--space {
+      padding: 16px;
+    }
 
     & > div {
       font-size: 64px;

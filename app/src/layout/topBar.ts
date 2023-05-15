@@ -9,7 +9,7 @@ import {MenuItem} from "../menus/Menu";
 import {setMode} from "../util/assets";
 import {openSetting} from "../config";
 import {openSearch} from "../search/spread";
-import {setProxy} from "../util/onGetConfig";
+import {App} from "../index";
 
 export const updateEditModeElement = () => {
     const target = document.querySelector("#barReadonly");
@@ -23,7 +23,8 @@ export const updateEditModeElement = () => {
         target.querySelector("use").setAttribute("xlink:href", "#iconEdit");
     }
 };
-export const initBar = () => {
+
+export const initBar = (app: App) => {
     const toolbarElement = document.getElementById("toolbar");
     toolbarElement.innerHTML = `
 <div id="barWorkspace" class="toolbar__item">
@@ -68,7 +69,7 @@ export const initBar = () => {
                 event.stopPropagation();
                 break;
             } else if (target.id === "barWorkspace") {
-                workspaceMenu(target.getBoundingClientRect());
+                workspaceMenu(app, target.getBoundingClientRect());
                 event.stopPropagation();
                 break;
             } else if (target.id === "barReadonly") {
@@ -113,7 +114,7 @@ export const initBar = () => {
                 break;
             } else if (target.id === "toolbarVIP") {
                 if (!window.siyuan.config.readonly) {
-                    const dialogSetting = openSetting();
+                    const dialogSetting = openSetting(app);
                     dialogSetting.element.querySelector('.b3-tab-bar [data-name="account"]').dispatchEvent(new CustomEvent("click"));
                 }
                 event.stopPropagation();
@@ -126,5 +127,4 @@ export const initBar = () => {
             target = target.parentElement;
         }
     });
-    setProxy();
 };

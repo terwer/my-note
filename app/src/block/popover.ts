@@ -2,6 +2,7 @@ import {BlockPanel} from "./Panel";
 import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName} from "../protyle/util/hasClosest";
 import {fetchSyncPost} from "../util/fetch";
 import {hideTooltip, showTooltip} from "../dialog/tooltip";
+import {getIdFromSYProtocol} from "../util/pathName";
 
 let popoverTargetElement: HTMLElement;
 export const initBlockPopover = () => {
@@ -199,7 +200,7 @@ export const showPopover = async () => {
         }
     } else if (popoverTargetElement.getAttribute("data-type")?.split(" ").includes("a")) {
         // 以思源协议开头的链接
-        ids = [popoverTargetElement.getAttribute("data-href").substr(16, 22)];
+        ids = [getIdFromSYProtocol(popoverTargetElement.getAttribute("data-href"))];
     } else {
         // pdf
         let targetId;

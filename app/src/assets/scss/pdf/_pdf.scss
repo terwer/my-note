@@ -93,6 +93,7 @@
 
   .textLayer,
   .pdf__resize {
+    z-index: 2; // pdf 缩放后 canvas 会出现在末尾，导致无法选中和查看标注
     mix-blend-mode: screen;
   }
 }
@@ -336,7 +337,6 @@
   top: 36px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  max-width: 220px;
   max-height: 60vh;
 }
 
@@ -401,12 +401,12 @@
 .dropdownToolbarButton {
   --scale-select-width: 140px;
   width: var(--scale-select-width);
+  margin: 4px 8px 0 0;
 
   select {
     width: inherit;
     min-width: auto;
     height: 24px;
-    margin: 4px 8px 0 0;
     line-height: 24px;
     padding: 0 8px;
   }
@@ -624,7 +624,7 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
   padding: 8px;
   box-shadow: var(--b3-dialog-shadow);
   border: 1px solid var(--b3-theme-surface-lighter);
-  background-color: var(--b3-menu-background);
+  background-color: var(--b3-theme-surface);
   border-radius: 4px;
   width: 520px;
   position: absolute;

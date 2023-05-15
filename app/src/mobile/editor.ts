@@ -5,7 +5,6 @@ import {Constants} from "../constants";
 import {fetchPost} from "../util/fetch";
 import {disabledProtyle, onGet} from "../protyle/util/onGet";
 import {addLoading} from "../protyle/ui/initUI";
-import {focusBlock} from "../protyle/util/selection";
 import {scrollCenter} from "../util/highlightById";
 import {hasClosestByAttribute} from "../protyle/util/hasClosest";
 import {setEditMode} from "../protyle/util/setEditMode";
@@ -14,6 +13,10 @@ import {pushBack} from "./util/MobileBackFoward";
 import {setStorageVal} from "../protyle/util/compatibility";
 import {showMessage} from "../dialog/message";
 import {saveScroll} from "../protyle/scroll/saveScroll";
+
+export const getCurrentEditor = () => {
+    return window.siyuan.mobile.popEditor || window.siyuan.mobile.editor;
+};
 
 export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) => {
     window.siyuan.storage[Constants.LOCAL_DOCINFO] = {id, action};
@@ -32,7 +35,6 @@ export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) =
         });
         if (blockElement) {
             pushBack();
-            focusBlock(blockElement);
             scrollCenter(window.siyuan.mobile.editor.protyle, blockElement, true);
             closePanel();
             return;
@@ -45,7 +47,9 @@ export const openMobileFileById = (id: string, action = [Constants.CB_GET_HL]) =
             return;
         }
         if (window.siyuan.mobile.editor) {
-            saveScroll(window.siyuan.mobile.editor.protyle);
+            if (document.getElementById("empty").classList.contains("fn__none")) {
+                saveScroll(window.siyuan.mobile.editor.protyle);
+            }
             pushBack();
             addLoading(window.siyuan.mobile.editor.protyle);
             fetchPost("/api/filetree/getDoc", {

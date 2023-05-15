@@ -18,6 +18,7 @@ package api
 
 import (
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	"github.com/88250/gulu"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
@@ -104,10 +106,23 @@ func getFile(c *gin.Context) {
 		return
 	}
 
-	if err = model.ServeFile(c, filePath); nil != err {
-		c.Status(http.StatusConflict)
+	data, err := filelock.ReadFile(filePath)
+	if nil != err {
+		logging.LogErrorf("read file [%s] failed: %s", filePath, err)
+		c.Status(500)
 		return
 	}
+
+	contentType := mime.TypeByExtension(filepath.Ext(filePath))
+	if "" == contentType {
+		if m := mimetype.Detect(data); nil != m {
+			contentType = m.String()
+		}
+	}
+	if "" == contentType {
+		contentType = "application/octet-stream"
+	}
+	c.Data(http.StatusOK, contentType, data)
 }
 
 func readDir(c *gin.Context) {
@@ -179,7 +194,7 @@ func removeFile(c *gin.Context) {
 		return
 	}
 
-	if err = os.RemoveAll(filePath); nil != err {
+	if err = filelock.Remove(filePath); nil != err {
 		c.Status(500)
 		return
 	}
@@ -244,13 +259,16 @@ func putFile(c *gin.Context) {
 	}
 
 	modTimeStr := c.PostForm("modTime")
-	modTimeInt, err := strconv.ParseInt(modTimeStr, 10, 64)
-	if nil != err {
-		logging.LogErrorf("parse mod time [%s] failed: %s", modTimeStr, err)
-		c.Status(500)
-		return
+	modTime := time.Now()
+	if "" != modTimeStr {
+		modTimeInt, parseErr := strconv.ParseInt(modTimeStr, 10, 64)
+		if nil != parseErr {
+			logging.LogErrorf("parse mod time [%s] failed: %s", modTimeStr, parseErr)
+			c.Status(500)
+			return
+		}
+		modTime = millisecond2Time(modTimeInt)
 	}
-	modTime := millisecond2Time(modTimeInt)
 	if err = os.Chtimes(filePath, modTime, modTime); nil != err {
 		logging.LogErrorf("change time failed: %s", err)
 		ret.Code = -1

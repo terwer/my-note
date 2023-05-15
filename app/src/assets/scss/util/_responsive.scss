@@ -4,11 +4,12 @@
       & > .b3-tab-bar {
         width: auto;
 
-        .b3-list-item__text {
+        .b3-list-item__text,
+        .b3-form__icon {
           display: none;
         }
 
-        .b3-list-item--big .b3-list-item__graphic {
+        .b3-list-item__graphic {
           margin-right: 0;
         }
       }
@@ -54,6 +55,20 @@
         width: 100%;
         margin-left: 0 !important;
         text-align: center;
+      }
+    }
+  }
+
+  .history {
+    &__panel {
+      flex-direction: column;
+
+      & > .b3-list,
+      & > .history__diff {
+        height: 40%;
+        overflow: auto;
+        padding-bottom: 8px;
+        width: auto;
       }
     }
   }

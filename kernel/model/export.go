@@ -170,7 +170,7 @@ func ExportSystemLog() (zipPath string) {
 	appLog := filepath.Join(util.HomeDir, ".config", "siyuan", "app.log")
 	if gulu.File.IsExist(appLog) {
 		to := filepath.Join(exportFolder, "app.log")
-		if err := gulu.File.CopyFile(appLog, to); nil != err {
+		if err := filelock.Copy(appLog, to); nil != err {
 			logging.LogErrorf("copy app log from [%s] to [%s] failed: %s", err, appLog, to)
 		}
 	}
@@ -178,7 +178,7 @@ func ExportSystemLog() (zipPath string) {
 	kernelLog := filepath.Join(util.HomeDir, ".config", "siyuan", "kernel.log")
 	if gulu.File.IsExist(kernelLog) {
 		to := filepath.Join(exportFolder, "kernel.log")
-		if err := gulu.File.CopyFile(kernelLog, to); nil != err {
+		if err := filelock.Copy(kernelLog, to); nil != err {
 			logging.LogErrorf("copy kernel log from [%s] to [%s] failed: %s", err, kernelLog, to)
 		}
 	}
@@ -186,7 +186,7 @@ func ExportSystemLog() (zipPath string) {
 	siyuanLog := filepath.Join(util.TempDir, "siyuan.log")
 	if gulu.File.IsExist(siyuanLog) {
 		to := filepath.Join(exportFolder, "siyuan.log")
-		if err := gulu.File.CopyFile(siyuanLog, to); nil != err {
+		if err := filelock.Copy(siyuanLog, to); nil != err {
 			logging.LogErrorf("copy kernel log from [%s] to [%s] failed: %s", err, siyuanLog, to)
 		}
 	}
@@ -288,7 +288,7 @@ func exportData(exportFolder string) (zipPath string, err error) {
 	data := filepath.Join(util.WorkspaceDir, "data")
 	if err = filelock.RoboCopy(data, exportFolder); nil != err {
 		logging.LogErrorf("copy data dir from [%s] to [%s] failed: %s", data, baseFolderName, err)
-		err = errors.New(fmt.Sprintf(Conf.Language(14), formatErrorMsg(err)))
+		err = errors.New(fmt.Sprintf(Conf.Language(14), err.Error()))
 		return
 	}
 
@@ -355,13 +355,13 @@ func ExportDocx(id, savePath string, removeAssets, merge bool) (err error) {
 		return errors.New(msg)
 	}
 
-	if err = gulu.File.Copy(tmpDocxPath, filepath.Join(savePath, name+".docx")); nil != err {
+	if err = filelock.Copy(tmpDocxPath, filepath.Join(savePath, name+".docx")); nil != err {
 		logging.LogErrorf("export docx failed: %s", err)
 		return errors.New(fmt.Sprintf(Conf.Language(14), err))
 	}
 
 	if tmpAssets := filepath.Join(tmpDir, "assets"); !removeAssets && gulu.File.IsDir(tmpAssets) {
-		if err = gulu.File.Copy(tmpAssets, filepath.Join(savePath, "assets")); nil != err {
+		if err = filelock.Copy(tmpAssets, filepath.Join(savePath, "assets")); nil != err {
 			logging.LogErrorf("export docx failed: %s", err)
 			return errors.New(fmt.Sprintf(Conf.Language(14), err))
 		}
@@ -403,13 +403,17 @@ func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string
 	assets := assetsLinkDestsInTree(tree)
 	for _, asset := range assets {
 		if strings.HasPrefix(asset, "assets/") {
+			if strings.Contains(asset, "?") {
+				asset = asset[:strings.LastIndex(asset, "?")]
+			}
+
 			srcAbsPath, err := GetAssetAbsPath(asset)
 			if nil != err {
 				logging.LogWarnf("resolve path of asset [%s] failed: %s", asset, err)
 				continue
 			}
 			targetAbsPath := filepath.Join(savePath, asset)
-			if err = gulu.File.Copy(srcAbsPath, targetAbsPath); nil != err {
+			if err = filelock.Copy(srcAbsPath, targetAbsPath); nil != err {
 				logging.LogWarnf("copy asset from [%s] to [%s] failed: %s", srcAbsPath, targetAbsPath, err)
 			}
 		}
@@ -419,7 +423,7 @@ func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string
 	for _, src := range srcs {
 		from := filepath.Join(util.WorkingDir, src)
 		to := filepath.Join(savePath, src)
-		if err := gulu.File.Copy(from, to); nil != err {
+		if err := filelock.Copy(from, to); nil != err {
 			logging.LogWarnf("copy stage from [%s] to [%s] failed: %s", from, savePath, err)
 			return
 		}
@@ -433,7 +437,7 @@ func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string
 	for _, src := range srcs {
 		from := filepath.Join(util.AppearancePath, src)
 		to := filepath.Join(savePath, "appearance", src)
-		if err := gulu.File.Copy(from, to); nil != err {
+		if err := filelock.Copy(from, to); nil != err {
 			logging.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
 			return
 		}
@@ -444,7 +448,7 @@ func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string
 	for _, emoji := range emojis {
 		from := filepath.Join(util.DataDir, emoji)
 		to := filepath.Join(savePath, emoji)
-		if err := gulu.File.Copy(from, to); nil != err {
+		if err := filelock.Copy(from, to); nil != err {
 			logging.LogErrorf("copy emojis from [%s] to [%s] failed: %s", from, savePath, err)
 			return
 		}
@@ -546,7 +550,7 @@ func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, do
 				continue
 			}
 			targetAbsPath := filepath.Join(savePath, asset)
-			if err = gulu.File.Copy(srcAbsPath, targetAbsPath); nil != err {
+			if err = filelock.Copy(srcAbsPath, targetAbsPath); nil != err {
 				logging.LogWarnf("copy asset from [%s] to [%s] failed: %s", srcAbsPath, targetAbsPath, err)
 			}
 		}
@@ -558,7 +562,7 @@ func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, do
 		for _, src := range srcs {
 			from := filepath.Join(util.WorkingDir, src)
 			to := filepath.Join(savePath, src)
-			if err := gulu.File.Copy(from, to); nil != err {
+			if err := filelock.Copy(from, to); nil != err {
 				logging.LogErrorf("copy stage from [%s] to [%s] failed: %s", from, savePath, err)
 				return
 			}
@@ -572,7 +576,7 @@ func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, do
 		for _, src := range srcs {
 			from := filepath.Join(util.AppearancePath, src)
 			to := filepath.Join(savePath, "appearance", src)
-			if err := gulu.File.Copy(from, to); nil != err {
+			if err := filelock.Copy(from, to); nil != err {
 				logging.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
 				return
 			}
@@ -583,13 +587,11 @@ func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, do
 		for _, emoji := range emojis {
 			from := filepath.Join(util.DataDir, emoji)
 			to := filepath.Join(savePath, emoji)
-			if err := gulu.File.Copy(from, to); nil != err {
+			if err := filelock.Copy(from, to); nil != err {
 				logging.LogErrorf("copy emojis from [%s] to [%s] failed: %s", from, savePath, err)
 				return
 			}
 		}
-	} else if pdf && !image { // 导出 PDF 需要将资源文件路径改为 HTTP 伺服
-		luteEngine.RenderOptions.LinkBase = "http://" + util.LocalHost + ":" + util.ServerPort + "/"
 	}
 
 	if pdf {
@@ -626,7 +628,9 @@ func prepareExportTree(bt *treenode.BlockTree) (ret *parse.Tree) {
 			first.InsertBefore(node)
 		}
 	}
+	ret.Path = bt.Path
 	ret.HPath = bt.HPath
+	ret.Box = bt.BoxID
 	return
 }
 
@@ -679,21 +683,10 @@ func ProcessPDF(id, p string, merge, removeAssets bool) (err error) {
 	}
 
 	var headings []*ast.Node
-	var assetDests []string
+	assetDests := assetsLinkDestsInTree(tree)
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if !entering {
 			return ast.WalkContinue
-		}
-
-		if n.IsTextMarkType("a") {
-			dest := n.TextMarkAHref
-			if util.IsAssetLinkDest([]byte(dest)) {
-				assetDests = append(assetDests, dest)
-			}
-		} else if ast.NodeLinkDest == n.Type {
-			if util.IsAssetLinkDest(n.Tokens) {
-				assetDests = append(assetDests, string(n.Tokens))
-			}
 		}
 
 		if ast.NodeHeading == n.Type && !n.ParentIs(ast.NodeBlockquote) {
@@ -827,6 +820,9 @@ func processPDFLinkEmbedAssets(pdfCtx *pdfcpu.Context, assetDests []string, remo
 	for _, link := range assetLinks {
 		link.URI = strings.ReplaceAll(link.URI, "http://"+util.LocalHost+":"+util.ServerPort+"/export/temp/", "")
 		link.URI, _ = url.PathUnescape(link.URI)
+		if idx := strings.Index(link.URI, "?"); 0 < idx {
+			link.URI = link.URI[:idx]
+		}
 
 		if !removeAssets {
 			// 不移除资源文件夹的话将超链接指向资源文件夹
@@ -970,28 +966,6 @@ func processPDFLinkEmbedAssets(pdfCtx *pdfcpu.Context, assetDests []string, remo
 	}
 }
 
-func annotRect(i int, w, h, d, l float64) *pdfcpu.Rectangle {
-	// d..distance between annotation rectangles
-	// l..side length of rectangle
-
-	// max number of rectangles fitting into w
-	xmax := int((w - d) / (l + d))
-
-	// max number of rectangles fitting into h
-	ymax := int((h - d) / (l + d))
-
-	col := float64(i % xmax)
-	row := float64(i / xmax % ymax)
-
-	llx := d + col*(l+d)
-	lly := d + row*(l+d)
-
-	urx := llx + l
-	ury := lly + l
-
-	return pdfcpu.Rect(llx, lly, urx, ury)
-}
-
 func ExportStdMarkdown(id string) string {
 	tree, err := loadTreeByBlockID(id)
 	if nil != err {
@@ -1124,11 +1098,7 @@ func exportMarkdownZip(boxID, baseFolderName string, docPaths []string) (zipPath
 			}
 
 			destPath := filepath.Join(writeFolder, asset)
-			if gulu.File.IsDir(srcPath) {
-				err = gulu.File.Copy(srcPath, destPath)
-			} else {
-				err = gulu.File.CopyFile(srcPath, destPath)
-			}
+			err = filelock.Copy(srcPath, destPath)
 			if nil != err {
 				logging.LogErrorf("copy asset from [%s] to [%s] failed: %s", srcPath, destPath, err)
 				continue
@@ -1355,14 +1325,20 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 			}
 
 			destPath := filepath.Join(exportFolder, asset)
-			if gulu.File.IsDir(srcPath) {
-				assetErr = gulu.File.Copy(srcPath, destPath)
-			} else {
-				assetErr = gulu.File.CopyFile(srcPath, destPath)
-			}
+			assetErr = filelock.Copy(srcPath, destPath)
 			if nil != assetErr {
 				logging.LogErrorf("copy asset from [%s] to [%s] failed: %s", srcPath, destPath, assetErr)
 				continue
+			}
+
+			if !gulu.File.IsDir(srcPath) && strings.HasSuffix(strings.ToLower(srcPath), ".pdf") {
+				sya := srcPath + ".sya"
+				if gulu.File.IsExist(sya) {
+					// Related PDF annotation information is not exported when exporting .sy.zip https://github.com/siyuan-note/siyuan/issues/7836
+					if syaErr := filelock.Copy(sya, destPath+".sya"); nil != syaErr {
+						logging.LogErrorf("copy sya from [%s] to [%s] failed: %s", sya, destPath+".sya", syaErr)
+					}
+				}
 			}
 
 			copiedAssets.Add(asset)
@@ -1648,6 +1624,10 @@ func exportTree(tree *parse.Tree, wysiwyg, expandKaTexMacros, keepFold bool,
 				return ast.WalkContinue
 			} else if treenode.IsFileAnnotationRef(n) {
 				refID := n.TextMarkFileAnnotationRefID
+				if !strings.Contains(refID, "/") {
+					return ast.WalkSkipChildren
+				}
+
 				status := processFileAnnotationRef(refID, n, fileAnnotationRefMode)
 				unlinks = append(unlinks, n)
 				return status
@@ -1886,7 +1866,7 @@ func resolveFootnotesDefs(refFootnotes *[]*refAsFootnotes, rootID string, blockR
 					stmt := n.ChildByType(ast.NodeBlockQueryEmbedScript).TokensStr()
 					stmt = html.UnescapeString(stmt)
 					stmt = strings.ReplaceAll(stmt, editor.IALValEscNewLine, "\n")
-					sqlBlocks := sql.SelectBlocksRawStmt(stmt, Conf.Search.Limit)
+					sqlBlocks := sql.SelectBlocksRawStmt(stmt, 1, Conf.Search.Limit)
 					for _, b := range sqlBlocks {
 						subNodes := renderBlockMarkdownR0(b.ID, &rendered)
 						for _, subNode := range subNodes {

@@ -4,6 +4,7 @@
     box-sizing: border-box;
     flex: 1;
     background-color: var(--b3-theme-background);
+    height: 90vh;
 
     .b3-label {
       padding: 16px 0;
@@ -14,10 +15,26 @@
   &__panel {
     & > .b3-tab-bar {
       user-select: none;
-      width: 180px;
+      width: 200px;
       overflow: auto;
       padding: 8px 0;
-      box-sizing: border-box
+      box-sizing: border-box;
+      height: 90vh;
+
+      .b3-form__icon {
+        margin: 0 8px 8px;
+      }
+
+      .b3-list-item {
+        line-height: 38px;
+
+        &__graphic {
+          margin-right: 0;
+          padding:0 10px 0 5px;
+          height: 16px;
+          width: 16px;
+        }
+      }
     }
   }
 
@@ -80,6 +97,7 @@
       width: 100%;
       box-sizing: border-box;
       padding: 16px 24px;
+      margin-top: 10vh;
     }
 
     &__cover {
@@ -177,7 +195,7 @@
 
   &-bazaar__readme {
     position: absolute;
-    transition: var(--b3-transition);
+    transition: transform .2s cubic-bezier(0, 0, .2, 1) 0ms, opacity .3s cubic-bezier(0, 0, .2, 1) 0ms;
     right: -100%;
     top: 0;
     width: 100%;
@@ -186,6 +204,13 @@
     display: flex;
     padding: 16px;
     box-sizing: border-box;
+    opacity: 0;
+    z-index: 1;
+
+    &--show {
+      opacity: 1;
+      transform: translateX(-100%);
+    }
 
     .item {
       &__side {

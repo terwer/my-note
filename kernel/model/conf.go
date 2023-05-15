@@ -19,6 +19,7 @@ package model
 import (
 	"bytes"
 	"fmt"
+	"github.com/sashabaranov/go-openai"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -75,6 +76,7 @@ type AppConf struct {
 	Api            *conf.API        `json:"api"`            // API
 	Repo           *conf.Repo       `json:"repo"`           // 数据仓库
 	OpenHelp       bool             `json:"openHelp"`       // 启动后是否需要打开用户指南
+	ShowChangelog  bool             `json:"showChangelog"`  // 是否显示版本更新日志
 }
 
 func InitConf() {
@@ -219,6 +221,7 @@ func InitConf() {
 	} else {
 		if 0 < semver.Compare("v"+util.Ver, "v"+Conf.System.KernelVersion) {
 			logging.LogInfof("upgraded from version [%s] to [%s]", Conf.System.KernelVersion, util.Ver)
+			Conf.ShowChangelog = true
 		} else if 0 > semver.Compare("v"+util.Ver, "v"+Conf.System.KernelVersion) {
 			logging.LogInfof("downgraded from version [%s] to [%s]", Conf.System.KernelVersion, util.Ver)
 		}
@@ -233,8 +236,12 @@ func InitConf() {
 	if "" == Conf.System.ID {
 		Conf.System.ID = util.GetDeviceID()
 	}
+	if "" == Conf.System.Name {
+		Conf.System.Name = util.GetDeviceName()
+	}
 	if util.ContainerStd == util.Container {
 		Conf.System.ID = util.GetDeviceID()
+		Conf.System.Name = util.GetDeviceName()
 	}
 
 	Conf.System.AppDir = util.WorkingDir
@@ -321,15 +328,18 @@ func InitConf() {
 	if nil == Conf.Flashcard {
 		Conf.Flashcard = conf.NewFlashcard()
 	}
-	if 1 > Conf.Flashcard.NewCardLimit {
+	if 0 > Conf.Flashcard.NewCardLimit {
 		Conf.Flashcard.NewCardLimit = 20
 	}
-	if 1 > Conf.Flashcard.ReviewCardLimit {
+	if 0 > Conf.Flashcard.ReviewCardLimit {
 		Conf.Flashcard.ReviewCardLimit = 200
 	}
 
 	if nil == Conf.AI {
 		Conf.AI = conf.NewAI()
+	}
+	if "" == Conf.AI.OpenAI.APIModel {
+		Conf.AI.OpenAI.APIModel = openai.GPT4
 	}
 
 	if "" != Conf.AI.OpenAI.APIKey {
@@ -337,8 +347,9 @@ func InitConf() {
 			"    baseURL=%s\n"+
 			"    timeout=%ds\n"+
 			"    proxy=%s\n"+
+			"    model=%s\n"+
 			"    maxTokens=%d",
-			Conf.AI.OpenAI.APIBaseURL, Conf.AI.OpenAI.APITimeout, Conf.AI.OpenAI.APIProxy, Conf.AI.OpenAI.APIMaxTokens)
+			Conf.AI.OpenAI.APIBaseURL, Conf.AI.OpenAI.APITimeout, Conf.AI.OpenAI.APIProxy, Conf.AI.OpenAI.APIModel, Conf.AI.OpenAI.APIMaxTokens)
 	}
 
 	Conf.ReadOnly = util.ReadOnly
@@ -450,7 +461,7 @@ func Close(force bool, execInstallPkg int) (exitCode int) {
 	if !force {
 		if Conf.Sync.Enabled && 3 != Conf.Sync.Mode &&
 			((IsSubscriber() && conf.ProviderSiYuan == Conf.Sync.Provider) || conf.ProviderSiYuan != Conf.Sync.Provider) {
-			syncData(false, true, false)
+			syncData(true, false)
 			if 0 != ExitSyncSucc {
 				exitCode = 1
 				return

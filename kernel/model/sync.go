@@ -46,7 +46,7 @@ func SyncDataDownload() {
 	}
 
 	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
-	if !isProviderOnline() { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
+	if !isProviderOnline(true) { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
 		util.BroadcastByType("main", "syncing", 2, Conf.Language(28), nil)
 		return
 	}
@@ -62,7 +62,7 @@ func SyncDataDownload() {
 	if nil == err {
 		synced += Conf.Sync.Stat
 	} else {
-		synced += fmt.Sprintf(Conf.Language(80), formatErrorMsg(err))
+		synced += fmt.Sprintf(Conf.Language(80), formatRepoErrorMsg(err))
 	}
 	msg := fmt.Sprintf(Conf.Language(82), synced)
 	Conf.Sync.Stat = msg
@@ -82,7 +82,7 @@ func SyncDataUpload() {
 	}
 
 	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
-	if !isProviderOnline() { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
+	if !isProviderOnline(true) { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
 		util.BroadcastByType("main", "syncing", 2, Conf.Language(28), nil)
 		return
 	}
@@ -98,7 +98,7 @@ func SyncDataUpload() {
 	if nil == err {
 		synced += Conf.Sync.Stat
 	} else {
-		synced += fmt.Sprintf(Conf.Language(80), formatErrorMsg(err))
+		synced += fmt.Sprintf(Conf.Language(80), formatRepoErrorMsg(err))
 	}
 	msg := fmt.Sprintf(Conf.Language(82), synced)
 	Conf.Sync.Stat = msg
@@ -112,10 +112,10 @@ func SyncDataUpload() {
 }
 
 var (
-	syncSameCount        = 0
-	syncDownloadErrCount = 0
-	fixSyncInterval      = 5 * time.Minute
-	syncPlanTime         = time.Now().Add(fixSyncInterval)
+	syncSameCount    = 0
+	autoSyncErrCount = 0
+	fixSyncInterval  = 5 * time.Minute
+	syncPlanTime     = time.Now().Add(fixSyncInterval)
 
 	BootSyncSucc = -1 // -1：未执行，0：执行成功，1：执行失败
 	ExitSyncSucc = -1
@@ -126,7 +126,7 @@ func SyncDataJob() {
 		return
 	}
 
-	SyncData(false, false, false)
+	SyncData(false)
 }
 
 func BootSyncData() {
@@ -136,7 +136,7 @@ func BootSyncData() {
 		return
 	}
 
-	if !isProviderOnline() {
+	if !isProviderOnline(false) {
 		BootSyncSucc = 1
 		util.PushErrMsg(Conf.Language(28), 7000)
 		return
@@ -157,7 +157,7 @@ func BootSyncData() {
 	if nil == err {
 		synced += Conf.Sync.Stat
 	} else {
-		synced += fmt.Sprintf(Conf.Language(80), formatErrorMsg(err))
+		synced += fmt.Sprintf(Conf.Language(80), formatRepoErrorMsg(err))
 	}
 	msg := fmt.Sprintf(Conf.Language(82), synced)
 	Conf.Sync.Stat = msg
@@ -170,19 +170,19 @@ func BootSyncData() {
 	return
 }
 
-func SyncData(boot, exit, byHand bool) {
-	syncData(boot, exit, byHand)
+func SyncData(byHand bool) {
+	syncData(false, byHand)
 }
 
-func syncData(boot, exit, byHand bool) {
+func syncData(exit, byHand bool) {
 	defer logging.Recover()
 
-	if !checkSync(boot, exit, byHand) {
+	if !checkSync(false, exit, byHand) {
 		return
 	}
 
 	util.BroadcastByType("main", "syncing", 0, Conf.Language(81), nil)
-	if !isProviderOnline() { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
+	if !exit && !isProviderOnline(byHand) { // 这个操作比较耗时，所以要先推送 syncing 事件后再判断网络，这样才能给用户更即时的反馈
 		util.BroadcastByType("main", "syncing", 2, Conf.Language(28), nil)
 		return
 	}
@@ -190,11 +190,6 @@ func syncData(boot, exit, byHand bool) {
 	syncLock.Lock()
 	defer syncLock.Unlock()
 
-	if boot {
-		util.IncBootProgress(3, "Syncing data from the cloud...")
-		BootSyncSucc = 0
-		logging.LogInfof("sync before boot")
-	}
 	if exit {
 		ExitSyncSucc = 0
 		logging.LogInfof("sync before exit")
@@ -209,7 +204,7 @@ func syncData(boot, exit, byHand bool) {
 	if nil == err {
 		synced += Conf.Sync.Stat
 	} else {
-		synced += fmt.Sprintf(Conf.Language(80), formatErrorMsg(err))
+		synced += fmt.Sprintf(Conf.Language(80), formatRepoErrorMsg(err))
 	}
 	msg := fmt.Sprintf(Conf.Language(82), synced)
 	Conf.Sync.Stat = msg
@@ -251,12 +246,12 @@ func checkSync(boot, exit, byHand bool) bool {
 
 	if util.IsMutexLocked(&syncLock) {
 		logging.LogWarnf("sync is in progress")
-		planSyncAfter(30 * time.Second)
+		planSyncAfter(fixSyncInterval)
 		return false
 	}
 
-	if 7 < syncDownloadErrCount && !byHand {
-		logging.LogErrorf("sync download error too many times, cancel auto sync, try to sync by hand")
+	if 7 < autoSyncErrCount && !byHand {
+		logging.LogErrorf("failed to auto-sync too many times, delay auto-sync 64 minutes")
 		util.PushErrMsg(Conf.Language(125), 1000*60*60)
 		planSyncAfter(64 * time.Minute)
 		return false
@@ -265,7 +260,10 @@ func checkSync(boot, exit, byHand bool) bool {
 }
 
 // incReindex 增量重建索引。
-func incReindex(upserts, removes []string) {
+func incReindex(upserts, removes []string) (upsertRootIDs, removeRootIDs []string) {
+	upsertRootIDs = []string{}
+	removeRootIDs = []string{}
+
 	util.IncBootProgress(3, "Sync reindexing...")
 	msg := fmt.Sprintf(Conf.Language(35))
 	util.PushStatusBar(msg)
@@ -279,6 +277,7 @@ func incReindex(upserts, removes []string) {
 		}
 
 		id := strings.TrimSuffix(filepath.Base(removeFile), ".sy")
+		removeRootIDs = append(removeRootIDs, id)
 		block := treenode.GetBlockTree(id)
 		if nil != block {
 			msg = fmt.Sprintf(Conf.Language(39), block.RootID)
@@ -321,7 +320,9 @@ func incReindex(upserts, removes []string) {
 		}
 		treenode.IndexBlockTree(tree)
 		sql.UpsertTreeQueue(tree)
+		upsertRootIDs = append(upsertRootIDs, tree.Root.ID)
 	}
+	return
 }
 
 func SetCloudSyncDir(name string) {
@@ -411,7 +412,7 @@ func CreateCloudSyncDir(name string) (err error) {
 
 	err = repo.CreateCloudRepo(name)
 	if nil != err {
-		err = errors.New(formatErrorMsg(err))
+		err = errors.New(formatRepoErrorMsg(err))
 		return
 	}
 	return
@@ -436,7 +437,7 @@ func RemoveCloudSyncDir(name string) (err error) {
 
 	err = repo.RemoveCloudRepo(name)
 	if nil != err {
-		err = errors.New(formatErrorMsg(err))
+		err = errors.New(formatRepoErrorMsg(err))
 		return
 	}
 
@@ -462,7 +463,7 @@ func ListCloudSyncDir() (syncDirs []*Sync, hSize string, err error) {
 
 	dirs, size, err = repo.GetCloudRepos()
 	if nil != err {
-		err = errors.New(formatErrorMsg(err))
+		err = errors.New(formatRepoErrorMsg(err))
 		return
 	}
 	if 1 > len(dirs) {
@@ -493,7 +494,7 @@ func ListCloudSyncDir() (syncDirs []*Sync, hSize string, err error) {
 	return
 }
 
-func formatErrorMsg(err error) string {
+func formatRepoErrorMsg(err error) string {
 	msg := err.Error()
 	if errors.Is(err, cloud.ErrCloudAuthFailed) {
 		msg = Conf.Language(31)
@@ -519,11 +520,11 @@ func formatErrorMsg(err error) string {
 			msg = Conf.Language(24)
 		} else if strings.Contains(msgLowerCase, "net/http: request canceled while waiting for connection") || strings.Contains(msgLowerCase, "exceeded while awaiting") || strings.Contains(msgLowerCase, "context deadline exceeded") || strings.Contains(msgLowerCase, "timeout") || strings.Contains(msgLowerCase, "context cancellation while reading body") {
 			msg = Conf.Language(24)
-		} else if strings.Contains(msgLowerCase, "connection was") || strings.Contains(msgLowerCase, "reset by peer") || strings.Contains(msgLowerCase, "refused") || strings.Contains(msgLowerCase, "socket") {
+		} else if strings.Contains(msgLowerCase, "connection was") || strings.Contains(msgLowerCase, "reset by peer") || strings.Contains(msgLowerCase, "refused") || strings.Contains(msgLowerCase, "socket") || strings.Contains(msgLowerCase, "closed idle connection") || strings.Contains(msgLowerCase, "eof") {
 			msg = Conf.Language(28)
 		}
 	}
-	msg = msg + " v" + util.Ver
+	msg += " (Provider: " + conf.ProviderToStr(Conf.Sync.Provider) + ")"
 	return msg
 }
 
@@ -566,21 +567,30 @@ func planSyncAfter(d time.Duration) {
 	syncPlanTime = time.Now().Add(d)
 }
 
-func isProviderOnline() (ret bool) {
+func isProviderOnline(byHand bool) (ret bool) {
 	checkURL := util.SiYuanSyncServer
+	skipTlsVerify := false
 	switch Conf.Sync.Provider {
 	case conf.ProviderSiYuan:
 	case conf.ProviderS3:
 		checkURL = Conf.Sync.S3.Endpoint
+		skipTlsVerify = Conf.Sync.S3.SkipTlsVerify
 	case conf.ProviderWebDAV:
 		checkURL = Conf.Sync.WebDAV.Endpoint
+		skipTlsVerify = Conf.Sync.WebDAV.SkipTlsVerify
 	default:
 		logging.LogWarnf("unknown provider: %d", Conf.Sync.Provider)
-		util.IsOnline("")
+		return false
 	}
 
-	if ret = util.IsOnline(checkURL); !ret {
-		util.PushErrMsg(Conf.Language(76), 5000)
+	if ret = util.IsOnline(checkURL, skipTlsVerify); !ret {
+		if 1 > autoSyncErrCount || byHand {
+			util.PushErrMsg(Conf.Language(76)+" (Provider: "+conf.ProviderToStr(Conf.Sync.Provider)+")", 5000)
+		}
+		if !byHand {
+			planSyncAfter(fixSyncInterval)
+			autoSyncErrCount++
+		}
 	}
 	return
 }

@@ -30,6 +30,10 @@ export const viewCards = (deckID: string, title: string, deckType: "Tree" | "" |
         <span class="fn__flex-center ft__on-surface">${pageIndex}/${response.data.pageCount || 1}</span>
         <span class="fn__space"></span>
         <span class="counter">${response.data.total}</span>
+        ${isMobile() ? `<span class="fn__space"></span>
+<div data-type="close" class="block__icon block__icon--show">
+    <svg><use xlink:href="#iconCloseRound"></use></svg>
+</div>` : ""}
     </div>
     <div class="${isMobile() ? "fn__flex-column" : "fn__flex"} fn__flex-1" style="min-height: auto">
         <ul class="fn__flex-1 b3-list b3-list--background" style="user-select: none">
@@ -39,28 +43,33 @@ export const viewCards = (deckID: string, title: string, deckType: "Tree" | "" |
         <div class="fn__flex-1 card__empty">${window.siyuan.languages.emptyContent}</div>
     </div>
 </div>`,
-            width: isMobile() ? "98vw" : "80vw",
-            height: isMobile() ? "80vh" : "70vh",
+            width: isMobile() ? "100vw" : "80vw",
+            height: isMobile() ? "100vh" : "70vh",
             destroyCallback() {
                 if (edit) {
                     edit.destroy();
+                    if (window.siyuan.mobile) {
+                        window.siyuan.mobile.popEditor = null;
+                    }
                 }
             }
         });
-        if (response.data.blocks.length === 0) {
-            return;
+        if (response.data.blocks.length > 0) {
+            edit = new Protyle(dialog.element.querySelector("#cardPreview") as HTMLElement, {
+                blockId: "",
+                render: {
+                    gutter: true,
+                    breadcrumbDocName: true
+                },
+            });
+            if (window.siyuan.mobile) {
+                window.siyuan.mobile.popEditor = edit;
+            }
+            if (window.siyuan.config.editor.readOnly) {
+                disabledProtyle(edit.protyle);
+            }
+            getArticle(edit, dialog.element.querySelector(".b3-list-item--focus")?.getAttribute("data-id"));
         }
-        edit = new Protyle(dialog.element.querySelector("#cardPreview") as HTMLElement, {
-            blockId: "",
-            render: {
-                gutter: true,
-                breadcrumbDocName: true
-            },
-        });
-        if (window.siyuan.config.editor.readOnly) {
-            disabledProtyle(edit.protyle);
-        }
-        getArticle(edit, dialog.element.querySelector(".b3-list-item--focus")?.getAttribute("data-id"));
         const previousElement = dialog.element.querySelector('[data-type="previous"]');
         const nextElement = dialog.element.querySelector('[data-type="next"]');
         const listElement = dialog.element.querySelector(".b3-list--background");
@@ -68,11 +77,38 @@ export const viewCards = (deckID: string, title: string, deckType: "Tree" | "" |
             nextElement.removeAttribute("disabled");
         }
         dialog.element.style.zIndex = "200";
+        dialog.element.setAttribute("data-key", "viewCards");
         dialog.element.addEventListener("click", (event) => {
+            if (typeof event.detail === "string") {
+                let currentElement = listElement.querySelector(".b3-list-item--focus");
+                if (currentElement) {
+                    currentElement.classList.remove("b3-list-item--focus");
+                    if (event.detail === "arrowup") {
+                        currentElement = currentElement.previousElementSibling || currentElement.parentElement.lastElementChild;
+                    } else if (event.detail === "arrowdown") {
+                        currentElement = currentElement.nextElementSibling || currentElement.parentElement.firstElementChild;
+                    }
+                    const currentRect = currentElement.getBoundingClientRect();
+                    const parentRect = currentElement.parentElement.getBoundingClientRect();
+                    if (currentRect.top < parentRect.top || currentRect.bottom > parentRect.bottom) {
+                        currentElement.scrollIntoView(currentRect.top < parentRect.top);
+                    }
+                    getArticle(edit, currentElement.getAttribute("data-id"));
+                    currentElement.classList.add("b3-list-item--focus");
+                }
+                event.stopPropagation();
+                event.preventDefault();
+                return;
+            }
             let target = event.target as HTMLElement;
             while (target && !dialog.element.isSameNode(target)) {
                 const type = target.getAttribute("data-type");
-                if (type === "previous") {
+                if (type === "close") {
+                    dialog.destroy();
+                    event.stopPropagation();
+                    event.preventDefault();
+                    break;
+                } else if (type === "previous") {
                     if (pageIndex <= 1) {
                         return;
                     }
@@ -88,6 +124,7 @@ export const viewCards = (deckID: string, title: string, deckType: "Tree" | "" |
                         }
                         nextElement.nextElementSibling.nextElementSibling.textContent = `${pageIndex}/${cardsResponse.data.pageCount || 1}`;
                         listElement.innerHTML = renderViewItem(cardsResponse.data.blocks, title, deckType);
+                        listElement.scrollTop = 0;
                         getArticle(edit, dialog.element.querySelector(".b3-list-item--focus")?.getAttribute("data-id"));
                     });
                     event.stopPropagation();
@@ -107,6 +144,7 @@ export const viewCards = (deckID: string, title: string, deckType: "Tree" | "" |
                         }
                         nextElement.nextElementSibling.nextElementSibling.textContent = `${pageIndex}/${cardsResponse.data.pageCount || 1}`;
                         listElement.innerHTML = renderViewItem(cardsResponse.data.blocks, title, deckType);
+                        listElement.scrollTop = 0;
                         getArticle(edit, dialog.element.querySelector(".b3-list-item--focus")?.getAttribute("data-id"));
                     });
                     event.stopPropagation();
@@ -142,7 +180,7 @@ export const viewCards = (deckID: string, title: string, deckType: "Tree" | "" |
                             target.parentElement.remove();
                         }
 
-                        dialog.element.querySelector(".counter").textContent = (parseInt(dialog.element.querySelector(".counter").textContent) - 1).toString()
+                        dialog.element.querySelector(".counter").textContent = (parseInt(dialog.element.querySelector(".counter").textContent) - 1).toString();
                         if (cb) {
                             cb(removeResponse);
                         }

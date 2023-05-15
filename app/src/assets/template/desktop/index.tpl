@@ -6,6 +6,7 @@
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="../../icon.png">
     <style id="editorFontSize" type="text/css"></style>
     <style id="editorAttr" type="text/css"></style>
@@ -23,7 +24,13 @@
 </div>
 <div id="dockBottom" class="dock fn__none"></div>
 <div id="status" class="fn__flex status"></div>
-<div id="commonMenu" class="b3-menu fn__none"></div>
+<div id="commonMenu" class="b3-menu fn__none">
+    <div class="b3-menu__title fn__none">
+        <svg class="b3-menu__icon"><use xlink:href="#iconLeft"></use></svg>
+        <span class="b3-menu__label"></span>
+    </div>
+    <div class="b3-menu__items"></div>
+</div>
 <div id="message" class="b3-snackbars"></div>
 </body>
 </html>

@@ -1,21 +1,23 @@
 import {Constants} from "./constants";
 import {Menus} from "./menus";
 import {Model} from "./layout/Model";
-import {onGetConfig} from "./util/onGetConfig";
+import {onGetConfig} from "./boot/onGetConfig";
 import "./assets/scss/base.scss";
 import {initBlockPopover} from "./block/popover";
 import {account} from "./config/account";
 import {addScript, addScriptSync} from "./protyle/util/addScript";
 import {genUUID} from "./util/genID";
 import {fetchGet, fetchPost} from "./util/fetch";
-import {addBaseURL, setNoteBook} from "./util/pathName";
+import {addBaseURL, getIdFromSYProtocol, isSYProtocol, setNoteBook} from "./util/pathName";
+import {registerServiceWorker} from "./util/serviceWorker";
 import {openFileById} from "./editor/util";
 import {
     bootSync,
     downloadProgress,
-    processSync, progressBackgroundTask,
+    processSync,
+    progressBackgroundTask,
     progressLoading,
-    progressStatus,
+    progressStatus, reloadSync,
     setTitle,
     transactionError
 } from "./dialog/processSystem";
@@ -26,9 +28,16 @@ import {getAllTabs} from "./layout/getAll";
 import {getLocalStorage} from "./protyle/util/compatibility";
 import {updateEditModeElement} from "./layout/topBar";
 import {getSearch} from "./util/functions";
+import {hideAllElements} from "./protyle/ui/hideElements";
+import {loadPlugins} from "./plugin/loader";
 
-class App {
+export class App {
+    public plugins: import("./plugin").Plugin[] = [];
+
     constructor() {
+        /// #if BROWSER
+        registerServiceWorker(`${Constants.SERVICE_WORKER_PATH}?v=${Constants.SIYUAN_VERSION}`);
+        /// #endif
         addScriptSync(`${Constants.PROTYLE_CDN}/js/lute/lute.min.js?v=${Constants.SIYUAN_VERSION}`, "protyleLuteScript");
         addScript(`${Constants.PROTYLE_CDN}/js/protyle-html.js?v=${Constants.SIYUAN_VERSION}`, "protyleWcHtmlScript");
         addBaseURL();
@@ -45,11 +54,18 @@ class App {
                 id: genUUID(),
                 type: "main",
                 msgCallback: (data) => {
+                    this.plugins.forEach((plugin) => {
+                        plugin.eventBus.emit("ws-main", data);
+                    });
                     if (data) {
                         switch (data.cmd) {
+                            case "syncMergeResult":
+                                reloadSync(data.data);
+                                break;
                             case "readonly":
                                 window.siyuan.config.editor.readOnly = data.data;
                                 updateEditModeElement();
+                                hideAllElements(["util"]);
                                 break;
                             case "progress":
                                 progressLoading(data);
@@ -112,9 +128,6 @@ class App {
                                 progressBackgroundTask(data.data.tasks);
                                 break;
                             case "refreshtheme":
-                                if (!window.siyuan.config.appearance.customCSS && data.data.theme.indexOf("custom.css") > -1) {
-                                    return;
-                                }
                                 if ((window.siyuan.config.appearance.mode === 1 && window.siyuan.config.appearance.themeDark !== "midnight") || (window.siyuan.config.appearance.mode === 0 && window.siyuan.config.appearance.themeLight !== "daylight")) {
                                     (document.getElementById("themeStyle") as HTMLLinkElement).href = data.data.theme;
                                 } else {
@@ -131,8 +144,8 @@ class App {
                     }
                 }
             }),
-            menus: new Menus()
         };
+
         fetchPost("/api/system/getConf", {}, response => {
             window.siyuan.config = response.data.conf;
             // 历史数据兼容，202306后可删除
@@ -153,10 +166,12 @@ class App {
             getLocalStorage(() => {
                 fetchGet(`/appearance/langs/${window.siyuan.config.appearance.lang}.json?v=${Constants.SIYUAN_VERSION}`, (lauguages) => {
                     window.siyuan.languages = lauguages;
+                    window.siyuan.menus = new Menus();
                     bootSync();
                     fetchPost("/api/setting/getCloudUser", {}, userResponse => {
                         window.siyuan.user = userResponse.data;
-                        onGetConfig(response.data.start);
+                        loadPlugins(siyuanApp);
+                        onGetConfig(response.data.start, siyuanApp);
                         account.onSetaccount();
                         resizeDrag();
                         setTitle(window.siyuan.languages.siyuanNote);
@@ -171,14 +186,23 @@ class App {
     }
 }
 
-new App();
+const siyuanApp = new App();
+
 window.openFileByURL = (openURL) => {
-    if (openURL && /^siyuan:\/\/blocks\/\d{14}-\w{7}/.test(openURL)) {
+    if (openURL && isSYProtocol(openURL)) {
+        const isZoomIn = getSearch("focus", openURL) === "1";
         openFileById({
-            id: openURL.substr(16, 22),
-            action:getSearch("focus", openURL) === "1" ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]
+            id: getIdFromSYProtocol(openURL),
+            action: isZoomIn ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT],
+            zoomIn: isZoomIn
         });
         return true;
     }
     return false;
 };
+
+/// #if BROWSER
+window.showKeyboardToolbar = () => {
+    // 防止 Pad 端报错
+};
+/// #endif

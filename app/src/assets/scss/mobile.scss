@@ -113,15 +113,14 @@
     flex-shrink: 0;
     margin: 6px 4px;
     color: var(--b3-theme-on-surface);
+    border-radius: 4px;
 
     &[disabled] {
       opacity: 0.38;
     }
 
     &--active {
-      background-color: var(--b3-theme-primary);
-      border-radius: 4px;
-      color: var(--b3-theme-on-primary);
+      background-color: var(--b3-list-hover);
     }
   }
 
@@ -145,28 +144,40 @@
     @include text-clamp(1);
     flex: 1;
     font-size: 17px;
+    min-height: 30px;
+    line-height: 30px;
   }
 }
 
 .side-panel {
-  top: 0;
-  left: -110vw;
-  right: auto;
   position: fixed;
   background-color: var(--b3-theme-surface);
   height: 100vh;
   width: 100vw;
   z-index: 220;
-  transition: top .15s cubic-bezier(0, 0, .2, 1) 0ms, left .15s cubic-bezier(0, 0, .2, 1) 0ms;
+  transform: translateX(-100vw);
+  transition: transform 0.15s cubic-bezier(0, 0, 0.2, 1) 0ms;
 
   &--all {
-    left: 0;
-    right: 0;
-    top: -200vh;
+    transform: translateY(-200vh);
   }
 }
 
+.side-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 219;
+  background-color: #000;
+  opacity: 0;
+  transition: opacity 150ms linear;
+}
+
 #model {
+  box-sizing: border-box;
+
   .config-about__logo {
     display: flex;
     align-items: center;
@@ -222,6 +233,7 @@
       width: 100%;
       box-sizing: border-box;
       padding: 16px;
+      margin-top: 10vh;
     }
 
     &__name {
@@ -234,10 +246,9 @@
 }
 
 #menu {
-  transition: right 0.15s cubic-bezier(0, 0, 0.2, 1) 0ms;
   z-index: 220;
-  right: -110vw;
-  left: auto;
+  transform: translateX(100vw);
+  top: 0;
 }
 
 .keyboard {
@@ -247,7 +258,7 @@
   box-sizing: border-box;
   height: 42px;
   background: var(--b3-theme-background);
-  z-index: 222;
+  z-index: 306;
   display: flex;
   border-top: 1px solid var(--b3-theme-surface-lighter);
   overflow: hidden;
@@ -269,6 +280,7 @@
   &__util {
     flex: 1;
     overflow: auto;
+    background-color: var(--b3-theme-surface);
   }
 
   &__split {
@@ -289,21 +301,67 @@
       opacity: 0.38;
     }
 
-    &.protyle-toolbar__item--current {
-      color: var(--b3-theme-primary);
+    &.protyle-toolbar__item--current svg {
+      background-color: var(--b3-list-hover);
     }
 
     svg {
       height: 16px;
       width: 16px;
       float: left;
-      padding: 12px;
+      padding: 6px;
+      margin: 6px;
+      border-radius: 4px;
 
       &.keyboard__svg--big {
         width: 30px;
-        padding: 4px;
+        padding: 2px 6px;
         height: 32px;
+        margin: 2px 6px;
       }
+    }
+  }
+
+  &__slash {
+    &-title {
+      height: 24px;
+    }
+
+    &-block {
+      display: flex;
+      padding: 0px 0 8px 8px;
+    }
+
+    &-item {
+      background-color: var(--b3-theme-background);
+      border-radius: 8px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      margin-right: 8px;
+      position: relative;
+      box-shadow: inset 0 0 0 .6px var(--b3-theme-on-surface-light);
+    }
+
+    &-empty {
+      flex: 1;
+      margin-right: 8px;
+    }
+
+    &-icon {
+      height: 20px;
+      width: 20px;
+      padding: 6px;
+      flex-shrink: 0;
+      margin: 8px 0 8px 8px;
+      font-size: 20px;
+      text-align: center;
+      line-height: 20px;
+    }
+
+    &-text {
+      line-height: 48px;
+      margin-left: 8px;
     }
   }
 }
@@ -370,10 +428,50 @@
   @extend .fn__ellipsis;
 }
 
+.protyle {
+  &-util {
+    .color__square {
+      height: 24px;
+      width: 24px;
+    }
+  }
+
+  &-font {
+    font-size: 14px;
+  }
+
+  // iPhone 右上角属性中对不齐
+  &-wysiwyg--attr .protyle-attr > div:not(.protyle-attr--memo):not(.protyle-attr--refcount) {
+    max-width: 26vw;
+    white-space: nowrap;
+    display: block;
+  }
+
+  // 移动端键盘弹起和点击加号需保持滚动高度一致
+  &-background__img img {
+    height: 200px;
+  }
+}
+
+html .protyle-wysiwyg [spellcheck]:empty:before {
+  content: "Enter text";
+  color: var(--b3-theme-on-surface-light);
+}
+
+html[lang="zh_CN"] .protyle-wysiwyg [spellcheck]:empty:before {
+  content: "键入文字";
+  color: var(--b3-theme-on-surface-light);
+}
+
+
 @media (max-width: 620px) {
   .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] {
     flex-direction: column;
     flex-wrap: initial;
+
+    & > div {
+      margin-right: 0;
+    }
   }
 }
 

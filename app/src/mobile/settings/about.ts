@@ -72,6 +72,14 @@ export const initAbout = () => {
     <div class="b3-label__text ft__error">${window.siyuan.languages.dataRepoKeyTip2}</div>
 </div>
 <div class="b3-label${window.siyuan.config.readonly ? " fn__none" : ""}">
+    ${window.siyuan.languages.dataRepoPurge}
+    <div class="fn__hr"></div>
+    <button class="b3-button b3-button--outline fn__block" id="purgeRepo">
+        <svg><use xlink:href="#iconLock"></use></svg>${window.siyuan.languages.purge}
+    </button>
+    <div class="b3-label__text">${window.siyuan.languages.dataRepoPurgeTip}</div>
+</div>
+<div class="b3-label${window.siyuan.config.readonly ? " fn__none" : ""}">
     ${window.siyuan.languages.about13}
     <span class="b3-label__text">${window.siyuan.config.api.token}</span>
     <div class="fn__hr"></div>
@@ -156,7 +164,7 @@ export const initAbout = () => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                            width: "80vw",
+                            width: "92vw",
                         });
                         const textAreaElement = passwordDialog.element.querySelector("textarea");
                         textAreaElement.focus();
@@ -196,7 +204,7 @@ export const initAbout = () => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                            width: "80vw",
+                            width: "92vw",
                         });
                         const inputElement = initDialog.element.querySelector(".b3-text-field") as HTMLInputElement;
                         inputElement.focus();
@@ -243,6 +251,13 @@ export const initAbout = () => {
                         event.preventDefault();
                         event.stopPropagation();
                         break;
+                    } else if (target.id === "purgeRepo") {
+                        confirmDialog("♻️ " + window.siyuan.languages.dataRepoPurge, window.siyuan.languages.dataRepoPurgeConfirm, () => {
+                            fetchPost("/api/repo/purgeRepo");
+                        });
+                        event.preventDefault();
+                        event.stopPropagation();
+                        break;
                     } else if (target.id === "token") {
                         showMessage(window.siyuan.languages.copied);
                         writeText(window.siyuan.config.api.token);
@@ -278,7 +293,7 @@ export const initAbout = () => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                                width: "80vw",
+                                width: "92vw",
                             });
                             const btnsElement = openWorkspaceDialog.element.querySelectorAll(".b3-button");
                             btnsElement[0].addEventListener("click", () => {
@@ -312,7 +327,7 @@ export const initAbout = () => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                            width: "80vw",
+                            width: "92vw",
                         });
                         const inputElement = createWorkspaceDialog.element.querySelector("input");
                         inputElement.focus();

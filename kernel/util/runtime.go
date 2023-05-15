@@ -40,6 +40,25 @@ import (
 
 const DatabaseVer = "20220501" // 修改表结构的话需要修改这里
 
+// IsUILoaded 是否已经加载了 UI。
+var IsUILoaded = false
+
+func WaitForUILoaded() {
+	for !IsUILoaded {
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func HookUILoaded() {
+	for !IsUILoaded {
+		if 0 < len(SessionsByType("main")) {
+			IsUILoaded = true
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
 // IsExiting 是否正在退出程序。
 var IsExiting = false
 
@@ -81,6 +100,14 @@ func GetDeviceID() string {
 		return machineID
 	}
 	return gulu.Rand.String(12)
+}
+
+func GetDeviceName() string {
+	ret, err := os.Hostname()
+	if nil != err {
+		return "unknown"
+	}
+	return ret
 }
 
 func SetNetworkProxy(proxyURL string) {

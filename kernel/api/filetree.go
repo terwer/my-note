@@ -18,6 +18,7 @@ package api
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"path"
 	"regexp"
@@ -95,7 +96,7 @@ func heading2Doc(c *gin.Context) {
 
 	name := path.Base(targetPath)
 	box := model.Conf.Box(targetNotebook)
-	files, _, _ := model.ListDocTree(targetNotebook, path.Dir(targetPath), model.Conf.FileTree.Sort)
+	files, _, _ := model.ListDocTree(targetNotebook, path.Dir(targetPath), util.SortModeUnassigned, false, model.Conf.FileTree.MaxListCount)
 	evt := util.NewCmdResult("heading2doc", 0, util.PushModeBroadcast)
 	evt.Data = map[string]interface{}{
 		"box":            box,
@@ -140,7 +141,7 @@ func li2Doc(c *gin.Context) {
 
 	name := path.Base(targetPath)
 	box := model.Conf.Box(targetNotebook)
-	files, _, _ := model.ListDocTree(targetNotebook, path.Dir(targetPath), model.Conf.FileTree.Sort)
+	files, _, _ := model.ListDocTree(targetNotebook, path.Dir(targetPath), util.SortModeUnassigned, false, model.Conf.FileTree.MaxListCount)
 	evt := util.NewCmdResult("li2doc", 0, util.PushModeBroadcast)
 	evt.Data = map[string]interface{}{
 		"box":            box,
@@ -448,7 +449,7 @@ func createDailyNote(c *gin.Context) {
 	evt.AppId = app
 
 	name := path.Base(p)
-	files, _, _ := model.ListDocTree(box.ID, path.Dir(p), model.Conf.FileTree.Sort)
+	files, _, _ := model.ListDocTree(box.ID, path.Dir(p), util.SortModeUnassigned, false, model.Conf.FileTree.MaxListCount)
 	evt.Data = map[string]interface{}{
 		"box":   box,
 		"path":  p,
@@ -474,6 +475,12 @@ func createDocWithMd(c *gin.Context) {
 		return
 	}
 
+	var parentID string
+	parentIDArg := arg["parentID"]
+	if nil != parentIDArg {
+		parentID = parentIDArg.(string)
+	}
+
 	hPath := arg["path"].(string)
 	markdown := arg["markdown"].(string)
 
@@ -489,7 +496,7 @@ func createDocWithMd(c *gin.Context) {
 		hPath = "/" + hPath
 	}
 
-	id, err := model.CreateWithMarkdown(notebook, hPath, markdown)
+	id, err := model.CreateWithMarkdown(notebook, hPath, markdown, parentID)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -590,8 +597,13 @@ func searchDocs(c *gin.Context) {
 		return
 	}
 
+	flashcard := false
+	if arg["flashcard"] != nil {
+		flashcard = arg["flashcard"].(bool)
+	}
+
 	k := arg["k"].(string)
-	ret.Data = model.SearchDocsByKeyword(k)
+	ret.Data = model.SearchDocsByKeyword(k, flashcard)
 }
 
 func listDocsByPath(c *gin.Context) {
@@ -606,17 +618,30 @@ func listDocsByPath(c *gin.Context) {
 	notebook := arg["notebook"].(string)
 	p := arg["path"].(string)
 	sortParam := arg["sort"]
-	sortMode := model.Conf.FileTree.Sort
+	sortMode := util.SortModeUnassigned
 	if nil != sortParam {
 		sortMode = int(sortParam.(float64))
 	}
-	files, totals, err := model.ListDocTree(notebook, p, sortMode)
+	flashcard := false
+	if arg["flashcard"] != nil {
+		flashcard = arg["flashcard"].(bool)
+	}
+	maxListCount := model.Conf.FileTree.MaxListCount
+	if arg["maxListCount"] != nil {
+		// API `listDocsByPath` add an optional parameter `maxListCount` https://github.com/siyuan-note/siyuan/issues/7993
+		maxListCount = int(arg["maxListCount"].(float64))
+		if 0 >= maxListCount {
+			maxListCount = math.MaxInt
+		}
+	}
+
+	files, totals, err := model.ListDocTree(notebook, p, sortMode, flashcard, maxListCount)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
-	if model.Conf.FileTree.MaxListCount < totals {
+	if maxListCount < totals {
 		util.PushMsg(fmt.Sprintf(model.Conf.Language(48), len(files)), 7000)
 	}
 
@@ -708,7 +733,7 @@ func getDoc(c *gin.Context) {
 func pushCreate(box *model.Box, p, treeID string, arg map[string]interface{}) {
 	evt := util.NewCmdResult("create", 0, util.PushModeBroadcast)
 	name := path.Base(p)
-	files, _, _ := model.ListDocTree(box.ID, path.Dir(p), model.Conf.FileTree.Sort)
+	files, _, _ := model.ListDocTree(box.ID, path.Dir(p), util.SortModeUnassigned, false, model.Conf.FileTree.MaxListCount)
 	evt.Data = map[string]interface{}{
 		"box":   box,
 		"path":  p,

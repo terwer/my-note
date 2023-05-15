@@ -357,13 +357,15 @@ const boot = () => {
     Menu.setApplicationMenu(menu);
     // 当前页面链接使用浏览器打开
     currentWindow.webContents.on("will-navigate", (event, url) => {
-        const currentURL = new URL(event.sender.getURL());
-        if (url.startsWith(getServer(currentURL.port))) {
-            return;
-        }
+        if (event.sender) {
+            const currentURL = new URL(event.sender.getURL());
+            if (url.startsWith(getServer(currentURL.port))) {
+                return;
+            }
 
-        event.preventDefault();
-        shell.openExternal(url);
+            event.preventDefault();
+            shell.openExternal(url);
+        }
     });
 
     currentWindow.on("close", (event) => {
@@ -484,7 +486,7 @@ const initKernel = (workspace, port, lang) => {
                             errorWindowId = showErrorWindow("⚠️ 初始化工作空间失败 Failed to create workspace directory", "<div>初始化工作空间失败。</div><div>Failed to init workspace.</div>");
                             break;
                         case 26:
-                            errorWindowId = showErrorWindow("⚠️ 文件系统读写错误 File system access error", "<div>请检查文件系统权限，并确保没有其他程序正在读写文件；<br>请勿使用第三方同步盘进行数据同步，否则数据会被损坏（iCloud/OneDrive/Dropbox/Google Drive/坚果云/百度网盘/腾讯微云等）<br>解决方案：请将工作空间移动到其他路径后再打开</div><div>Please check file system permissions and make sure no other programs are reading or writing to the file;<br>Do not use a third-party sync disk for data sync, otherwise the data will be damaged (OneDrive/Dropbox/Google Drive/Nutstore/Baidu Netdisk/Tencent Weiyun, etc.)<br>Solution: Please move the workspace to another path before opening it</div>");
+                            errorWindowId = showErrorWindow("⚠️ 文件系统读写错误 File system access error", "<div>1. 请检查文件系统权限，并确保没有其他程序正在读写文件<br>2. 请勿使用第三方同步盘进行数据同步，否则数据会被损坏（iCloud/OneDrive/Dropbox/Google Drive/坚果云/百度网盘/腾讯微云等）<br><br>解决方案：请将工作空间移动到其他路径后再打开</div><div>1. Please check file system permissions and make sure no other programs are reading or writing to the file<br>2. Do not use a third-party sync disk for data sync, otherwise the data will be damaged (OneDrive/Dropbox/Google Drive/Nutstore/Baidu Netdisk/Tencent Weiyun, etc.)<br><br>Solution: Please move the workspace to another path before opening it</div>");
                             break;
                         case 0:
                             break;
@@ -711,7 +713,7 @@ app.whenReady().then(() => {
             }
         });
         if (!foundWorkspace) {
-            initKernel(data.workspace, "", data.lang).then((isSucc) => {
+            initKernel(data.workspace, "", "").then((isSucc) => {
                 if (isSucc) {
                     boot();
                 }
@@ -721,6 +723,10 @@ app.whenReady().then(() => {
     ipcMain.on("siyuan-init", async (event, data) => {
         const exitWS = workspaces.find(item => {
             if (data.id === item.id && item.workspaceDir) {
+                if (item.tray && "win32" === process.platform || "linux" === process.platform) {
+                    // Tray menu text does not change with the appearance language https://github.com/siyuan-note/siyuan/issues/7935
+                    resetTrayMenu(item.tray, data.languages, item.browserWindow);
+                }
                 return true;
             }
         });
@@ -786,6 +792,9 @@ app.whenReady().then(() => {
         BrowserWindow.getAllWindows().forEach(item => {
             item.webContents.send("siyuan-send_windows", data);
         });
+    });
+    ipcMain.on("siyuan-auto-launch", (event, data) => {
+        app.setLoginItemSettings({openAtLogin: data.openAtLogin});
     });
 
     if (firstOpen) {
@@ -946,9 +955,9 @@ powerMonitor.on("resume", async () => {
     // 桌面端系统休眠唤醒后判断网络连通性后再执行数据同步 https://github.com/siyuan-note/siyuan/issues/6687
     writeLog("system resume");
 
-    const eNet = require("electron").net
+    const eNet = require("electron").net;
     const isOnline = async () => {
-        return eNet.isOnline()
+        return eNet.isOnline();
     };
     let online = false;
     for (let i = 0; i < 7; i++) {

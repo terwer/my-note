@@ -17,6 +17,7 @@
 package api
 
 import (
+	"github.com/88250/lute"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,6 +32,46 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func getChangelog(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	data := map[string]interface{}{"show": false, "html": ""}
+	ret.Data = data
+
+	changelogsDir := filepath.Join(util.WorkingDir, "changelogs")
+	if !gulu.File.IsDir(changelogsDir) {
+		return
+	}
+
+	if !model.Conf.ShowChangelog {
+		return
+	}
+
+	changelogPath := filepath.Join(changelogsDir, "v"+util.Ver+"_"+model.Conf.Lang+".md")
+	if !gulu.File.IsExist(changelogPath) {
+		changelogPath = filepath.Join(changelogsDir, "v"+util.Ver+".md")
+		if !gulu.File.IsExist(changelogPath) {
+			logging.LogErrorf("changelog not found: %s", changelogPath)
+			return
+		}
+	}
+
+	contentData, err := os.ReadFile(changelogPath)
+	if nil != err {
+		logging.LogErrorf("read changelog failed: %s", err)
+		return
+	}
+
+	model.Conf.ShowChangelog = false
+	luteEngine := lute.New()
+	htmlContent := luteEngine.Markdown("", contentData)
+
+	data["show"] = true
+	data["html"] = gulu.Str.FromBytes(htmlContent)
+	ret.Data = data
+}
 
 func getEmojiConf(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
@@ -141,7 +182,6 @@ func exportLog(c *gin.Context) {
 	}
 }
 
-var start = true // 是否是启动
 func getConf(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -159,21 +199,21 @@ func getConf(c *gin.Context) {
 
 	ret.Data = map[string]interface{}{
 		"conf":  maskedConf,
-		"start": start,
+		"start": !util.IsUILoaded,
 	}
 
-	if start {
-		start = false
+	if !util.IsUILoaded {
+		go func() {
+			util.WaitForUILoaded()
 
-		if model.Conf.Editor.ReadOnly {
-			// 编辑器启用只读模式时启动后提示用户 https://github.com/siyuan-note/siyuan/issues/7700
-			go func() {
-				time.Sleep(time.Second * 7)
+			if model.Conf.Editor.ReadOnly {
+				// 编辑器启用只读模式时启动后提示用户 https://github.com/siyuan-note/siyuan/issues/7700
+				time.Sleep(time.Second * 3)
 				if model.Conf.Editor.ReadOnly {
 					util.PushMsg(model.Conf.Language(197), 7000)
 				}
-			}()
-		}
+			}
+		}()
 	}
 }
 

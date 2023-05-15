@@ -7,6 +7,7 @@ import {hideElements} from "../protyle/ui/hideElements";
 import {viewCards} from "./viewCards";
 import {Constants} from "../constants";
 import {escapeAttr, escapeHtml} from "../util/escape";
+import {transaction} from "../protyle/wysiwyg/transaction";
 
 export const genCardItem = (item: ICardPackage) => {
     return `<li data-id="${item.id}" data-name="${escapeAttr(item.name)}" class="b3-list-item b3-list-item--narrow${isMobile() ? "" : " b3-list-item--hide-action"}">
@@ -46,23 +47,20 @@ export const makeCard = (ids: string[]) => {
             html += genCardItem(item);
         });
         const dialog = new Dialog({
-            width: isMobile() ? "90vw" : "50vw",
+            width: isMobile() ? "92vw" : "50vw",
             height: "70vh",
-            title: `<div class="fn__flex">
-<div class="fn__flex-1">${window.siyuan.languages.riffCard}</div>
-<span data-type="viewall" class="b3-button b3-button--cancel b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.cardPreview}">
-    <svg><use xlink:href="#iconEye"></use></svg>
-    ${window.siyuan.languages.all}
-</span>
-</div>`,
+            title: window.siyuan.languages.riffCard,
             content: `<div class="b3-dialog__content fn__flex-column" style="box-sizing: border-box;height: 100%">
     <div class="fn__flex">
         <input class="b3-text-field fn__flex-1">
         <span class="fn__space"></span>
-        <button data-type="create" class="b3-button b3-button--outline" style="width: 100px">
+        <span data-type="create" class="block__icon block__icon--show b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.createDeck}">
             <svg><use xlink:href="#iconAdd"></use></svg>
-            ${window.siyuan.languages.createDeck}
-        </button>
+        </span>
+        <span class="fn__space"></span>
+        <span data-type="viewall" class="block__icon block__icon--show b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.cardPreview}">
+            <svg><use xlink:href="#iconEye"></use></svg>
+        </span>
     </div>
     <div class="fn__hr"></div>
     <ul class="b3-list b3-list--background fn__flex-1">${html}</ul>
@@ -113,7 +111,7 @@ export const makeCard = (ids: string[]) => {
                     event.preventDefault();
                     break;
                 } else if (type === "delete") {
-                    confirmDialog(window.siyuan.languages.confirm, `${window.siyuan.languages.confirmDelete} <b>${target.parentElement.getAttribute("data-name")}</b>?`, () => {
+                    confirmDialog(window.siyuan.languages.confirm, `${window.siyuan.languages.confirmDelete} <b>${escapeHtml(target.parentElement.getAttribute("data-name"))}</b>?`, () => {
                         fetchPost("/api/riff/removeRiffDeck", {
                             deckID: target.parentElement.getAttribute("data-id"),
                         }, () => {
@@ -143,7 +141,7 @@ export const makeCard = (ids: string[]) => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                        width: isMobile() ? "80vw" : "520px",
+                        width: isMobile() ? "92vw" : "520px",
                     });
                     const inputElement = renameDialog.element.querySelector("input") as HTMLInputElement;
                     const btnsElement = renameDialog.element.querySelectorAll(".b3-button");
@@ -176,7 +174,7 @@ export const makeCard = (ids: string[]) => {
     });
 };
 
-export const quickMakeCard = (nodeElement: Element[]) => {
+export const quickMakeCard = (protyle: IProtyle, nodeElement: Element[]) => {
     let isRemove = true;
     const ids: string[] = [];
     nodeElement.forEach(item => {
@@ -190,15 +188,25 @@ export const quickMakeCard = (nodeElement: Element[]) => {
         }
     });
     if (isRemove) {
-        fetchPost("/api/riff/removeRiffCards", {
+        transaction(protyle, [{
+            action: "removeFlashcards",
             deckID: Constants.QUICK_DECK_ID,
             blockIDs: ids
-        });
+        }], [{
+            action: "addFlashcards",
+            deckID: Constants.QUICK_DECK_ID,
+            blockIDs: ids
+        }]);
     } else {
-        fetchPost("/api/riff/addRiffCards", {
+        transaction(protyle, [{
+            action: "addFlashcards",
             deckID: Constants.QUICK_DECK_ID,
             blockIDs: ids
-        });
+        }], [{
+            action: "removeFlashcards",
+            deckID: Constants.QUICK_DECK_ID,
+            blockIDs: ids
+        }]);
     }
 };
 

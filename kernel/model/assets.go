@@ -107,10 +107,12 @@ func NetImg2LocalAssets(rootID, originalURL string) (err error) {
 				}
 
 				name := filepath.Base(u)
+				name = util.FilterFileName(name)
+				name = util.TruncateLenFileName(name)
 				name = "net-img-" + name
 				name = util.AssetName(name)
 				writePath := filepath.Join(assetsDirPath, name)
-				if err = gulu.File.Copy(u, writePath); nil != err {
+				if err = filelock.Copy(u, writePath); nil != err {
 					logging.LogErrorf("copy [%s] to [%s] failed: %s", u, writePath, err)
 					return ast.WalkSkipChildren
 				}
@@ -138,7 +140,9 @@ func NetImg2LocalAssets(rootID, originalURL string) (err error) {
 				}
 				util.PushUpdateMsg(msgId, fmt.Sprintf(Conf.Language(119), u), 15000)
 				request := httpclient.NewBrowserRequest()
-				request.SetHeader("Referer", originalURL) // 改进浏览器剪藏扩展转换本地图片成功率 https://github.com/siyuan-note/siyuan/issues/7464
+				if "" != originalURL {
+					request.SetHeader("Referer", originalURL) // 改进浏览器剪藏扩展转换本地图片成功率 https://github.com/siyuan-note/siyuan/issues/7464
+				}
 				resp, reqErr := request.Get(u)
 				if nil != reqErr {
 					logging.LogErrorf("download net img [%s] failed: %s", u, reqErr)
@@ -412,7 +416,7 @@ func RemoveUnusedAssets() (ret []string) {
 	for _, p := range unusedAssets {
 		historyPath := filepath.Join(historyDir, p)
 		if p = filepath.Join(util.DataDir, p); gulu.File.IsExist(p) {
-			if err = gulu.File.Copy(p, historyPath); nil != err {
+			if err = filelock.Copy(p, historyPath); nil != err {
 				return
 			}
 
@@ -455,7 +459,7 @@ func RemoveUnusedAsset(p string) (ret string) {
 	newP := strings.TrimPrefix(absPath, util.DataDir)
 	historyPath := filepath.Join(historyDir, newP)
 	if gulu.File.IsExist(absPath) {
-		if err = gulu.File.Copy(absPath, historyPath); nil != err {
+		if err = filelock.Copy(absPath, historyPath); nil != err {
 			return
 		}
 
@@ -634,17 +638,15 @@ func UnusedAssets() (ret []string) {
 
 		for _, dest := range linkDestFilePaths {
 			linkDestMap[dest] = true
+
+			if strings.HasSuffix(dest, ".pdf") {
+				linkDestMap[dest+".sya"] = true
+			}
 		}
 	}
 
 	var toRemoves []string
 	for asset, _ := range assetsPathMap {
-		if strings.HasSuffix(asset, ".sya") {
-			// 排除文件注解和对应文件
-			toRemoves = append(toRemoves, asset, strings.TrimSuffix(asset, ".sya"))
-			continue
-		}
-
 		if strings.HasSuffix(asset, "ocr-texts.json") {
 			// 排除 OCR 结果文本
 			toRemoves = append(toRemoves, asset)
@@ -656,8 +658,8 @@ func UnusedAssets() (ret []string) {
 	}
 
 	dataAssetsAbsPath := util.GetDataAssetsAbsPath()
-	for _, assetAbsPath := range assetsPathMap {
-		if _, ok := linkDestMap[assetAbsPath]; ok {
+	for dest, assetAbsPath := range assetsPathMap {
+		if _, ok := linkDestMap[dest]; ok {
 			continue
 		}
 
@@ -704,7 +706,7 @@ func assetsLinkDestsInTree(tree *parse.Tree) (ret []string) {
 		// 修改以下代码时需要同时修改 database 构造行级元素实现，增加必要的类型
 		if !entering || (ast.NodeLinkDest != n.Type && ast.NodeHTMLBlock != n.Type && ast.NodeInlineHTML != n.Type &&
 			ast.NodeIFrame != n.Type && ast.NodeWidget != n.Type && ast.NodeAudio != n.Type && ast.NodeVideo != n.Type &&
-			!n.IsTextMarkType("a")) {
+			!n.IsTextMarkType("a") && !n.IsTextMarkType("file-annotation-ref")) {
 			return ast.WalkContinue
 		}
 
@@ -721,6 +723,18 @@ func assetsLinkDestsInTree(tree *parse.Tree) (ret []string) {
 			}
 
 			dest := strings.TrimSpace(n.TextMarkAHref)
+			ret = append(ret, dest)
+		} else if n.IsTextMarkType("file-annotation-ref") {
+			if !isRelativePath(gulu.Str.ToBytes(n.TextMarkFileAnnotationRefID)) {
+				return ast.WalkContinue
+			}
+
+			if !strings.Contains(n.TextMarkFileAnnotationRefID, "/") {
+				return ast.WalkContinue
+			}
+
+			dest := n.TextMarkFileAnnotationRefID[:strings.LastIndexByte(n.TextMarkFileAnnotationRefID, '/')]
+			dest = strings.TrimSpace(dest)
 			ret = append(ret, dest)
 		} else {
 			if ast.NodeWidget == n.Type {
@@ -752,6 +766,7 @@ func assetsLinkDestsInTree(tree *parse.Tree) (ret []string) {
 		}
 		return ast.WalkContinue
 	})
+	ret = gulu.Str.RemoveDuplicatedElem(ret)
 	return
 }
 

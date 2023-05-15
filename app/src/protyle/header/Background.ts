@@ -3,19 +3,16 @@ import {getRandom, isMobile} from "../../util/functions";
 import {hideElements} from "../ui/hideElements";
 import {uploadFiles} from "../upload";
 import {fetchPost} from "../../util/fetch";
-import {
-    getRandomEmoji,
-    openEmojiPanel,
-    unicode2Emoji,
-    updateFileTreeEmoji,
-    updateOutlineEmoji
-} from "../../emoji";
+import {getRandomEmoji, openEmojiPanel, unicode2Emoji, updateFileTreeEmoji, updateOutlineEmoji} from "../../emoji";
 import {upDownHint} from "../../util/upDownHint";
 /// #if !MOBILE
 import {openGlobalSearch} from "../../search/util";
+/// #else
+import {popSearch} from "../../mobile/menu/search";
 /// #endif
 import {getEventName} from "../util/compatibility";
 import {Dialog} from "../../dialog";
+import {Constants} from "../../constants";
 
 export class Background {
     public element: HTMLElement;
@@ -82,6 +79,23 @@ export class Background {
                 };
             });
         } else {
+            this.element.addEventListener("dragover", async (event) => {
+                event.preventDefault();
+            });
+            this.element.addEventListener("drop", async (event: DragEvent & { target: HTMLElement }) => {
+                if (event.dataTransfer.types[0] === "Files" && event.dataTransfer.files[0].type.indexOf("image") !== -1) {
+                    uploadFiles(protyle, [event.dataTransfer.files[0]], undefined, (responseText) => {
+                        const response = JSON.parse(responseText);
+                        const style = `background-image:url("${response.data.succMap[Object.keys(response.data.succMap)[0]]}")`;
+                        this.ial["title-img"] = style;
+                        this.render(this.ial, protyle.block.rootID);
+                        fetchPost("/api/attr/setBlockAttrs", {
+                            id: protyle.block.rootID,
+                            attrs: {"title-img": style}
+                        });
+                    });
+                }
+            });
             this.imgElement.addEventListener("mousedown", (event: MouseEvent & { target: HTMLElement }) => {
                 event.preventDefault();
                 if (!this.element.firstElementChild.querySelector(".protyle-icons").classList.contains("fn__none")) {
@@ -288,7 +302,7 @@ export class Background {
                 } else if (type === "link") {
                     const dialog = new Dialog({
                         title: window.siyuan.languages.link,
-                        width: isMobile() ? "80vw" : "520px",
+                        width: isMobile() ? "92vw" : "520px",
                         content: `<div class="b3-dialog__content">
         <input class="b3-text-field fn__block">
 </div>
@@ -302,7 +316,7 @@ export class Background {
                         dialog.destroy();
                     });
                     btnsElement[1].addEventListener("click", () => {
-                        const style = `background-image:url(${dialog.element.querySelector("input").value});`;
+                        const style = `background-image:url("${dialog.element.querySelector("input").value}");`;
                         this.ial["title-img"] = style;
                         this.render(this.ial, protyle.block.rootID);
                         fetchPost("/api/attr/setBlockAttrs", {
@@ -318,6 +332,21 @@ export class Background {
                 } else if (type === "open-search") {
                     /// #if !MOBILE
                     openGlobalSearch(`#${target.textContent}#`, !window.siyuan.ctrlIsPressed);
+                    /// #else
+                    const searchOption = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+                    popSearch({
+                        removed: searchOption.removed,
+                        sort: searchOption.sort,
+                        group: searchOption.group,
+                        hasReplace: false,
+                        method: 0,
+                        hPath: "",
+                        idPath: [],
+                        k: `#${target.textContent}#`,
+                        r: "",
+                        page: 1,
+                        types: Object.assign({}, searchOption.types)
+                    });
                     /// #endif
                     event.preventDefault();
                     event.stopPropagation();
@@ -389,7 +418,8 @@ export class Background {
         }
 
         if (img) {
-            this.element.style.minHeight = "30vh";
+            // 移动端键盘弹起和点击加号需保持滚动高度一致
+            this.element.style.minHeight = isMobile() ? "200px" : "30vh";
         } else if (icon) {
             this.element.style.minHeight = (this.tagsElement.clientHeight + 56) + "px";
         } else if (tags) {
@@ -408,7 +438,7 @@ export class Background {
                 html += `<div class="b3-list-item${index === 0 ? " b3-list-item--focus" : ""}">${item}</div>`;
             });
             window.siyuan.menus.menu.remove();
-            window.siyuan.menus.menu.element.innerHTML = `<div class="fn__flex-column" style="max-height:50vh"><input style="margin: 4px 8px 8px 8px" class="b3-text-field"/>
+            window.siyuan.menus.menu.element.lastElementChild.innerHTML = `<div class="fn__flex-column" style="max-height:50vh"><input style="margin: 4px 8px 8px 8px" class="b3-text-field"/>
 <div class="b3-list fn__flex-1 b3-list--background" style="position: relative">${html}</div>
 </div>`;
 

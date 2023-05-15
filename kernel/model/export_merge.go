@@ -21,11 +21,12 @@ import (
 	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
+	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
 	ret = rootTree
-	rootBlock := &Block{Box: rootTree.Box, ID: rootTree.ID, Path: rootTree.Path}
+	rootBlock := &Block{Box: rootTree.Box, ID: rootTree.ID, Path: rootTree.Path, HPath: rootTree.HPath}
 	if err = buildBlockChildren(rootBlock); nil != err {
 		return
 	}
@@ -110,7 +111,7 @@ func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error)
 }
 
 func buildBlockChildren(block *Block) (err error) {
-	files, _, err := ListDocTree(block.Box, block.Path, Conf.FileTree.Sort)
+	files, _, err := ListDocTree(block.Box, block.Path, util.SortModeUnassigned, false, Conf.FileTree.MaxListCount)
 	if nil != err {
 		return
 	}

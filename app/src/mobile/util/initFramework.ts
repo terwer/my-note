@@ -1,5 +1,5 @@
 import {Constants} from "../../constants";
-import {closePanel} from "./closePanel";
+import {closeModel, closePanel} from "./closePanel";
 import {openMobileFileById} from "../editor";
 import {validateName} from "../../editor/rename";
 import {getEventName} from "../../protyle/util/compatibility";
@@ -7,17 +7,17 @@ import {fetchPost} from "../../util/fetch";
 import {setInlineStyle} from "../../util/assets";
 import {renderSnippet} from "../../config/util/snippets";
 import {setEmpty} from "./setEmpty";
-import {getOpenNotebookCount} from "../../util/pathName";
+import {getIdZoomInByPath, getOpenNotebookCount} from "../../util/pathName";
 import {popMenu} from "../menu";
-import {MobileFiles} from "./MobileFiles";
-import {MobileOutline} from "./MobileOutline";
+import {MobileFiles} from "../dock/MobileFiles";
+import {MobileOutline} from "../dock/MobileOutline";
 import {hasTopClosestByTag} from "../../protyle/util/hasClosest";
-import {MobileBacklinks} from "./MobileBacklinks";
-import {MobileBookmarks} from "./MobileBookmarks";
-import {MobileTags} from "./MobileTags";
+import {MobileBacklinks} from "../dock/MobileBacklinks";
+import {MobileBookmarks} from "../dock/MobileBookmarks";
+import {MobileTags} from "../dock/MobileTags";
 import {activeBlur, hideKeyboardToolbar, initKeyboardToolbar} from "./keyboardToolbar";
-import {getSearch} from "../../util/functions";
 import {syncGuide} from "../../sync/syncGuide";
+import {Inbox} from "../../layout/dock/Inbox";
 
 export const initFramework = () => {
     setInlineStyle();
@@ -27,6 +27,7 @@ export const initFramework = () => {
     let outline: MobileOutline;
     let backlink: MobileBacklinks;
     let bookmark: MobileBookmarks;
+    let inbox: Inbox;
     let tag: MobileTags;
     // 不能使用 getEventName，否则点击返回会展开右侧栏
     const firstToolbarElement = sidebarElement.querySelector(".toolbar--border");
@@ -72,6 +73,8 @@ export const initFramework = () => {
                     } else {
                         tag.update();
                     }
+                } else if (type === "sidebar-inbox-tab" && !inbox) {
+                    inbox = new Inbox(document.querySelector('#sidebar [data-type="sidebar-inbox"]'));
                 }
                 svgElement.classList.add("toolbar__icon--active");
                 sidebarElement.lastElementChild.querySelector(`[data-type="${itemType.replace("-tab", "")}"]`).classList.remove("fn__none");
@@ -85,7 +88,7 @@ export const initFramework = () => {
     document.getElementById("toolbarFile").addEventListener("click", () => {
         hideKeyboardToolbar();
         activeBlur();
-        sidebarElement.style.left = "0";
+        sidebarElement.style.transform = "translateX(0px)";
         const type = sidebarElement.querySelector(".toolbar--border .toolbar__icon--active").getAttribute("data-type");
         if (type === "sidebar-outline-tab") {
             outline.update();
@@ -115,7 +118,7 @@ export const initFramework = () => {
         editIconElement.setAttribute("xlink:href", "#iconEdit");
     }
     editElement.addEventListener(getEventName(), () => {
-        window.siyuan.config.editor.readOnly = editIconElement.getAttribute("xlink:href") === "#iconEdit";
+        window.siyuan.config.editor.readOnly = !window.siyuan.config.editor.readOnly;
         fetchPost("/api/setting/setEditor", window.siyuan.config.editor);
     });
     document.getElementById("toolbarSync").addEventListener(getEventName(), () => {
@@ -131,17 +134,17 @@ export const initFramework = () => {
         }, Constants.TIMEOUT_INPUT);
     }
     document.getElementById("modelClose").addEventListener("click", () => {
-        document.getElementById("model").style.top = "-200vh";
+        closeModel();
     });
     initEditorName();
     if (getOpenNotebookCount() > 0) {
         if (window.JSAndroid && window.openFileByURL(window.JSAndroid.getBlockURL())) {
             return;
         }
-        const openId = getSearch("id");
-        if (openId) {
-            openMobileFileById(openId,
-                getSearch("focus") === "1" ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]);
+        const idZoomIn = getIdZoomInByPath();
+        if (idZoomIn.id) {
+            openMobileFileById(idZoomIn.id,
+                idZoomIn.isZoomIn ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]);
             return;
         }
         const localDoc = window.siyuan.storage[Constants.LOCAL_DOCINFO];

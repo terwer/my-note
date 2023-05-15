@@ -18,10 +18,12 @@ package search
 
 import (
 	"fmt"
+	"github.com/88250/gulu"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/88250/lute/lex"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -31,7 +33,7 @@ func MarkText(text string, keyword string, beforeLen int, caseSensitive bool) (p
 	}
 	text = util.EscapeHTML(text)
 	keywords := SplitKeyword(keyword)
-	marked = EncloseHighlighting(text, keywords, "<mark>", "</mark>", caseSensitive)
+	marked = EncloseHighlighting(text, keywords, "<mark>", "</mark>", caseSensitive, false)
 
 	pos = strings.Index(marked, "<mark>")
 	if 0 > pos {
@@ -79,15 +81,31 @@ func SplitKeyword(keyword string) (keywords []string) {
 	return
 }
 
-func EncloseHighlighting(text string, keywords []string, openMark, closeMark string, caseSensitive bool) (ret string) {
+func EncloseHighlighting(text string, keywords []string, openMark, closeMark string, caseSensitive, splitWords bool) (ret string) {
 	ic := "(?i)"
 	if caseSensitive {
 		ic = "(?)"
 	}
 	re := ic + "("
 	for i, k := range keywords {
+		if "" == k {
+			continue
+		}
+
+		wordBoundary := false
+		if splitWords {
+			wordBoundary = lex.IsASCIILetterNums(gulu.Str.ToBytes(k)) // Improve virtual reference split words https://github.com/siyuan-note/siyuan/issues/7833
+		}
 		k = regexp.QuoteMeta(k)
-		re += "(" + k + ")"
+		re += "("
+		if wordBoundary {
+			re += "\\b"
+		}
+		re += k
+		if wordBoundary {
+			re += "\\b"
+		}
+		re += ")"
 		if i < len(keywords)-1 {
 			re += "|"
 		}

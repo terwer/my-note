@@ -1,6 +1,6 @@
 import {MenuItem} from "../menus/Menu";
 import {fetchPost} from "../util/fetch";
-import {focusByRange, setLastNodeRange} from "../protyle/util/selection";
+import {setLastNodeRange} from "../protyle/util/selection";
 import {insertHTML} from "../protyle/util/insertHTML";
 import {Dialog} from "../dialog";
 import {isMobile} from "../util/functions";
@@ -14,6 +14,9 @@ import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {escapeAttr, escapeHtml} from "../util/escape";
 
 export const fillContent = (protyle: IProtyle, data: string, elements: Element[]) => {
+    if (!data) {
+        return;
+    }
     setLastNodeRange(getContenteditableElement(elements[elements.length - 1]), protyle.toolbar.range);
     protyle.toolbar.range.collapse(true);
     insertHTML(data, protyle, true, true);
@@ -33,14 +36,14 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
         click() {
             const dialog = new Dialog({
                 title: window.siyuan.languages.aiCustomAction,
-                content: `<div class="b3-dialog__content"><input class="b3-text-field fn__block" value=""></div>
+                content: `<div class="b3-dialog__content"><textarea class="b3-text-field fn__block"></textarea></div>
 <div class="b3-dialog__action">
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                width: isMobile() ? "80vw" : "520px",
+                width: isMobile() ? "92vw" : "520px",
             });
-            const inputElement = dialog.element.querySelector("input") as HTMLInputElement;
+            const inputElement = dialog.element.querySelector("textarea");
             const btnsElement = dialog.element.querySelectorAll(".b3-button");
             dialog.bindInput(inputElement, () => {
                 (btnsElement[1] as HTMLButtonElement).click();
@@ -55,17 +58,13 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                     action: inputElement.value,
                 }, (response) => {
                     dialog.destroy();
-                    let respContent = "";
-                    if (response.data && "" !== response.data) {
-                        respContent = "\n\n" + response.data;
-                    }
-                    fillContent(protyle, `${inputElement.value}${respContent}`, elements);
+                    fillContent(protyle, response.data, elements);
                 });
             });
         }
     }, {
         iconHTML: Constants.ZWSP,
-        label: window.siyuan.languages.save,
+        label: `${window.siyuan.languages.aiCustomAction} & ${window.siyuan.languages.save}`,
         click() {
             const dialog = new Dialog({
                 title: window.siyuan.languages.save,
@@ -78,7 +77,7 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-                width: isMobile() ? "80vw" : "520px",
+                width: isMobile() ? "92vw" : "520px",
             });
             const inputElement = dialog.element.querySelector("input");
             const btnsElement = dialog.element.querySelectorAll(".b3-button");
@@ -90,11 +89,19 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                 dialog.destroy();
             });
             btnsElement[1].addEventListener("click", () => {
+                const memo = dialog.element.querySelector("textarea").value;
                 window.siyuan.storage[Constants.LOCAL_AI].push({
                     name: inputElement.value,
-                    memo: dialog.element.querySelector("textarea").value,
+                    memo
                 });
                 setStorageVal(Constants.LOCAL_AI, window.siyuan.storage[Constants.LOCAL_AI]);
+                fetchPost("/api/ai/chatGPTWithAction", {
+                    ids,
+                    action: memo,
+                }, (response) => {
+                    dialog.destroy();
+                    fillContent(protyle, response.data, elements);
+                });
                 dialog.destroy();
             });
         }
@@ -123,11 +130,7 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                             ids,
                             action: item.memo,
                         }, (response) => {
-                            let respContent = "";
-                            if (response.data && "" !== response.data) {
-                                respContent = "\n\n" + response.data;
-                            }
-                            fillContent(protyle, `${item.memo}${respContent}`, elements);
+                            fillContent(protyle, response.data, elements);
                         });
                         window.siyuan.menus.menu.remove();
                     }
@@ -155,11 +158,22 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
             type: "submenu",
             submenu: [{
                 iconHTML: Constants.ZWSP,
-                label: window.siyuan.languages.aiTranslate_zh_CN,
+                label: window.siyuan.languages.aiTranslate_zh_Hans,
                 click() {
                     fetchPost("/api/ai/chatGPTWithAction", {
                         ids,
-                        action: "Translate as follows to [zh_CN]"
+                        action: "Translate as follows to [zh-Hans]"
+                    }, (response) => {
+                        fillContent(protyle, response.data, elements);
+                    });
+                }
+            }, {
+                iconHTML: Constants.ZWSP,
+                label: window.siyuan.languages.aiTranslate_zh_Hant,
+                click() {
+                    fetchPost("/api/ai/chatGPTWithAction", {
+                        ids,
+                        action: "Translate as follows to [zh-Hant]"
                     }, (response) => {
                         fillContent(protyle, response.data, elements);
                     });
@@ -170,10 +184,9 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                 click() {
                     fetchPost("/api/ai/chatGPTWithAction", {
                         ids,
-                        action: "Translate as follows to [ja_JP]"
+                        action: "Translate as follows to [ja-JP]"
                     }, (response) => {
-                        focusByRange(protyle.toolbar.range);
-                        insertHTML(response.data, protyle, true);
+                        fillContent(protyle, response.data, elements);
                     });
                 }
             }, {
@@ -182,7 +195,7 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                 click() {
                     fetchPost("/api/ai/chatGPTWithAction", {
                         ids,
-                        action: "Translate as follows to [ko_KR]"
+                        action: "Translate as follows to [ko-KR]"
                     }, (response) => {
                         fillContent(protyle, response.data, elements);
                     });
@@ -193,7 +206,7 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                 click() {
                     fetchPost("/api/ai/chatGPTWithAction", {
                         ids,
-                        action: "Translate as follows to [en_US]"
+                        action: "Translate as follows to [en-US]"
                     }, (response) => {
                         fillContent(protyle, response.data, elements);
                     });
@@ -204,7 +217,7 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                 click() {
                     fetchPost("/api/ai/chatGPTWithAction", {
                         ids,
-                        action: "Translate as follows to [es_ES]"
+                        action: "Translate as follows to [es-ES]"
                     }, (response) => {
                         fillContent(protyle, response.data, elements);
                     });
@@ -215,7 +228,7 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                 click() {
                     fetchPost("/api/ai/chatGPTWithAction", {
                         ids,
-                        action: "Translate as follows to [fr_FR]"
+                        action: "Translate as follows to [fr-FR]"
                     }, (response) => {
                         fillContent(protyle, response.data, elements);
                     });
@@ -226,7 +239,7 @@ export const AIActions = (elements: Element[], protyle: IProtyle) => {
                 click() {
                     fetchPost("/api/ai/chatGPTWithAction", {
                         ids,
-                        action: "Translate as follows to [de_DE]"
+                        action: "Translate as follows to [de-DE]"
                     }, (response) => {
                         fillContent(protyle, response.data, elements);
                     });

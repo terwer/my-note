@@ -16,7 +16,7 @@
     position: relative;
 
     &[custom-riff-decks] {
-      box-shadow: 3px 0px 0px -1px var(--b3-protyle-inline-mark-background);
+      box-shadow: -3px 0px 0px -1px var(--b3-protyle-inline-mark-background) inset;
     }
 
     [spellcheck] {
@@ -155,10 +155,17 @@
         & > div {
           flex: 1;
           box-sizing: border-box;
+          margin-right: 24px;
+
+          &:nth-last-child(2),
+          &:last-child {
+            margin-right: 0;
+          }
         }
 
         .sb {
-          margin: 0;
+          margin-top: 0;
+          margin-bottom: 0;
         }
 
         & > div .protyle-attr--refcount {

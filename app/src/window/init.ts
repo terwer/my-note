@@ -1,6 +1,6 @@
 import {Constants} from "../constants";
 import {webFrame} from "electron";
-import {globalShortcut} from "../util/globalShortcut";
+import {globalShortcut} from "../boot/globalShortcut";
 import {fetchPost} from "../util/fetch";
 import {JSONToCenter, resizeTabs} from "../layout/util";
 import {initStatus} from "../layout/status";
@@ -8,13 +8,21 @@ import {appearance} from "../config/appearance";
 import {initAssets, setInlineStyle} from "../util/assets";
 import {renderSnippet} from "../config/util/snippets";
 import {getSearch} from "../util/functions";
-import {initWindow} from "../util/onGetConfig";
+import {initWindow} from "../boot/onGetConfig";
+import {App} from "../index";
 
-export const init = () => {
+export const init = (app:App) => {
     webFrame.setZoomFactor(window.siyuan.storage[Constants.LOCAL_ZOOM]);
-    globalShortcut();
+    globalShortcut(app);
     fetchPost("/api/system/getEmojiConf", {}, response => {
         window.siyuan.emojis = response.data as IEmoji[];
+
+        const layout = JSON.parse(sessionStorage.getItem("layout") || "{}");
+        if (layout.layout) {
+            JSONToCenter(layout.layout);
+            window.siyuan.layout.centerLayout = window.siyuan.layout.layout;
+            return;
+        }
         const tabJSON = JSON.parse(getSearch("json"));
         tabJSON.active = true;
         JSONToCenter({

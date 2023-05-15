@@ -9,44 +9,42 @@ import {openFileById} from "../editor/util";
 import {fetchPost} from "./fetch";
 import {getDisplayName, getOpenNotebookCount, pathPosix} from "./pathName";
 import {Constants} from "../constants";
-import {validateName} from "../editor/rename";
+import {replaceFileName, validateName} from "../editor/rename";
+import {hideElements} from "../protyle/ui/hideElements";
+import {openMobileFileById} from "../mobile/editor";
 
-export const newFile = (notebookId?: string, currentPath?: string, paths?: string[], useSavePath = false) => {
-    if (getOpenNotebookCount() === 0) {
-        showMessage(window.siyuan.languages.newFileTip);
-        return;
-    }
+export const getNewFilePath = (useSavePath: boolean) => {
+    let notebookId = "";
+    let currentPath = "";
     /// #if !MOBILE
-    if (!notebookId) {
-        getAllModels().editor.find((item) => {
-            const currentElement = item.parent.headElement;
-            if (currentElement.classList.contains("item--focus")) {
-                notebookId = item.editor.protyle.notebookId;
-                if (useSavePath) {
-                    currentPath = item.editor.protyle.path;
-                } else {
-                    currentPath = pathPosix().dirname(item.editor.protyle.path);
-                }
-                if (hasClosestByClassName(currentElement, "layout__wnd--active")) {
-                    return true;
-                }
+    getAllModels().editor.find((item) => {
+        const currentElement = item.parent.headElement;
+        if (currentElement.classList.contains("item--focus")) {
+            notebookId = item.editor.protyle.notebookId;
+            if (useSavePath) {
+                currentPath = item.editor.protyle.path;
+            } else {
+                currentPath = pathPosix().dirname(item.editor.protyle.path);
             }
-        });
-        if (!notebookId) {
-            const fileModel = getDockByType("file").data.file;
-            if (fileModel instanceof Files) {
-                const currentElement = fileModel.element.querySelector(".b3-list-item--focus");
-                if (currentElement) {
-                    const topElement = hasTopClosestByTag(currentElement, "UL");
-                    if (topElement) {
-                        notebookId = topElement.getAttribute("data-url");
-                    }
-                    const selectPath = currentElement.getAttribute("data-path");
-                    if (useSavePath) {
-                        currentPath = selectPath;
-                    } else {
-                        currentPath = pathPosix().dirname(selectPath);
-                    }
+            if (hasClosestByClassName(currentElement, "layout__wnd--active")) {
+                return true;
+            }
+        }
+    });
+    if (!notebookId) {
+        const fileModel = getDockByType("file").data.file;
+        if (fileModel instanceof Files) {
+            const currentElement = fileModel.element.querySelector(".b3-list-item--focus");
+            if (currentElement) {
+                const topElement = hasTopClosestByTag(currentElement, "UL");
+                if (topElement) {
+                    notebookId = topElement.getAttribute("data-url");
+                }
+                const selectPath = currentElement.getAttribute("data-path");
+                if (useSavePath) {
+                    currentPath = selectPath;
+                } else {
+                    currentPath = pathPosix().dirname(selectPath);
                 }
             }
         }
@@ -61,6 +59,19 @@ export const newFile = (notebookId?: string, currentPath?: string, paths?: strin
             }
         });
     }
+    return {notebookId, currentPath};
+};
+
+export const newFile = (notebookId?: string, currentPath?: string, paths?: string[], useSavePath = false) => {
+    if (getOpenNotebookCount() === 0) {
+        showMessage(window.siyuan.languages.newFileTip);
+        return;
+    }
+    if (!notebookId) {
+        const resultData = getNewFilePath(useSavePath);
+        notebookId = resultData.notebookId;
+        currentPath = resultData.currentPath;
+    }
     fetchPost("/api/filetree/getDocCreateSavePath", {notebook: notebookId}, (data) => {
         if (data.data.path.indexOf("/") > -1 && useSavePath) {
             if (data.data.path.startsWith("/") || currentPath === "/") {
@@ -71,6 +82,8 @@ export const newFile = (notebookId?: string, currentPath?: string, paths?: strin
                 }, response => {
                     /// #if !MOBILE
                     openFileById({id: response.data, action: [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]});
+                    /// #else
+                    openMobileFileById(response.data, [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
                     /// #endif
                 });
             } else {
@@ -85,6 +98,8 @@ export const newFile = (notebookId?: string, currentPath?: string, paths?: strin
                     }, response => {
                         /// #if !MOBILE
                         openFileById({id: response.data, action: [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]});
+                        /// #else
+                        openMobileFileById(response.data, [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
                         /// #endif
                     });
                 });
@@ -109,6 +124,8 @@ export const newFile = (notebookId?: string, currentPath?: string, paths?: strin
             }, () => {
                 /// #if !MOBILE
                 openFileById({id, action: [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]});
+                /// #else
+                openMobileFileById(id, [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
                 /// #endif
             });
         }
@@ -138,5 +155,26 @@ export const getSavePath = (pathString: string, notebookId: string, cb: (p: stri
                 cb(getDisplayName(response.data, false, true));
             });
         }
+    });
+};
+
+export const newFileByName = (value: string) => {
+    const newData = getNewFilePath(true);
+    fetchPost("/api/filetree/getHPathByPath", {
+        notebook: newData.notebookId,
+        path: newData.currentPath,
+    }, (responsePath) => {
+        fetchPost("/api/filetree/createDocWithMd", {
+            notebook: newData.notebookId,
+            path: pathPosix().join(responsePath.data, replaceFileName(value.trim()) || "Untitled"),
+            markdown: ""
+        }, response => {
+            hideElements(["dialog"]);
+            /// #if MOBILE
+            openMobileFileById(response.data, [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
+            /// #else
+            openFileById({id: response.data, action: [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]});
+            /// #endif
+        });
     });
 };
