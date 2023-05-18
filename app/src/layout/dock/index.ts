@@ -17,6 +17,7 @@ import {resetFloatDockSize} from "./util";
 import {hasClosestByClassName} from "../../protyle/util/hasClosest";
 import {App} from "../../index";
 import {Plugin} from "../../plugin";
+import {Custom} from "./Custom";
 
 export class Dock {
     public element: HTMLElement;
@@ -267,7 +268,7 @@ export class Dock {
         this.layout.element.querySelector(".layout__tab--active")?.classList.remove("layout__tab--active");
     }
 
-    public toggleModel(type: string, show = false, close = false) {
+    public toggleModel(type: string, show = false, close = false, hide = false) {
         if (!type) {
             return;
         }
@@ -277,7 +278,7 @@ export class Dock {
         }
         const index = parseInt(target.getAttribute("data-index"));
         const wnd = this.layout.children[index] as Wnd;
-        if (target.classList.contains("dock__item--active")) {
+        if (target.classList.contains("dock__item--active") || hide) {
             if (!close) {
                 let needFocus = false;
                 Array.from(wnd.element.querySelector(".layout-tab-container").children).find(item => {
@@ -327,29 +328,30 @@ export class Dock {
                 switch (type) {
                     case "file":
                         tab = new Tab({
-                            callback(tab: Tab) {
-                                tab.addModel(new Files({tab}));
+                            callback: (tab: Tab) => {
+                                tab.addModel(new Files({tab, app: this.app}));
                             }
                         });
                         break;
                     case "bookmark":
                         tab = new Tab({
-                            callback(tab: Tab) {
-                                tab.addModel(new Bookmark(tab));
+                            callback: (tab: Tab) => {
+                                tab.addModel(new Bookmark(this.app, tab));
                             }
                         });
                         break;
                     case "tag":
                         tab = new Tab({
-                            callback(tab: Tab) {
-                                tab.addModel(new Tag(tab));
+                            callback: (tab: Tab) => {
+                                tab.addModel(new Tag(this.app, tab));
                             }
                         });
                         break;
                     case "outline":
                         tab = new Tab({
-                            callback(tab: Tab) {
+                            callback: (tab: Tab) => {
                                 const outline = new Outline({
+                                    app: this.app,
                                     type: "pin",
                                     tab,
                                     blockId: editor?.protyle?.block?.rootID,
@@ -363,8 +365,9 @@ export class Dock {
                         break;
                     case "graph":
                         tab = new Tab({
-                            callback(tab: Tab) {
+                            callback: (tab: Tab) => {
                                 tab.addModel(new Graph({
+                                    app: this.app,
                                     tab,
                                     blockId: editor?.protyle?.block?.rootID,
                                     type: "pin"
@@ -374,8 +377,9 @@ export class Dock {
                         break;
                     case "globalGraph":
                         tab = new Tab({
-                            callback(tab: Tab) {
+                            callback: (tab: Tab) => {
                                 tab.addModel(new Graph({
+                                    app: this.app,
                                     tab,
                                     type: "global"
                                 }));
@@ -384,8 +388,9 @@ export class Dock {
                         break;
                     case "backlink":
                         tab = new Tab({
-                            callback(tab: Tab) {
+                            callback: (tab: Tab) => {
                                 tab.addModel(new Backlink({
+                                    app: this.app,
                                     type: "pin",
                                     tab,
                                     blockId: editor?.protyle?.block?.rootID,
@@ -395,8 +400,8 @@ export class Dock {
                         break;
                     case "inbox":
                         tab = new Tab({
-                            callback(tab: Tab) {
-                                tab.addModel(new Inbox(tab));
+                            callback: (tab: Tab) => {
+                                tab.addModel(new Inbox(this.app, tab));
                             }
                         });
                         break;
@@ -544,6 +549,16 @@ export class Dock {
         }
     }
 
+    public remove(key: string) {
+        this.toggleModel(key, false, true, true);
+        this.element.querySelector(`[data-type="${key}"]`).remove();
+        const custom = this.data[key] as Custom;
+        if (custom.parent) {
+            custom.parent.parent.removeTab(custom.parent.id);
+        }
+        delete this.data[key];
+    }
+
     private getClassDirect(index: number) {
         let direct = "e";
         switch (this.position) {
@@ -594,7 +609,7 @@ export class Dock {
         return max;
     }
 
-    private genButton(data: IDockTab[], index: number) {
+    public genButton(data: IDockTab[], index: number, append = false) {
         let html = "";
         data.forEach(item => {
             html += `<span data-height="${item.size.height}" data-width="${item.size.width}" data-type="${item.type}" data-index="${index}" data-hotkey="${item.hotkey || ""}" data-hotkeyLangId="${item.hotkeyLangId || ""}" data-title="${item.title}" class="dock__item${item.show ? " dock__item--active" : ""} b3-tooltips b3-tooltips__${this.getClassDirect(index)}" aria-label="${item.title} ${item.hotkey ? updateHotkeyTip(item.hotkey) : ""}${window.siyuan.languages.dockTip}">
@@ -603,11 +618,19 @@ export class Dock {
             this.data[item.type] = true;
         });
         if (index === 0) {
-            this.element.firstElementChild.innerHTML = `${html}<span class="dock__item dock__item--pin b3-tooltips b3-tooltips__${this.getClassDirect(index)}" aria-label="${this.pin ? window.siyuan.languages.unpin : window.siyuan.languages.pin}">
+            if (append) {
+                this.element.firstElementChild.lastElementChild.insertAdjacentHTML("beforebegin", html);
+            } else {
+                this.element.firstElementChild.innerHTML = `${html}<span class="dock__item dock__item--pin b3-tooltips b3-tooltips__${this.getClassDirect(index)}" aria-label="${this.pin ? window.siyuan.languages.unpin : window.siyuan.languages.pin}">
     <svg><use xlink:href="#iconPin"></use></svg>
 </span>`;
+            }
         } else {
-            this.element.lastElementChild.innerHTML = html;
+            if (append) {
+                this.element.lastElementChild.insertAdjacentHTML("beforeend", html);
+            } else {
+                this.element.lastElementChild.innerHTML = html;
+            }
         }
     }
 }

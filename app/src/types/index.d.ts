@@ -22,7 +22,7 @@ type TOperation =
     | "removeFlashcards"
 type TBazaarType = "templates" | "icons" | "widgets" | "themes" | "plugins"
 type TCardType = "doc" | "notebook" | "all"
-type TEventBus = "ws-main"
+type TEventBus = "ws-main" | "click-blockicon" | "click-editorcontent" | "click-pdf"
 
 declare module "blueimp-md5"
 
@@ -242,6 +242,7 @@ interface ISiyuan {
 }
 
 interface IScrollAttr {
+    rootId: string,
     startId: string,
     endId: string
     scrollTop: number,
@@ -269,6 +270,7 @@ interface IObject {
 }
 
 declare interface ILayoutJSON extends ILayoutOptions {
+    scrollAttr?: IScrollAttr,
     instance?: string,
     width?: string,
     height?: string,
@@ -298,6 +300,13 @@ declare interface IDockTab {
     hotkeyLangId?: string   // 常量中无法存变量
 }
 
+declare interface IPluginData {
+    name: string,
+    js: string,
+    css: string,
+    i18n: IObject
+}
+
 declare interface IPluginDockTab {
     position: TPluginDockPosition,
     size: { width: number, height: number },
@@ -307,6 +316,7 @@ declare interface IPluginDockTab {
 }
 
 declare interface IOpenFileOptions {
+    app: import("../index").App,
     searchData?: ISearchOption, // 搜索必填
     // card 和自定义页签 必填
     custom?: {

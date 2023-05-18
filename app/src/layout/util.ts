@@ -324,7 +324,7 @@ export const JSONToCenter = (app: App, json: ILayoutJSON, layout?: Layout | Wnd 
         }
     } else if (json.instance === "Tab") {
         if (!json.title) {
-            child = newCenterEmptyTab();
+            child = newCenterEmptyTab(app);
         } else {
             let title = json.title;
             if (json.lang) {
@@ -351,28 +351,36 @@ export const JSONToCenter = (app: App, json: ILayoutJSON, layout?: Layout | Wnd 
         if (window.siyuan.config.fileTree.openFilesUseCurrentTab) {
             (layout as Tab).headElement.classList.add("item--unupdate");
         }
+        if (json.scrollAttr) {
+            // 历史数据兼容
+            json.scrollAttr.rootId = json.rootId;
+        }
         (layout as Tab).headElement.setAttribute("data-initdata", JSON.stringify(json));
     } else if (json.instance === "Asset") {
         (layout as Tab).addModel(new Asset({
+            app,
             tab: (layout as Tab),
             path: json.path,
             page: json.page,
         }));
     } else if (json.instance === "Backlink") {
         (layout as Tab).addModel(new Backlink({
+            app,
             tab: (layout as Tab),
             blockId: json.blockId,
             rootId: json.rootId,
             type: json.type as "pin" | "local",
         }));
     } else if (json.instance === "Bookmark") {
-        (layout as Tab).addModel(new Bookmark((layout as Tab)));
+        (layout as Tab).addModel(new Bookmark(app, (layout as Tab)));
     } else if (json.instance === "Files") {
         (layout as Tab).addModel(new Files({
+            app,
             tab: (layout as Tab),
         }));
     } else if (json.instance === "Graph") {
         (layout as Tab).addModel(new Graph({
+            app,
             tab: (layout as Tab),
             blockId: json.blockId,
             rootId: json.rootId,
@@ -380,20 +388,23 @@ export const JSONToCenter = (app: App, json: ILayoutJSON, layout?: Layout | Wnd 
         }));
     } else if (json.instance === "Outline") {
         (layout as Tab).addModel(new Outline({
+            app,
             tab: (layout as Tab),
             blockId: json.blockId,
             type: json.type as "pin" | "local",
         }));
     } else if (json.instance === "Tag") {
-        (layout as Tab).addModel(new Tag((layout as Tab)));
+        (layout as Tab).addModel(new Tag(app, (layout as Tab)));
     } else if (json.instance === "Search") {
         (layout as Tab).addModel(new Search({
+            app,
             tab: (layout as Tab),
             config: json.config
         }));
     } else if (json.instance === "Custom") {
         if (json.customModelType === "siyuan-card") {
             (layout as Tab).addModel(newCardModel({
+                app,
                 tab: (layout as Tab),
                 data: json.customModelData
             }));
@@ -445,16 +456,21 @@ export const JSONToLayout = (app: App, isStart: boolean) => {
     }
     const idZoomIn = getIdZoomInByPath();
 
-    // 启动时 layout 中有该文档，该文档还原会在此之后，因此需有延迟
-    if (idZoomIn.id) {
-        setTimeout(() => {
+
+    setTimeout(() => {
+        // 启动时 layout 中有该文档，该文档还原会在此之后，因此需有延迟
+        if (idZoomIn.id) {
             openFileById({
+                app,
                 id: idZoomIn.id,
                 action: idZoomIn.isZoomIn ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT],
                 zoomIn: idZoomIn.isZoomIn
             });
-        }, Constants.TIMEOUT_LOAD);
-    }
+        }
+        app.plugins.forEach(item => {
+            item.onLayoutReady();
+        });
+    }, Constants.TIMEOUT_LOAD);
 };
 
 export const layoutToJSON = (layout: Layout | Wnd | Tab | Model, json: any, dropEditScroll = false) => {
@@ -646,17 +662,20 @@ export const copyTab = (app: App, tab: Tab) => {
             let model: Model;
             if (tab.model instanceof Editor) {
                 model = new Editor({
+                    app,
                     tab: newTab,
-                    blockId: tab.model.editor.protyle.block.rootID,
+                    blockId: tab.model.editor.protyle.block.id,
                     scrollAttr: saveScroll(tab.model.editor.protyle, true)
                 });
             } else if (tab.model instanceof Asset) {
                 model = new Asset({
+                    app,
                     tab: newTab,
                     path: tab.model.path
                 });
             } else if (tab.model instanceof Graph) {
                 model = new Graph({
+                    app,
                     tab: newTab,
                     blockId: tab.model.blockId,
                     rootId: tab.model.rootId,
@@ -664,27 +683,31 @@ export const copyTab = (app: App, tab: Tab) => {
                 });
             } else if (tab.model instanceof Files) {
                 model = new Files({
+                    app,
                     tab: newTab
                 });
             } else if (tab.model instanceof Outline) {
                 model = new Outline({
+                    app,
                     tab: newTab,
                     blockId: tab.model.blockId,
                     type: tab.model.type
                 });
             } else if (tab.model instanceof Backlink) {
                 model = new Backlink({
+                    app,
                     tab: newTab,
                     blockId: tab.model.blockId,
                     rootId: tab.model.rootId,
                     type: tab.model.type
                 });
             } else if (tab.model instanceof Bookmark) {
-                model = new Bookmark(newTab);
+                model = new Bookmark(app, newTab);
             } else if (tab.model instanceof Tag) {
-                model = new Tag(newTab);
+                model = new Tag(app, newTab);
             } else if (tab.model instanceof Search) {
                 model = new Search({
+                    app,
                     tab: newTab,
                     config: tab.model.config
                 });
@@ -692,6 +715,7 @@ export const copyTab = (app: App, tab: Tab) => {
                 const custom = tab.model as Custom;
                 if (custom.type === "siyuan-card") {
                     model = newCardModel({
+                        app,
                         tab: newTab,
                         data: custom.data
                     });
@@ -708,9 +732,13 @@ export const copyTab = (app: App, tab: Tab) => {
                 }
             } else if (!tab.model && tab.headElement) {
                 const initData = JSON.parse(tab.headElement.getAttribute("data-initdata") || "{}");
+                if (initData.scrollAttr) {
+                    initData.scrollAttr.rootId = initData.rootId;
+                }
                 model = new Editor({
+                    app,
                     tab: newTab,
-                    blockId: initData.rootId || initData.blockId,
+                    blockId: initData.blockId,
                     mode: initData.mode,
                     action: typeof initData.action === "string" ? [initData.action] : initData.action,
                     scrollAttr: initData.scrollAttr,
@@ -871,7 +899,7 @@ export const addResize = (obj: Layout | Wnd) => {
     resizeWnd(resizeElement, obj.resize);
 };
 
-export const newCenterEmptyTab = () => {
+export const newCenterEmptyTab = (app: App) => {
     return new Tab({
         panel: `<div class="layout__empty b3-list">
     <div class="${!window.siyuan.config.readonly ? " fn__none" : ""}">
@@ -916,7 +944,10 @@ export const newCenterEmptyTab = () => {
                 let target = event.target as HTMLElement;
                 while (target && !target.isEqualNode(tab.panelElement)) {
                     if (target.id === "editorEmptySearch") {
-                        openSearch(window.siyuan.config.keymap.general.globalSearch.custom);
+                        openSearch( {
+                            app,
+                            hotkey: window.siyuan.config.keymap.general.globalSearch.custom,
+                        });
                         event.stopPropagation();
                         event.preventDefault();
                         break;
@@ -935,12 +966,12 @@ export const newCenterEmptyTab = () => {
                         event.preventDefault();
                         break;
                     } else if (target.id === "editorEmptyHistory") {
-                        openHistory();
+                        openHistory(app);
                         event.stopPropagation();
                         event.preventDefault();
                         break;
                     } else if (target.id === "editorEmptyFile") {
-                        newFile(undefined, undefined, undefined, true);
+                        newFile(app, undefined, undefined, undefined, true);
                         event.stopPropagation();
                         event.preventDefault();
                         break;

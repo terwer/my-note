@@ -2,23 +2,23 @@ import {hasClosestBlock, hasClosestByAttribute} from "../protyle/util/hasClosest
 import {getContenteditableElement} from "../protyle/wysiwyg/getBlock";
 import {focusByOffset, focusByRange, getSelectionOffset} from "../protyle/util/selection";
 import {hideElements} from "../protyle/ui/hideElements";
-import {fetchPost, fetchSyncPost} from "./fetch";
+import {fetchSyncPost} from "./fetch";
 import {Constants} from "../constants";
 import {Wnd} from "../layout/Wnd";
 import {getInstanceById, getWndByLayout} from "../layout/util";
 import {Tab} from "../layout/Tab";
 import {Editor} from "../editor";
-import {onGet} from "../protyle/util/onGet";
 import {scrollCenter} from "./highlightById";
 import {zoomOut} from "../menus/protyle";
 import {showMessage} from "../dialog/message";
 import {saveScroll} from "../protyle/scroll/saveScroll";
 import {getAllModels} from "../layout/getAll";
+import {App} from "../index";
 
 let forwardStack: IBackStack[] = [];
 let previousIsBack = false;
 
-const focusStack = async (stack: IBackStack) => {
+const focusStack = async (app: App, stack: IBackStack) => {
     hideElements(["gutter", "toolbar", "hint", "util", "dialog"], stack.protyle);
     let blockElement: HTMLElement;
     if (!document.contains(stack.protyle.element)) {
@@ -48,10 +48,12 @@ const focusStack = async (stack: IBackStack) => {
                 docIcon: info.data.rootIcon,
                 callback(tab) {
                     const scrollAttr = saveScroll(stack.protyle, true);
+                    scrollAttr.rootId = stack.protyle.block.rootID;
                     scrollAttr.focusId = stack.id;
                     scrollAttr.focusStart = stack.position.start;
                     scrollAttr.focusEnd = stack.position.end;
                     const editor = new Editor({
+                        app: app,
                         tab,
                         scrollAttr,
                         blockId: stack.zoomId || stack.protyle.block.rootID,
@@ -123,7 +125,10 @@ const focusStack = async (stack: IBackStack) => {
             return true;
         }
     });
-    if (blockElement) {
+    if (blockElement &&
+        // 即使块存在，折叠的情况需要也需要 zoomOut，否则折叠块内的光标无法定位
+        (!stack.zoomId || (stack.zoomId && stack.zoomId === stack.protyle.block.id))
+    ) {
         if (blockElement.getBoundingClientRect().height === 0) {
             // 切换 tab
             stack.protyle.model.parent.parent.switchTab(stack.protyle.model.parent.headElement);
@@ -169,10 +174,10 @@ const focusStack = async (stack: IBackStack) => {
     }
 };
 
-export const goBack = async () => {
+export const goBack = async (app: App) => {
     if (window.siyuan.backStack.length === 0) {
         if (forwardStack.length > 0) {
-            await focusStack(forwardStack[forwardStack.length - 1]);
+            await focusStack(app, forwardStack[forwardStack.length - 1]);
         }
         return;
     }
@@ -184,7 +189,7 @@ export const goBack = async () => {
     }
     let stack = window.siyuan.backStack.pop();
     while (stack) {
-        const isFocus = await focusStack(stack);
+        const isFocus = await focusStack(app, stack);
         if (isFocus) {
             forwardStack.push(stack);
             break;
@@ -198,10 +203,10 @@ export const goBack = async () => {
     }
 };
 
-export const goForward = async () => {
+export const goForward = async (app: App) => {
     if (forwardStack.length === 0) {
         if (window.siyuan.backStack.length > 0) {
-            await focusStack(window.siyuan.backStack[window.siyuan.backStack.length - 1]);
+            await focusStack(app, window.siyuan.backStack[window.siyuan.backStack.length - 1]);
         }
         return;
     }
@@ -212,7 +217,7 @@ export const goForward = async () => {
 
     let stack = forwardStack.pop();
     while (stack) {
-        const isFocus = await focusStack(stack);
+        const isFocus = await focusStack(app, stack);
         if (isFocus) {
             window.siyuan.backStack.push(stack);
             break;

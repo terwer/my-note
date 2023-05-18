@@ -11,10 +11,12 @@ import * as path from "path";
 /// #endif
 import {isBrowser} from "../util/functions";
 import {setStorageVal} from "../protyle/util/compatibility";
-import {hasClosestByAttribute, hasClosestByClassName} from "../protyle/util/hasClosest";
+import {hasClosestByAttribute} from "../protyle/util/hasClosest";
 import {Plugin} from "../plugin";
 import {App} from "../index";
 import {escapeAttr} from "../util/escape";
+import {uninstall} from "../plugin/uninstall";
+import {loadPlugin} from "../plugin/loader";
 
 export const bazaar = {
     element: undefined as Element,
@@ -571,12 +573,7 @@ export const bazaar = {
                                 this._genMyHTML(bazaarType, app);
                                 bazaar._onBazaar(response, bazaarType, ["themes", "icons"].includes(bazaarType));
                                 if (bazaarType === "plugins") {
-                                    // TODO destroy plugin
-                                    exportLayout({
-                                        reload: true,
-                                        onlyData: false,
-                                        errorExit: false,
-                                    });
+                                    uninstall(app, packageName);
                                 }
                             });
                         });
@@ -639,18 +636,19 @@ export const bazaar = {
                     event.stopPropagation();
                     break;
                 } else if (type === "plugin-enable") {
-                    const itemElement = hasClosestByClassName(target, "b3-card");
-                    if (itemElement) {
+                    if (!target.getAttribute("disabled")) {
+                        target.setAttribute("disabled", "disabled");
+                        const enabled = (target as HTMLInputElement).checked;
                         fetchPost("/api/petal/setPetalEnabled", {
                             packageName: dataObj.name,
-                            enabled: (target as HTMLInputElement).checked
-                        }, () => {
-                            // TODO destroy plugin
-                            exportLayout({
-                                reload: true,
-                                onlyData: false,
-                                errorExit: false,
-                            });
+                            enabled,
+                        }, (response) => {
+                            target.removeAttribute("disabled");
+                            if (enabled) {
+                                loadPlugin(app, response.data);
+                            } else {
+                                uninstall(app, dataObj.name);
+                            }
                         });
                     }
                     event.stopPropagation();

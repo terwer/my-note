@@ -10,10 +10,12 @@ import {getDockByType, setPanelFocus} from "../layout/util";
 import {hasClosestByAttribute} from "../protyle/util/hasClosest";
 
 export class Plugin {
+    private app: App;
     public i18n: IObject;
     public eventBus: EventBus;
-    public data: any;
+    public data: any = {};
     public name: string;
+    public topBarIcons: Element[] = [];
     public models: {
         /// #if !MOBILE
         [key: string]: (options: { tab: Tab, data: any }) => Custom
@@ -33,6 +35,7 @@ export class Plugin {
         name: string,
         i18n: IObject
     }) {
+        this.app = options.app;
         this.i18n = options.i18n;
         this.name = options.name;
         this.eventBus = new EventBus(options.name);
@@ -40,6 +43,14 @@ export class Plugin {
 
     public onload() {
         // 加载
+    }
+
+    public onunload() {
+        // 禁用/卸载
+    }
+
+    public onLayoutReady() {
+        // 布局加载完成
     }
 
     public addTopBar(options: {
@@ -65,6 +76,7 @@ export class Plugin {
             iconElement.addEventListener("click", options.callback);
             document.querySelector("#" + (options.position === "right" ? "barSearch" : "drag")).before(iconElement);
         }
+        this.topBarIcons.push(iconElement);
         return iconElement;
     }
 
@@ -73,17 +85,12 @@ export class Plugin {
     }
 
     public loadData(storageName: string) {
-        if (!this.data) {
-            this.data = {};
-        }
         if (typeof this.data[storageName] === "undefined") {
             this.data[storageName] = "";
         }
         return new Promise((resolve) => {
             fetchPost("/api/file/getFile", {path: `/data/storage/petal/${this.name}/${storageName}`}, (response) => {
-                if (response.code === 404) {
-                    this.data[storageName] = "";
-                } else {
+                if (response.code !== 404) {
                     this.data[storageName] = response;
                 }
                 resolve(this.data[storageName]);
@@ -93,11 +100,15 @@ export class Plugin {
 
     public saveData(storageName: string, data: any) {
         return new Promise((resolve) => {
-            if (!this.data) {
-                this.data = {};
-            }
             const pathString = `/data/storage/petal/${this.name}/${storageName}`;
-            const file = new File([new Blob([data])], pathString.split("/").pop());
+            let file: File;
+            if (typeof data === "object") {
+                file = new File([new Blob([JSON.stringify(data)], {
+                    type: "application/json"
+                })], pathString.split("/").pop());
+            } else {
+                file = new File([new Blob([data])], pathString.split("/").pop());
+            }
             const formData = new FormData();
             formData.append("path", pathString);
             formData.append("file", file);
@@ -132,6 +143,7 @@ export class Plugin {
         const type2 = this.name + options.type;
         this.models[type2] = (arg: { data: any, tab: Tab }) => {
             const customObj = new Custom({
+                app: this.app,
                 tab: arg.tab,
                 type: type2,
                 data: arg.data,
@@ -164,6 +176,7 @@ export class Plugin {
             config: options.config,
             model: (arg: { tab: Tab }) => {
                 const customObj = new Custom({
+                    app: this.app,
                     tab: arg.tab,
                     type: type2,
                     data: options.data,

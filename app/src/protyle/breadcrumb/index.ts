@@ -21,11 +21,11 @@ import {openFileById} from "../../editor/util";
 import {getCurrentWindow, systemPreferences} from "@electron/remote";
 /// #endif
 import {onGet} from "../util/onGet";
-import {saveScroll} from "../scroll/saveScroll";
 import {hideElements} from "../ui/hideElements";
 import {confirmDialog} from "../../dialog/confirmDialog";
 import {reloadProtyle} from "../util/reload";
 import {deleteFile} from "../../editor/deleteFile";
+import {App} from "../../index";
 
 export class Breadcrumb {
     public element: HTMLElement;
@@ -33,7 +33,7 @@ export class Breadcrumb {
     private id: string;
     private messageId: string;
 
-    constructor(protyle: IProtyle) {
+    constructor(app: App, protyle: IProtyle) {
         const element = document.createElement("div");
         element.className = "protyle-breadcrumb";
         const isFocus = protyle.options.action.includes(Constants.CB_GET_ALL) && !isMobile();
@@ -51,6 +51,7 @@ export class Breadcrumb {
                     if (protyle.options.render.breadcrumbDocName && window.siyuan.ctrlIsPressed) {
                         /// #if !MOBILE
                         openFileById({
+                            app,
                             id,
                             action: id === protyle.block.rootID ? [Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL]
                         });
@@ -83,9 +84,7 @@ export class Breadcrumb {
                             size: window.siyuan.config.editor.dynamicLoadBlocks,
                         }, getResponse => {
                             onGet(getResponse, protyle, [Constants.CB_GET_HL]);
-                            const exitFocusElement = this.element.parentElement.querySelector('[data-type="exit-focus"]');
-                            exitFocusElement.classList.add("fn__none");
-                            exitFocusElement.nextElementSibling.classList.add("fn__none");
+                            this.toggleExit(true);
                         });
                         target.classList.add("block__icon--active");
                     }
@@ -148,13 +147,24 @@ export class Breadcrumb {
         this.mediaRecorder.startRecordingNewWavFile();
     }
 
+    public toggleExit(hide: boolean) {
+        const exitFocusElement = this.element.parentElement.querySelector('[data-type="exit-focus"]');
+        if (hide) {
+            exitFocusElement.classList.add("fn__none");
+            exitFocusElement.nextElementSibling.classList.add("fn__none");
+        } else {
+            exitFocusElement.classList.remove("fn__none");
+            exitFocusElement.nextElementSibling.classList.remove("fn__none");
+        }
+    }
+
     public showMenu(protyle: IProtyle, position: { x: number, y: number }) {
         let id;
         const cursorNodeElement = hasClosestBlock(getEditorRange(protyle.element).startContainer);
         if (cursorNodeElement) {
             id = cursorNodeElement.getAttribute("data-node-id");
         }
-        fetchPost("/api/block/getTreeStat", {id: id || protyle.block.id}, (response) => {
+        fetchPost("/api/block/getTreeStat", {id: id || (protyle.block.showAll ? protyle.block.id : protyle.block.rootID)}, (response) => {
             window.siyuan.menus.menu.remove();
             if (!protyle.contentElement.classList.contains("fn__none") && !protyle.disabled) {
                 let uploadHTML = "";
@@ -338,7 +348,7 @@ export class Breadcrumb {
                 type: "submenu",
                 submenu: editSubmenu
             }).element);
-            window.siyuan.menus.menu.append(exportMd(protyle.block.id));
+            window.siyuan.menus.menu.append(exportMd(protyle.block.showAll ? protyle.block.id : protyle.block.rootID));
             window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
             window.siyuan.menus.menu.append(new MenuItem({
                 iconHTML: Constants.ZWSP,

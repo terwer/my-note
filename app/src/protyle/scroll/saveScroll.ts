@@ -1,5 +1,5 @@
 import {hasClosestBlock} from "../util/hasClosest";
-import {focusByOffset, getSelectionOffset} from "../util/selection";
+import {getSelectionOffset} from "../util/selection";
 import {fetchPost} from "../../util/fetch";
 import {onGet} from "../util/onGet";
 import {Constants} from "../../constants";
@@ -10,6 +10,7 @@ export const saveScroll = (protyle: IProtyle, getObject = false) => {
         return undefined;
     }
     const attr: IScrollAttr = {
+        rootId: protyle.block.rootID,
         startId: protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-id"),
         endId: protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),
         scrollTop: protyle.contentElement.scrollTop || parseInt(protyle.contentElement.getAttribute("data-scrolltop")) || 0,
@@ -50,17 +51,14 @@ export const getDocByScroll = (options: {
     cb?: () => void
     focus?: boolean
 }) => {
-    let actions: string[] = []
+    let actions: string[] = [];
     if (options.mergedOptions) {
-        actions = options.mergedOptions.action
+        actions = options.mergedOptions.action;
     } else {
         if (options.focus) {
-            actions = [Constants.CB_GET_UNUNDO, Constants.CB_GET_FOCUS]
+            actions = [Constants.CB_GET_UNUNDO, Constants.CB_GET_FOCUS];
         } else {
             actions = [Constants.CB_GET_UNUNDO];
-        }
-        if (options.scrollAttr.zoomInId) {
-            actions.push(Constants.CB_GET_ALL);
         }
     }
     if (options.scrollAttr.zoomInId) {
@@ -68,20 +66,24 @@ export const getDocByScroll = (options: {
             id: options.scrollAttr.zoomInId,
             size: Constants.SIZE_GET_MAX,
         }, response => {
+            actions.push(Constants.CB_GET_ALL);
+            options.protyle.breadcrumb?.toggleExit(false);
             onGet(response, options.protyle, actions, options.scrollAttr);
             if (options.cb) {
-                options.cb()
+                options.cb();
             }
         });
+        return;
     }
     fetchPost("/api/filetree/getDoc", {
-        id: options.scrollAttr.startId,
+        id: options.scrollAttr.rootId || options.mergedOptions?.blockId || options.protyle.block?.rootID || options.scrollAttr.startId,
         startID: options.scrollAttr.startId,
         endID: options.scrollAttr.endId,
     }, response => {
+        options.protyle.breadcrumb?.toggleExit(true);
         onGet(response, options.protyle, actions, options.scrollAttr);
         if (options.cb) {
-            options.cb()
+            options.cb();
         }
     });
 };
