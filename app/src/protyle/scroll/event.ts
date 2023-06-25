@@ -24,6 +24,30 @@ export const scrollEvent = (protyle: IProtyle, element: HTMLElement) => {
             }
         }
 
+        protyle.wysiwyg.element.querySelectorAll(".av").forEach((item: HTMLElement) => {
+            if (item.parentElement.classList.contains("protyle-wysiwyg")) {
+                const headerTop = item.offsetTop - 30 + 56; // 30 - 面包屑, 56 - tab+title
+                const headerElement = item.querySelector(".av__row--header") as HTMLElement;
+                if (headerElement) {
+                    if (headerTop < element.scrollTop && headerTop + headerElement.parentElement.clientHeight > element.scrollTop) {
+                        headerElement.style.transform = `translateY(${element.scrollTop - headerTop}px)`;
+                    } else {
+                        headerElement.style.transform = "";
+                    }
+                }
+                const footerElement = item.querySelector(".av__row--footer") as HTMLElement;
+                if (footerElement) {
+                    const footerBottom = headerTop + footerElement.parentElement.clientHeight;
+                    const scrollBottom = element.scrollTop + element.clientHeight;
+                    if (headerTop + 42 + 36 * 2 < scrollBottom && footerBottom > scrollBottom) {
+                        footerElement.style.transform = `translateY(${scrollBottom - footerBottom}px)`;
+                    } else {
+                        footerElement.style.transform = "";
+                    }
+                }
+            }
+        });
+
         if (!protyle.element.classList.contains("block__edit") && !isMobile()) {
             protyle.contentElement.setAttribute("data-scrolltop", element.scrollTop.toString());
         }
@@ -66,12 +90,15 @@ export const scrollEvent = (protyle: IProtyle, element: HTMLElement) => {
                 fetchPost("/api/filetree/getDoc", {
                     id: protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-id"),
                     mode: 1,
-                    k: protyle.options.key || "",
                     size: window.siyuan.config.editor.dynamicLoadBlocks,
                 }, getResponse => {
                     protyle.contentElement.style.overflow = "";
                     protyle.contentElement.style.width = "";
-                    onGet(getResponse, protyle, [Constants.CB_GET_BEFORE, Constants.CB_GET_UNCHANGEID]);
+                    onGet({
+                        data: getResponse,
+                        protyle,
+                        action: [Constants.CB_GET_BEFORE, Constants.CB_GET_UNCHANGEID],
+                    });
                 });
             }
         } else if ((element.scrollTop > element.scrollHeight - element.clientHeight * 1.8) &&
@@ -81,10 +108,13 @@ export const scrollEvent = (protyle: IProtyle, element: HTMLElement) => {
             fetchPost("/api/filetree/getDoc", {
                 id: protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),
                 mode: 2,
-                k: protyle.options.key || "",
                 size: window.siyuan.config.editor.dynamicLoadBlocks,
             }, getResponse => {
-                onGet(getResponse, protyle, [Constants.CB_GET_APPEND, Constants.CB_GET_UNCHANGEID]);
+                onGet({
+                    data: getResponse,
+                    protyle,
+                    action: [Constants.CB_GET_APPEND, Constants.CB_GET_UNCHANGEID],
+                });
             });
         }
         protyle.scroll.lastScrollTop = Math.max(element.scrollTop, 0);

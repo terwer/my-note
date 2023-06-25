@@ -16,6 +16,7 @@ import {getEditorRange} from "../util/selection";
 import {setPadding} from "../ui/initUI";
 /// #if !MOBILE
 import {openFileById} from "../../editor/util";
+import {setPanelFocus} from "../../layout/util";
 /// #endif
 /// #if !BROWSER
 import {getCurrentWindow, systemPreferences} from "@electron/remote";
@@ -25,7 +26,6 @@ import {hideElements} from "../ui/hideElements";
 import {confirmDialog} from "../../dialog/confirmDialog";
 import {reloadProtyle} from "../util/reload";
 import {deleteFile} from "../../editor/deleteFile";
-import {App} from "../../index";
 
 export class Breadcrumb {
     public element: HTMLElement;
@@ -33,7 +33,7 @@ export class Breadcrumb {
     private id: string;
     private messageId: string;
 
-    constructor(app: App, protyle: IProtyle) {
+    constructor(protyle: IProtyle) {
         const element = document.createElement("div");
         element.className = "protyle-breadcrumb";
         const isFocus = protyle.options.action.includes(Constants.CB_GET_ALL) && !isMobile();
@@ -44,6 +44,11 @@ export class Breadcrumb {
 <button class="b3-tooltips b3-tooltips__w block__icon block__icon--show fn__flex-center" data-menu="true" aria-label="${window.siyuan.languages.more}"><svg><use xlink:href="#iconMore"></use></svg></button>`;
         this.element = element.firstElementChild as HTMLElement;
         element.addEventListener("click", (event) => {
+            /// #if !MOBILE
+            if (protyle.model) {
+                setPanelFocus(protyle.model.element.parentElement.parentElement);
+            }
+            /// #endif
             let target = event.target as HTMLElement;
             while (target && !target.isEqualNode(element)) {
                 const id = target.getAttribute("data-node-id");
@@ -51,13 +56,13 @@ export class Breadcrumb {
                     if (protyle.options.render.breadcrumbDocName && window.siyuan.ctrlIsPressed) {
                         /// #if !MOBILE
                         openFileById({
-                            app,
+                            app:protyle.app,
                             id,
                             action: id === protyle.block.rootID ? [Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL]
                         });
                         /// #endif
                     } else {
-                        zoomOut(protyle, id);
+                        zoomOut({protyle, id});
                     }
                     event.preventDefault();
                     break;
@@ -69,13 +74,13 @@ export class Breadcrumb {
                     event.preventDefault();
                     break;
                 } else if (target.getAttribute("data-type") === "exit-focus") {
-                    zoomOut(protyle, protyle.block.rootID, protyle.block.id);
+                    zoomOut({protyle, id: protyle.block.rootID, focusId: protyle.block.id});
                     event.preventDefault();
                     break;
                 } else if (target.getAttribute("data-type") === "context") {
                     event.preventDefault();
                     if (target.classList.contains("block__icon--active")) {
-                        zoomOut(protyle, protyle.options.blockId);
+                        zoomOut({protyle, id: protyle.options.blockId});
                         target.classList.remove("block__icon--active");
                     } else {
                         fetchPost("/api/filetree/getDoc", {
@@ -83,7 +88,7 @@ export class Breadcrumb {
                             mode: 3,
                             size: window.siyuan.config.editor.dynamicLoadBlocks,
                         }, getResponse => {
-                            onGet(getResponse, protyle, [Constants.CB_GET_HL]);
+                            onGet({data: getResponse, protyle, action: [Constants.CB_GET_HL]});
                             this.toggleExit(true);
                         });
                         target.classList.add("block__icon--active");
@@ -355,9 +360,9 @@ export class Breadcrumb {
                 type: "readonly",
                 label: `<div class="fn__flex">${window.siyuan.languages.runeCount}<span class="fn__space fn__flex-1"></span>${response.data.runeCount}</div>
 <div class="fn__flex">${window.siyuan.languages.wordCount}<span class="fn__space fn__flex-1"></span>${response.data.wordCount}</div>
-<div class="fn__flex">${window.siyuan.languages.link}<span class="fn__space fn__flex-1"></span>${response.data.linkCount}</div>
-<div class="fn__flex">${window.siyuan.languages.image}<span class="fn__space fn__flex-1"></span>${response.data.imageCount}</div>
-<div class="fn__flex">${window.siyuan.languages.ref}<span class="fn__space fn__flex-1"></span>${response.data.refCount}</div>`,
+<div class="fn__flex">${window.siyuan.languages.linkCount}<span class="fn__space fn__flex-1"></span>${response.data.linkCount}</div>
+<div class="fn__flex">${window.siyuan.languages.imgCount}<span class="fn__space fn__flex-1"></span>${response.data.imageCount}</div>
+<div class="fn__flex">${window.siyuan.languages.refCount}<span class="fn__space fn__flex-1"></span>${response.data.refCount}</div>`,
             }).element);
             if (isMobile()) {
                 window.siyuan.menus.menu.fullscreen();

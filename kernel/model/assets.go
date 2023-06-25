@@ -103,7 +103,7 @@ func NetImg2LocalAssets(rootID, originalURL string) (err error) {
 				// `网络图片转换为本地图片` 支持处理 `file://` 本地路径图片 https://github.com/siyuan-note/siyuan/issues/6546
 
 				u := string(dest)[7:]
-				if !gulu.File.IsExist(u) {
+				if !gulu.File.IsExist(u) || gulu.File.IsDir(u) {
 					return ast.WalkSkipChildren
 				}
 
@@ -676,6 +676,74 @@ func UnusedAssets() (ret []string) {
 		}
 		ret = append(ret, p)
 	}
+	sort.Strings(ret)
+	return
+}
+
+func MissingAssets() (ret []string) {
+	defer logging.Recover()
+	ret = []string{}
+
+	assetsPathMap, err := allAssetAbsPaths()
+	if nil != err {
+		return
+	}
+	notebooks, err := ListNotebooks()
+	if nil != err {
+		return
+	}
+	luteEngine := util.NewLute()
+	for _, notebook := range notebooks {
+		if notebook.Closed {
+			continue
+		}
+
+		dests := map[string]bool{}
+		pages := pagedPaths(filepath.Join(util.DataDir, notebook.ID), 32)
+		for _, paths := range pages {
+			var trees []*parse.Tree
+			for _, localPath := range paths {
+				tree, loadTreeErr := loadTree(localPath, luteEngine)
+				if nil != loadTreeErr {
+					continue
+				}
+				trees = append(trees, tree)
+			}
+			for _, tree := range trees {
+				for _, d := range assetsLinkDestsInTree(tree) {
+					dests[d] = true
+				}
+
+				if titleImgPath := treenode.GetDocTitleImgPath(tree.Root); "" != titleImgPath {
+					// 题头图计入
+					if !util.IsAssetLinkDest([]byte(titleImgPath)) {
+						continue
+					}
+					dests[titleImgPath] = true
+				}
+			}
+		}
+
+		for dest, _ := range dests {
+			if !strings.HasPrefix(dest, "assets/") {
+				continue
+			}
+
+			if idx := strings.Index(dest, "?"); 0 < idx {
+				dest = dest[:idx]
+			}
+
+			if strings.HasSuffix(dest, "/") {
+				continue
+			}
+
+			if "" == assetsPathMap[dest] {
+				ret = append(ret, dest)
+				continue
+			}
+		}
+	}
+
 	sort.Strings(ret)
 	return
 }

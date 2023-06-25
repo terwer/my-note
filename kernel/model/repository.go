@@ -50,7 +50,6 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/cache"
 	"github.com/siyuan-note/siyuan/kernel/conf"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
-	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
@@ -58,7 +57,7 @@ import (
 )
 
 func init() {
-	subscribeEvents()
+	subscribeRepoEvents()
 }
 
 type Snapshot struct {
@@ -71,7 +70,7 @@ type TypeCount struct {
 	Count int    `json:"count"`
 }
 
-func OpenRepoSnapshotDoc(fileID string) (id, rootID, content string, isLargeDoc bool, updated int64, err error) {
+func OpenRepoSnapshotDoc(fileID string) (content string, isProtyleDoc bool, updated int64, err error) {
 	if 1 > len(Conf.Repo.Key) {
 		err = errors.New(Conf.Language(26))
 		return
@@ -81,51 +80,88 @@ func OpenRepoSnapshotDoc(fileID string) (id, rootID, content string, isLargeDoc 
 	if nil != err {
 		return
 	}
-	luteEngine := NewLute()
-	isLargeDoc, snapshotTree, updated, err := parseTreeInSnapshot(fileID, repo, luteEngine)
+
+	file, err := repo.GetFile(fileID)
 	if nil != err {
-		logging.LogErrorf("parse tree from snapshot file [%s] failed", fileID)
 		return
 	}
-	id = snapshotTree.Root.ID
-	rootID = snapshotTree.Root.ID
 
-	if !isLargeDoc {
-		renderTree := &parse.Tree{Root: &ast.Node{Type: ast.NodeDocument}}
-
-		var unlinks []*ast.Node
-		ast.Walk(snapshotTree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-			if !entering {
-				return ast.WalkContinue
-			}
-
-			n.RemoveIALAttr("heading-fold")
-			n.RemoveIALAttr("fold")
-			return ast.WalkContinue
-		})
-
-		for _, unlink := range unlinks {
-			unlink.Unlink()
-		}
-
-		var appends []*ast.Node
-		for n := snapshotTree.Root.FirstChild; nil != n; n = n.Next {
-			appends = append(appends, n)
-		}
-		for _, n := range appends {
-			renderTree.Root.AppendChild(n)
-		}
-
-		snapshotTree = renderTree
+	data, err := repo.OpenFile(file)
+	if nil != err {
+		return
 	}
 
-	luteEngine.RenderOptions.ProtyleContenteditable = false
-	if isLargeDoc {
-		util.PushMsg(Conf.Language(36), 5000)
-		formatRenderer := render.NewFormatRenderer(snapshotTree, luteEngine.RenderOptions)
-		content = gulu.Str.FromBytes(formatRenderer.Render())
+	updated = file.Updated
+
+	if strings.HasSuffix(file.Path, ".sy") {
+		luteEngine := NewLute()
+		var snapshotTree *parse.Tree
+		isProtyleDoc, snapshotTree, err = parseTreeInSnapshot(data, luteEngine)
+		if nil != err {
+			logging.LogErrorf("parse tree from snapshot file [%s] failed", fileID)
+			return
+		}
+
+		if !isProtyleDoc {
+			renderTree := &parse.Tree{Root: &ast.Node{Type: ast.NodeDocument}}
+
+			var unlinks []*ast.Node
+			ast.Walk(snapshotTree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+				if !entering {
+					return ast.WalkContinue
+				}
+
+				n.RemoveIALAttr("heading-fold")
+				n.RemoveIALAttr("fold")
+				return ast.WalkContinue
+			})
+
+			for _, unlink := range unlinks {
+				unlink.Unlink()
+			}
+
+			var appends []*ast.Node
+			for n := snapshotTree.Root.FirstChild; nil != n; n = n.Next {
+				appends = append(appends, n)
+			}
+			for _, n := range appends {
+				renderTree.Root.AppendChild(n)
+			}
+
+			snapshotTree = renderTree
+		}
+
+		luteEngine.RenderOptions.ProtyleContenteditable = false
+		if isProtyleDoc {
+			util.PushMsg(Conf.Language(36), 5000)
+			formatRenderer := render.NewFormatRenderer(snapshotTree, luteEngine.RenderOptions)
+			content = gulu.Str.FromBytes(formatRenderer.Render())
+		} else {
+			content = luteEngine.Tree2BlockDOM(snapshotTree, luteEngine.RenderOptions)
+		}
 	} else {
-		content = luteEngine.Tree2BlockDOM(snapshotTree, luteEngine.RenderOptions)
+		isProtyleDoc = true
+		if strings.HasSuffix(file.Path, ".json") {
+			content = gulu.Str.FromBytes(data)
+		} else {
+			if strings.Contains(file.Path, "assets/") { // 剔除笔记本级或者文档级资源文件路径前缀
+				file.Path = file.Path[strings.Index(file.Path, "assets/"):]
+				if util.IsDisplayableAsset(file.Path) {
+					dir, f := filepath.Split(file.Path)
+					tempRepoDiffDir := filepath.Join(util.TempDir, "repo", "diff", dir)
+					if mkErr := os.MkdirAll(tempRepoDiffDir, 0755); nil != mkErr {
+						logging.LogErrorf("mkdir [%s] failed: %v", tempRepoDiffDir, mkErr)
+					} else {
+						if wrErr := os.WriteFile(filepath.Join(tempRepoDiffDir, f), data, 0644); nil != wrErr {
+							logging.LogErrorf("write file [%s] failed: %v", filepath.Join(tempRepoDiffDir, file.Path), wrErr)
+						}
+					}
+					content = path.Join("repo", "diff", file.Path)
+				}
+			} else {
+				content = file.Path
+			}
+		}
 	}
 	return
 }
@@ -142,6 +178,8 @@ type LeftRightDiff struct {
 type DiffFile struct {
 	FileID  string `json:"fileID"`
 	Title   string `json:"title"`
+	Path    string `json:"path"`
+	HSize   string `json:"hSize"`
 	Updated int64  `json:"updated"`
 }
 
@@ -186,6 +224,8 @@ func DiffRepoSnapshots(left, right string) (ret *LeftRightDiff, err error) {
 		ret.AddsLeft = append(ret.AddsLeft, &DiffFile{
 			FileID:  removeRight.ID,
 			Title:   title,
+			Path:    removeRight.Path,
+			HSize:   humanize.Bytes(uint64(removeRight.Size)),
 			Updated: removeRight.Updated,
 		})
 	}
@@ -202,6 +242,8 @@ func DiffRepoSnapshots(left, right string) (ret *LeftRightDiff, err error) {
 		ret.RemovesRight = append(ret.RemovesRight, &DiffFile{
 			FileID:  addLeft.ID,
 			Title:   title,
+			Path:    addLeft.Path,
+			HSize:   humanize.Bytes(uint64(addLeft.Size)),
 			Updated: addLeft.Updated,
 		})
 	}
@@ -218,6 +260,8 @@ func DiffRepoSnapshots(left, right string) (ret *LeftRightDiff, err error) {
 		ret.UpdatesLeft = append(ret.UpdatesLeft, &DiffFile{
 			FileID:  updateLeft.ID,
 			Title:   title,
+			Path:    updateLeft.Path,
+			HSize:   humanize.Bytes(uint64(updateLeft.Size)),
 			Updated: updateLeft.Updated,
 		})
 	}
@@ -234,6 +278,8 @@ func DiffRepoSnapshots(left, right string) (ret *LeftRightDiff, err error) {
 		ret.UpdatesRight = append(ret.UpdatesRight, &DiffFile{
 			FileID:  updateRight.ID,
 			Title:   title,
+			Path:    updateRight.Path,
+			HSize:   humanize.Bytes(uint64(updateRight.Size)),
 			Updated: updateRight.Updated,
 		})
 	}
@@ -250,46 +296,33 @@ func parseTitleInSnapshot(fileID string, repo *dejavu.Repo, luteEngine *lute.Lut
 		return
 	}
 
-	if !strings.HasSuffix(file.Path, ".sy") {
-		return
-	}
+	title = path.Base(file.Path)
+	if strings.HasSuffix(file.Path, ".sy") {
+		var data []byte
+		data, err = repo.OpenFile(file)
+		if nil != err {
+			logging.LogErrorf("open file [%s] failed: %s", fileID, err)
+			return
+		}
 
-	var data []byte
-	data, err = repo.OpenFile(file)
-	if nil != err {
-		logging.LogErrorf("open file [%s] failed: %s", fileID, err)
-		return
-	}
+		var tree *parse.Tree
+		tree, err = filesys.ParseJSONWithoutFix(data, luteEngine.ParseOptions)
+		if nil != err {
+			logging.LogErrorf("parse file [%s] failed: %s", fileID, err)
+			return
+		}
 
-	var tree *parse.Tree
-	tree, err = filesys.ParseJSONWithoutFix(data, luteEngine.ParseOptions)
-	if nil != err {
-		logging.LogErrorf("parse file [%s] failed: %s", fileID, err)
-		return
+		title = tree.Root.IALAttr("title")
 	}
-
-	title = tree.Root.IALAttr("title")
 	return
 }
 
-func parseTreeInSnapshot(fileID string, repo *dejavu.Repo, luteEngine *lute.Lute) (isLargeDoc bool, tree *parse.Tree, updated int64, err error) {
-	file, err := repo.GetFile(fileID)
-	if nil != err {
-		return
-	}
-
-	data, err := repo.OpenFile(file)
-	if nil != err {
-		return
-	}
-
-	isLargeDoc = 1024*1024*1 <= len(data)
+func parseTreeInSnapshot(data []byte, luteEngine *lute.Lute) (isProtyleDoc bool, tree *parse.Tree, err error) {
+	isProtyleDoc = 1024*1024*1 <= len(data)
 	tree, err = filesys.ParseJSONWithoutFix(data, luteEngine.ParseOptions)
 	if nil != err {
 		return
 	}
-
-	updated = file.Updated
 	return
 }
 
@@ -894,6 +927,7 @@ func syncRepoDownload() (err error) {
 			}
 		}
 		Conf.Sync.Stat = msg
+		Conf.Save()
 		util.PushStatusBar(msg)
 		util.PushErrMsg(msg, 0)
 		return
@@ -903,6 +937,7 @@ func syncRepoDownload() (err error) {
 	Conf.Sync.Synced = util.CurrentTimeMillis()
 	msg := fmt.Sprintf(Conf.Language(150), trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)))
 	Conf.Sync.Stat = msg
+	Conf.Save()
 	autoSyncErrCount = 0
 	logging.LogInfof("synced data repo download [provider=%d, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
 		Conf.Sync.Provider, trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
@@ -961,6 +996,7 @@ func syncRepoUpload() (err error) {
 			}
 		}
 		Conf.Sync.Stat = msg
+		Conf.Save()
 		util.PushStatusBar(msg)
 		util.PushErrMsg(msg, 0)
 		return
@@ -970,6 +1006,7 @@ func syncRepoUpload() (err error) {
 	Conf.Sync.Synced = util.CurrentTimeMillis()
 	msg := fmt.Sprintf(Conf.Language(150), trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)))
 	Conf.Sync.Stat = msg
+	Conf.Save()
 	autoSyncErrCount = 0
 	logging.LogInfof("synced data repo upload [provider=%d, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
 		Conf.Sync.Provider, trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
@@ -1046,6 +1083,7 @@ func bootSyncRepo() (err error) {
 			}
 		}
 		Conf.Sync.Stat = msg
+		Conf.Save()
 		util.PushStatusBar(msg)
 		util.PushErrMsg(msg, 0)
 		BootSyncSucc = 1
@@ -1054,7 +1092,7 @@ func bootSyncRepo() (err error) {
 
 	if 0 < len(fetchedFiles) {
 		go func() {
-			syncErr := syncRepo(false, false)
+			_, syncErr := syncRepo(false, false)
 			if nil != err {
 				logging.LogErrorf("boot background sync repo failed: %s", syncErr)
 				return
@@ -1064,7 +1102,7 @@ func bootSyncRepo() (err error) {
 	return
 }
 
-func syncRepo(exit, byHand bool) (err error) {
+func syncRepo(exit, byHand bool) (dataChanged bool, err error) {
 	if 1 > len(Conf.Repo.Key) {
 		autoSyncErrCount++
 		planSyncAfter(fixSyncInterval)
@@ -1088,6 +1126,7 @@ func syncRepo(exit, byHand bool) (err error) {
 		return
 	}
 
+	latest, _ := repo.Latest()
 	start := time.Now()
 	err = indexRepoBeforeCloudSync(repo)
 	if nil != err {
@@ -1118,6 +1157,7 @@ func syncRepo(exit, byHand bool) (err error) {
 			}
 		}
 		Conf.Sync.Stat = msg
+		Conf.Save()
 		util.PushStatusBar(msg)
 		if 1 > autoSyncErrCount || byHand {
 			util.PushErrMsg(msg, 0)
@@ -1128,13 +1168,17 @@ func syncRepo(exit, byHand bool) (err error) {
 		return
 	}
 
+	syncedLatest, _ := repo.Latest()
+	dataChanged = nil == latest || latest.ID != syncedLatest.ID
+
 	util.PushStatusBar(fmt.Sprintf(Conf.Language(149), elapsed.Seconds()))
 	Conf.Sync.Synced = util.CurrentTimeMillis()
 	msg := fmt.Sprintf(Conf.Language(150), trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)))
 	Conf.Sync.Stat = msg
+	Conf.Save()
 	autoSyncErrCount = 0
-	logging.LogInfof("synced data repo [provider=%d, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
-		Conf.Sync.Provider, trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
+	logging.LogInfof("synced data repo [kernel=%s, provider=%d, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
+		KernelID, Conf.Sync.Provider, trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
 
 	processSyncMergeResult(exit, byHand, start, mergeResult)
 	return
@@ -1258,14 +1302,12 @@ func processSyncMergeResult(exit, byHand bool, start time.Time, mergeResult *dej
 	upsertRootIDs, removeRootIDs := incReindex(upserts, removes)
 	elapsed := time.Since(start)
 	go func() {
-		sql.WaitForWritingDatabase()
-		util.WaitForUILoaded()
-
 		if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
 			// 移动端不推送差异详情
 			upsertRootIDs = []string{}
 		}
 
+		util.WaitForUILoaded()
 		util.BroadcastByType("main", "syncMergeResult", 0, "",
 			map[string]interface{}{"upsertRootIDs": upsertRootIDs, "removeRootIDs": removeRootIDs})
 
@@ -1434,7 +1476,7 @@ func newRepository() (ret *dejavu.Repo, err error) {
 	return
 }
 
-func subscribeEvents() {
+func subscribeRepoEvents() {
 	eventbus.Subscribe(eventbus.EvtIndexBeforeWalkData, func(context map[string]interface{}, path string) {
 		msg := fmt.Sprintf(Conf.Language(158), path)
 		util.SetBootDetails(msg)
@@ -1450,33 +1492,30 @@ func subscribeEvents() {
 		}
 		indexWalkDataCount++
 	})
-	eventbus.Subscribe(eventbus.EvtIndexBeforeGetLatestFiles, func(context map[string]interface{}, files []string) {
-		msg := fmt.Sprintf(Conf.Language(159), len(files))
+	eventbus.Subscribe(eventbus.EvtIndexBeforeGetLatestFiles, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(159), 0, total)
 		util.SetBootDetails(msg)
 		util.ContextPushMsg(context, msg)
 	})
-	getLatestFileCount := 0
-	eventbus.Subscribe(eventbus.EvtIndexGetLatestFile, func(context map[string]interface{}, id string) {
-		msg := fmt.Sprintf(Conf.Language(159), id[:7])
-		if 0 == getLatestFileCount%1024 {
+
+	eventbus.Subscribe(eventbus.EvtIndexGetLatestFile, func(context map[string]interface{}, count int, total int) {
+		msg := fmt.Sprintf(Conf.Language(159), count, total)
+		if 0 == count%64 {
 			util.SetBootDetails(msg)
 			util.ContextPushMsg(context, msg)
 		}
-		getLatestFileCount++
 	})
-	eventbus.Subscribe(eventbus.EvtIndexUpsertFiles, func(context map[string]interface{}, files []*entity.File) {
-		msg := fmt.Sprintf(Conf.Language(160), len(files))
+	eventbus.Subscribe(eventbus.EvtIndexUpsertFiles, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(160), 0, total)
 		util.SetBootDetails(msg)
 		util.ContextPushMsg(context, msg)
 	})
-	indexUpsertFileCount := 0
-	eventbus.Subscribe(eventbus.EvtIndexUpsertFile, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(160), filepath.Base(path))
-		if 0 == indexUpsertFileCount%64 {
+	eventbus.Subscribe(eventbus.EvtIndexUpsertFile, func(context map[string]interface{}, count int, total int) {
+		msg := fmt.Sprintf(Conf.Language(160), count, total)
+		if 0 == count%64 {
 			util.SetBootDetails(msg)
 			util.ContextPushMsg(context, msg)
 		}
-		indexUpsertFileCount++
 	})
 
 	eventbus.Subscribe(eventbus.EvtCheckoutBeforeWalkData, func(context map[string]interface{}, path string) {
@@ -1494,35 +1533,34 @@ func subscribeEvents() {
 		coWalkDataCount++
 	})
 	var bootProgressPart float64
-	eventbus.Subscribe(eventbus.EvtCheckoutUpsertFiles, func(context map[string]interface{}, files []*entity.File) {
-		msg := fmt.Sprintf(Conf.Language(162), len(files))
+	eventbus.Subscribe(eventbus.EvtCheckoutUpsertFiles, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(162), 0, total)
 		util.SetBootDetails(msg)
-		bootProgressPart = 10 / float64(len(files))
+		bootProgressPart = 10 / float64(total)
 		util.ContextPushMsg(context, msg)
 	})
 	coUpsertFileCount := 0
-	eventbus.Subscribe(eventbus.EvtCheckoutUpsertFile, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(162), filepath.Base(path))
+	eventbus.Subscribe(eventbus.EvtCheckoutUpsertFile, func(context map[string]interface{}, count, total int) {
+		msg := fmt.Sprintf(Conf.Language(162), count, total)
 		util.IncBootProgress(bootProgressPart, msg)
 		if 0 == coUpsertFileCount%64 {
 			util.ContextPushMsg(context, msg)
 		}
 		coUpsertFileCount++
 	})
-	eventbus.Subscribe(eventbus.EvtCheckoutRemoveFiles, func(context map[string]interface{}, files []*entity.File) {
-		msg := fmt.Sprintf(Conf.Language(163), files)
+	eventbus.Subscribe(eventbus.EvtCheckoutRemoveFiles, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(163), 0, total)
 		util.SetBootDetails(msg)
-		bootProgressPart = 10 / float64(len(files))
+		bootProgressPart = 10 / float64(total)
 		util.ContextPushMsg(context, msg)
 	})
-	coRemoveFileCount := 0
-	eventbus.Subscribe(eventbus.EvtCheckoutRemoveFile, func(context map[string]interface{}, path string) {
-		msg := fmt.Sprintf(Conf.Language(163), filepath.Base(path))
+
+	eventbus.Subscribe(eventbus.EvtCheckoutRemoveFile, func(context map[string]interface{}, count, total int) {
+		msg := fmt.Sprintf(Conf.Language(163), count, total)
 		util.IncBootProgress(bootProgressPart, msg)
-		if 0 == coRemoveFileCount%1024 {
+		if 0 == count%64 {
 			util.ContextPushMsg(context, msg)
 		}
-		coRemoveFileCount++
 	})
 
 	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadIndex, func(context map[string]interface{}, id string) {
@@ -1531,35 +1569,32 @@ func subscribeEvents() {
 		util.ContextPushMsg(context, msg)
 	})
 
-	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadFiles, func(context map[string]interface{}, ids []string) {
-		msg := fmt.Sprintf(Conf.Language(165), len(ids))
+	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadFiles, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(165), 0, total)
 		util.SetBootDetails(msg)
-		bootProgressPart = 10 / float64(len(ids))
+		bootProgressPart = 10 / float64(total)
 		util.ContextPushMsg(context, msg)
 	})
-	downloadFileCount := 0
-	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadFile, func(context map[string]interface{}, id string) {
-		msg := fmt.Sprintf(Conf.Language(165), id[:7])
+
+	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadFile, func(context map[string]interface{}, count, total int) {
+		msg := fmt.Sprintf(Conf.Language(165), count, total)
 		util.IncBootProgress(bootProgressPart, msg)
-		if 0 == downloadFileCount%8 {
+		if 0 == count%8 {
 			util.ContextPushMsg(context, msg)
 		}
-		downloadFileCount++
 	})
-	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadChunks, func(context map[string]interface{}, ids []string) {
-		msg := fmt.Sprintf(Conf.Language(166), len(ids))
+	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadChunks, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(166), 0, total)
 		util.SetBootDetails(msg)
-		bootProgressPart = 10 / float64(len(ids))
+		bootProgressPart = 10 / float64(total)
 		util.ContextPushMsg(context, msg)
 	})
-	downloadChunkCount := 0
-	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadChunk, func(context map[string]interface{}, id string) {
-		msg := fmt.Sprintf(Conf.Language(166), id[:7])
+	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadChunk, func(context map[string]interface{}, count, total int) {
+		msg := fmt.Sprintf(Conf.Language(166), count, total)
 		util.IncBootProgress(bootProgressPart, msg)
-		if 0 == downloadChunkCount%8 {
+		if 0 == count%8 {
 			util.ContextPushMsg(context, msg)
 		}
-		downloadChunkCount++
 	})
 	eventbus.Subscribe(eventbus.EvtCloudBeforeDownloadRef, func(context map[string]interface{}, ref string) {
 		msg := fmt.Sprintf(Conf.Language(167), ref)
@@ -1571,33 +1606,29 @@ func subscribeEvents() {
 		util.IncBootProgress(1, msg)
 		util.ContextPushMsg(context, msg)
 	})
-	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadFiles, func(context map[string]interface{}, files []*entity.File) {
-		msg := fmt.Sprintf(Conf.Language(169), len(files))
+	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadFiles, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(169), 0, total)
 		util.SetBootDetails(msg)
 		util.ContextPushMsg(context, msg)
 	})
-	uploadFileCount := 0
-	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadFile, func(context map[string]interface{}, id string) {
-		msg := fmt.Sprintf(Conf.Language(169), id[:7])
-		if 0 == uploadFileCount%8 {
+	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadFile, func(context map[string]interface{}, count, total int) {
+		msg := fmt.Sprintf(Conf.Language(169), count, total)
+		if 0 == count%8 {
 			util.SetBootDetails(msg)
 			util.ContextPushMsg(context, msg)
 		}
-		uploadFileCount++
 	})
-	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadChunks, func(context map[string]interface{}, ids []string) {
-		msg := fmt.Sprintf(Conf.Language(170), len(ids))
+	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadChunks, func(context map[string]interface{}, total int) {
+		msg := fmt.Sprintf(Conf.Language(170), 0, total)
 		util.SetBootDetails(msg)
 		util.ContextPushMsg(context, msg)
 	})
-	uploadChunkCount := 0
-	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadChunk, func(context map[string]interface{}, id string) {
-		msg := fmt.Sprintf(Conf.Language(170), id[:7])
-		if 0 == uploadChunkCount%8 {
+	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadChunk, func(context map[string]interface{}, count, total int) {
+		msg := fmt.Sprintf(Conf.Language(170), count, total)
+		if 0 == count%8 {
 			util.SetBootDetails(msg)
 			util.ContextPushMsg(context, msg)
 		}
-		uploadChunkCount++
 	})
 	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadRef, func(context map[string]interface{}, ref string) {
 		msg := fmt.Sprintf(Conf.Language(171), ref)

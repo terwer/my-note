@@ -19,6 +19,7 @@ package bazaar
 import (
 	"bytes"
 	"errors"
+	"golang.org/x/mod/semver"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute"
-	"github.com/PuerkitoBio/goquery"
 	"github.com/araddon/dateparse"
 	"github.com/imroc/req/v3"
 	"github.com/siyuan-note/filelock"
@@ -64,14 +64,16 @@ type Funding struct {
 }
 
 type Package struct {
-	Author      string       `json:"author"`
-	URL         string       `json:"url"`
-	Version     string       `json:"version"`
-	DisplayName *DisplayName `json:"displayName"`
-	Description *Description `json:"description"`
-	Readme      *Readme      `json:"readme"`
-	Funding     *Funding     `json:"funding"`
-	I18N        []string     `json:"i18n"`
+	Author        string       `json:"author"`
+	URL           string       `json:"url"`
+	Version       string       `json:"version"`
+	MinAppVersion string       `json:"minAppVersion"`
+	Backends      []string     `json:"backends"`
+	Frontends     []string     `json:"frontends"`
+	DisplayName   *DisplayName `json:"displayName"`
+	Description   *Description `json:"description"`
+	Readme        *Readme      `json:"readme"`
+	Funding       *Funding     `json:"funding"`
 
 	PreferredFunding string `json:"preferredFunding"`
 	PreferredName    string `json:"preferredName"`
@@ -98,6 +100,8 @@ type Package struct {
 	HInstallDate string `json:"hInstallDate"`
 	HUpdated     string `json:"hUpdated"`
 	Downloads    int    `json:"downloads"`
+
+	Incompatible bool `json:"incompatible"`
 }
 
 type StagePackage struct {
@@ -135,6 +139,10 @@ func getPreferredReadme(readme *Readme) string {
 		if "" != readme.ZhCN {
 			ret = readme.ZhCN
 		}
+	case "zh_CHT":
+		if "" != readme.ZhCN {
+			ret = readme.ZhCN
+		}
 	case "en_US":
 		if "" != readme.EnUS {
 			ret = readme.EnUS
@@ -158,6 +166,10 @@ func getPreferredName(pkg *Package) string {
 		if "" != pkg.DisplayName.ZhCN {
 			ret = pkg.DisplayName.ZhCN
 		}
+	case "zh_CHT":
+		if "" != pkg.DisplayName.ZhCN {
+			ret = pkg.DisplayName.ZhCN
+		}
 	case "en_US":
 		if "" != pkg.DisplayName.EnUS {
 			ret = pkg.DisplayName.EnUS
@@ -178,6 +190,10 @@ func getPreferredDesc(desc *Description) string {
 	ret := desc.Default
 	switch util.Lang {
 	case "zh_CN":
+		if "" != desc.ZhCN {
+			ret = desc.ZhCN
+		}
+	case "zh_CHT":
 		if "" != desc.ZhCN {
 			ret = desc.ZhCN
 		}
@@ -500,19 +516,7 @@ func renderREADME(repoURL string, mdData []byte) (ret string, err error) {
 	linkBase := "https://cdn.jsdelivr.net/gh/" + strings.TrimPrefix(repoURL, "https://github.com/")
 	luteEngine.SetLinkBase(linkBase)
 	ret = luteEngine.Md2HTML(string(mdData))
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(ret))
-	if nil != err {
-		logging.LogErrorf("parse HTML failed: %s", err)
-		return
-	}
-
-	doc.Find("a").Each(func(i int, selection *goquery.Selection) {
-		if href, ok := selection.Attr("href"); ok && util.IsRelativePath(href) {
-			selection.SetAttr("href", linkBase+href)
-		}
-	})
-
-	ret, _ = doc.Find("body").Html()
+	ret = util.LinkTarget(ret, linkBase)
 	return
 }
 
@@ -531,11 +535,11 @@ func downloadPackage(repoURLHash string, pushProgress bool, systemID string) (da
 	}).Get(u)
 	if nil != err {
 		logging.LogErrorf("get bazaar package [%s] failed: %s", u, err)
-		return nil, errors.New("get bazaar package failed")
+		return nil, errors.New("get bazaar package failed, please check your network")
 	}
 	if 200 != resp.StatusCode {
 		logging.LogErrorf("get bazaar package [%s] failed: %d", u, resp.StatusCode)
-		return nil, errors.New("get bazaar package failed")
+		return nil, errors.New("get bazaar package failed: " + resp.Status)
 	}
 	data = buf.Bytes()
 
@@ -571,7 +575,6 @@ func installPackage(data []byte, installPath string) (err error) {
 	unzipPath := filepath.Join(tmpPackage, name)
 	if err = gulu.Zip.Unzip(tmp, unzipPath); nil != err {
 		logging.LogErrorf("write file [%s] failed: %s", installPath, err)
-		err = errors.New("write file failed")
 		return
 	}
 
@@ -636,4 +639,23 @@ func getBazaarIndex() map[string]*bazaarPackage {
 	}
 	bazaarIndexCacheTime = now
 	return cachedBazaarIndex
+}
+
+// defaultMinAppVersion 如果集市包中缺失 minAppVersion 项，则使用该值作为最低支持的版本号，小于该版本号时不显示集市包
+// Add marketplace package config item `minAppVersion` https://github.com/siyuan-note/siyuan/issues/8330
+const defaultMinAppVersion = "2.9.0"
+
+func disallowDisplayBazaarPackage(pkg *Package) bool {
+	if "" == pkg.MinAppVersion { // 目前暂时放过所有不带 minAppVersion 的集市包，后续版本会使用 defaultMinAppVersion
+		return false
+	}
+	if 0 < semver.Compare("v"+pkg.MinAppVersion, "v"+util.Ver) {
+		return true
+	}
+
+	if 0 < len(pkg.Backends) {
+
+	}
+
+	return false
 }

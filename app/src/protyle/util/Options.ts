@@ -229,14 +229,14 @@ export class Options {
             tipPosition: "n",
         }, {
             name: "text",
-            lang: "font",
-            hotkey: window.siyuan.config.keymap.editor.insert.font.custom,
+            lang: "appearance",
+            hotkey: window.siyuan.config.keymap.editor.insert.appearance.custom,
             icon: "iconFont",
             tipPosition: "n",
         }, {
             name: "clear",
-            lang: "clearFontStyle",
-            hotkey: window.siyuan.config.keymap.editor.insert.clearFontStyle.custom,
+            lang: "clearInline",
+            hotkey: window.siyuan.config.keymap.editor.insert.clearInline.custom,
             icon: "iconClear",
             tipPosition: "n",
         }, {

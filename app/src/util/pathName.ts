@@ -31,6 +31,7 @@ export const getIdZoomInByPath = () => {
         id, isZoomIn
     };
 };
+
 export const isSYProtocol = (url: string) => {
     return /^siyuan:\/\/blocks\/\d{14}-\w{7}/.test(url);
 };
@@ -142,20 +143,19 @@ export const movePathTo = (cb: (toPath: string[], toNotebook: string[]) => void,
     const dialog = new Dialog({
         title: `${title || window.siyuan.languages.move}
 <div style="max-height: 16px;overflow: auto;line-height: 14px;-webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0, #000 6px);padding-bottom: 4px;margin-bottom: -4px" class="ft__smaller ft__on-surface fn__hidescrollbar"></div>`,
-        content: `<div>
-    <div class="b3-form__icon" style="margin: 8px">
-        <svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg>
-        <input class="b3-text-field fn__block b3-form__icon-input" value="" placeholder="${window.siyuan.languages.search}">
-    </div>
-    <ul id="foldList" class="fn__none b3-list b3-list--background${isMobile() ? " b3-list--mobile" : ""}" style="height: 50vh;overflow: auto;position: relative"></ul>
-    <div id="foldTree" class="${isMobile() ? "b3-list--mobile" : ""}" style="height: 50vh;overflow: auto;position: relative"></div>
-    <div class="fn__hr"></div>
+        content: `<div class="b3-form__icon" style="margin: 8px">
+    <svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg>
+    <input class="b3-text-field fn__block b3-form__icon-input" value="" placeholder="${window.siyuan.languages.search}">
 </div>
+<ul id="foldList" class="fn__flex-1 fn__none b3-list b3-list--background${isMobile() ? " b3-list--mobile" : ""}" style="overflow: auto;position: relative"></ul>
+<div id="foldTree" class="fn__flex-1${isMobile() ? " b3-list--mobile" : ""}" style="overflow: auto;position: relative"></div>
+<div class="fn__hr"></div>
 <div class="b3-dialog__action">
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
         width: isMobile() ? "92vw" : "50vw",
+        height: isMobile() ? "80vh" : "70vh",
         destroyCallback() {
             if (range) {
                 focusByRange(range);
@@ -186,7 +186,7 @@ export const movePathTo = (cb: (toPath: string[], toNotebook: string[]) => void,
     <span class="b3-list-item__toggle b3-list-item__toggle--hl">
         <svg class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg>
     </span>
-    ${unicode2Emoji(item.icon || Constants.SIYUAN_IMAGE_NOTE, false, "b3-list-item__graphic", true)}
+    ${unicode2Emoji(item.icon || Constants.SIYUAN_IMAGE_NOTE, "b3-list-item__graphic", true)}
     <span class="b3-list-item__text">${escapeHtml(item.name)}</span>
     ${countHTML}
 </li></ul>`;
@@ -231,7 +231,7 @@ export const movePathTo = (cb: (toPath: string[], toNotebook: string[]) => void,
 <span class="counter counter--right b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.flashcardCard}">${item.flashcardCount}</span>`;
                 }
                 fileHTML += `<li style="padding: 4px" class="b3-list-item${fileHTML === "" ? " b3-list-item--focus" : ""}" data-path="${item.path}" data-box="${item.box}">
-    ${unicode2Emoji(item.boxIcon || Constants.SIYUAN_IMAGE_NOTE, false, "b3-list-item__graphic", true)}
+    ${unicode2Emoji(item.boxIcon || Constants.SIYUAN_IMAGE_NOTE, "b3-list-item__graphic", true)}
     <span class="b3-list-item__showall">${escapeHtml(item.hPath)}</span>
     ${countHTML}
 </li>`;
@@ -504,7 +504,7 @@ data-box="${notebookId}" class="b3-list-item" data-path="${item.path}">
     <span style="padding-left: ${(item.path.split("/").length - 2) * 18 + 22}px" class="b3-list-item__toggle b3-list-item__toggle--hl${item.subFileCount === 0 ? " fn__hidden" : ""}">
         <svg class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg>
     </span>
-    ${unicode2Emoji(item.icon || (item.subFileCount === 0 ? Constants.SIYUAN_IMAGE_FILE : Constants.SIYUAN_IMAGE_FOLDER), false, "b3-list-item__graphic", true)}
+    ${unicode2Emoji(item.icon || (item.subFileCount === 0 ? Constants.SIYUAN_IMAGE_FILE : Constants.SIYUAN_IMAGE_FOLDER), "b3-list-item__graphic", true)}
     <span class="b3-list-item__text">${getDisplayName(item.name, true, true)}</span>
     ${countHTML}
 </li>`;

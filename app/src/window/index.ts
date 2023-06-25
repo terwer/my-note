@@ -15,7 +15,6 @@ import {
     setTitle,
     transactionError
 } from "../dialog/processSystem";
-import {promiseTransactions} from "../protyle/wysiwyg/transaction";
 import {initMessage} from "../dialog/message";
 import {getAllTabs} from "../layout/getAll";
 import {getLocalStorage} from "../protyle/util/compatibility";
@@ -64,7 +63,7 @@ class App {
                                         const initTab = tab.headElement.getAttribute("data-initdata");
                                         if (initTab) {
                                             const initTabData = JSON.parse(initTab);
-                                            if (initTabData.rootId === data.data.id) {
+                                            if (initTabData.instance === "Editor" && initTabData.rootId === data.data.id) {
                                                 tab.updateTitle(data.data.title);
                                             }
                                         }
@@ -77,7 +76,7 @@ class App {
                                         const initTab = tab.headElement.getAttribute("data-initdata");
                                         if (initTab) {
                                             const initTabData = JSON.parse(initTab);
-                                            if (data.data.box === initTabData.notebookId) {
+                                            if (initTabData.instance === "Editor" && data.data.box === initTabData.notebookId) {
                                                 tab.parent.removeTab(tab.id);
                                             }
                                         }
@@ -90,7 +89,7 @@ class App {
                                         const initTab = tab.headElement.getAttribute("data-initdata");
                                         if (initTab) {
                                             const initTabData = JSON.parse(initTab);
-                                            if (data.data.ids.includes(initTabData.rootId)) {
+                                            if (initTabData.instance === "Editor" && data.data.ids.includes(initTabData.rootId)) {
                                                 tab.parent.removeTab(tab.id);
                                             }
                                         }
@@ -127,15 +126,15 @@ class App {
                 }
             }),
         };
-        fetchPost("/api/system/getConf", {}, response => {
+        fetchPost("/api/system/getConf", {}, async (response) => {
             window.siyuan.config = response.data.conf;
+            await loadPlugins(this);
             getLocalStorage(() => {
                 fetchGet(`/appearance/langs/${window.siyuan.config.appearance.lang}.json?v=${Constants.SIYUAN_VERSION}`, (lauguages) => {
                     window.siyuan.languages = lauguages;
                     window.siyuan.menus = new Menus(this);
                     fetchPost("/api/setting/getCloudUser", {}, userResponse => {
                         window.siyuan.user = userResponse.data;
-                        loadPlugins(this);
                         init(this);
                         setTitle(window.siyuan.languages.siyuanNote);
                         initMessage();
@@ -145,7 +144,6 @@ class App {
         });
         setNoteBook();
         initBlockPopover(this);
-        promiseTransactions();
     }
 }
 

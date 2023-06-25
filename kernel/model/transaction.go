@@ -224,6 +224,8 @@ func performTx(tx *Transaction) (ret *TxErr) {
 			ret = tx.doAddAttrViewColumn(op)
 		case "removeAttrViewCol":
 			ret = tx.doRemoveAttrViewColumn(op)
+		case "updateAttrViewCell":
+			ret = tx.doUpdateAttrViewCell(op)
 		}
 
 		if nil != ret {
@@ -257,7 +259,10 @@ func (tx *Transaction) doMove(operation *Operation) (ret *TxErr) {
 	var headingChildren []*ast.Node
 	if isMovingFoldHeading := ast.NodeHeading == srcNode.Type && "1" == srcNode.IALAttr("fold"); isMovingFoldHeading {
 		headingChildren = treenode.HeadingChildren(srcNode)
+		// Blocks below other non-folded headings are no longer moved when moving a folded heading https://github.com/siyuan-note/siyuan/issues/8321
+		headingChildren = treenode.GetHeadingFold(headingChildren)
 	}
+
 	var srcEmptyList *ast.Node
 	if ast.NodeListItem == srcNode.Type && srcNode.Parent.FirstChild == srcNode && srcNode.Parent.LastChild == srcNode {
 		// 列表中唯一的列表项被移除后，该列表就为空了
@@ -290,6 +295,8 @@ func (tx *Transaction) doMove(operation *Operation) (ret *TxErr) {
 
 		if ast.NodeHeading == targetNode.Type && "1" == targetNode.IALAttr("fold") {
 			targetChildren := treenode.HeadingChildren(targetNode)
+			targetChildren = treenode.GetHeadingFold(targetChildren)
+
 			if l := len(targetChildren); 0 < l {
 				targetNode = targetChildren[l-1]
 			}
@@ -1021,6 +1028,7 @@ type Operation struct {
 	SrcIDs []string `json:"srcIDs"` // 用于将块拖拽到属性视图中
 	Name   string   `json:"name"`   // 用于属性视图列名
 	Typ    string   `json:"type"`   // 用于属性视图列类型
+	RowID  string   `json:"rowID"`  // 用于属性视图行 ID
 
 	discard bool // 用于标识是否在事务合并中丢弃
 }

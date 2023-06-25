@@ -30,6 +30,7 @@
     * [Move a block](#Move-a-block)
     * [Get a block kramdown](#Get-a-block-kramdown)
     * [Get child blocks](#get-child-blocks)
+    * [Transfer block ref](#transfer-block-ref)
 * [Attributes](#Attributes)
     * [Set block attributes](#Set-block-attributes)
     * [Get block attributes](#Get-block-attributes)
@@ -42,6 +43,7 @@
     * [Get file](#Get-file)
     * [Put file](#Put-file)
     * [Remove file](#Remove-file)
+    * [Rename file](#Rename-file)
     * [List files](#List-files)
 * [Export](#Export)
     * [Export Markdown](#Export-Markdown)
@@ -333,8 +335,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   ```
 
     * `data`: Created document ID
-    * If you use the same `path` to call this interface repeatedly, the existing document will not be overwritten, but a
-      new document ending with a random number will be created
+    * If you use the same `path` to call this interface repeatedly, the existing document will not be overwritten
 
 ### Rename a document
 
@@ -469,7 +470,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
         * `"/assets/sub/"`: workspace/data/assets/sub/ folder
 
       Under normal circumstances, it is recommended to use the first method, which is stored in the assets folder
-      of the workspace.
+      of the workspace, putting in a subdirectory has some side effects, please refer to the assets chapter of the user guide.
     * `file[]`: Uploaded file list
 * Return value
 
@@ -815,6 +816,32 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   }
   ```
 
+### Transfer block ref
+
+* `/api/block/transferBlockRef`
+* Parameters
+
+  ```json
+  {
+    "fromID": "20230612160235-mv6rrh1",
+    "toID": "20230613093045-uwcomng",
+    "refIDs": ["20230613092230-cpyimmd"]
+  }
+  ```
+
+  * `fromID`: Def block ID
+  * `toID`: Target block ID
+  * `refIDs`: Ref block IDs point to def block ID, optional, if not specified, all ref block IDs will be transferred
+* Return value
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
+  }
+  ```
+
 ## Attributes
 
 ### Set block attributes
@@ -993,6 +1020,29 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   }
   ```
     * `path`: the file path under the workspace path
+* Return value
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
+  }
+  ```
+
+### Rename file
+
+* `/api/file/renameFile`
+* Parameters
+
+  ```json
+  {
+    "path": "/data/assets/image-20230523085812-k3o9t32.png",
+    "newPath": "/data/assets/test-20230523085812-k3o9t32.png"
+  }
+  ```
+  * `path`: the file path under the workspace path
+  * `newPath`: the new file path under the workspace path
 * Return value
 
   ```json

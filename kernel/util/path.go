@@ -36,11 +36,12 @@ var (
 )
 
 const (
-	AliyunServer     = "https://siyuan-sync.b3logfile.com"  // 云端服务地址，阿里云负载均衡，用于接口，数据同步文件上传、下载会走七牛云 OSS SiYuanSyncServer
-	SiYuanSyncServer = "https://siyuan-data.b3logfile.com/" // 云端数据同步服务地址，七牛云 OSS，用于数据同步文件上传、下载
-	BazaarStatServer = "http://bazaar.b3logfile.com"        // 集市包统计服务地址，直接对接 Bucket 没有 CDN 缓存
-	BazaarOSSServer  = "https://oss.b3logfile.com"          // 云端对象存储地址，七牛云，仅用于读取集市包
-	LiandiServer     = "https://ld246.com"                  // 链滴服务地址，用于分享发布帖子
+	AliyunServer          = "https://siyuan-sync.b3logfile.com"  // 云端服务地址，阿里云负载均衡，用于接口，数据同步文件上传、下载会走七牛云 OSS SiYuanSyncServer
+	AliyunWebSocketServer = "wss://siyuan-sync.b3logfile.com"    // 云端服务地址，阿里云负载均衡，用于接口，数据同步文件上传、下载会走七牛云 OSS SiYuanSyncServer
+	SiYuanSyncServer      = "https://siyuan-data.b3logfile.com/" // 云端数据同步服务地址，七牛云 OSS，用于数据同步文件上传、下载
+	BazaarStatServer      = "http://bazaar.b3logfile.com"        // 集市包统计服务地址，直接对接 Bucket 没有 CDN 缓存
+	BazaarOSSServer       = "https://oss.b3logfile.com"          // 云端对象存储地址，七牛云，仅用于读取集市包
+	LiandiServer          = "https://ld246.com"                  // 链滴服务地址，用于分享发布帖子
 )
 
 func ShortPathForBootingDisplay(p string) string {
@@ -192,4 +193,27 @@ func FilterSelfChildDocs(paths []string) (ret []string) {
 
 func IsAssetLinkDest(dest []byte) bool {
 	return bytes.HasPrefix(dest, []byte("assets/"))
+}
+
+var (
+	SiYuanAssetsImage = []string{".apng", ".ico", ".cur", ".jpg", ".jpe", ".jpeg", ".jfif", ".pjp", ".pjpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif"}
+	SiYuanAssetsAudio = []string{".mp3", ".wav", ".ogg", ".m4a"}
+	SiYuanAssetsVideo = []string{".mov", ".weba", ".mkv", ".mp4", ".webm"}
+)
+
+func IsDisplayableAsset(p string) bool {
+	ext := strings.ToLower(filepath.Ext(p))
+	if "" == ext {
+		return false
+	}
+	if gulu.Str.Contains(ext, SiYuanAssetsImage) {
+		return true
+	}
+	if gulu.Str.Contains(ext, SiYuanAssetsAudio) {
+		return true
+	}
+	if gulu.Str.Contains(ext, SiYuanAssetsVideo) {
+		return true
+	}
+	return false
 }

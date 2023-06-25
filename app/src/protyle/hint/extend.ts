@@ -2,10 +2,10 @@ import {fetchPost} from "../../util/fetch";
 import {insertHTML} from "../util/insertHTML";
 import {getIconByType} from "../../editor/getIcon";
 import {updateHotkeyTip} from "../util/compatibility";
-import {blockRender} from "../markdown/blockRender";
+import {blockRender} from "../render/blockRender";
 import {Constants} from "../../constants";
 import {processRender} from "../util/processCode";
-import {highlightRender} from "../markdown/highlightRender";
+import {highlightRender} from "../render/highlightRender";
 import {focusBlock, focusByRange, getEditorRange} from "../util/selection";
 import {hasClosestBlock, hasClosestByClassName} from "../util/hasClosest";
 import {getContenteditableElement, getTopAloneElement} from "../wysiwyg/getBlock";
@@ -19,6 +19,7 @@ import {zoomOut} from "../../menus/protyle";
 import {hideElements} from "../ui/hideElements";
 import {genAssetHTML} from "../../asset/renderAssets";
 import {unicode2Emoji} from "../../emoji";
+import {avRender} from "../render/av/render";
 
 export const hintSlash = (key: string, protyle: IProtyle) => {
     const allList: IHintData[] = [{
@@ -322,7 +323,7 @@ export const hintRef = (key: string, protyle: IProtyle, isQuick = false): IHintD
         response.data.blocks.forEach((item: IBlock) => {
             let iconHTML;
             if (item.type === "NodeDocument" && item.ial.icon){
-                iconHTML  = unicode2Emoji(item.ial.icon, false, "b3-list-item__graphic popover__block", true);
+                iconHTML  = unicode2Emoji(item.ial.icon, "b3-list-item__graphic popover__block", true);
                 iconHTML = iconHTML.replace('popover__block"', `popover__block" data-id="${item.id}"`);
             } else {
                 iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.type)}"></use></svg>`;
@@ -386,7 +387,7 @@ export const hintEmbed = (key: string, protyle: IProtyle): IHintData[] => {
         response.data.blocks.forEach((item: IBlock) => {
             let iconHTML;
             if (item.type === "NodeDocument" && item.ial.icon){
-                iconHTML  = unicode2Emoji(item.ial.icon, false, "b3-list-item__graphic popover__block", true);
+                iconHTML  = unicode2Emoji(item.ial.icon, "b3-list-item__graphic popover__block", true);
                 iconHTML = iconHTML.replace('popover__block"', `popover__block" data-id="${item.id}"`);
             } else {
                 iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.type)}"></use></svg>`;
@@ -443,6 +444,7 @@ export const hintRenderTemplate = (value: string, protyle: IProtyle, nodeElement
         blockRender(protyle, protyle.wysiwyg.element);
         processRender(protyle.wysiwyg.element);
         highlightRender(protyle.wysiwyg.element);
+        avRender(protyle.wysiwyg.element);
         hideElements(["util"], protyle);
     });
 };
@@ -512,7 +514,7 @@ export const hintMoveBlock = (pathString: string, sourceElements: Element[], pro
         });
     } else if (protyle.block.showAll && parentElement.classList.contains("protyle-wysiwyg") && parentElement.childElementCount === 0) {
         setTimeout(() => {
-            zoomOut(protyle, protyle.block.parent2ID, protyle.block.parent2ID);
+            zoomOut({protyle, id: protyle.block.parent2ID, focusId:protyle.block.parent2ID});
         }, Constants.TIMEOUT_INPUT * 2 + 100);
     } else if (parentElement.classList.contains("protyle-wysiwyg") && parentElement.innerHTML === "" &&
         !hasClosestByClassName(parentElement, "block__edit", true) &&

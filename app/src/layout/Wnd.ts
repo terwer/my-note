@@ -3,7 +3,7 @@ import {genUUID} from "../util/genID";
 import {
     getInstanceById,
     getWndByLayout, JSONToCenter,
-    newCenterEmptyTab, pdfIsLoading,
+    newCenterEmptyTab, newModelByInitData, pdfIsLoading,
     resizeTabs,
     setPanelFocus,
     switchWnd
@@ -35,6 +35,7 @@ import {hideAllElements} from "../protyle/ui/hideElements";
 import {focusByOffset, getSelectionOffset} from "../protyle/util/selection";
 import {Custom} from "./dock/Custom";
 import {App} from "../index";
+import {unicode2Emoji} from "../emoji";
 
 export class Wnd {
     private app: App;
@@ -434,15 +435,7 @@ export class Wnd {
         if (currentTab && currentTab.headElement) {
             const initData = currentTab.headElement.getAttribute("data-initdata");
             if (initData) {
-                const json = JSON.parse(initData);
-                currentTab.addModel(new Editor({
-                    app: this.app,
-                    tab: currentTab,
-                    blockId: json.blockId,
-                    mode: json.mode,
-                    action: typeof json.action === "string" ? [json.action] : json.action,
-                    scrollAttr: json.scrollAttr,
-                }));
+                currentTab.addModel(newModelByInitData(this.app, currentTab, JSON.parse(initData)));
                 currentTab.headElement.removeAttribute("data-initdata");
                 return;
             }
@@ -587,10 +580,23 @@ export class Wnd {
         Array.from(this.headersElement.children).forEach((item: HTMLElement) => {
             const iconElement = item.querySelector(".item__icon");
             const graphicElement = item.querySelector(".item__graphic");
+            let iconHTML = undefined
+            if (iconElement) {
+                if (iconElement.firstElementChild?.tagName === "IMG") {
+                    // 图标为图片的文档
+                    iconHTML = `<img src="${iconElement.firstElementChild.getAttribute("src")}"  class="b3-menu__icon">`
+                } else {
+                    // 有图标的文档
+                    iconHTML = `<span class="b3-menu__icon">${iconElement.innerHTML}</span>`
+                }
+            } else if (!graphicElement) {
+                // 没有图标的文档
+                iconHTML = unicode2Emoji(Constants.SIYUAN_IMAGE_FILE, "b3-menu__icon", true)
+            }
             window.siyuan.menus.menu.append(new MenuItem({
                 label: escapeHtml(item.querySelector(".item__text").textContent),
                 action: "iconCloseRound",
-                iconHTML: iconElement ? `<span class="b3-menu__icon">${iconElement.innerHTML}</span>` : "",
+                iconHTML,
                 icon: graphicElement ? graphicElement.firstElementChild.getAttribute("xlink:href").substring(1) : "",
                 bind: (element) => {
                     element.addEventListener("click", (itemEvent) => {
@@ -686,6 +692,11 @@ export class Wnd {
         clearCounter();
         this.children.find((item, index) => {
             if (item.id === id) {
+                if (item.model instanceof Custom) {
+                    if (item.model.beforeDestroy) {
+                        item.model.beforeDestroy();
+                    }
+                }
                 if (item.model instanceof Editor && hasSaveScroll) {
                     saveScroll(item.model.editor.protyle);
                 }

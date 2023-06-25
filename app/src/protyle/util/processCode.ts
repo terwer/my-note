@@ -1,11 +1,11 @@
-import {abcRender} from "../markdown/abcRender";
-import {chartRender} from "../markdown/chartRender";
-import {graphvizRender} from "../markdown/graphvizRender";
-import {mathRender} from "../markdown/mathRender";
-import {mermaidRender} from "../markdown/mermaidRender";
-import {mindmapRender} from "../markdown/mindmapRender";
-import {flowchartRender} from "../markdown/flowchartRender";
-import {plantumlRender} from "../markdown/plantumlRender";
+import {abcRender} from "../render/abcRender";
+import {chartRender} from "../render/chartRender";
+import {graphvizRender} from "../render/graphvizRender";
+import {mathRender} from "../render/mathRender";
+import {mermaidRender} from "../render/mermaidRender";
+import {mindmapRender} from "../render/mindmapRender";
+import {flowchartRender} from "../render/flowchartRender";
+import {plantumlRender} from "../render/plantumlRender";
 import {Constants} from "../../constants";
 
 export const processPasteCode = (html: string, text: string) => {
@@ -29,10 +29,12 @@ export const processPasteCode = (html: string, text: string) => {
     }
 
     if (isCode) {
-        const code = text || html;
+        let code = text || html;
         if (/\n/.test(code)) {
             return `<div data-type="NodeCodeBlock" class="code-block" data-node-id="${Lute.NewNodeID()}"><div class="protyle-action"><span class="protyle-action--first protyle-action__language" contenteditable="false">${window.siyuan.storage[Constants.LOCAL_CODELANG]}</span><span class="fn__flex-1"></span><span class="protyle-icon protyle-icon--first protyle-action__copy"><svg><use xlink:href="#iconCopy"></use></svg></span><span class="protyle-icon protyle-icon--last protyle-action__menu"><svg><use xlink:href="#iconMore"></use></svg></span></div><div contenteditable="true" spellcheck="${window.siyuan.config.editor.spellcheck}">${code.replace(/&/g, "&amp;").replace(/</g, "&lt;")}<wbr></div><div class="protyle-attr" contenteditable="false">${Constants.ZWSP}</div></div>`;
         } else {
+            // Paste code from IDE no longer escape `<` and `>` https://github.com/siyuan-note/siyuan/issues/8340
+            code = code.replace("<", "&lt;").replace(">", "&gt;");
             return "`" + code + "`";
         }
     }

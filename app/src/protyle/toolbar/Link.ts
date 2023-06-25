@@ -4,12 +4,11 @@ import {hasClosestBlock, hasClosestByAttribute} from "../util/hasClosest";
 import {focusByRange, focusByWbr} from "../util/selection";
 import {readText} from "../util/compatibility";
 import {Constants} from "../../constants";
-import {App} from "../../index";
 
 export class Link extends ToolbarItem {
     public element: HTMLElement;
 
-    constructor(app: App, protyle: IProtyle, menuItem: IMenuItem) {
+    constructor(protyle: IProtyle, menuItem: IMenuItem) {
         super(protyle, menuItem);
         // 不能用 getEventName，否则会导致光标位置变动到点击的文档中
         this.element.addEventListener("click", async (event: MouseEvent & { changedTouches: MouseEvent[] }) => {
@@ -23,7 +22,7 @@ export class Link extends ToolbarItem {
             }
             const aElement = hasClosestByAttribute(range.startContainer, "data-type", "a");
             if (aElement) {
-                linkMenu(app, protyle, aElement);
+                linkMenu(protyle, aElement);
                 return;
             }
 
@@ -58,12 +57,14 @@ export class Link extends ToolbarItem {
     }
 }
 
-export const removeLink = (linkElement: HTMLElement, range: Range) => {
+export const removeLink = (linkElement: HTMLElement, range?: Range) => {
     const types = linkElement.getAttribute("data-type").split(" ");
     if (types.length === 1) {
         const linkParentElement = linkElement.parentElement;
         linkElement.outerHTML = linkElement.innerHTML.replace(Constants.ZWSP, "") + "<wbr>";
-        focusByWbr(linkParentElement, range);
+        if (range) {
+            focusByWbr(linkParentElement, range);
+        }
     } else {
         types.find((itemType, index) => {
             if ("a" === itemType) {
@@ -73,8 +74,10 @@ export const removeLink = (linkElement: HTMLElement, range: Range) => {
         });
         linkElement.setAttribute("data-type", types.join(" "));
         linkElement.removeAttribute("data-href");
-        range.selectNodeContents(linkElement);
-        range.collapse(false);
-        focusByRange(range);
+        if (range) {
+            range.selectNodeContents(linkElement);
+            range.collapse(false);
+            focusByRange(range);
+        }
     }
 };

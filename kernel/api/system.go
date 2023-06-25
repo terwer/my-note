@@ -49,9 +49,9 @@ func getChangelog(c *gin.Context) {
 		return
 	}
 
-	changelogPath := filepath.Join(changelogsDir, "v"+util.Ver+"_"+model.Conf.Lang+".md")
+	changelogPath := filepath.Join(changelogsDir, "v"+util.Ver, "v"+util.Ver+"_"+model.Conf.Lang+".md")
 	if !gulu.File.IsExist(changelogPath) {
-		changelogPath = filepath.Join(changelogsDir, "v"+util.Ver+".md")
+		changelogPath = filepath.Join(changelogsDir, "v"+util.Ver, "v"+util.Ver+".md")
 		if !gulu.File.IsExist(changelogPath) {
 			logging.LogErrorf("changelog not found: %s", changelogPath)
 			return
@@ -66,10 +66,11 @@ func getChangelog(c *gin.Context) {
 
 	model.Conf.ShowChangelog = false
 	luteEngine := lute.New()
-	htmlContent := luteEngine.Markdown("", contentData)
+	htmlContent := luteEngine.MarkdownStr("", string(contentData))
+	htmlContent = util.LinkTarget(htmlContent, "")
 
 	data["show"] = true
-	data["html"] = gulu.Str.FromBytes(htmlContent)
+	data["html"] = htmlContent
 	ret.Data = data
 }
 

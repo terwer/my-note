@@ -11,7 +11,6 @@ import {handleTouchEnd, handleTouchMove, handleTouchStart} from "./util/touch";
 import {fetchGet, fetchPost} from "../util/fetch";
 import {initFramework} from "./util/initFramework";
 import {addGA, initAssets, loadAssets} from "../util/assets";
-import {promiseTransactions} from "../protyle/wysiwyg/transaction";
 import {bootSync} from "../dialog/processSystem";
 import {initMessage} from "../dialog/message";
 import {goBack} from "./util/MobileBackFoward";
@@ -22,7 +21,7 @@ import {getSearch} from "../util/functions";
 import {initRightMenu} from "./menu";
 import {openChangelog} from "../boot/openChangelog";
 import {registerServiceWorker} from "../util/serviceWorker";
-import {loadPlugins} from "../plugin/loader";
+import {afterLoadPlugin, loadPlugins} from "../plugin/loader";
 
 class App {
     public plugins: import("../plugin").Plugin[] = [];
@@ -35,6 +34,7 @@ class App {
         addScript(`${Constants.PROTYLE_CDN}/js/protyle-html.js?v=${Constants.SIYUAN_VERSION}`, "protyleWcHtmlScript");
         addBaseURL();
         window.siyuan = {
+            notebooks: [],
             transactions: [],
             reqIds: {},
             backStack: [],
@@ -59,9 +59,10 @@ class App {
                 window.siyuan.menus.menu.remove();
             }
         });
-        fetchPost("/api/system/getConf", {}, confResponse => {
+        fetchPost("/api/system/getConf", {}, async (confResponse) => {
             confResponse.data.conf.keymap = Constants.SIYUAN_KEYMAP;
             window.siyuan.config = confResponse.data.conf;
+            await loadPlugins(this);
             getLocalStorage(() => {
                 fetchGet(`/appearance/langs/${window.siyuan.config.appearance.lang}.json?v=${Constants.SIYUAN_VERSION}`, (lauguages) => {
                     window.siyuan.languages = lauguages;
@@ -75,10 +76,14 @@ class App {
                         window.siyuan.user = userResponse.data;
                         fetchPost("/api/system/getEmojiConf", {}, emojiResponse => {
                             window.siyuan.emojis = emojiResponse.data as IEmoji[];
-                            initFramework(this);
-                            initRightMenu(this);
-                            loadPlugins(this);
-                            openChangelog();
+                            setNoteBook(() => {
+                                initFramework(this);
+                                initRightMenu(this);
+                                openChangelog();
+                                this.plugins.forEach(item => {
+                                    afterLoadPlugin(item);
+                                });
+                            });
                         });
                     });
                     addGA();
@@ -87,16 +92,21 @@ class App {
             document.addEventListener("touchstart", handleTouchStart, false);
             document.addEventListener("touchmove", handleTouchMove, false);
             document.addEventListener("touchend", (event) => {
-                handleTouchEnd(this, event);
+                handleTouchEnd(event);
             }, false);
         });
-        setNoteBook();
-        promiseTransactions();
     }
 }
 
 const siyuanApp = new App();
 
+// https://github.com/siyuan-note/siyuan/issues/8441
+window.reconnectWebSocket = () => {
+    window.siyuan.ws.send("ping", {});
+    window.siyuan.mobile.files.send("ping", {});
+    window.siyuan.mobile.editor.protyle.ws.send("ping", {});
+    window.siyuan.mobile.popEditor.protyle.ws.send("ping", {});
+};
 window.goBack = goBack;
 window.showKeyboardToolbar = (height) => {
     document.getElementById("keyboardToolbar").setAttribute("data-keyboardheight", (height ? height : window.innerHeight / 2 - 42).toString());

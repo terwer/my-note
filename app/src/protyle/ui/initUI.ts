@@ -1,5 +1,5 @@
 import {setEditMode} from "../util/setEditMode";
-import {lineNumberRender} from "../markdown/highlightRender";
+import {lineNumberRender} from "../render/highlightRender";
 import {scrollEvent} from "../scroll/event";
 import {isMobile} from "../../util/functions";
 import {Constants} from "../../constants";
@@ -76,7 +76,7 @@ export const initUI = (protyle: IProtyle) => {
     let wheelTimeout: number;
     const isMacOS = isMac();
     protyle.contentElement.addEventListener("mousewheel", (event: WheelEvent) => {
-        if ((isMacOS && !event.metaKey) || (!isMacOS && !event.ctrlKey) || event.deltaX !== 0) {
+        if (!window.siyuan.config.editor.fontSizeScrollZoom || (isMacOS && !event.metaKey) || (!isMacOS && !event.ctrlKey) || event.deltaX !== 0) {
             return;
         }
         event.preventDefault();

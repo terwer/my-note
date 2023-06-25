@@ -31,6 +31,8 @@
 @import "business/export";
 @import "business/card";
 @import "business/custom";
+@import "business/resize";
+@import "business/av";
 
 /*
 .status: 2
@@ -68,6 +70,8 @@ ctrl+p 搜索: 202
 // 移动端排序和菜单需临时大于 .side-panel https://github.com/siyuan-note/siyuan/issues/5254
 .b3-menu: 310
 
+.av__mask: 320
+
 // 需大于 .b3-dialog
 progressLoading: 400
 
@@ -100,7 +104,7 @@ html {
   }
 
   .protyle-breadcrumb > .protyle-breadcrumb__space,
-  & > .block__icons > .fn__flex-1{
+  & > .block__icons > .fn__flex-1 {
     -webkit-app-region: drag;
     min-width: 32px;
 
@@ -161,6 +165,8 @@ html {
     white-space: nowrap;
     align-self: center;
     font-size: 12px;
+    min-width: 148px;
+    box-sizing: border-box;
   }
 
   &__item {
@@ -386,12 +392,11 @@ html {
 
 .switch-doc {
   max-height: 70vh;
-  max-width: 768px;
+  max-width: 100%;
   min-width: 426px;
 
   .b3-list:last-child {
     border-left: 1px solid var(--b3-theme-surface-lighter);
-    max-height: calc(70vh - 35px)
   }
 
   &__path {

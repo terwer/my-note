@@ -15,12 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const {
-    app, BrowserWindow, shell, Menu, screen, ipcMain, globalShortcut, Tray,
+    net, app, BrowserWindow, shell, Menu, screen, ipcMain, globalShortcut, Tray,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const net = require("net");
-const fetch = require("electron-fetch").default;
+const gNet = require("net");
 process.noAsar = true;
 const appDir = path.dirname(app.getAppPath());
 const isDevEnv = process.env.NODE_ENV === "development";
@@ -120,8 +119,10 @@ const exitApp = (port, errorWindowId) => {
     }
 };
 
+const localServer = "http://127.0.0.1";
+
 const getServer = (port = kernelPort) => {
-    return "http://127.0.0.1:" + port;
+    return localServer + ":" + port;
 };
 
 const sleep = (ms) => {
@@ -134,8 +135,8 @@ const showErrorWindow = (title, content) => {
         errorHTMLPath = path.join(appDir, "electron", "error.html");
     }
     const errWindow = new BrowserWindow({
-        width: screen.getPrimaryDisplay().size.width / 2,
-        height: screen.getPrimaryDisplay().workAreaSize.height / 2,
+        width: Math.floor(screen.getPrimaryDisplay().size.width / 2),
+        height: Math.floor(screen.getPrimaryDisplay().workAreaSize.height / 2),
         frame: false,
         icon: path.join(appDir, "stage", "icon-large.png"),
         webPreferences: {
@@ -179,25 +180,30 @@ const writeLog = (out) => {
 };
 
 const boot = () => {
+    let windowStateInitialized = true;
     // 恢复主窗体状态
     let oldWindowState = {};
     try {
         oldWindowState = JSON.parse(fs.readFileSync(windowStatePath, "utf8"));
+        if (!oldWindowState.x) {
+            windowStateInitialized = false;
+        }
     } catch (e) {
         fs.writeFileSync(windowStatePath, "{}");
+        windowStateInitialized = false;
     }
     let defaultWidth;
     let defaultHeight;
     let workArea;
     try {
-        defaultWidth = screen.getPrimaryDisplay().size.width;
-        defaultHeight = screen.getPrimaryDisplay().workAreaSize.height;
+        defaultWidth = Math.floor(screen.getPrimaryDisplay().size.width * 0.8);
+        defaultHeight = Math.floor(screen.getPrimaryDisplay().workAreaSize.height * 0.8);
         workArea = screen.getPrimaryDisplay().workArea;
     } catch (e) {
         console.error(e);
     }
     const windowState = Object.assign({}, {
-        isMaximized: true,
+        isMaximized: false,
         fullscreen: false,
         isDevToolsOpened: false,
         x: 0,
@@ -239,13 +245,10 @@ const boot = () => {
     // 创建主窗体
     const currentWindow = new BrowserWindow({
         show: false,
-        backgroundColor: "#FFF", // 桌面端主窗体背景色设置为 `#FFF` Fix https://github.com/siyuan-note/siyuan/issues/4544
         width: windowState.width,
         height: windowState.height,
         minWidth: 493,
         minHeight: 376,
-        x,
-        y,
         fullscreenable: true,
         fullscreen: windowState.fullscreen,
         trafficLightPosition: {x: 8, y: 8},
@@ -260,8 +263,9 @@ const boot = () => {
         titleBarStyle: "hidden",
         icon: path.join(appDir, "stage", "icon-large.png"),
     });
+    windowStateInitialized ? currentWindow.setPosition(x, y) : currentWindow.center();
     require("@electron/remote/main").enable(currentWindow.webContents);
-    currentWindow.webContents.userAgent = "SiYuan/" + appVer + " https://b3log.org/siyuan Electron";
+    currentWindow.webContents.userAgent = "SiYuan/" + appVer + " https://b3log.org/siyuan Electron " + currentWindow.webContents.userAgent;
 
     currentWindow.webContents.session.setSpellCheckerLanguages(["en-US"]);
 
@@ -302,10 +306,7 @@ const boot = () => {
             if (currentWindow.isMinimized()) {
                 currentWindow.restore();
             }
-            if (!currentWindow.isVisible()) {
-                currentWindow.show();
-            }
-            currentWindow.focus();
+            currentWindow.show();
             setTimeout(() => { // 等待界面js执行完毕
                 writeLog(siyuanOpenURL);
                 currentWindow.webContents.send("siyuan-openurl", siyuanOpenURL);
@@ -356,16 +357,13 @@ const boot = () => {
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
     // 当前页面链接使用浏览器打开
-    currentWindow.webContents.on("will-navigate", (event, url) => {
-        if (event.sender) {
-            const currentURL = new URL(event.sender.getURL());
-            if (url.startsWith(getServer(currentURL.port))) {
-                return;
-            }
-
-            event.preventDefault();
-            shell.openExternal(url);
+    currentWindow.webContents.on("will-navigate", (event) => {
+        const url = event.url;
+        if (url.startsWith(localServer)) {
+            return;
         }
+        event.preventDefault();
+        shell.openExternal(url);
     });
 
     currentWindow.on("close", (event) => {
@@ -387,20 +385,17 @@ const showWindow = (wnd) => {
     if (wnd.isMinimized()) {
         wnd.restore();
     }
-    if (!wnd.isVisible()) {
-        wnd.show();
-    }
-    wnd.focus();
+    wnd.show();
 };
 
 const initKernel = (workspace, port, lang) => {
     return new Promise(async (resolve) => {
         bootWindow = new BrowserWindow({
-            width: screen.getPrimaryDisplay().size.width / 2,
-            height: screen.getPrimaryDisplay().workAreaSize.height / 2,
+            width: Math.floor(screen.getPrimaryDisplay().size.width / 2),
+            height: Math.floor(screen.getPrimaryDisplay().workAreaSize.height / 2),
             frame: false,
+            backgroundColor: "#1e1f22",
             icon: path.join(appDir, "stage", "icon-large.png"),
-            transparent: "linux" !== process.platform,
         });
 
         const kernelName = "win32" === process.platform ? "SiYuan-Kernel.exe" : "SiYuan-Kernel";
@@ -419,7 +414,7 @@ const initKernel = (workspace, port, lang) => {
                 const getAvailablePort = () => {
                     // https://gist.github.com/mikeal/1840641
                     return new Promise((portResolve, portReject) => {
-                        const server = net.createServer();
+                        const server = gNet.createServer();
                         server.on("error", error => {
                             writeLog(error);
                             kernelPort = "";
@@ -508,7 +503,7 @@ const initKernel = (workspace, port, lang) => {
         writeLog("checking kernel version");
         while (!gotVersion && count < 15) {
             try {
-                const apiResult = await fetch(getServer() + "/api/system/version");
+                const apiResult = await net.fetch(getServer() + "/api/system/version");
                 apiData = await apiResult.json();
                 gotVersion = true;
                 bootWindow.setResizable(false);
@@ -536,14 +531,14 @@ const initKernel = (workspace, port, lang) => {
             writeLog("got kernel version [" + apiData.data + "]");
             if (!isDevEnv && apiData.data !== appVer) {
                 writeLog(`kernel [${apiData.data}] is running, shutdown it now and then start kernel [${appVer}]`);
-                fetch(getServer() + "/api/system/exit", {method: "POST"});
+                net.fetch(getServer() + "/api/system/exit", {method: "POST"});
                 bootWindow.destroy();
                 resolve(false);
             } else {
                 let progressing = false;
                 while (!progressing) {
                     try {
-                        const progressResult = await fetch(getServer() + "/api/system/bootProgress");
+                        const progressResult = await net.fetch(getServer() + "/api/system/bootProgress");
                         const progressData = await progressResult.json();
                         if (progressData.data.progress >= 100) {
                             resolve(true);
@@ -553,7 +548,7 @@ const initKernel = (workspace, port, lang) => {
                         }
                     } catch (e) {
                         writeLog("get boot progress failed: " + e.message);
-                        fetch(getServer() + "/api/system/exit", {method: "POST"});
+                        net.fetch(getServer() + "/api/system/exit", {method: "POST"});
                         bootWindow.destroy();
                         resolve(false);
                         progressing = true;
@@ -661,10 +656,10 @@ app.whenReady().then(() => {
         BrowserWindow.fromId(id).webContents.send("siyuan-export-close", id);
     });
     ipcMain.on("siyuan-export-prevent", (event, id) => {
-        BrowserWindow.fromId(id).webContents.on("will-navigate", (event, url) => {
-            const currentURL = new URL(event.sender.getURL());
+        BrowserWindow.fromId(id).webContents.on("will-navigate", (event) => {
+            const url = event.url;
             event.preventDefault();
-            if (url.startsWith(getServer(currentURL.port))) {
+            if (url.startsWith(localServer)) {
                 return;
             }
             shell.openExternal(url);
@@ -679,7 +674,6 @@ app.whenReady().then(() => {
         const mainScreen = screen.getDisplayNearestPoint({x: mainBounds.x, y: mainBounds.y});
         const win = new BrowserWindow({
             show: true,
-            backgroundColor: "#FFF",
             trafficLightPosition: {x: 8, y: 13},
             width: mainScreen.size.width * 0.7,
             height: mainScreen.size.height * 0.9,
@@ -751,7 +745,7 @@ app.whenReady().then(() => {
                 return true;
             }
         });
-        await fetch(getServer(data.port) + "/api/system/uiproc?pid=" + process.pid, {method: "POST"});
+        await net.fetch(getServer(data.port) + "/api/system/uiproc?pid=" + process.pid, {method: "POST"});
     });
     ipcMain.on("siyuan-hotkey", (event, data) => {
         globalShortcut.unregisterAll();
@@ -763,9 +757,7 @@ app.whenReady().then(() => {
                 const mainWindow = item.browserWindow;
                 if (mainWindow.isMinimized()) {
                     mainWindow.restore();
-                    if (!mainWindow.isVisible()) {
-                        mainWindow.show();
-                    }
+                    mainWindow.show(); // 按 `Alt+M` 后隐藏窗口，再次按 `Alt+M` 显示窗口后会卡住不能编辑 https://github.com/siyuan-note/siyuan/issues/8456
                 } else {
                     if (mainWindow.isVisible()) {
                         if (1 === workspaces.length) { // 改进 `Alt+M` 激活窗口 https://github.com/siyuan-note/siyuan/issues/7258
@@ -799,11 +791,10 @@ app.whenReady().then(() => {
 
     if (firstOpen) {
         const firstOpenWindow = new BrowserWindow({
-            width: screen.getPrimaryDisplay().size.width * 0.6,
-            height: screen.getPrimaryDisplay().workAreaSize.height * 0.8,
+            width: Math.floor(screen.getPrimaryDisplay().size.width * 0.6),
+            height: Math.floor(screen.getPrimaryDisplay().workAreaSize.height * 0.8),
             frame: false,
             icon: path.join(appDir, "stage", "icon-large.png"),
-            transparent: "linux" !== process.platform,
             webPreferences: {
                 nodeIntegration: true, webviewTag: true, webSecurity: false, contextIsolation: false,
             },
@@ -955,9 +946,8 @@ powerMonitor.on("resume", async () => {
     // 桌面端系统休眠唤醒后判断网络连通性后再执行数据同步 https://github.com/siyuan-note/siyuan/issues/6687
     writeLog("system resume");
 
-    const eNet = require("electron").net;
     const isOnline = async () => {
-        return eNet.isOnline();
+        return net.isOnline();
     };
     let online = false;
     for (let i = 0; i < 7; i++) {
@@ -979,7 +969,7 @@ powerMonitor.on("resume", async () => {
         const currentURL = new URL(item.browserWindow.getURL());
         const server = getServer(currentURL.port);
         writeLog("sync after system resume [" + server + "/api/sync/performSync" + "]");
-        fetch(server + "/api/sync/performSync", {method: "POST"});
+        net.fetch(server + "/api/sync/performSync", {method: "POST"});
     });
 });
 
@@ -987,6 +977,6 @@ powerMonitor.on("shutdown", () => {
     writeLog("system shutdown");
     workspaces.forEach(item => {
         const currentURL = new URL(item.browserWindow.getURL());
-        fetch(getServer(currentURL.port) + "/api/system/exit", {method: "POST"});
+        net.fetch(getServer(currentURL.port) + "/api/system/exit", {method: "POST"});
     });
 });

@@ -161,13 +161,13 @@ const onRecentBlocks = (data: IBlock[], config: ISearchOption, response?: IWebSo
 <span class="b3-list-item__toggle b3-list-item__toggle--hl">
     <svg class="b3-list-item__arrow b3-list-item__arrow--open"><use xlink:href="#iconRight"></use></svg>
 </span>
-${unicode2Emoji(getNotebookIcon(item.box) || Constants.SIYUAN_IMAGE_NOTE, false, "b3-list-item__graphic", true)}
+${unicode2Emoji(getNotebookIcon(item.box) || Constants.SIYUAN_IMAGE_NOTE, "b3-list-item__graphic", true)}
 <span class="b3-list-item__text" style="color: var(--b3-theme-on-surface)">${escapeGreat(title)}</span>
 </div><div>`;
             item.children.forEach((childItem, childIndex) => {
                 resultHTML += `<div style="padding-left: 36px" data-type="search-item" class="b3-list-item${childIndex === 0 && index === 0 ? " b3-list-item--focus" : ""}" data-node-id="${childItem.id}">
 <svg class="b3-list-item__graphic"><use xlink:href="#${getIconByType(childItem.type)}"></use></svg>
-${unicode2Emoji(childItem.ial.icon, false, "b3-list-item__graphic", true)}
+${unicode2Emoji(childItem.ial.icon, "b3-list-item__graphic", true)}
 <span class="b3-list-item__text">${childItem.content}</span>
 </div>`;
             });
@@ -176,7 +176,7 @@ ${unicode2Emoji(childItem.ial.icon, false, "b3-list-item__graphic", true)}
             resultHTML += `<div class="b3-list-item b3-list-item--two${index === 0 ? " b3-list-item--focus" : ""}" data-type="search-item" data-node-id="${item.id}">
 <div class="b3-list-item__first">
     <svg class="b3-list-item__graphic"><use xlink:href="#${getIconByType(item.type)}"></use></svg>
-    ${unicode2Emoji(item.ial.icon, false, "b3-list-item__graphic", true)}
+    ${unicode2Emoji(item.ial.icon, "b3-list-item__graphic", true)}
     <span class="b3-list-item__text">${item.content}</span>
 </div>
 <span class="b3-list-item__text b3-list-item__meta" style="margin-top: -4px">${escapeGreat(title)}</span>
@@ -319,10 +319,8 @@ const initSearchEvent = (app: App, element: Element, config: ISearchOption) => {
                 });
                 if (target.parentElement.parentElement.childElementCount === 1) {
                     target.parentElement.parentElement.classList.add("fn__none");
-                    target.parentElement.remove();
-                } else {
-                    target.parentElement.remove();
                 }
+                target.parentElement.remove();
                 event.stopPropagation();
                 event.preventDefault();
                 break;
@@ -546,7 +544,7 @@ export const popSearch = (app: App, config = window.siyuan.storage[Constants.LOC
         <button data-type="replace" class="b3-button b3-button--outline fn__flex-center">${window.siyuan.languages.replace}</button>
         <div class="fn__space"></div>
     </div>
-    <div id="criteria" style="background-color: var(--b3-theme-background);" class="b3-chips"></div>
+    <div id="criteria" style="background-color: var(--b3-theme-background);"></div>
     <div class="toolbar">
         <span class="fn__space"></span>
         <span data-type="result" class="fn__flex-1 fn__flex"></span>

@@ -9,7 +9,7 @@ import {Constants} from "../constants";
 import {setEditMode} from "../protyle/util/setEditMode";
 import {Files} from "../layout/dock/Files";
 import {setPadding} from "../protyle/ui/initUI";
-import {fetchPost} from "../util/fetch";
+import {fetchPost, fetchSyncPost} from "../util/fetch";
 import {focusBlock, focusByRange} from "../protyle/util/selection";
 import {onGet} from "../protyle/util/onGet";
 /// #if !BROWSER
@@ -40,28 +40,24 @@ export const openFileById = async (options: {
     removeCurrentTab?: boolean
     afterOpen?: () => void
 }) => {
-    fetchPost("/api/block/getBlockInfo", {id: options.id}, (data) => {
-        if (data.code === 3) {
-            showMessage(data.msg);
-            return;
-        }
-        if (typeof options.removeCurrentTab === "undefined") {
-            options.removeCurrentTab = true;
-        }
-        openFile({
-            app: options.app,
-            fileName: data.data.rootTitle,
-            rootIcon: data.data.rootIcon,
-            rootID: data.data.rootID,
-            id: options.id,
-            position: options.position,
-            mode: options.mode,
-            action: options.action,
-            zoomIn: options.zoomIn,
-            keepCursor: options.keepCursor,
-            removeCurrentTab: options.removeCurrentTab,
-            afterOpen: options.afterOpen
-        });
+    const response = await fetchSyncPost("/api/block/getBlockInfo", {id: options.id});
+    if (response.code === 3) {
+        showMessage(response.msg);
+        return;
+    }
+    return openFile({
+        app: options.app,
+        fileName: response.data.rootTitle,
+        rootIcon: response.data.rootIcon,
+        rootID: response.data.rootID,
+        id: options.id,
+        position: options.position,
+        mode: options.mode,
+        action: options.action,
+        zoomIn: options.zoomIn,
+        keepCursor: options.keepCursor,
+        removeCurrentTab: options.removeCurrentTab,
+        afterOpen: options.afterOpen
     });
 };
 
@@ -80,6 +76,9 @@ export const openAsset = (app: App, assetPath: string, page: number | string, po
 };
 
 export const openFile = (options: IOpenFileOptions) => {
+    if (typeof options.removeCurrentTab === "undefined") {
+        options.removeCurrentTab = true;
+    }
     const allModels = getAllModels();
     // 文档已打开
     if (options.assetPath) {
@@ -97,7 +96,7 @@ export const openFile = (options: IOpenFileOptions) => {
             if (options.afterOpen) {
                 options.afterOpen();
             }
-            return;
+            return asset.parent;
         }
     } else if (options.custom) {
         const custom = allModels.custom.find((item) => {
@@ -110,7 +109,17 @@ export const openFile = (options: IOpenFileOptions) => {
             }
         });
         if (custom) {
-            return;
+            if (options.afterOpen) {
+                options.afterOpen();
+            }
+            return custom.parent;
+        }
+        const hasModel = getUnInitTab(options);
+        if (hasModel) {
+            if (options.afterOpen) {
+                options.afterOpen();
+            }
+            return hasModel;
         }
     } else if (options.searchData) {
         const search = allModels.search.find((item) => {
@@ -123,7 +132,7 @@ export const openFile = (options: IOpenFileOptions) => {
             }
         });
         if (search) {
-            return;
+            return search.parent;
         }
     } else if (!options.position) {
         let editor: Editor;
@@ -149,7 +158,7 @@ export const openFile = (options: IOpenFileOptions) => {
             if (options.afterOpen) {
                 options.afterOpen();
             }
-            return true;
+            return editor.parent;
         }
         // 没有初始化的页签无法检测到
         const hasEditor = getUnInitTab(options);
@@ -157,7 +166,7 @@ export const openFile = (options: IOpenFileOptions) => {
             if (options.afterOpen) {
                 options.afterOpen();
             }
-            return;
+            return hasEditor;
         }
     }
 
@@ -198,6 +207,7 @@ export const openFile = (options: IOpenFileOptions) => {
         wnd = getWndByLayout(window.siyuan.layout.centerLayout);
     }
     if (wnd) {
+        let createdTab: Tab;
         if ((options.position === "right" || options.position === "bottom") && wnd.children[0].headElement) {
             const direction = options.position === "right" ? "lr" : "tb";
             let targetWnd: Wnd;
@@ -229,18 +239,21 @@ export const openFile = (options: IOpenFileOptions) => {
                 });
                 if (!hasEditor) {
                     hasEditor = getUnInitTab(options);
+                    createdTab = hasEditor;
                 }
                 if (!hasEditor) {
-                    targetWnd.addTab(newTab(options));
+                    createdTab = newTab(options);
+                    targetWnd.addTab(createdTab);
                 }
             } else {
-                wnd.split(direction).addTab(newTab(options));
+                createdTab = newTab(options);
+                wnd.split(direction).addTab(createdTab);
             }
             wnd.showHeading();
             if (options.afterOpen) {
                 options.afterOpen();
             }
-            return;
+            return createdTab;
         }
         if (pdfIsLoading(wnd.element)) {
             if (options.afterOpen) {
@@ -249,9 +262,9 @@ export const openFile = (options: IOpenFileOptions) => {
             return;
         }
         if (options.keepCursor && wnd.children[0].headElement) {
-            const tab = newTab(options);
-            tab.headElement.setAttribute("keep-cursor", options.id);
-            wnd.addTab(tab, options.keepCursor);
+            createdTab = newTab(options);
+            createdTab.headElement.setAttribute("keep-cursor", options.id);
+            wnd.addTab(createdTab, options.keepCursor);
         } else if (window.siyuan.config.fileTree.openFilesUseCurrentTab) {
             let unUpdateTab: Tab;
             // 不能 reverse, 找到也不能提前退出循环，否则 https://github.com/siyuan-note/siyuan/issues/3271
@@ -264,17 +277,20 @@ export const openFile = (options: IOpenFileOptions) => {
                     }
                 }
             });
-            wnd.addTab(newTab(options));
+            createdTab = newTab(options);
+            wnd.addTab(createdTab);
             if (unUpdateTab && options.removeCurrentTab) {
                 wnd.removeTab(unUpdateTab.id, false, true, false);
             }
         } else {
-            wnd.addTab(newTab(options));
+            createdTab = newTab(options);
+            wnd.addTab(createdTab);
         }
         wnd.showHeading();
         if (options.afterOpen) {
             options.afterOpen();
         }
+        return createdTab;
     }
 };
 
@@ -284,7 +300,8 @@ const getUnInitTab = (options: IOpenFileOptions) => {
         const initData = item.headElement?.getAttribute("data-initdata");
         if (initData) {
             const initObj = JSON.parse(initData);
-            if (initObj.rootId === options.rootID || initObj.blockId === options.rootID) {
+            if (initObj.instance === "Editor" &&
+                (initObj.rootId === options.rootID || initObj.blockId === options.rootID)) {
                 initObj.blockId = options.id;
                 initObj.mode = options.mode;
                 if (options.zoomIn) {
@@ -294,6 +311,9 @@ const getUnInitTab = (options: IOpenFileOptions) => {
                 }
                 delete initObj.scrollAttr;
                 item.headElement.setAttribute("data-initdata", JSON.stringify(initObj));
+                item.parent.switchTab(item.headElement);
+                return true;
+            } else if (initObj.instance === "Custom" && options.custom && objEquals(initObj.customModelData, options.custom.data)) {
                 item.parent.switchTab(item.headElement);
                 return true;
             }
@@ -323,7 +343,7 @@ const switchEditor = (editor: Editor, options: IOpenFileOptions, allModels: IMod
         return true;
     }
     if (options.zoomIn) {
-        zoomOut(editor.editor.protyle, options.id);
+        zoomOut({protyle: editor.editor.protyle, id: options.id});
         return true;
     }
     let nodeElement = editor.editor.protyle.wysiwyg.element.querySelector(`[data-node-id="${options.id}"]`);
@@ -333,7 +353,7 @@ const switchEditor = (editor: Editor, options: IOpenFileOptions, allModels: IMod
             mode: (options.action && options.action.includes(Constants.CB_GET_CONTEXT)) ? 3 : 0,
             size: window.siyuan.config.editor.dynamicLoadBlocks,
         }, getResponse => {
-            onGet(getResponse, editor.editor.protyle, options.action);
+            onGet({data: getResponse, protyle: editor.editor.protyle, action: options.action});
             // 大纲点击折叠标题下的内容时，需更新反链面板
             updateBacklinkGraph(allModels, editor.editor.protyle);
         });
@@ -398,6 +418,7 @@ const newTab = (options: IOpenFileOptions) => {
             title: options.custom.title,
             callback(tab) {
                 tab.addModel(options.custom.fn({
+                    app: options.app,
                     tab,
                     data: options.custom.data
                 }));
@@ -463,7 +484,9 @@ export const updatePanelByEditor = (options: {
         ) {
             return;
         }
-        title = options.protyle.title.editElement.textContent;
+        if (options.protyle.title) {
+            title = options.protyle.title.editElement.textContent;
+        }
         if (options.resize) {
             resize(options.protyle);
         }
@@ -524,12 +547,17 @@ export const updateOutline = (models: IModels, protyle: IProtyle, reload = false
             if (blockId === item.blockId && !reload) {
                 return;
             }
+            if (protyle && !protyle.preview.element.classList.contains("fn__none")) {
+                protyle.preview.render(protyle);
+                return;
+            }
             fetchPost("/api/outline/getDocOutline", {
                 id: blockId,
             }, response => {
-                if (!isCurrentEditor(blockId) || item.blockId === blockId) {
+                if (!reload && (!isCurrentEditor(blockId) || item.blockId === blockId)) {
                     return;
                 }
+                item.isPreview = false;
                 item.update(response, blockId);
                 if (protyle) {
                     item.updateDocTitle(protyle.background.ial);
@@ -546,7 +574,6 @@ export const updateOutline = (models: IModels, protyle: IProtyle, reload = false
                     item.updateDocTitle();
                 }
             });
-            return;
         }
     });
 };

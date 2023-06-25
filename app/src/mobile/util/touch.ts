@@ -1,10 +1,9 @@
-import {hasClosestByAttribute, hasClosestByClassName} from "../../protyle/util/hasClosest";
+import {hasClosestByAttribute, hasClosestByClassName, hasTopClosestByClassName} from "../../protyle/util/hasClosest";
 import {closePanel} from "./closePanel";
 import {popMenu} from "../menu";
 import {activeBlur, hideKeyboardToolbar} from "./keyboardToolbar";
 import {getCurrentEditor} from "../editor";
 import {linkMenu, refMenu, tagMenu} from "../../menus/protyle";
-import {App} from "../../index";
 
 let clientX: number;
 let clientY: number;
@@ -24,7 +23,7 @@ const popSide = (render = true) => {
     }
 };
 
-export const handleTouchEnd = (app: App, event: TouchEvent) => {
+export const handleTouchEnd = (event: TouchEvent) => {
     const editor = getCurrentEditor();
     if (editor) {
         document.querySelectorAll(".protyle-breadcrumb__bar--hide").forEach(item => {
@@ -45,13 +44,13 @@ export const handleTouchEnd = (app: App, event: TouchEvent) => {
             return;
         }
         if (types.includes("block-ref")) {
-            refMenu(app, editor.protyle, target);
+            refMenu(editor.protyle, target);
         } else if (types.includes("file-annotation-ref")) {
             editor.protyle.toolbar.showFileAnnotationRef(editor.protyle, target);
         } else if (types.includes("tag")) {
-            tagMenu(app, editor.protyle, target);
+            tagMenu(editor.protyle, target);
         } else if (types.includes("a")) {
-            linkMenu(app, editor.protyle, target);
+            linkMenu(editor.protyle, target);
         }
         return;
     }
@@ -75,7 +74,8 @@ export const handleTouchEnd = (app: App, event: TouchEvent) => {
     // 有些事件不经过 touchmove
 
     let scrollElement = hasClosestByAttribute(target, "data-type", "NodeCodeBlock") ||
-        hasClosestByAttribute(target, "data-type", "NodeTable");
+        hasClosestByAttribute(target, "data-type", "NodeTable") ||
+        hasTopClosestByClassName(target, "list");
     if (scrollElement) {
         if (scrollElement.classList.contains("table")) {
             scrollElement = scrollElement.firstElementChild as HTMLElement;
@@ -223,7 +223,8 @@ export const handleTouchMove = (event: TouchEvent) => {
     previousClientX = event.touches[0].clientX;
     if (Math.abs(xDiff) > Math.abs(yDiff)) {
         let scrollElement = hasClosestByAttribute(target, "data-type", "NodeCodeBlock") ||
-            hasClosestByAttribute(target, "data-type", "NodeTable");
+            hasClosestByAttribute(target, "data-type", "NodeTable") ||
+            hasTopClosestByClassName(target, "list");
         if (scrollElement) {
             if (scrollElement.classList.contains("table")) {
                 scrollElement = scrollElement.firstElementChild as HTMLElement;
