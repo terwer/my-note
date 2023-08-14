@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -47,6 +47,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/system/setWorkspaceDir", model.CheckAuth, model.CheckReadonly, setWorkspaceDir)
 	ginServer.Handle("POST", "/api/system/getWorkspaces", model.CheckAuth, getWorkspaces)
 	ginServer.Handle("POST", "/api/system/getMobileWorkspaces", model.CheckAuth, getMobileWorkspaces)
+	ginServer.Handle("POST", "/api/system/checkWorkspaceDir", model.CheckAuth, model.CheckReadonly, checkWorkspaceDir)
 	ginServer.Handle("POST", "/api/system/createWorkspaceDir", model.CheckAuth, model.CheckReadonly, createWorkspaceDir)
 	ginServer.Handle("POST", "/api/system/removeWorkspaceDir", model.CheckAuth, model.CheckReadonly, removeWorkspaceDir)
 	ginServer.Handle("POST", "/api/system/setAppearanceMode", model.CheckAuth, setAppearanceMode)
@@ -245,6 +246,7 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/export/exportDocx", model.CheckAuth, exportDocx)
 	ginServer.Handle("POST", "/api/export/processPDF", model.CheckAuth, processPDF)
 	ginServer.Handle("POST", "/api/export/preview", model.CheckAuth, exportPreview)
+	ginServer.Handle("POST", "/api/export/exportResources", model.CheckAuth, exportResources)
 	ginServer.Handle("POST", "/api/export/exportAsFile", model.CheckAuth, exportAsFile)
 	ginServer.Handle("POST", "/api/export/exportData", model.CheckAuth, exportData)
 	ginServer.Handle("POST", "/api/export/exportDataInFolder", model.CheckAuth, exportDataInFolder)
@@ -357,10 +359,14 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("GET", "/snippets/*filepath", serveSnippets)
 
 	ginServer.Handle("POST", "/api/av/renderAttributeView", model.CheckAuth, renderAttributeView)
+	ginServer.Handle("POST", "/api/av/getAttributeViewKeys", model.CheckAuth, getAttributeViewKeys)
+	ginServer.Handle("POST", "/api/av/setAttributeViewBlockAttr", model.CheckAuth, setAttributeViewBlockAttr)
 
 	ginServer.Handle("POST", "/api/ai/chatGPT", model.CheckAuth, model.CheckReadonly, chatGPT)
 	ginServer.Handle("POST", "/api/ai/chatGPTWithAction", model.CheckAuth, model.CheckReadonly, chatGPTWithAction)
 
 	ginServer.Handle("POST", "/api/petal/loadPetals", model.CheckAuth, model.CheckReadonly, loadPetals)
 	ginServer.Handle("POST", "/api/petal/setPetalEnabled", model.CheckAuth, model.CheckReadonly, setPetalEnabled)
+
+	ginServer.Handle("POST", "/api/network/forwardProxy", model.CheckAuth, model.CheckReadonly, forwardProxy)
 }

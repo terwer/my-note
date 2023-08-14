@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -441,10 +441,12 @@ func ImportRepoKey(base64Key string) (err error) {
 func ResetRepo() (err error) {
 	msgId := util.PushMsg(Conf.Language(144), 1000*60)
 
-	if err = os.RemoveAll(Conf.Repo.GetSaveDir()); nil != err {
+	repo, err := newRepository()
+	if nil != err {
 		return
 	}
-	if err = os.MkdirAll(Conf.Repo.GetSaveDir(), 0755); nil != err {
+
+	if err = repo.Reset(); nil != err {
 		return
 	}
 
@@ -625,6 +627,19 @@ func DownloadCloudSnapshot(tag, id string) (err error) {
 		return
 	}
 
+	switch Conf.Sync.Provider {
+	case conf.ProviderSiYuan:
+		if !IsSubscriber() {
+			util.PushErrMsg(Conf.Language(29), 5000)
+			return
+		}
+	case conf.ProviderWebDAV, conf.ProviderS3:
+		if !IsOneTimePaid() {
+			util.PushErrMsg(Conf.Language(214), 5000)
+			return
+		}
+	}
+
 	defer util.PushClearProgress()
 
 	var downloadFileCount, downloadChunkCount int
@@ -652,6 +667,19 @@ func UploadCloudSnapshot(tag, id string) (err error) {
 	repo, err := newRepository()
 	if nil != err {
 		return
+	}
+
+	switch Conf.Sync.Provider {
+	case conf.ProviderSiYuan:
+		if !IsSubscriber() {
+			util.PushErrMsg(Conf.Language(29), 5000)
+			return
+		}
+	case conf.ProviderWebDAV, conf.ProviderS3:
+		if !IsOneTimePaid() {
+			util.PushErrMsg(Conf.Language(214), 5000)
+			return
+		}
 	}
 
 	util.PushEndlessProgress(Conf.Language(116))
@@ -687,6 +715,19 @@ func RemoveCloudRepoTag(tag string) (err error) {
 		return
 	}
 
+	switch Conf.Sync.Provider {
+	case conf.ProviderSiYuan:
+		if !IsSubscriber() {
+			util.PushErrMsg(Conf.Language(29), 5000)
+			return
+		}
+	case conf.ProviderWebDAV, conf.ProviderS3:
+		if !IsOneTimePaid() {
+			util.PushErrMsg(Conf.Language(214), 5000)
+			return
+		}
+	}
+
 	err = repo.RemoveCloudRepoTag(tag)
 	if nil != err {
 		return
@@ -704,6 +745,19 @@ func GetCloudRepoTagSnapshots() (ret []*dejavu.Log, err error) {
 	repo, err := newRepository()
 	if nil != err {
 		return
+	}
+
+	switch Conf.Sync.Provider {
+	case conf.ProviderSiYuan:
+		if !IsSubscriber() {
+			util.PushErrMsg(Conf.Language(29), 5000)
+			return
+		}
+	case conf.ProviderWebDAV, conf.ProviderS3:
+		if !IsOneTimePaid() {
+			util.PushErrMsg(Conf.Language(214), 5000)
+			return
+		}
 	}
 
 	logs, err := repo.GetCloudRepoTagLogs(map[string]interface{}{eventbus.CtxPushMsg: eventbus.CtxPushMsgToStatusBar})
@@ -727,6 +781,19 @@ func GetCloudRepoSnapshots(page int) (ret []*dejavu.Log, pageCount, totalCount i
 	repo, err := newRepository()
 	if nil != err {
 		return
+	}
+
+	switch Conf.Sync.Provider {
+	case conf.ProviderSiYuan:
+		if !IsSubscriber() {
+			util.PushErrMsg(Conf.Language(29), 5000)
+			return
+		}
+	case conf.ProviderWebDAV, conf.ProviderS3:
+		if !IsOneTimePaid() {
+			util.PushErrMsg(Conf.Language(214), 5000)
+			return
+		}
 	}
 
 	if 1 > page {
@@ -939,10 +1006,9 @@ func syncRepoDownload() (err error) {
 	Conf.Sync.Stat = msg
 	Conf.Save()
 	autoSyncErrCount = 0
-	logging.LogInfof("synced data repo download [provider=%d, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
-		Conf.Sync.Provider, trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
+	BootSyncSucc = 0
 
-	processSyncMergeResult(false, true, start, mergeResult)
+	processSyncMergeResult(false, true, mergeResult, trafficStat, "d", elapsed)
 	return
 }
 
@@ -1008,8 +1074,9 @@ func syncRepoUpload() (err error) {
 	Conf.Sync.Stat = msg
 	Conf.Save()
 	autoSyncErrCount = 0
-	logging.LogInfof("synced data repo upload [provider=%d, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
-		Conf.Sync.Provider, trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
+	BootSyncSucc = 0
+
+	processSyncMergeResult(false, true, &dejavu.MergeResult{}, trafficStat, "u", elapsed)
 	return
 }
 
@@ -1177,14 +1244,18 @@ func syncRepo(exit, byHand bool) (dataChanged bool, err error) {
 	Conf.Sync.Stat = msg
 	Conf.Save()
 	autoSyncErrCount = 0
-	logging.LogInfof("synced data repo [kernel=%s, provider=%d, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs]",
-		KernelID, Conf.Sync.Provider, trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)), elapsed.Seconds())
 
-	processSyncMergeResult(exit, byHand, start, mergeResult)
+	processSyncMergeResult(exit, byHand, mergeResult, trafficStat, "a", elapsed)
 	return
 }
 
-func processSyncMergeResult(exit, byHand bool, start time.Time, mergeResult *dejavu.MergeResult) {
+func processSyncMergeResult(exit, byHand bool, mergeResult *dejavu.MergeResult, trafficStat *dejavu.TrafficStat, mode string, elapsed time.Duration) {
+	logging.LogInfof("synced data repo [kernel=%s, provider=%d, mode=%s/%t, ufc=%d, dfc=%d, ucc=%d, dcc=%d, ub=%s, db=%s] in [%.2fs], merge result [conflicts=%d, upserts=%d, removes=%d]",
+		KernelID, Conf.Sync.Provider, mode, byHand,
+		trafficStat.UploadFileCount, trafficStat.DownloadFileCount, trafficStat.UploadChunkCount, trafficStat.DownloadChunkCount, humanize.Bytes(uint64(trafficStat.UploadBytes)), humanize.Bytes(uint64(trafficStat.DownloadBytes)),
+		elapsed.Seconds(),
+		len(mergeResult.Conflicts), len(mergeResult.Upserts), len(mergeResult.Removes))
+
 	//logSyncMergeResult(mergeResult)
 
 	if 0 < len(mergeResult.Conflicts) {
@@ -1300,7 +1371,6 @@ func processSyncMergeResult(exit, byHand bool, start time.Time, mergeResult *dej
 	}
 
 	upsertRootIDs, removeRootIDs := incReindex(upserts, removes)
-	elapsed := time.Since(start)
 	go func() {
 		if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
 			// 移动端不推送差异详情
@@ -1336,7 +1406,6 @@ func logSyncMergeResult(mergeResult *dejavu.MergeResult) {
 		return
 	}
 
-	logging.LogInfof("sync merge result [conflicts=%d, upserts=%d, removes=%d]", len(mergeResult.Conflicts), len(mergeResult.Upserts), len(mergeResult.Removes))
 	if 0 < len(mergeResult.Conflicts) {
 		logBuilder := bytes.Buffer{}
 		for i, f := range mergeResult.Conflicts {
@@ -1645,6 +1714,26 @@ func subscribeRepoEvents() {
 		util.SetBootDetails(msg)
 		util.ContextPushMsg(context, msg)
 	})
+	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadIndexes, func(context map[string]interface{}) {
+		msg := fmt.Sprintf(Conf.Language(208))
+		util.SetBootDetails(msg)
+		util.ContextPushMsg(context, msg)
+	})
+	eventbus.Subscribe(eventbus.EvtCloudBeforeUploadCheckIndex, func(context map[string]interface{}) {
+		msg := fmt.Sprintf(Conf.Language(209))
+		util.SetBootDetails(msg)
+		util.ContextPushMsg(context, msg)
+	})
+	eventbus.Subscribe(eventbus.EvtCloudBeforeFixObjects, func(context map[string]interface{}, count, total int) {
+		msg := fmt.Sprintf(Conf.Language(210), count, total)
+		util.SetBootDetails(msg)
+		util.ContextPushMsg(context, msg)
+	})
+	eventbus.Subscribe(eventbus.EvtCloudAfterFixObjects, func(context map[string]interface{}) {
+		msg := fmt.Sprintf(Conf.Language(211))
+		util.SetBootDetails(msg)
+		util.ContextPushMsg(context, msg)
+	})
 }
 
 func buildCloudConf() (ret *cloud.Conf, err error) {
@@ -1666,12 +1755,12 @@ func buildCloudConf() (ret *cloud.Conf, err error) {
 		UserID:        userId,
 		Token:         token,
 		AvailableSize: availableSize,
-		Server:        util.AliyunServer,
+		Server:        util.GetCloudServer(),
 	}
 
 	switch Conf.Sync.Provider {
 	case conf.ProviderSiYuan:
-		ret.Endpoint = util.SiYuanSyncServer
+		ret.Endpoint = util.GetCloudSyncServer()
 	case conf.ProviderS3:
 		ret.S3 = &cloud.ConfS3{
 			Endpoint:      Conf.Sync.S3.Endpoint,
@@ -1755,8 +1844,8 @@ func GetCloudSpace() (s *Sync, b *Backup, hSize, hAssetSize, hTotalSize, hExchan
 		hExchangeSize = humanize.Bytes(uint64(Conf.User.UserSiYuanPointExchangeRepoSize))
 		hTrafficUploadSize = humanize.Bytes(uint64(Conf.User.UserTrafficUpload))
 		hTrafficDownloadSize = humanize.Bytes(uint64(Conf.User.UserTrafficDownload))
-		hTrafficAPIGet = fmt.Sprintf("%d", int(Conf.User.UserTrafficAPIGet))
-		hTrafficAPIPut = fmt.Sprintf("%d", int(Conf.User.UserTrafficAPIPut))
+		hTrafficAPIGet = humanize.SIWithDigits(Conf.User.UserTrafficAPIGet, 2, "")
+		hTrafficAPIPut = humanize.SIWithDigits(Conf.User.UserTrafficAPIPut, 2, "")
 	}
 	return
 }

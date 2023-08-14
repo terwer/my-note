@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -312,6 +312,8 @@ func setFiletree(c *gin.Context) {
 	}
 	model.Conf.FileTree = fileTree
 	model.Conf.Save()
+
+	util.UseSingleLineSave = model.Conf.FileTree.UseSingleLineSave
 
 	ret.Data = model.Conf.FileTree
 }

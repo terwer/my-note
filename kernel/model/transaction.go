@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -33,6 +33,7 @@ import (
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/av"
 	"github.com/siyuan-note/siyuan/kernel/cache"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
@@ -216,16 +217,44 @@ func performTx(tx *Transaction) (ret *TxErr) {
 			ret = tx.doAddFlashcards(op)
 		case "removeFlashcards":
 			ret = tx.doRemoveFlashcards(op)
+		case "setAttrViewName":
+			ret = tx.doSetAttrViewName(op)
+		case "setAttrViewFilters":
+			ret = tx.doSetAttrViewFilters(op)
+		case "setAttrViewSorts":
+			ret = tx.doSetAttrViewSorts(op)
+		case "setAttrViewColWidth":
+			ret = tx.doSetAttrViewColumnWidth(op)
+		case "setAttrViewColWrap":
+			ret = tx.doSetAttrViewColumnWrap(op)
+		case "setAttrViewColHidden":
+			ret = tx.doSetAttrViewColumnHidden(op)
 		case "insertAttrViewBlock":
 			ret = tx.doInsertAttrViewBlock(op)
 		case "removeAttrViewBlock":
 			ret = tx.doRemoveAttrViewBlock(op)
 		case "addAttrViewCol":
 			ret = tx.doAddAttrViewColumn(op)
+		case "updateAttrViewCol":
+			ret = tx.doUpdateAttrViewColumn(op)
 		case "removeAttrViewCol":
 			ret = tx.doRemoveAttrViewColumn(op)
+		case "sortAttrViewRow":
+			ret = tx.doSortAttrViewRow(op)
+		case "sortAttrViewCol":
+			ret = tx.doSortAttrViewColumn(op)
 		case "updateAttrViewCell":
 			ret = tx.doUpdateAttrViewCell(op)
+		case "updateAttrViewColOptions":
+			ret = tx.doUpdateAttrViewColOptions(op)
+		case "removeAttrViewColOption":
+			ret = tx.doRemoveAttrViewColOption(op)
+		case "updateAttrViewColOption":
+			ret = tx.doUpdateAttrViewColOption(op)
+		case "setAttrViewColCalc":
+			ret = tx.doSetAttrViewColCalc(op)
+		case "updateAttrViewColNumberFormat":
+			ret = tx.doUpdateAttrViewColNumberFormat(op)
 		}
 
 		if nil != ret {
@@ -695,7 +724,42 @@ func (tx *Transaction) doDelete(operation *Operation) (ret *TxErr) {
 	if err = tx.writeTree(tree); nil != err {
 		return
 	}
+
+	syncDelete2AttributeView(node)
 	return
+}
+
+func syncDelete2AttributeView(node *ast.Node) {
+	avs := node.IALAttr(NodeAttrNameAvs)
+	if "" == avs {
+		return
+	}
+
+	avIDs := strings.Split(avs, ",")
+	for _, avID := range avIDs {
+		attrView, parseErr := av.ParseAttributeView(avID)
+		if nil != parseErr {
+			continue
+		}
+
+		changedAv := false
+		blockValues := attrView.GetBlockKeyValues()
+		if nil == blockValues {
+			continue
+		}
+
+		for i, blockValue := range blockValues.Values {
+			if blockValue.Block.ID == node.ID {
+				blockValues.Values = append(blockValues.Values[:i], blockValues.Values[i+1:]...)
+				changedAv = true
+				break
+			}
+		}
+		if changedAv {
+			av.SaveAttributeView(attrView)
+			util.BroadcastByType("protyle", "refreshAttributeView", 0, "", map[string]interface{}{"id": avID})
+		}
+	}
 }
 
 func (tx *Transaction) doInsert(operation *Operation) (ret *TxErr) {
@@ -989,10 +1053,10 @@ func (tx *Transaction) doSetAttrs(operation *Operation) (ret *TxErr) {
 	return
 }
 
-func refreshUpdated(n *ast.Node) {
+func refreshUpdated(node *ast.Node) {
 	updated := util.CurrentTimeSecondsStr()
-	n.SetIALAttr("updated", updated)
-	parents := treenode.ParentNodes(n)
+	node.SetIALAttr("updated", updated)
+	parents := treenode.ParentNodes(node)
 	for _, parent := range parents { // 更新所有父节点的更新时间字段
 		parent.SetIALAttr("updated", updated)
 	}
@@ -1025,10 +1089,13 @@ type Operation struct {
 
 	DeckID string `json:"deckID"` // 用于添加/删除闪卡
 
+	AvID   string   `json:"avID"`   // 属性视图 ID
 	SrcIDs []string `json:"srcIDs"` // 用于将块拖拽到属性视图中
-	Name   string   `json:"name"`   // 用于属性视图列名
-	Typ    string   `json:"type"`   // 用于属性视图列类型
-	RowID  string   `json:"rowID"`  // 用于属性视图行 ID
+	Name   string   `json:"name"`   // 属性视图列名
+	Typ    string   `json:"type"`   // 属性视图列类型
+	Format string   `json:"format"` // 属性视图列格式化
+	KeyID  string   `json:"keyID"`  // 属性视列 ID
+	RowID  string   `json:"rowID"`  // 属性视图行 ID
 
 	discard bool // 用于标识是否在事务合并中丢弃
 }
@@ -1059,7 +1126,7 @@ func (tx *Transaction) commit() (err error) {
 			return
 		}
 	}
-	refreshDynamicRefText(tx.nodes, tx.trees)
+	refreshDynamicRefTexts(tx.nodes, tx.trees)
 	IncSync()
 	tx.trees = nil
 	return
@@ -1099,9 +1166,18 @@ func (tx *Transaction) writeTree(tree *parse.Tree) (err error) {
 	return
 }
 
-func refreshDynamicRefText(updatedDefNodes map[string]*ast.Node, updatedTrees map[string]*parse.Tree) {
-	// 这个实现依赖了数据库缓存，导致外部调用时可能需要阻塞等待数据库写入后才能获取到 refs
+// refreshDynamicRefText 用于刷新引用块的动态锚文本。
+// 该实现依赖了数据库缓存，导致外部调用时可能需要阻塞等待数据库写入后才能获取到 refs
+func refreshDynamicRefText(updatedDefNode *ast.Node, updatedTree *parse.Tree) {
+	changedDefs := map[string]*ast.Node{updatedDefNode.ID: updatedDefNode}
+	changedTrees := map[string]*parse.Tree{updatedTree.ID: updatedTree}
+	refreshDynamicRefTexts(changedDefs, changedTrees)
+}
 
+// refreshDynamicRefTexts 用于批量刷新引用块的动态锚文本。
+// 该实现依赖了数据库缓存，导致外部调用时可能需要阻塞等待数据库写入后才能获取到 refs
+func refreshDynamicRefTexts(updatedDefNodes map[string]*ast.Node, updatedTrees map[string]*parse.Tree) {
+	// 1. 更新引用的动态锚文本
 	treeRefNodeIDs := map[string]*hashset.Set{}
 	for _, updateNode := range updatedDefNodes {
 		refs := sql.GetRefsCacheByDefID(updateNode.ID)
@@ -1132,6 +1208,8 @@ func refreshDynamicRefText(updatedDefNodes map[string]*ast.Node, updatedTrees ma
 		}
 	}
 
+	changedRefTree := map[string]*parse.Tree{}
+
 	for refTreeID, refNodeIDs := range treeRefNodeIDs {
 		refTree, ok := updatedTrees[refTreeID]
 		if !ok {
@@ -1159,8 +1237,50 @@ func refreshDynamicRefText(updatedDefNodes map[string]*ast.Node, updatedTrees ma
 		})
 
 		if refTreeChanged {
-			indexWriteJSONQueue(refTree)
+			changedRefTree[refTreeID] = refTree
 		}
+	}
+
+	// 2. 更新属性视图主键内容
+	for _, updatedDefNode := range updatedDefNodes {
+		avs := updatedDefNode.IALAttr(NodeAttrNameAvs)
+		if "" == avs {
+			continue
+		}
+
+		avIDs := strings.Split(avs, ",")
+		for _, avID := range avIDs {
+			attrView, parseErr := av.ParseAttributeView(avID)
+			if nil != parseErr {
+				continue
+			}
+
+			changedAv := false
+			blockValues := attrView.GetBlockKeyValues()
+			if nil == blockValues {
+				continue
+			}
+
+			for _, blockValue := range blockValues.Values {
+				if blockValue.Block.ID == updatedDefNode.ID {
+					newContent := getNodeRefText(updatedDefNode)
+					if newContent != blockValue.Block.Content {
+						blockValue.Block.Content = newContent
+						changedAv = true
+					}
+					break
+				}
+			}
+			if changedAv {
+				av.SaveAttributeView(attrView)
+				util.BroadcastByType("protyle", "refreshAttributeView", 0, "", map[string]interface{}{"id": avID})
+			}
+		}
+	}
+
+	// 3. 保存变更
+	for _, tree := range changedRefTree {
+		indexWriteJSONQueue(tree)
 	}
 }
 
@@ -1183,9 +1303,7 @@ func flushUpdateRefTextRenameDoc() {
 	defer updateRefTextRenameDocLock.Unlock()
 
 	for _, tree := range updateRefTextRenameDocs {
-		changedDefs := map[string]*ast.Node{tree.ID: tree.Root}
-		changedTrees := map[string]*parse.Tree{tree.ID: tree}
-		refreshDynamicRefText(changedDefs, changedTrees)
+		refreshDynamicRefText(tree.Root, tree)
 	}
 	updateRefTextRenameDocs = map[string]*parse.Tree{}
 }

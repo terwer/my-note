@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -387,6 +387,7 @@ func ListDocTree(boxID, path string, sortMode int, flashcard bool, maxListCount 
 			return fileTreeFiles[i].Sort < fileTreeFiles[j].Sort
 		})
 		ret = append(ret, fileTreeFiles...)
+		totals = len(ret)
 		if maxListCount < len(ret) {
 			ret = ret[:maxListCount]
 		}
@@ -414,6 +415,7 @@ func ListDocTree(boxID, path string, sortMode int, flashcard bool, maxListCount 
 		ret = append(ret, docs...)
 	}
 
+	totals = len(ret)
 	if maxListCount < len(ret) {
 		ret = ret[:maxListCount]
 	}
@@ -700,13 +702,6 @@ func GetDoc(startID, endID, id string, index int, query string, queryTypes map[s
 				}
 			}
 
-			// 支持代码块搜索定位 https://github.com/siyuan-note/siyuan/issues/5520
-			if ast.NodeCodeBlockCode == n.Type && 0 < len(keywords) && !treenode.IsChartCodeBlockCode(n) {
-				text := string(n.Tokens)
-				text = search.EncloseHighlighting(text, keywords, search.SearchMarkLeft, search.SearchMarkRight, Conf.Search.CaseSensitive, false)
-				n.Tokens = gulu.Str.ToBytes(text)
-			}
-
 			if 0 < len(keywords) {
 				hitBlock := false
 				for p := n.Parent; nil != p; p = p.Parent {
@@ -716,7 +711,15 @@ func GetDoc(startID, endID, id string, index int, query string, queryTypes map[s
 					}
 				}
 				if hitBlock {
-					if markReplaceSpan(n, &unlinks, keywords, search.MarkDataType, luteEngine) {
+					if ast.NodeCodeBlockCode == n.Type && !treenode.IsChartCodeBlockCode(n) {
+						// 支持代码块搜索定位 https://github.com/siyuan-note/siyuan/issues/5520
+						code := string(n.Tokens)
+						markedCode := search.EncloseHighlighting(code, keywords, search.SearchMarkLeft, search.SearchMarkRight, Conf.Search.CaseSensitive, false)
+						if code != markedCode {
+							n.Tokens = gulu.Str.ToBytes(markedCode)
+							return ast.WalkContinue
+						}
+					} else if markReplaceSpan(n, &unlinks, keywords, search.MarkDataType, luteEngine) {
 						return ast.WalkContinue
 					}
 				}
@@ -1574,7 +1577,7 @@ func moveSorts(rootID, fromBox, toBox string) {
 		toFullSortIDs[id] = sortVal
 	}
 
-	data, err := gulu.JSON.MarshalIndentJSON(toFullSortIDs, "", "  ")
+	data, err := gulu.JSON.MarshalJSON(toFullSortIDs)
 	if nil != err {
 		logging.LogErrorf("marshal sort conf failed: %s", err)
 		return
@@ -1649,7 +1652,7 @@ func ChangeFileTreeSort(boxID string, paths []string) {
 		fullSortIDs[sortID] = sortVal
 	}
 
-	data, err = gulu.JSON.MarshalIndentJSON(fullSortIDs, "", "  ")
+	data, err = gulu.JSON.MarshalJSON(fullSortIDs)
 	if nil != err {
 		logging.LogErrorf("marshal sort conf failed: %s", err)
 		return
@@ -1708,7 +1711,7 @@ func (box *Box) removeSort(ids []string) {
 		delete(fullSortIDs, toRemove)
 	}
 
-	data, err = gulu.JSON.MarshalIndentJSON(fullSortIDs, "", "  ")
+	data, err = gulu.JSON.MarshalJSON(fullSortIDs)
 	if nil != err {
 		logging.LogErrorf("marshal sort conf failed: %s", err)
 		return

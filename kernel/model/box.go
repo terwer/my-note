@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -123,6 +123,7 @@ func ListNotebooks() (ret []*Box, err error) {
 		}
 		if readErr = gulu.JSON.UnmarshalJSON(data, boxConf); nil != readErr {
 			logging.LogErrorf("parse box conf [%s] failed: %s", boxConfPath, readErr)
+			os.RemoveAll(boxConfPath)
 			continue
 		}
 
@@ -487,6 +488,8 @@ func FullReindex() {
 	task.AppendTask(task.DatabaseIndexFull, fullReindex)
 	task.AppendTask(task.DatabaseIndexRef, IndexRefs)
 	task.AppendTask(task.ReloadUI, util.ReloadUI)
+
+	// TODO ReindexAssetContent()
 }
 
 func fullReindex() {

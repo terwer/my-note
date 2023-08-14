@@ -11,6 +11,7 @@ import {confirmDialog} from "../../dialog/confirmDialog";
 import {replaceFileName} from "../../editor/rename";
 import {getDisplayName, movePathTo, pathPosix} from "../../util/pathName";
 import {App} from "../../index";
+import {getCloudURL} from "../../config/util/about";
 
 export class Inbox extends Model {
     private element: Element;
@@ -300,10 +301,10 @@ ${(Lute.New()).MarkdownStr("", data.shorthandContent)}
         if (needSubscribe("")) {
             this.element.lastElementChild.innerHTML = `<ul class="b3-list b3-list--background">
     <li class="b3-list--empty">
-        相关功能可打开帮助文档搜索 <code>收集箱</code> 查看使用说明
+        ${window.siyuan.languages.inboxTip}
     </li>
     <li class="b3-list--empty">
-        ${window.siyuan.config.system.container === "ios" ? window.siyuan.languages._kernel[122] : window.siyuan.languages._kernel[29]}
+        ${window.siyuan.config.system.container === "ios" ? window.siyuan.languages._kernel[122] : window.siyuan.languages._kernel[29].replace("${url}", getCloudURL("subscribe/siyuan"))}
     </li>
 </ul>`;
             loadingElement.classList.add("fn__none");
@@ -317,7 +318,7 @@ ${(Lute.New()).MarkdownStr("", data.shorthandContent)}
             loadingElement.classList.add("fn__none");
             let html = "";
             if (response.data.data.shorthands.length === 0) {
-                html = '<ul class="b3-list b3-list--background"><li class="b3-list--empty">打开帮助文档搜索 <b>收集箱</b> 查看使用说明</li></ul>';
+                html = `<ul class="b3-list b3-list--background"><li class="b3-list--empty">${window.siyuan.languages.inboxTip}</li></ul>`;
             } else {
                 html = '<ul style="padding: 8px 0" class="b3-list b3-list--background">';
                 response.data.data.shorthands.forEach((item: IInbox) => {

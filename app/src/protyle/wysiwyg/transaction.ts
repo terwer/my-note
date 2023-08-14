@@ -17,7 +17,7 @@ import {genEmptyElement, genSBElement} from "../../block/util";
 import {hideElements} from "../ui/hideElements";
 import {reloadProtyle} from "../util/reload";
 import {countBlockWord} from "../../layout/status";
-import {needSubscribe} from "../../util/needSubscribe";
+import {needLogin, needSubscribe} from "../../util/needSubscribe";
 
 const removeTopElement = (updateElement: Element, protyle: IProtyle) => {
     // 移动到其他文档中，该块需移除
@@ -73,7 +73,8 @@ const promiseTransaction = () => {
             promiseTransaction();
         }
         /// #if MOBILE
-        if ((0 !== window.siyuan.config.sync.provider || (0 === window.siyuan.config.sync.provider && !needSubscribe(""))) &&
+        if (((0 !== window.siyuan.config.sync.provider && !needLogin("")) ||
+                (0 === window.siyuan.config.sync.provider && !needSubscribe(""))) &&
             window.siyuan.config.repo.key && window.siyuan.config.sync.enabled) {
             document.getElementById("toolbarSync").classList.remove("fn__none");
         }
@@ -289,8 +290,6 @@ const promiseTransaction = () => {
                 // });
                 // 更新引用块
                 updateRef(protyle, operation.id);
-            } else if (["addAttrViewCol", "insertAttrViewBlock"].includes(operation.action)) {
-                refreshAV(protyle, operation);
             }
         });
     });
@@ -454,13 +453,13 @@ export const onTransaction = (protyle: IProtyle, operation: IOperation, focus: b
                 if (refElement) {
                     nodeAttrHTML += refElement.outerHTML;
                 }
-                if (data.new["custom-riff-decks"]) {
+                if (data.new["custom-riff-decks"] && data.new["custom-riff-decks"] !== data.old["custom-riff-decks"]) {
                     protyle.title.element.style.animation = "addCard 450ms linear";
                     protyle.title.element.setAttribute("custom-riff-decks", data.new["custom-riff-decks"]);
                     setTimeout(() => {
                         protyle.title.element.style.animation = "";
                     }, 450);
-                } else {
+                } else if (!data.new["custom-riff-decks"]) {
                     protyle.title.element.removeAttribute("custom-riff-decks");
                 }
                 protyle.title.element.querySelector(".protyle-attr").innerHTML = nodeAttrHTML;
@@ -489,12 +488,12 @@ export const onTransaction = (protyle: IProtyle, operation: IOperation, focus: b
             Object.keys(data.old).forEach(key => {
                 item.removeAttribute(key);
             });
-            if (data.new.style && data.new["custom-riff-decks"]) {
+            if (data.new.style && data.new["custom-riff-decks"] && data.new["custom-riff-decks"] !== data.old["custom-riff-decks"]) {
                 data.new.style += ";animation:addCard 450ms linear";
             }
             Object.keys(data.new).forEach(key => {
                 item.setAttribute(key, data.new[key]);
-                if (key === "custom-riff-decks") {
+                if (key === "custom-riff-decks" && data.new["custom-riff-decks"] !== data.old["custom-riff-decks"]) {
                     item.style.animation = "addCard 450ms linear";
                     setTimeout(() => {
                         item.style.animation = "";
@@ -653,7 +652,10 @@ export const onTransaction = (protyle: IProtyle, operation: IOperation, focus: b
         updateRef(protyle, operation.id);
     } else if (operation.action === "append") {
         reloadProtyle(protyle, false);
-    } else if (["addAttrViewCol", "insertAttrViewBlock"].includes(operation.action)) {
+    } else if (["addAttrViewCol", "insertAttrViewBlock", "updateAttrViewCol", "updateAttrViewColOptions",
+        "updateAttrViewColOption", "updateAttrViewCell", "sortAttrViewRow", "sortAttrViewCol", "setAttrViewColHidden",
+        "setAttrViewColWrap", "setAttrViewColWidth", "removeAttrViewColOption", "setAttrViewName", "setAttrViewFilters",
+        "setAttrViewSorts", "setAttrViewColCalc", "removeAttrViewCol", "updateAttrViewColNumberFormat"].includes(operation.action)) {
         refreshAV(protyle, operation);
     }
 };

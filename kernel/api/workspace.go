@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -33,6 +33,57 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func checkWorkspaceDir(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	path := arg["path"].(string)
+	if isInvalidWorkspacePath(path) {
+		ret.Code = -1
+		ret.Msg = "This workspace name is not allowed, please use another name"
+		return
+	}
+
+	if !gulu.File.IsExist(path) {
+		ret.Code = -1
+		ret.Msg = "This workspace does not exist"
+		return
+	}
+
+	entries, err := os.ReadDir(path)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = fmt.Sprintf("read workspace dir [%s] failed: %s", path, err)
+	}
+
+	var existsConf, existsData bool
+	for _, entry := range entries {
+		if !existsConf {
+			existsConf = "conf" == entry.Name() && entry.IsDir()
+		}
+		if !existsData {
+			existsData = "data" == entry.Name() && entry.IsDir()
+		}
+
+		if existsConf && existsData {
+			break
+		}
+	}
+
+	if existsConf {
+		existsConf = gulu.File.IsExist(filepath.Join(path, "conf", "conf.json"))
+	}
+
+	ret.Data = map[string]interface{}{
+		"isWorkspace": existsConf && existsData,
+	}
+}
 
 func createWorkspaceDir(c *gin.Context) {
 	ret := gulu.Ret.NewResult()

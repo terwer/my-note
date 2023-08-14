@@ -14,6 +14,7 @@ import {Dialog} from "../dialog";
 import {ai} from "./ai";
 import {flashcard} from "./flashcard";
 import {App} from "../index";
+import {isHuawei} from "../protyle/util/compatibility";
 
 export const genItemPanel = (type: string, containerElement: Element, app: App) => {
     switch (type) {
@@ -95,7 +96,12 @@ export const openSetting = (app: App) => {
     const dialog = new Dialog({
         content: `<div class="fn__flex-1 fn__flex config__panel" style="overflow: hidden;position: relative">
   <ul class="b3-tab-bar b3-list b3-list--background">
+    <div class="config__tab-title">
+        <svg class="b3-list-item__graphic"><use xlink:href="#iconSettings"></use></svg>
+        <span class="b3-list-item__text">${window.siyuan.languages.config}</span>
+    </div>
     <div class="b3-form__icon"><svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg><input placeholder="${window.siyuan.languages.search}" class="b3-text-field fn__block b3-form__icon-input"></div>
+    <div class="config__tab-hr"></div>
     <li data-name="editor" class="b3-list-item--focus b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconEdit"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.editor}</span></li>
     <li data-name="filetree" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconFiles"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.fileTree}</span></li>
     <li data-name="card" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconRiffCard"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.riffCard}</span></li>
@@ -103,26 +109,28 @@ export const openSetting = (app: App) => {
     <li data-name="image" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.assets}</span></li>
     <li data-name="export" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconUpload"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.export}</span></li>
     <li data-name="appearance" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconTheme"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.appearance}</span></li>
-    <li data-name="bazaar" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconBazaar"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.bazaar}</span></li>
+    <li data-name="bazaar" class="b3-list-item${isHuawei() ? " fn__none" : ""}"><svg class="b3-list-item__graphic"><use xlink:href="#iconBazaar"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.bazaar}</span></li>
     <li data-name="search" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconSearch"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.search}</span></li>
     <li data-name="keymap" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconKeymap"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.keymap}</span></li>
     <li data-name="account" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconAccount"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.account}</span></li>
     <li data-name="repos" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconCloud"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.cloud}</span></li>
     <li data-name="about" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconInfo"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.about}</span></li>
   </ul>
-  <div class="config__tab-container" data-name="editor">${editor.genHTML()}</div>
-  <div class="config__tab-container fn__none" data-name="filetree"></div>
-  <div class="config__tab-container fn__none" data-name="card"></div>
-  <div class="config__tab-container fn__none" data-name="AI"></div>
-  <div class="config__tab-container fn__none" data-name="image"></div>
-  <div class="config__tab-container fn__none" data-name="export"></div>
-  <div class="config__tab-container fn__none" data-name="appearance"></div>
-  <div class="config__tab-container fn__none" data-name="bazaar"></div>
-  <div class="config__tab-container fn__none" data-name="search"></div>
-  <div class="config__tab-container fn__none" style="overflow: scroll" data-name="keymap"></div>
-  <div class="config__tab-container fn__none" data-name="account"></div>
-  <div class="config__tab-container fn__none" data-name="repos"></div>
-  <div class="config__tab-container fn__none" data-name="about"></div>
+  <div class="config__tab-wrap"> 
+      <div class="config__tab-container" data-name="editor">${editor.genHTML()}</div>
+      <div class="config__tab-container fn__none" data-name="filetree"></div>
+      <div class="config__tab-container fn__none" data-name="card"></div>
+      <div class="config__tab-container config__tab-container--top fn__none" data-name="AI"></div>
+      <div class="config__tab-container config__tab-container--top fn__none" data-name="image"></div>
+      <div class="config__tab-container fn__none" data-name="export"></div>
+      <div class="config__tab-container fn__none" data-name="appearance"></div>
+      <div class="config__tab-container config__tab-container--top fn__none" data-name="bazaar"></div>
+      <div class="config__tab-container fn__none" data-name="search"></div>
+      <div class="config__tab-container fn__none" style="overflow: scroll" data-name="keymap"></div>
+      <div class="config__tab-container config__tab-container--full fn__none" data-name="account"></div>
+      <div class="config__tab-container fn__none" data-name="repos"></div>
+      <div class="config__tab-container fn__none" data-name="about"></div>
+  </div>
 </div>`,
         width: "90vw",
         height: "90vh",

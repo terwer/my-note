@@ -23,12 +23,57 @@ type TOperation =
     | "addFlashcards"
     | "removeFlashcards"
     | "updateAttrViewCell"
+    | "updateAttrViewCol"
+    | "sortAttrViewRow"
+    | "sortAttrViewCol"
+    | "setAttrViewColHidden"
+    | "setAttrViewColWrap"
+    | "setAttrViewColWidth"
+    | "updateAttrViewColOptions"
+    | "removeAttrViewColOption"
+    | "updateAttrViewColOption"
+    | "setAttrViewName"
+    | "setAttrViewFilters"
+    | "setAttrViewSorts"
+    | "setAttrViewColCalc"
+    | "updateAttrViewColNumberFormat"
 type TBazaarType = "templates" | "icons" | "widgets" | "themes" | "plugins"
 type TCardType = "doc" | "notebook" | "all"
-type TEventBus = "ws-main" | "click-blockicon" | "click-editorcontent" | "click-pdf" |
-    "click-editortitleicon" | "open-noneditableblock" | "loaded-protyle"
-type TAVCol = "text" | "date" | "number" | "relation" | "rollup" | "select" | "block"
-
+type TEventBus = "ws-main" |
+    "click-blockicon" | "click-editorcontent" | "click-pdf" | "click-editortitleicon" |
+    "open-noneditableblock" |
+    "open-menu-blockref" | "open-menu-fileannotationref" | "open-menu-tag" | "open-menu-link" | "open-menu-image" |
+    "open-menu-av" | "open-menu-content" | "open-menu-breadcrumbmore" |
+    "input-search" |
+    "loaded-protyle"
+type TAVCol =
+    "text"
+    | "date"
+    | "number"
+    | "relation"
+    | "rollup"
+    | "select"
+    | "block"
+    | "mSelect"
+    | "url"
+    | "email"
+    | "phone"
+type THintSource = "search" | "av" | "hint";
+type TAVFilterOperator =
+    "="
+    | "!="
+    | ">"
+    | ">="
+    | "<"
+    | "<="
+    | "Contains"
+    | "Does not contains"
+    | "Is empty"
+    | "Is not empty"
+    | "Starts with"
+    | "Ends with"
+    | "Is between"
+    | "Is relative to today"
 declare module "blueimp-md5"
 
 interface Window {
@@ -228,6 +273,7 @@ interface ISiyuan {
         userHomeBImgURL: string
         userIntro: string
         userNickname: string
+        userSiYuanOneTimePayStatus: number  // 0 未付费；1 已付费
         userSiYuanProExpireTime: number // -1 终身会员；0 普通用户；> 0 过期时间
         userSiYuanSubscriptionPlan: number // 0 年付订阅/终生；1 教育优惠；2 订阅试用
         userSiYuanSubscriptionType: number // 0 年付；1 终生；2 月付
@@ -248,6 +294,14 @@ interface ISiyuan {
     ctrlIsPressed?: boolean,
     altIsPressed?: boolean,
     shiftIsPressed?: boolean,
+    coordinates?: {
+        pageX: number,
+        pageY: number,
+        clientX: number,
+        clientY: number,
+        screenX: number,
+        screenY: number,
+    },
     menus?: import("../menus").Menus
     languages?: {
         [key: string]: any;
@@ -276,15 +330,18 @@ interface IScrollAttr {
 interface IOperation {
     action: TOperation, // move， delete 不需要传 data
     id?: string,
-    data?: string, // updateAttr 时为  { old: IObject, new: IObject }
-    parentID?: string   // 为 insertAttrViewBlock 传 avid
+    avID?: string,  // av
+    format?: string // updateAttrViewColNumberFormat 专享
+    keyID?: string // updateAttrViewCell 专享
+    rowID?: string // updateAttrViewCell 专享
+    data?: any, // updateAttr 时为  { old: IObject, new: IObject }, updateAttrViewCell 时为 {TAVCol: {content: string}}
+    parentID?: string
     previousID?: string
     retData?: any
     nextID?: string // insert 专享
     srcIDs?: string[] // insertAttrViewBlock 专享
     name?: string // addAttrViewCol 专享
     type?: TAVCol // addAttrViewCol 专享
-    rowID?: string // updateAttrViewCell 专享
     deckID?: string // add/removeFlashcards 专享
     blockIDs?: string[] // add/removeFlashcards 专享
 }
@@ -326,7 +383,8 @@ interface IDockTab {
 }
 
 interface ICommand {
-    langKey: string, // 多语言 key
+    langKey: string, // 用于区分不同快捷键的 key, 同时作为 i18n 的字段名
+    langText?: string, // 显示的文本, 指定后不再使用 langKey 对应的 i18n 文本
     hotkey: string,
     customHotkey?: string,
     callback?: () => void
@@ -336,6 +394,7 @@ interface ICommand {
 }
 
 interface IPluginData {
+    displayName: string,
     name: string,
     js: string,
     css: string,
@@ -479,6 +538,7 @@ interface IFileTree {
     alwaysSelectOpenedFile: boolean
     openFilesUseCurrentTab: boolean
     removeDocWithoutConfirm: boolean
+    useSingleLineSave: boolean
     allowCreateDeeper: boolean
     refCreateSavePath: string
     docCreateSavePath: string
@@ -493,8 +553,10 @@ interface IAccount {
 }
 
 interface IConfig {
+    cloudRegion: number
     bazaar: {
         trust: boolean
+        petalDisabled: boolean
     }
     repo: {
         key: string
@@ -764,7 +826,7 @@ interface IModels {
 
 interface IMenu {
     label?: string,
-    click?: (element: HTMLElement) => void,
+    click?: (element: HTMLElement, event: MouseEvent) => boolean | void | Promise<boolean | void>
     type?: "separator" | "submenu" | "readonly",
     accelerator?: string,
     action?: string,
@@ -809,6 +871,42 @@ interface IBazaarItem {
     preferredFunding: string
 }
 
+interface IAV {
+    id: string
+    name: string
+    view: IAVTable
+    viewID: string
+    viewType: string
+    views: IAVView[]
+}
+
+interface IAVView {
+    name: string
+    id: string
+    type: string
+}
+
+interface IAVTable {
+    columns: IAVColumn[],
+    filters: IAVFilter[],
+    sorts: IAVSort[],
+    name: string,
+    type: "table"
+    rows: IAVRow[],
+    id: string
+}
+
+interface IAVFilter {
+    column: string,
+    operator: TAVFilterOperator,
+    value: IAVCellValue
+}
+
+interface IAVSort {
+    column: string,
+    order: "ASC" | "DESC"
+}
+
 interface IAVColumn {
     width: number,
     icon: string,
@@ -817,6 +915,16 @@ interface IAVColumn {
     wrap: boolean,
     hidden: boolean,
     type: TAVCol,
+    numberFormat: string,
+    calc: {
+        operator: string,
+        result: IAVCellValue
+    },
+    // 选项列表
+    options?: {
+        name: string,
+        color: string,
+    }[]
 }
 
 interface IAVRow {
@@ -825,10 +933,29 @@ interface IAVRow {
 }
 
 interface IAVCell {
+    id: string,
     color: string,
     bgColor: string,
-    value: string,
-    renderValue: {
-        content: string,
-    }
+    value: IAVCellValue,
+    valueType: TAVCol,
+}
+
+interface IAVCellValue {
+    type?: TAVCol,
+    text?: { content: string },
+    number?: { content?: number, isNotEmpty: boolean, format?: string, formattedContent?: string },
+    mSelect?: { content: string, color: string }[]
+    block?: { content: string, id?: string }
+    url?: { content: string }
+    phone?: { content: string }
+    email?: { content: string }
+    date?: IAVCellDateValue
+}
+
+interface IAVCellDateValue {
+    content?: number,
+    isNotEmpty?: boolean
+    content2?: number,
+    isNotEmpty2?: boolean
+    hasEndDate?: boolean
 }

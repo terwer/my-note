@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -75,8 +75,14 @@ func Serve(fastMode bool) {
 	servePlugins(ginServer)
 	serveEmojis(ginServer)
 	serveTemplates(ginServer)
+	servePublic(ginServer)
 	serveRepoDiff(ginServer)
 	api.ServeAPI(ginServer)
+
+	// TODO 升级后结束旧内核进程
+	//if !fastMode && "prod" == util.Mode && util.ContainerStd == util.Container {
+	//	killRunningKernel()
+	//}
 
 	var host string
 	if model.Conf.System.NetworkServe || util.ContainerDocker == util.Container {
@@ -186,6 +192,11 @@ func serveEmojis(ginServer *gin.Engine) {
 
 func serveTemplates(ginServer *gin.Engine) {
 	ginServer.Static("/templates/", filepath.Join(util.DataDir, "templates"))
+}
+
+func servePublic(ginServer *gin.Engine) {
+	// Support directly access `data/public/*` contents via URL link https://github.com/siyuan-note/siyuan/issues/8593
+	ginServer.Static("/public/", filepath.Join(util.DataDir, "public"))
 }
 
 func serveAppearance(ginServer *gin.Engine) {

@@ -89,6 +89,10 @@ export const isCtrl = (event: KeyboardEvent | MouseEvent) => {
     }
 };
 
+export const isHuawei = () => {
+    return window.siyuan.config.system.osPlatform.toLowerCase().indexOf("huawei") > -1;
+};
+
 export const isMac = () => {
     return navigator.platform.toUpperCase().indexOf("MAC") > -1;
 };
@@ -183,7 +187,6 @@ export const getLocalStorage = (cb: () => void) => {
         };
         defaultStorage[Constants.LOCAL_DOCINFO] = {
             id: "",
-            action: []
         };
         defaultStorage[Constants.LOCAL_FONTSTYLES] = [];
         defaultStorage[Constants.LOCAL_SEARCHDATA] = {
@@ -218,7 +221,13 @@ export const getLocalStorage = (cb: () => void) => {
             Constants.LOCAL_ZOOM, Constants.LOCAL_LAYOUTS, Constants.LOCAL_AI, Constants.LOCAL_PLUGINTOPUNPIN].forEach((key) => {
             if (typeof response.data[key] === "string") {
                 try {
-                    window.siyuan.storage[key] = Object.assign(defaultStorage[key], JSON.parse(response.data[key]));
+                    const parseData = JSON.parse(response.data[key]);
+                    if (typeof parseData === "number") {
+                        // https://github.com/siyuan-note/siyuan/issues/8852 Object.assign 会导致 number to Number
+                        window.siyuan.storage[key] = parseData;
+                    } else {
+                        window.siyuan.storage[key] = Object.assign(defaultStorage[key], parseData);
+                    }
                 } catch (e) {
                     window.siyuan.storage[key] = defaultStorage[key];
                 }

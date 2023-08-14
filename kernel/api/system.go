@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -124,6 +124,10 @@ func getEmojiConf(c *gin.Context) {
 					}
 
 					for _, subCustomEmoji := range subCustomEmojis {
+						if subCustomEmoji.IsDir() {
+							continue
+						}
+
 						name = subCustomEmoji.Name()
 						if strings.HasPrefix(name, ".") {
 							continue

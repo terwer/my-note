@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -367,7 +367,7 @@ func uploadAssets2Cloud(sqlAssets []*sql.Asset, bizType string) (err error) {
 			SetCookies(&http.Cookie{Name: "symphony", Value: uploadToken}).
 			SetHeader("meta-type", metaType).
 			SetHeader("biz-type", bizType).
-			Post(util.AliyunServer + "/apis/siyuan/upload?ver=" + util.Ver)
+			Post(util.GetCloudServer() + "/apis/siyuan/upload?ver=" + util.Ver)
 		if nil != reqErr {
 			logging.LogErrorf("upload assets failed: %s", reqErr)
 			return ErrFailedToConnectCloudServer
@@ -545,7 +545,7 @@ func RenameAsset(oldPath, newName string) (err error) {
 				treenode.IndexBlockTree(tree)
 				sql.UpsertTreeQueue(tree)
 
-				util.PushEndlessProgress(fmt.Sprintf(Conf.Language(111), tree.Root.IALAttr("title")))
+				util.PushEndlessProgress(fmt.Sprintf(Conf.Language(111), util.EscapeHTML(tree.Root.IALAttr("title"))))
 			}
 		}
 	}
@@ -738,7 +738,14 @@ func MissingAssets() (ret []string) {
 			}
 
 			if "" == assetsPathMap[dest] {
-				ret = append(ret, dest)
+				if strings.HasPrefix(dest, "assets/.") {
+					// Assets starting with `.` should not be considered missing assets https://github.com/siyuan-note/siyuan/issues/8821
+					if !gulu.File.IsExist(filepath.Join(util.DataDir, dest)) {
+						ret = append(ret, dest)
+					}
+				} else {
+					ret = append(ret, dest)
+				}
 				continue
 			}
 		}

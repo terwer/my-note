@@ -100,7 +100,7 @@ const renderPDF = (id: string) => {
         
         #action {
           width: 200px;
-          background: var(--b3-theme-background-light);
+          background: var(--b3-theme-surface);
           padding: 16px;
           position: fixed;
           right: 0;
@@ -356,6 +356,7 @@ const renderPDF = (id: string) => {
         Protyle.chartRender(previewElement, "${servePath}/stage/protyle");
         Protyle.mindmapRender(previewElement, "${servePath}/stage/protyle");
         Protyle.abcRender(previewElement, "${servePath}/stage/protyle");
+        Protyle.htmlRender(previewElement);
         Protyle.plantumlRender(previewElement, "${servePath}/stage/protyle");
     }
     fetchPost("/api/export/exportPreviewHTML", {
@@ -643,6 +644,7 @@ const onExport = (data: IWebSocketData, filePath: string, type: string, removeAs
     Protyle.chartRender(previewElement, "stage/protyle");
     Protyle.mindmapRender(previewElement, "stage/protyle");
     Protyle.abcRender(previewElement, "stage/protyle");
+    Protyle.htmlRender(previewElement);
     Protyle.plantumlRender(previewElement, "stage/protyle");
     document.querySelectorAll(".protyle-action__copy").forEach((item) => {
       item.addEventListener("click", (event) => {

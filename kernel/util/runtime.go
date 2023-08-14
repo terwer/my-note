@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -37,6 +37,9 @@ import (
 	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
 )
+
+// UseSingleLineSave 是否使用单行保存 .sy 文件。
+var UseSingleLineSave = true
 
 // IsUILoaded 是否已经加载了 UI。
 var IsUILoaded = false
@@ -405,5 +408,6 @@ func existAvailabilityStatus(workspaceAbsPath string) bool {
 const (
 	EvtConfPandocInitialized = "conf.pandoc.initialized"
 
-	EvtSQLHistoryRebuild = "sql.history.rebuild"
+	EvtSQLHistoryRebuild      = "sql.history.rebuild"
+	EvtSQLAssetContentRebuild = "sql.assetContent.rebuild"
 )

@@ -29,6 +29,8 @@ import {setEmpty} from "../mobile/util/setEmpty";
 import {resize} from "./util/resize";
 import {getDocByScroll} from "./scroll/saveScroll";
 import {App} from "../index";
+import {insertHTML} from "./util/insertHTML";
+import {avRender} from "./render/av/render";
 
 export class Protyle {
 
@@ -45,6 +47,7 @@ export class Protyle {
         const mergedOptions = getOptions.merge();
 
         this.protyle = {
+            getInstance: () => this,
             app,
             transactionTime: new Date().getTime(),
             id: genUUID(),
@@ -96,6 +99,12 @@ export class Protyle {
                             if (data.data === this.protyle.block.rootID) {
                                 reloadProtyle(this.protyle, false);
                             }
+                            break;
+                        case "refreshAttributeView":
+                            Array.from(this.protyle.wysiwyg.element.querySelectorAll(`[data-av-id="${data.data.id}"]`)).forEach((item: HTMLElement) => {
+                                item.removeAttribute("data-render");
+                                avRender(item);
+                            });
                             break;
                         case "addLoading":
                             if (data.data === this.protyle.block.rootID) {
@@ -259,8 +268,14 @@ export class Protyle {
             mode: (mergedOptions.action && mergedOptions.action.includes(Constants.CB_GET_CONTEXT)) ? 3 : 0,
             size: mergedOptions.action?.includes(Constants.CB_GET_ALL) ? Constants.SIZE_GET_MAX : window.siyuan.config.editor.dynamicLoadBlocks,
         }, getResponse => {
-            onGet({data: getResponse, protyle: this.protyle, action: mergedOptions.action});
-            this.afterOnGet(mergedOptions);
+            onGet({
+                data: getResponse,
+                protyle: this.protyle,
+                action: mergedOptions.action,
+                afterCB: () => {
+                    this.afterOnGet(mergedOptions);
+                }
+            });
         });
     }
 
@@ -354,5 +369,13 @@ export class Protyle {
 
     public resize() {
         resize(this.protyle);
+    }
+
+    public reload(focus: boolean) {
+        reloadProtyle(this.protyle, focus);
+    }
+
+    public insert(html: string, isBlock = false, useProtyleRange = false) {
+        insertHTML(html, this.protyle, isBlock, useProtyleRange);
     }
 }

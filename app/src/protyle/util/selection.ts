@@ -37,12 +37,7 @@ export const fixTableRange = (range: Range) => {
             } else if (startCellElement &&
                 // 不能包含自身元素，否则对 cell 中的部分文字两次高亮后就会选中整个 cell。 https://github.com/siyuan-note/siyuan/issues/3649 第二点
                 !startCellElement.contains(range.endContainer)) {
-                const cloneRange = range.cloneRange();
-                range.setEnd(startCellElement.lastChild, startCellElement.lastChild.textContent.length);
-                if (range.toString() === "" && endCellElement) {
-                    range.setStart(endCellElement.firstChild, 0);
-                    range.setEnd(cloneRange.endContainer, cloneRange.endOffset);
-                }
+                setLastNodeRange(startCellElement, range, false);
             }
         }
     }
@@ -179,9 +174,19 @@ export const getSelectionPosition = (nodeElement: Element, range?: Range) => {
     if (range.getClientRects().length === 0) {
         if (range.startContainer.nodeType === 3) {
             // 空行时，会出现没有 br 的情况，需要根据父元素 <p> 获取位置信息
-            const parent = range.startContainer.parentElement;
-            if (parent && parent.getClientRects().length > 0) {
-                cursorRect = parent.getClientRects()[0];
+            const parentRects = range.startContainer.parentElement?.getClientRects();
+            // 连续粘贴图片时
+            const previousRects = (range.startContainer as Element).previousElementSibling?.getClientRects();
+            if (parentRects.length > 0 || previousRects.length > 0) {
+                if (parentRects.length === 0 || (previousRects &&
+                    previousRects.length > 0 && parentRects[0].top < previousRects[previousRects.length - 1].bottom)) {
+                    cursorRect = {
+                        left: previousRects[previousRects.length - 1].left,
+                        top: previousRects[previousRects.length - 1].bottom,
+                    };
+                } else {
+                    cursorRect = parentRects[0];
+                }
             } else {
                 return {
                     left: 0,

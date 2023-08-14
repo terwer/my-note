@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@ package model
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -27,7 +26,6 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/editor"
-	"github.com/88250/lute/html"
 	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
@@ -261,7 +259,6 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 
 	headingLevel := 16
 	maxNameLen := 1024
-	boxName := box.Name
 	var hPath string
 	baseBlock := treenode.GetBlockTreeRootByPath(node.Box, node.Path)
 	if nil != baseBlock {
@@ -279,7 +276,7 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 
 		name := util.EscapeHTML(parent.IALAttr("name"))
 		if ast.NodeDocument == parent.Type {
-			name = util.EscapeHTML(path.Join(boxName, hPath))
+			name = util.EscapeHTML(box.Name) + util.EscapeHTML(hPath)
 		} else {
 			if "" == name {
 				if ast.NodeListItem == parent.Type {
@@ -310,7 +307,7 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 		if add {
 			ret = append([]*BlockPath{{
 				ID:      id,
-				Name:    html.EscapeString(name),
+				Name:    util.EscapeHTML(name),
 				Type:    parent.Type.String(),
 				SubType: treenode.SubTypeAbbr(parent),
 			}}, ret...)
@@ -331,7 +328,7 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 				name = gulu.Str.SubStr(renderBlockText(b, excludeTypes), maxNameLen)
 				ret = append([]*BlockPath{{
 					ID:      b.ID,
-					Name:    html.EscapeString(name),
+					Name:    util.EscapeHTML(name),
 					Type:    b.Type.String(),
 					SubType: treenode.SubTypeAbbr(b),
 				}}, ret...)

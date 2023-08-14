@@ -47,11 +47,14 @@
     * [List files](#List-files)
 * [Export](#Export)
     * [Export Markdown](#Export-Markdown)
+    * [Export Files and Folders](#Export-files-and-folders)
 * [Conversion](#Conversion)
     * [Pandoc](#Pandoc)
 * [Notification](#Notification)
     * [Push message](#Push-message)
     * [Push error message](#Push-error-message)
+* [Network](#Network)
+    * [Forward proxy](#Forward-proxy)
 * [System](#System)
     * [Get boot progress](#Get-boot-progress)
     * [Get system version](#Get-system-version)
@@ -470,7 +473,8 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
         * `"/assets/sub/"`: workspace/data/assets/sub/ folder
 
       Under normal circumstances, it is recommended to use the first method, which is stored in the assets folder
-      of the workspace, putting in a subdirectory has some side effects, please refer to the assets chapter of the user guide.
+      of the workspace, putting in a subdirectory has some side effects, please refer to the assets chapter of the user
+      guide.
     * `file[]`: Uploaded file list
 * Return value
 
@@ -829,9 +833,9 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   }
   ```
 
-  * `fromID`: Def block ID
-  * `toID`: Target block ID
-  * `refIDs`: Ref block IDs point to def block ID, optional, if not specified, all ref block IDs will be transferred
+    * `fromID`: Def block ID
+    * `toID`: Target block ID
+    * `refIDs`: Ref block IDs point to def block ID, optional, if not specified, all ref block IDs will be transferred
 * Return value
 
   ```json
@@ -1041,8 +1045,8 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     "newPath": "/data/assets/test-20230523085812-k3o9t32.png"
   }
   ```
-  * `path`: the file path under the workspace path
-  * `newPath`: the new file path under the workspace path
+    * `path`: the file path under the workspace path
+    * `newPath`: the new file path under the workspace path
 * Return value
 
   ```json
@@ -1073,10 +1077,12 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     "data": [
         {
             "isDir": true,
+            "isSymlink": false,
             "name": "20210808180320-abz7w6k"
         },
         {
             "isDir": false,
+            "isSymlink": false,
             "name": "20210808180320-abz7w6k.sy"
         }
     ]
@@ -1113,13 +1119,52 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     * `hPath`: human-readable path
     * `content`: Markdown content
 
+### Export files and folders
+
+* `/api/export/exportResources`
+* Parameters
+
+  ```json
+  {
+    "paths": [
+      "/conf/appearance/boot",
+      "/conf/appearance/langs",
+      "/conf/appearance/emojis/conf.json",
+      "/conf/appearance/icons/index.html",
+    ],
+    "name": "zip-file-name"
+  }
+  ```
+
+    * `paths`: A list of file or folder paths to be exported, the same filename/folder name will be overwritten
+    * `name`: (Optional) The exported file name, which defaults to `export-YYYY-MM-DD_hh-mm-ss.zip` when not set
+* Return value
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": {
+      "path": "temp/export/zip-file-name.zip"
+    }
+  }
+  ```
+
+    * `path`: The path of `*.zip` file created
+        * The directory structure in `zip-file-name.zip` is as follows:
+            * `zip-file-name`
+                * `boot`
+                * `langs`
+                * `conf.json`
+                * `index.html`
+
 ## Conversion
 
 ### Pandoc
 
 * `/api/convert/pandoc`
 * Working directory
-    * Executing the pandoc command will set the working directory to `workspace/temp/convert/pandoc/`
+    * Executing the pandoc command will set the working directory to `workspace/temp/convert/pandoc/${dir}`
     * API [`Put file`](#put-file) can be used to write the file to be converted to this directory first
     * Then call the API for conversion, and the converted file will also be written to this directory
     * Finally, call the API [`Get file`](#get-file) to get the converted file
@@ -1129,6 +1174,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
 
   ```json
   {
+    "dir": "test",
     "args": [
       "--to", "markdown_strict-raw_html",
       "foo.epub",
@@ -1144,9 +1190,12 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   {
     "code": 0,
     "msg": "",
-    "data": null
+    "data": {
+       "path": "/temp/convert/pandoc/test"
+    }
   }
   ```
+    * `path`: the path under the workspace
 
 ## Notification
 
@@ -1201,6 +1250,52 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
   }
   ```
     * `id`: Message ID
+
+## Network
+
+### Forward proxy
+
+* `/api/network/forwardProxy`
+* Parameters
+
+  ```json
+  {
+    "url": "https://b3log.org/siyuan/",
+    "method": "GET",
+    "timeout": 7000,
+    "contentType": "text/html",
+    "headers": [
+        {
+            "Cookie": ""
+        }
+    ],
+    "payload": {}
+  }
+  ```
+
+    * `url`: URL to forward
+    * `method`: HTTP method, default is `POST`
+    * `timeout`: timeout in milliseconds, default is `7000`
+    * `contentType`: Content-Type, default is `application/json`
+    * `headers`: HTTP headers
+    * `payload`: HTTP payload, object or string
+* Return value
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": {
+      "body": "",
+      "contentType": "text/html",
+      "elapsed": 1976,
+      "headers": {
+      },
+      "status": 200,
+      "url": "https://b3log.org/siyuan"
+    }
+  }
+  ```
 
 ## System
 

@@ -10,7 +10,7 @@ import {getSearch, isMobile} from "../../util/functions";
 import {shell} from "electron";
 /// #endif
 /// #if !MOBILE
-import {openAsset, openBy} from "../../editor/util";
+import {openAsset, openBy, updateOutline} from "../../editor/util";
 import {getAllModels} from "../../layout/getAll";
 import {setPanelFocus} from "../../layout/util";
 /// #endif
@@ -74,6 +74,7 @@ export class Preview {
         this.element.addEventListener("click", (event) => {
             if (protyle.model) {
                 setPanelFocus(protyle.model.element.parentElement.parentElement);
+                updateOutline(getAllModels(), protyle.model.editor.protyle);
             }
             let target = event.target as HTMLElement;
             while (target && !target.isEqualNode(this.element)) {
@@ -97,12 +98,12 @@ export class Preview {
                     event.preventDefault();
                     if (isLocalPath(linkAddress)) {
                         /// #if !MOBILE
-                        if (Constants.SIYUAN_ASSETS_EXTS.includes(pathPosix().extname((linkAddress.split("?page")[0])))) {
-                            openAsset(protyle.app, linkAddress.split("?page")[0], parseInt(getSearch("page", linkAddress)));
-                        } else {
-                            /// #if !BROWSER
+                        if (event.metaKey || event.ctrlKey) {
                             openBy(linkAddress, "folder");
-                            /// #endif
+                        } else if (event.shiftKey) {
+                            openBy(linkAddress, "app");
+                        } else if (Constants.SIYUAN_ASSETS_EXTS.includes(pathPosix().extname((linkAddress.split("?page")[0])))) {
+                            openAsset(protyle.app, linkAddress.split("?page")[0], parseInt(getSearch("page", linkAddress)));
                         }
                         /// #endif
                     } else {

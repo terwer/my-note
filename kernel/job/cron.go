@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -38,6 +38,7 @@ func StartCron() {
 	go every(50*time.Millisecond, model.FlushTxJob)
 	go every(util.SQLFlushInterval, sql.FlushTxJob)
 	go every(util.SQLFlushInterval, sql.FlushHistoryTxJob)
+	go every(util.SQLFlushInterval, sql.FlushAssetContentTxJob)
 	go every(10*time.Minute, model.FixIndexJob)
 	go every(10*time.Minute, model.IndexEmbedBlockJob)
 	go every(10*time.Minute, model.CacheVirtualBlockRefJob)

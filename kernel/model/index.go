@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -300,6 +300,18 @@ func subscribeSQLEvents() {
 		current := context["current"].(int)
 		total := context["total"]
 		msg := fmt.Sprintf(Conf.Language(191), current, total)
+		util.SetBootDetails(msg)
+		util.ContextPushMsg(context, msg)
+	})
+
+	eventbus.Subscribe(eventbus.EvtSQLInsertAssetContent, func(context map[string]interface{}) {
+		if util.ContainerAndroid == util.Container || util.ContainerIOS == util.Container {
+			return
+		}
+
+		current := context["current"].(int)
+		total := context["total"]
+		msg := fmt.Sprintf(Conf.Language(217), current, total)
 		util.SetBootDetails(msg)
 		util.ContextPushMsg(context, msg)
 	})

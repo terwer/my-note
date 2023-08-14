@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -172,9 +172,18 @@ func readDir(c *gin.Context) {
 
 	files := []map[string]interface{}{}
 	for _, entry := range entries {
+		path := filepath.Join(dirPath, entry.Name())
+		info, err = os.Stat(path)
+		if nil != err {
+			logging.LogErrorf("stat [%s] failed: %s", path, err)
+			ret.Code = 500
+			ret.Msg = err.Error()
+			return
+		}
 		files = append(files, map[string]interface{}{
-			"name":  entry.Name(),
-			"isDir": entry.IsDir(),
+			"name":      entry.Name(),
+			"isDir":     info.IsDir(),
+			"isSymlink": util.IsSymlink(entry),
 		})
 	}
 
@@ -196,6 +205,7 @@ func renameFile(c *gin.Context) {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
 		ret.Code = 404
+		ret.Msg = err.Error()
 		return
 	}
 	if nil != err {
@@ -207,6 +217,11 @@ func renameFile(c *gin.Context) {
 
 	newPath := arg["newPath"].(string)
 	newPath = filepath.Join(util.WorkspaceDir, newPath)
+	if gulu.File.IsExist(newPath) {
+		ret.Code = 409
+		ret.Msg = "the [newPath] file or directory already exists"
+		return
+	}
 
 	if err = filelock.Rename(filePath, newPath); nil != err {
 		logging.LogErrorf("rename file [%s] to [%s] failed: %s", filePath, newPath, err)

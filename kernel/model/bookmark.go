@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -62,7 +62,7 @@ func RemoveBookmark(bookmark string) (err error) {
 			}
 		}
 
-		util.PushEndlessProgress(fmt.Sprintf(Conf.Language(111), tree.Root.IALAttr("title")))
+		util.PushEndlessProgress(fmt.Sprintf(Conf.Language(111), util.EscapeHTML(tree.Root.IALAttr("title"))))
 		if err = writeJSONQueue(tree); nil != err {
 			util.ClearPushProgress(100)
 			return
@@ -120,7 +120,7 @@ func RenameBookmark(oldBookmark, newBookmark string) (err error) {
 			}
 		}
 
-		util.PushEndlessProgress(fmt.Sprintf(Conf.Language(111), tree.Root.IALAttr("title")))
+		util.PushEndlessProgress(fmt.Sprintf(Conf.Language(111), util.EscapeHTML(tree.Root.IALAttr("title"))))
 		if err = writeJSONQueue(tree); nil != err {
 			util.ClearPushProgress(100)
 			return

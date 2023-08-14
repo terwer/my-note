@@ -47,11 +47,14 @@
     * [列出文件](#列出文件)
 * [导出](#导出)
     * [导出 Markdown 文本](#导出-markdown-文本)
+    * [导出文件与目录](#导出文件与目录)
 * [转换](#转换)
     * [Pandoc](#Pandoc)
 * [通知](#通知)
     * [推送消息](#推送消息)
     * [推送报错消息](#推送报错消息)
+* [网络](#网络)
+    * [正向代理](#正向代理)
 * [系统](#系统)
     * [获取启动进度](#获取启动进度)
     * [获取系统版本](#获取系统版本)
@@ -822,9 +825,9 @@
   }
   ```
 
-  * `fromID`：定义块 ID
-  * `toID`：目标块 ID
-  * `refIDs`：指向定义块 ID 的引用所在块 ID，可选，如果不指定，所有指向定义块 ID 的引用块 ID 都会被转移
+    * `fromID`：定义块 ID
+    * `toID`：目标块 ID
+    * `refIDs`：指向定义块 ID 的引用所在块 ID，可选，如果不指定，所有指向定义块 ID 的引用块 ID 都会被转移
 * 返回值
 
   ```json
@@ -834,7 +837,6 @@
     "data": null
   }
   ```
-
 
 ## 属性
 
@@ -1035,8 +1037,8 @@
     "newPath": "/data/assets/test-20230523085812-k3o9t32.png"
   }
   ```
-  * `path`：工作空间路径下的文件路径
-  * `newPath`：新的文件路径
+    * `path`：工作空间路径下的文件路径
+    * `newPath`：新的文件路径
 * 返回值
 
   ```json
@@ -1067,10 +1069,12 @@
     "data": [
         {
             "isDir": true,
+            "isSymlink": false,
             "name": "20210808180320-abz7w6k"
         },
         {
             "isDir": false,
+            "isSymlink": false,
             "name": "20210808180320-abz7w6k.sy"
         }
     ]
@@ -1107,13 +1111,52 @@
     * `hPath`：人类可读的路径
     * `content`：Markdown 内容
 
+### 导出文件与目录
+
+* `/api/export/exportResources`
+* 参数
+
+  ```json
+  {
+    "paths": [
+      "/conf/appearance/boot",
+      "/conf/appearance/langs",
+      "/conf/appearance/emojis/conf.json",
+      "/conf/appearance/icons/index.html",
+    ],
+    "name": "zip-file-name"
+  }
+  ```
+
+    * `paths`：要导出的文件或文件夹路径列表，相同名称的文件/文件夹会被覆盖
+    * `name`：（可选）导出的文件名，未设置时默认为 `export-YYYY-MM-DD_hh-mm-ss.zip`
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": {
+      "path": "temp/export/zip-file-name.zip"
+    }
+  }
+  ```
+
+    * `path`：创建的 `*.zip` 文件路径
+        * `zip-file-name.zip` 中的目录结构如下所示：
+            * `zip-file-name`
+                * `boot`
+                * `langs`
+                * `conf.json`
+                * `index.html`
+
 ## 转换
 
 ### Pandoc
 
 * `/api/convert/pandoc`
 * 工作目录
-    * 执行调用 pandoc 命令时工作目录会被设置在 `工作空间/temp/convert/pandoc/` 下
+    * 执行调用 pandoc 命令时工作目录会被设置在 `工作空间/temp/convert/pandoc/${test}` 下
     * 可先通过 API [`写入文件`](#写入文件) 将待转换文件写入该目录
     * 然后再调用该 API 进行转换，转换后的文件也会被写入该目录
     * 最后调用 API [`获取文件`](#获取文件) 获取转换后的文件内容
@@ -1123,6 +1166,7 @@
 
   ```json
   {
+    "dir": "test",
     "args": [
       "--to", "markdown_strict-raw_html",
       "foo.epub",
@@ -1138,9 +1182,12 @@
   {
     "code": 0,
     "msg": "",
-    "data": null
+    "data": {
+       "path": "/temp/convert/pandoc/test"
+    }
   }
   ```
+    * `path`：工作空间下的路径
 
 ## 通知
 
@@ -1193,6 +1240,52 @@
   }
   ```
     * `id`：消息 ID
+
+## 网络
+
+### 正向代理
+
+* `/api/network/forwardProxy`
+* 参数
+
+  ```json
+  {
+    "url": "https://b3log.org/siyuan/",
+    "method": "GET",
+    "timeout": 7000,
+    "contentType": "text/html",
+    "headers": [
+        {
+            "Cookie": ""
+        }
+    ],
+    "payload": {}
+  }
+  ```
+
+    * `url`：转发的 URL
+    * `method`：HTTP 方法，默认为 `GET`
+    * `timeout`：超时时间，单位为毫秒，默认为 `7000` 毫秒
+    * `contentType`：HTTP Content-Type，默认为 `application/json`
+    * `headers`：HTTP 请求标头
+    * `payload`：HTTP 请求体，对象或者是字符串
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": {
+      "body": "",
+      "contentType": "text/html",
+      "elapsed": 1976,
+      "headers": {
+      },
+      "status": 200,
+      "url": "https://b3log.org/siyuan"
+    }
+  }
+  ```
 
 ## 系统
 

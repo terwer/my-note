@@ -1,7 +1,7 @@
 import {hasClosestBlock, hasClosestByAttribute, hasClosestByMatchTag, hasClosestByTag} from "../util/hasClosest";
 import {getIconByType} from "../../editor/getIcon";
 import {iframeMenu, setFold, tableMenu, videoMenu, zoomOut} from "../../menus/protyle";
-import {MenuItem, subMenu} from "../../menus/Menu";
+import {MenuItem} from "../../menus/Menu";
 import {copySubMenu, openAttr, openWechatNotify} from "../../menus/commonMenuItem";
 import {copyPlainText, updateHotkeyTip, writeText} from "../util/compatibility";
 import {
@@ -36,11 +36,12 @@ import {makeCard, quickMakeCard} from "../../card/makeCard";
 import {transferBlockRef} from "../../menus/block";
 import {isMobile} from "../../util/functions";
 import {AIActions} from "../../ai/actions";
-import {activeBlur} from "../../mobile/util/keyboardToolbar";
+import {activeBlur, renderTextMenu, showKeyboardToolbarUtil} from "../../mobile/util/keyboardToolbar";
 import {hideTooltip} from "../../dialog/tooltip";
 import {appearanceMenu} from "../toolbar/Font";
 import {setPosition} from "../../util/setPosition";
 import {avRender} from "../render/av/render";
+import {emitOpenMenu} from "../../plugin/EventBus";
 
 export class Gutter {
     public element: HTMLElement;
@@ -51,7 +52,7 @@ export class Gutter {
         if (/Mac/.test(navigator.platform) || navigator.platform === "iPhone") {
             this.element.setAttribute("aria-label", window.siyuan.languages.gutterTip);
         } else {
-            this.element.setAttribute("aria-label", window.siyuan.languages.gutterTip.replace(/⌘/g, "Ctrl+").replace(/⌥/g, "Alt+").replace(/⇧/g, "Shift+").replace(/⌃/g, "Ctrl+"));
+            this.element.setAttribute("aria-label", window.siyuan.languages.gutterTip.replace("⌥⌘A", "Ctrl+Alt+A").replace(/⌘/g, "Ctrl+").replace(/⌥/g, "Alt+").replace(/⇧/g, "Shift+").replace(/⌃/g, "Ctrl+"));
         }
         this.element.setAttribute("data-type", "a");
         this.element.setAttribute("data-position", "right");
@@ -214,7 +215,7 @@ export class Gutter {
                 }
                 foldElement.classList.remove("protyle-wysiwyg--hl");
             } else if (window.siyuan.shiftIsPressed && !protyle.disabled) {
-                openAttr(protyle.wysiwyg.element.querySelector(`[data-node-id="${id}"]`), protyle);
+                openAttr(protyle.wysiwyg.element.querySelector(`[data-node-id="${id}"]`));
             } else {
                 this.renderMenu(protyle, buttonElement);
                 // https://ld246.com/article/1648433751993
@@ -423,6 +424,19 @@ export class Gutter {
                 turnsIntoTransaction(options);
             }
         };
+    }
+
+    private showMobileAppearance(protyle: IProtyle) {
+        const toolbarElement = document.getElementById("keyboardToolbar");
+        const dynamicElements = toolbarElement.querySelectorAll("#keyboardToolbar .keyboard__dynamic");
+        dynamicElements[0].classList.add("fn__none");
+        dynamicElements[1].classList.remove("fn__none");
+        toolbarElement.querySelector('.keyboard__action[data-type="text"]').classList.add("protyle-toolbar__item--current");
+        toolbarElement.querySelector('.keyboard__action[data-type="done"] use').setAttribute("xlink:href", "#iconCloseRound");
+        toolbarElement.classList.remove("fn__none");
+        const oldScrollTop = protyle.contentElement.scrollTop + 333.5;  // toolbarElement.clientHeight
+        renderTextMenu(protyle, toolbarElement);
+        showKeyboardToolbarUtil(oldScrollTop);
     }
 
     public renderMultipleMenu(protyle: IProtyle, selectsElement: Element[]) {
@@ -679,7 +693,10 @@ export class Gutter {
             label: window.siyuan.languages.appearance,
             icon: "iconFont",
             accelerator: window.siyuan.config.keymap.editor.insert.appearance.custom,
-            click() {
+            click: () => {
+                /// #if MOBILE
+                this.showMobileAppearance(protyle);
+                /// #else
                 protyle.toolbar.element.classList.add("fn__none");
                 protyle.toolbar.subElement.innerHTML = "";
                 protyle.toolbar.subElement.style.width = "";
@@ -687,7 +704,6 @@ export class Gutter {
                 protyle.toolbar.subElement.append(appearanceMenu(protyle, selectsElement));
                 protyle.toolbar.subElement.classList.remove("fn__none");
                 protyle.toolbar.subElementCloseCB = undefined;
-                /// #if !MOBILE
                 const position = selectsElement[0].getBoundingClientRect();
                 setPosition(protyle.toolbar.subElement, position.left, position.top);
                 /// #endif
@@ -726,28 +742,25 @@ export class Gutter {
             }).element);
         }
 
-        const pluginSubMenu = new subMenu();
-        protyle.app?.plugins?.forEach((plugin) => {
-            plugin.eventBus.emit("click-blockicon", {
-                protyle,
-                menu: pluginSubMenu,
-                blockElements: selectsElement,
+        if (protyle?.app?.plugins) {
+            emitOpenMenu({
+                plugins: protyle.app.plugins,
+                type: "click-blockicon",
+                detail: {
+                    protyle,
+                    blockElements: selectsElement,
+                },
+                separatorPosition: "top",
             });
-        });
-        if (pluginSubMenu.menus.length > 0) {
-            window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
-            window.siyuan.menus.menu.append(new MenuItem({
-                label: window.siyuan.languages.plugin,
-                icon: "iconPlugin",
-                type: "submenu",
-                submenu: pluginSubMenu.menus,
-            }).element);
         }
 
         return window.siyuan.menus.menu;
     }
 
     public renderMenu(protyle: IProtyle, buttonElement: Element) {
+        if (!buttonElement) {
+            return;
+        }
         hideElements(["util", "toolbar", "hint"], protyle);
         window.siyuan.menus.menu.remove();
         if (isMobile()) {
@@ -1483,7 +1496,7 @@ export class Gutter {
                     label: window.siyuan.languages.attr,
                     accelerator: window.siyuan.config.keymap.editor.general.attr.custom + "/" + updateHotkeyTip("⇧Click"),
                     click() {
-                        openAttr(nodeElement, protyle);
+                        openAttr(nodeElement);
                     }
                 }).element);
             }
@@ -1493,7 +1506,10 @@ export class Gutter {
                 label: window.siyuan.languages.appearance,
                 icon: "iconFont",
                 accelerator: window.siyuan.config.keymap.editor.insert.appearance.custom,
-                click() {
+                click: () => {
+                    /// #if MOBILE
+                    this.showMobileAppearance(protyle);
+                    /// #else
                     protyle.toolbar.element.classList.add("fn__none");
                     protyle.toolbar.subElement.innerHTML = "";
                     protyle.toolbar.subElement.style.width = "";
@@ -1501,7 +1517,6 @@ export class Gutter {
                     protyle.toolbar.subElement.append(appearanceMenu(protyle, [nodeElement]));
                     protyle.toolbar.subElement.classList.remove("fn__none");
                     protyle.toolbar.subElementCloseCB = undefined;
-                    /// #if !MOBILE
                     const position = nodeElement.getBoundingClientRect();
                     setPosition(protyle.toolbar.subElement, position.left, position.top);
                     /// #endif
@@ -1547,23 +1562,19 @@ export class Gutter {
             }
             window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
         }
-        const pluginSubMenu = new subMenu();
-        protyle.app?.plugins?.forEach((plugin) => {
-            plugin.eventBus.emit("click-blockicon", {
-                protyle,
-                menu: pluginSubMenu,
-                blockElements: [nodeElement]
+
+        if (protyle?.app?.plugins) {
+            emitOpenMenu({
+                plugins: protyle.app.plugins,
+                type: "click-blockicon",
+                detail: {
+                    protyle,
+                    blockElements: [nodeElement]
+                },
+                separatorPosition: "bottom",
             });
-        });
-        if (pluginSubMenu.menus.length > 0) {
-            window.siyuan.menus.menu.append(new MenuItem({
-                label: window.siyuan.languages.plugin,
-                icon: "iconPlugin",
-                type: "submenu",
-                submenu: pluginSubMenu.menus,
-            }).element);
-            window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
         }
+
         let updateHTML = nodeElement.getAttribute("updated") || "";
         if (updateHTML) {
             updateHTML = `${window.siyuan.languages.modifiedAt} ${dayjs(updateHTML).format("YYYY-MM-DD HH:mm:ss")}<br>`;
@@ -1758,7 +1769,8 @@ export class Gutter {
             return false;
         }
         return {
-            label: `${window.siyuan.languages.copy} ${window.siyuan.languages.text} *`,
+            accelerator: window.siyuan.config.keymap.editor.general.copyText.custom,
+            label: window.siyuan.languages.copyText,
             click() {
                 // 用于标识复制文本 *
                 selectsElement[0].setAttribute("data-reftext", "true");

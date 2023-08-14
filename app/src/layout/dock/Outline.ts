@@ -106,18 +106,18 @@ export class Outline extends Model {
             click: (element: HTMLElement) => {
                 const id = element.getAttribute("data-node-id");
                 if (this.isPreview) {
-                    const headElement = document.getElementById(id)
+                    const headElement = document.getElementById(id);
                     if (headElement) {
-                        const tabElement = hasTopClosestByClassName(headElement, "protyle")
+                        const tabElement = hasTopClosestByClassName(headElement, "protyle");
                         if (tabElement) {
-                            const tab = getInstanceById(tabElement.getAttribute("data-id")) as Tab
-                            tab.parent.switchTab(tab.headElement)
+                            const tab = getInstanceById(tabElement.getAttribute("data-id")) as Tab;
+                            tab.parent.switchTab(tab.headElement);
                         }
                         headElement.scrollIntoView();
                     } else {
                         openFileById({
                             app: options.app,
-                            id:  this.blockId,
+                            id: this.blockId,
                             mode: "preview",
                         });
                     }
@@ -194,12 +194,14 @@ export class Outline extends Model {
         });
 
         if (this.isPreview) {
-            fetchPost("/api/export/preview", {
-                id: this.blockId,
-            }, response => {
-                response.data = response.data.outline;
-                this.update(response);
-            });
+            if (this.blockId) {
+                fetchPost("/api/export/preview", {
+                    id: this.blockId,
+                }, response => {
+                    response.data = response.data.outline;
+                    this.update(response);
+                });
+            }
         } else {
             fetchPost("/api/outline/getDocOutline", {
                 id: this.blockId,
@@ -337,7 +339,7 @@ export class Outline extends Model {
         if (this.isPreview) {
             this.tree.element.querySelectorAll(".popover__block").forEach(item => {
                 item.classList.remove("popover__block");
-            })
+            });
         }
 
         if (currentId) {

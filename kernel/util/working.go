@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,7 +42,7 @@ import (
 var Mode = "prod"
 
 const (
-	Ver       = "2.9.2"
+	Ver       = "2.9.9"
 	IsInsider = false
 )
 
@@ -52,12 +53,12 @@ var (
 )
 
 func Boot() {
-	IncBootProgress(3, "Booting...")
+	IncBootProgress(3, "Booting kernel...")
 	rand.Seed(time.Now().UTC().UnixNano())
 	initMime()
 	initHttpClient()
 
-	workspacePath := flag.String("workspace", "", "dir path of the workspace, default to ~/Documents/SiYuan/")
+	workspacePath := flag.String("workspace", "", "dir path of the workspace, default to ~/SiYuan/")
 	wdPath := flag.String("wd", WorkingDir, "working directory of SiYuan")
 	port := flag.String("port", "0", "port of the HTTP server")
 	readOnly := flag.String("readonly", "false", "read-only mode")
@@ -88,7 +89,7 @@ func Boot() {
 	msStoreFilePath := filepath.Join(WorkingDir, "ms-store")
 	ISMicrosoftStore = gulu.File.IsExist(msStoreFilePath)
 
-	UserAgent = UserAgent + " " + Container
+	UserAgent = UserAgent + " " + Container + "/" + runtime.GOOS
 	httpclient.SetUserAgent(UserAgent)
 
 	initWorkspaceDir(*workspacePath)
@@ -157,22 +158,23 @@ var (
 	HomeDir, _    = gulu.OS.Home()
 	WorkingDir, _ = os.Getwd()
 
-	WorkspaceDir   string        // 工作空间目录路径
-	WorkspaceLock  *flock.Flock  // 工作空间锁
-	ConfDir        string        // 配置目录路径
-	DataDir        string        // 数据目录路径
-	RepoDir        string        // 仓库目录路径
-	HistoryDir     string        // 数据历史目录路径
-	TempDir        string        // 临时目录路径
-	LogPath        string        // 配置目录下的日志文件 siyuan.log 路径
-	DBName         = "siyuan.db" // SQLite 数据库文件名
-	DBPath         string        // SQLite 数据库文件路径
-	HistoryDBPath  string        // SQLite 历史数据库文件路径
-	BlockTreePath  string        // 区块树文件路径
-	AppearancePath string        // 配置目录下的外观目录 appearance/ 路径
-	ThemesPath     string        // 配置目录下的外观目录下的 themes/ 路径
-	IconsPath      string        // 配置目录下的外观目录下的 icons/ 路径
-	SnippetsPath   string        // 数据目录下的 snippets/ 路径
+	WorkspaceDir       string        // 工作空间目录路径
+	WorkspaceLock      *flock.Flock  // 工作空间锁
+	ConfDir            string        // 配置目录路径
+	DataDir            string        // 数据目录路径
+	RepoDir            string        // 仓库目录路径
+	HistoryDir         string        // 数据历史目录路径
+	TempDir            string        // 临时目录路径
+	LogPath            string        // 配置目录下的日志文件 siyuan.log 路径
+	DBName             = "siyuan.db" // SQLite 数据库文件名
+	DBPath             string        // SQLite 数据库文件路径
+	HistoryDBPath      string        // SQLite 历史数据库文件路径
+	AssetContentDBPath string        // SQLite 资源文件内容数据库文件路径
+	BlockTreePath      string        // 区块树文件路径
+	AppearancePath     string        // 配置目录下的外观目录 appearance/ 路径
+	ThemesPath         string        // 配置目录下的外观目录下的 themes/ 路径
+	IconsPath          string        // 配置目录下的外观目录下的 icons/ 路径
+	SnippetsPath       string        // 数据目录下的 snippets/ 路径
 
 	UIProcessIDs = sync.Map{} // UI 进程 ID
 )
@@ -189,11 +191,11 @@ func initWorkspaceDir(workspaceArg string) {
 		}
 	}
 
-	defaultWorkspaceDir := filepath.Join(HomeDir, "Documents", "SiYuan")
+	defaultWorkspaceDir := filepath.Join(HomeDir, "SiYuan")
 	if gulu.OS.IsWindows() {
 		// 改进 Windows 端默认工作空间路径 https://github.com/siyuan-note/siyuan/issues/5622
 		if userProfile := os.Getenv("USERPROFILE"); "" != userProfile {
-			defaultWorkspaceDir = filepath.Join(userProfile, "Documents", "SiYuan")
+			defaultWorkspaceDir = filepath.Join(userProfile, "SiYuan")
 		}
 	}
 
@@ -246,6 +248,7 @@ func initWorkspaceDir(workspaceArg string) {
 	os.Setenv("TMP", osTmpDir)
 	DBPath = filepath.Join(TempDir, DBName)
 	HistoryDBPath = filepath.Join(TempDir, "history.db")
+	AssetContentDBPath = filepath.Join(TempDir, "asset_content.db")
 	BlockTreePath = filepath.Join(TempDir, "blocktree")
 	SnippetsPath = filepath.Join(DataDir, "snippets")
 }
@@ -354,6 +357,12 @@ func initPathDir() {
 	emojis := filepath.Join(DataDir, "emojis")
 	if err := os.MkdirAll(emojis, 0755); nil != err && !os.IsExist(err) {
 		logging.LogFatalf(logging.ExitCodeInitWorkspaceErr, "create data emojis folder [%s] failed: %s", widgets, err)
+	}
+
+	// Support directly access `data/public/*` contents via URL link https://github.com/siyuan-note/siyuan/issues/8593
+	public := filepath.Join(DataDir, "public")
+	if err := os.MkdirAll(public, 0755); nil != err && !os.IsExist(err) {
+		logging.LogFatalf(logging.ExitCodeInitWorkspaceErr, "create data public folder [%s] failed: %s", widgets, err)
 	}
 }
 

@@ -349,10 +349,17 @@ export class Files extends Model {
                 }
                 let ids = "";
                 const ghostElement = document.createElement("ul");
-                selectElements.forEach((item: HTMLElement) => {
+                selectElements.forEach((item: HTMLElement, index) => {
                     ghostElement.append(item.cloneNode(true));
                     item.style.opacity = "0.1";
-                    ids += (item.getAttribute("data-node-id") || "") + ",";
+                    const itemNodeId = item.dataset.nodeId ||
+                        item.dataset.path; // 拖拽笔记本时值不能为空，否则 drop 就不会继续排序
+                    if (itemNodeId) {
+                        ids += itemNodeId;
+                        if (index < selectElements.length - 1) {
+                            ids += ",";
+                        }
+                    }
                 });
                 ghostElement.setAttribute("style", `width: 219px;position: fixed;top:-${selectElements.length * 30}px`);
                 ghostElement.setAttribute("class", "b3-list b3-list--background");
@@ -872,7 +879,7 @@ export class Files extends Model {
         liElement.insertAdjacentHTML("afterend", `<ul class="file-tree__sliderDown">${fileHTML}</ul>`);
         nextElement = liElement.nextElementSibling;
         setTimeout(() => {
-            nextElement.setAttribute("style", `height:${nextElement.childElementCount * liElement.clientHeight}px;`);
+            nextElement.setAttribute("style", `top: -1px;position: relative;height:${nextElement.childElementCount * (liElement.clientHeight + 1) - 1}px;`);
             setTimeout(() => {
                 this.element.querySelectorAll(".file-tree__sliderDown").forEach(item => {
                     item.classList.remove("file-tree__sliderDown");
@@ -919,7 +926,12 @@ export class Files extends Model {
         });
         target.classList.add("b3-list-item--focus");
         if (isScroll) {
-            this.element.scrollTop = target.offsetTop - this.element.clientHeight / 2 - this.actionsElement.clientHeight;
+            let offsetTop = target.offsetTop;
+            // https://github.com/siyuan-note/siyuan/issues/8749
+            if (target.parentElement.classList.contains("file-tree__sliderDown") && target.offsetParent) {
+                offsetTop = (target.offsetParent as HTMLElement).offsetTop;
+            }
+            this.element.scrollTop = offsetTop - this.element.clientHeight / 2 - this.actionsElement.clientHeight;
         }
     }
 
@@ -984,15 +996,16 @@ export class Files extends Model {
         if (item.count && item.count > 0) {
             countHTML = `<span class="popover__block counter b3-tooltips b3-tooltips__nw" aria-label="${window.siyuan.languages.ref}">${item.count}</span>`;
         }
-        return `<li title="${getDisplayName(item.name, true, true)} ${item.hSize}${item.bookmark ? "\n" + window.siyuan.languages.bookmark + " " + item.bookmark : ""}${item.name1 ? "\n" + window.siyuan.languages.name + " " + item.name1 : ""}${item.alias ? "\n" + window.siyuan.languages.alias + " " + item.alias : ""}${item.memo ? "\n" + window.siyuan.languages.memo + " " + item.memo : ""}${item.subFileCount !== 0 ? window.siyuan.languages.includeSubFile.replace("x", item.subFileCount) : ""}\n${window.siyuan.languages.modifiedAt} ${item.hMtime}\n${window.siyuan.languages.createdAt} ${item.hCtime}" 
-data-node-id="${item.id}" data-name="${Lute.EscapeHTMLStr(item.name)}" draggable="true" data-count="${item.subFileCount}" 
+        const ariaLabel = `${getDisplayName(item.name, true, true)} ${item.hSize}${item.bookmark ? "<br>" + window.siyuan.languages.bookmark + " " + item.bookmark : ""}${item.name1 ? "<br>" + window.siyuan.languages.name + " " + item.name1 : ""}${item.alias ? "<br>" + window.siyuan.languages.alias + " " + item.alias : ""}${item.memo ? "<br>" + window.siyuan.languages.memo + " " + item.memo : ""}${item.subFileCount !== 0 ? window.siyuan.languages.includeSubFile.replace("x", item.subFileCount) : ""}<br>${window.siyuan.languages.modifiedAt} ${item.hMtime}<br>${window.siyuan.languages.createdAt} ${item.hCtime}`;
+        return `<li data-node-id="${item.id}" data-name="${Lute.EscapeHTMLStr(item.name)}" draggable="true" data-count="${item.subFileCount}" 
 data-type="navigation-file" 
 class="b3-list-item b3-list-item--hide-action" data-path="${item.path}">
     <span style="padding-left: ${(item.path.split("/").length - 2) * 18 + 22}px" class="b3-list-item__toggle b3-list-item__toggle--hl${item.subFileCount === 0 ? " fn__hidden" : ""}">
         <svg class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg>
     </span>
     <span class="b3-list-item__icon b3-tooltips b3-tooltips__n" aria-label="${window.siyuan.languages.changeIcon}">${unicode2Emoji(item.icon || (item.subFileCount === 0 ? Constants.SIYUAN_IMAGE_FILE : Constants.SIYUAN_IMAGE_FOLDER))}</span>
-    <span class="b3-list-item__text">${getDisplayName(item.name, true, true)}</span>
+    <span class="b3-list-item__text ariaLabel" 
+aria-label="${escapeHtml(ariaLabel)}">${getDisplayName(item.name, true, true)}</span>
     <span data-type="more-file" class="b3-list-item__action b3-tooltips b3-tooltips__nw" aria-label="${window.siyuan.languages.more}">
         <svg><use xlink:href="#iconMore"></use></svg>
     </span>

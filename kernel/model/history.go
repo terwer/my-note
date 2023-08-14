@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -505,7 +505,7 @@ func clearOutdatedHistoryDir(historyDir string) {
 	}
 	for _, dir := range removes {
 		if err = os.RemoveAll(dir); nil != err {
-			logging.LogErrorf("remove history dir [%s] failed: %s", dir, err)
+			logging.LogWarnf("remove history dir [%s] failed: %s", dir, err)
 			continue
 		}
 		//logging.LogInfof("auto removed history dir [%s]", dir)

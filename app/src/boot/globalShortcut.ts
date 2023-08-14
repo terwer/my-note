@@ -54,6 +54,7 @@ import {fullscreen} from "../protyle/breadcrumb/action";
 import {setPadding} from "../protyle/ui/initUI";
 import {openRecentDocs} from "../business/openRecentDocs";
 import {App} from "../index";
+import {commandPanel} from "../plugin/commandPanel";
 
 const getRightBlock = (element: HTMLElement, x: number, y: number) => {
     let index = 1;
@@ -105,11 +106,30 @@ export const globalShortcut = (app: App) => {
         }
     });
     window.addEventListener("mousemove", (event: MouseEvent & { target: HTMLElement }) => {
+        // https://github.com/siyuan-note/siyuan/pull/8793
+        const coordinates = window.siyuan.coordinates ?? (window.siyuan.coordinates = {
+            pageX: 0,
+            pageY: 0,
+            clientX: 0,
+            clientY: 0,
+            screenX: 0,
+            screenY: 0,
+        });
+        coordinates.pageX = event.pageX;
+        coordinates.pageY = event.pageY;
+        coordinates.clientX = event.clientX;
+        coordinates.clientY = event.clientY;
+        coordinates.screenX = event.screenX;
+        coordinates.screenY = event.screenY;
+
         if (window.siyuan.hideBreadcrumb) {
             document.querySelectorAll(".protyle-breadcrumb__bar--hide").forEach(item => {
                 item.classList.remove("protyle-breadcrumb__bar--hide");
             });
             window.siyuan.hideBreadcrumb = false;
+            getAllModels().editor.forEach(item => {
+                item.editor.protyle.breadcrumb.render(item.editor.protyle, true);
+            });
         }
         if (event.buttons === 0 &&  // 鼠标按键被按下时不触发
             window.siyuan.layout.bottomDock &&
@@ -504,10 +524,6 @@ export const globalShortcut = (app: App) => {
                 });
                 dockHtml = dockHtml + "</ul>";
             }
-            let range: Range;
-            if (getSelection().rangeCount > 0) {
-                range = getSelection().getRangeAt(0).cloneRange();
-            }
             hideElements(["dialog"]);
             switchDialog = new Dialog({
                 title: window.siyuan.languages.switchTab,
@@ -518,11 +534,6 @@ export const globalShortcut = (app: App) => {
     </div>
     <div class="switch-doc__path"></div>
 </div>`,
-                destroyCallback: () => {
-                    if (range && range.getBoundingClientRect().height !== 0) {
-                        focusByRange(range);
-                    }
-                }
             });
             // 需移走光标，否则编辑器会继续监听并执行按键操作
             switchDialog.element.querySelector("input").focus();
@@ -602,6 +613,11 @@ export const globalShortcut = (app: App) => {
             syncGuide(app);
             return;
         }
+        if (matchHotKey(window.siyuan.config.keymap.general.commandPanel.custom, event)) {
+            event.preventDefault();
+            commandPanel(app);
+            return;
+        }
         if (matchHotKey(window.siyuan.config.keymap.general.editMode.custom, event)) {
             event.preventDefault();
             editor.setReadonly();
@@ -631,9 +647,6 @@ export const globalShortcut = (app: App) => {
         const matchDock = getAllDocks().find(item => {
             if (matchHotKey(item.hotkey, event)) {
                 getDockByType(item.type).toggleModel(item.type);
-                if (document.activeElement) {
-                    (document.activeElement as HTMLElement).blur();
-                }
                 event.preventDefault();
                 return true;
             }
@@ -868,7 +881,8 @@ export const globalShortcut = (app: App) => {
 
     window.addEventListener("click", (event: MouseEvent & { target: HTMLElement }) => {
         if (!window.siyuan.menus.menu.element.contains(event.target) && !hasClosestByAttribute(event.target, "data-menu", "true")) {
-            if (getSelection().rangeCount > 0 && window.siyuan.menus.menu.element.contains(getSelection().getRangeAt(0).startContainer)) {
+            if (getSelection().rangeCount > 0 && window.siyuan.menus.menu.element.contains(getSelection().getRangeAt(0).startContainer) &&
+                window.siyuan.menus.menu.element.contains(document.activeElement)) {
                 // https://ld246.com/article/1654567749834/comment/1654589171218#comments
             } else {
                 window.siyuan.menus.menu.remove();
