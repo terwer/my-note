@@ -1,14 +1,14 @@
-import {hotKey2Electron, isCtrl, isMac, updateHotkeyTip} from "../protyle/util/compatibility";
+import {isCtrl, isMac, updateHotkeyTip} from "../protyle/util/compatibility";
 import {Constants} from "../constants";
-import {showMessage} from "../dialog/message";
+import {hideMessage, showMessage} from "../dialog/message";
 import {fetchPost} from "../util/fetch";
 import {exportLayout} from "../layout/util";
-/// #if !BROWSER
-import {getCurrentWindow} from "@electron/remote";
-import {ipcRenderer} from "electron";
-/// #endif
 import {confirmDialog} from "../dialog/confirmDialog";
 import {App} from "../index";
+/// #if !BROWSER
+import {ipcRenderer} from "electron";
+/// #endif
+import {sendGlobalShortcut} from "../boot/globalEvent/keydown";
 
 export const keymap = {
     element: undefined as Element,
@@ -39,7 +39,7 @@ export const keymap = {
             item.commands.forEach(command => {
                 const keyValue = updateHotkeyTip(command.customHotkey);
                 commandHTML += `<label class="b3-list-item b3-list-item--narrow b3-list-item--hide-action">
-    <span class="b3-list-item__text">${command.langText || item.i18n[command.langKey] || command.langKey}</span>
+    <span class="b3-list-item__text">${command.langText || (item.i18n ? item.i18n[command.langKey] : "") || command.langKey}</span>
     <span data-type="reset" class="b3-list-item__action b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.reset}">
         <svg><use xlink:href="#iconUndo"></use></svg>
     </span>
@@ -51,16 +51,14 @@ export const keymap = {
 </label>`;
             });
             if (commandHTML) {
-                pluginHtml += `<div class="b3-list__panel">
-    <div class="b3-list-item b3-list-item--narrow toggle">
-        <span class="b3-list-item__toggle b3-list-item__toggle--hl">
-            <svg class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg>
-        </span>
-        <span class="b3-list-item__text ft__on-surface">${item.displayName}</span>
-    </div>
-    <div class="fn__none b3-list__panel">
-        ${commandHTML}
-    </div>
+                pluginHtml += `<div class="b3-list-item b3-list-item--narrow toggle">
+    <span class="b3-list-item__toggle b3-list-item__toggle--hl">
+        <svg class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg>
+    </span>
+    <span class="b3-list-item__text ft__on-surface">${item.displayName}</span>
+</div>
+<div class="fn__none b3-list__panel">
+    ${commandHTML}
 </div>`;
             }
         });
@@ -72,7 +70,9 @@ export const keymap = {
         </span>
         <span class="b3-list-item__text ft__on-surface">${window.siyuan.languages.plugin}</span>
     </div>
-    ${pluginHtml}
+    <div class="b3-list__panel">
+        ${pluginHtml}
+    </div>
 </div>`;
         }
         return `<label class="fn__flex b3-label config__item">
@@ -192,13 +192,7 @@ export const keymap = {
         fetchPost("/api/setting/setKeymap", {
             data
         }, () => {
-            /// #if !BROWSER
-            ipcRenderer.send(Constants.SIYUAN_HOTKEY, {
-                languages: window.siyuan.languages["_trayMenu"],
-                id: getCurrentWindow().id,
-                hotkey: hotKey2Electron(window.siyuan.config.keymap.general.toggleWin.custom)
-            });
-            /// #endif
+            sendGlobalShortcut(app);
         });
     },
     search(value: string, keymapString: string) {
@@ -281,10 +275,24 @@ export const keymap = {
             }
             keymap.search(searchElement.value, searchKeymapElement.value);
         });
+        /// #if !BROWSER
+        searchKeymapElement.addEventListener("focus", () => {
+            ipcRenderer.send(Constants.SIYUAN_CMD, {
+                cmd: "unregisterAll",
+            });
+        });
+        /// #endif
+        searchKeymapElement.addEventListener("blur", () => {
+            sendGlobalShortcut(app);
+        });
         searchKeymapElement.addEventListener("keydown", function (event: KeyboardEvent) {
             event.stopPropagation();
             event.preventDefault();
-            const keymapStr = keymap._getKeymapString(event, this);
+            const keymapStr = keymap._getKeymapString(event);
+            // Mac 中文下会直接输入
+            setTimeout(() => {
+                this.value = updateHotkeyTip(keymapStr);
+            });
             keymap.search(searchElement.value, keymapStr);
         });
         keymap.element.querySelector("#clearSearchBtn").addEventListener("click", () => {
@@ -298,13 +306,7 @@ export const keymap = {
                     data: Constants.SIYUAN_KEYMAP,
                 }, () => {
                     window.location.reload();
-                    /// #if !BROWSER
-                    ipcRenderer.send(Constants.SIYUAN_HOTKEY, {
-                        languages: window.siyuan.languages["_trayMenu"],
-                        id: getCurrentWindow().id,
-                        hotkey: hotKey2Electron(window.siyuan.config.keymap.general.toggleWin.custom)
-                    });
-                    /// #endif
+                    sendGlobalShortcut(app);
                 });
             });
         });
@@ -367,7 +369,8 @@ export const keymap = {
             item.addEventListener("keydown", function (event: KeyboardEvent) {
                 event.stopPropagation();
                 event.preventDefault();
-                const keymapStr = keymap._getKeymapString(event, this);
+                const keymapStr = keymap._getKeymapString(event);
+                const adoptKeymapStr = updateHotkeyTip(keymapStr);
                 clearTimeout(timeout);
                 timeout = window.setTimeout(() => {
                     const keys = this.getAttribute("data-key").split(Constants.ZWSP);
@@ -377,12 +380,13 @@ export const keymap = {
                     if (keys[1] === "heading") {
                         keys[1] = "headings";
                     }
+                    let hasConflict = false;
                     if (["⌘", "⇧", "⌥", "⌃"].includes(keymapStr.substr(keymapStr.length - 1, 1)) ||
-                        ["⌘A", "⌘X", "⌘C", "⌘V", "⌘-", "⌘=", "⌘0", "⇧⌘V", "⌘/", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⇧⌘⇥", "⌃⇥", "⌘⇥", "⌃⌘⇥", "⇧⌘→", "⇧⌘←", "⌘Home", "⌘End", "⇧↩", "↩", "PageUp", "PageDown", "⌫", "⌦"].includes(keymapStr)) {
-                        showMessage(`${window.siyuan.languages.keymap} [${keymap._getTip(this)}] ${window.siyuan.languages.invalid}`);
-                        return;
+                        ["⌘A", "⌘X", "⌘C", "⌘V", "⌘-", "⌘=", "⌘0", "⇧⌘V", "⌘/", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⌃⇧⇥", "⌃⇥", "⌘⇥", "⇧⌘⇥", "⇧⌘→", "⇧⌘←", "⌘Home", "⌘End", "⇧↩", "↩", "PageUp", "PageDown", "⌫", "⌦"].includes(keymapStr)) {
+                        showMessage(`${window.siyuan.languages.invalid} [${adoptKeymapStr}]`);
+                        hasConflict = true;
                     }
-                    const hasConflict = Array.from(keymap.element.querySelectorAll("label.b3-list-item input")).find((inputItem: HTMLElement) => {
+                    Array.from(keymap.element.querySelectorAll("label.b3-list-item input")).find((inputItem: HTMLElement) => {
                         if (!inputItem.isSameNode(this) && inputItem.getAttribute("data-value") === keymapStr) {
                             const inputValueList = inputItem.getAttribute("data-key").split(Constants.ZWSP);
                             if (inputValueList[1] === "list") {
@@ -391,26 +395,39 @@ export const keymap = {
                             if (inputValueList[1] === "heading") {
                                 inputValueList[1] = "headings";
                             }
-                            showMessage(`${window.siyuan.languages.keymap} [${keymap._getTip(this)}] [${keymap._getTip(inputItem)}] ${window.siyuan.languages.conflict}`);
+                            showMessage(`${window.siyuan.languages.conflict} [${keymap._getTip(inputItem)} ${adoptKeymapStr}]`);
+                            hasConflict = true;
                             return true;
                         }
                     });
                     if (hasConflict) {
+                        this.value = updateHotkeyTip(this.getAttribute("data-value"));
                         return;
                     }
+                    hideMessage();
+                    this.setAttribute("data-value", keymapStr);
+                    this.value = adoptKeymapStr;
                     keymap._setkeymap(app);
-                }, 1000);
+                }, Constants.TIMEOUT_TRANSITION);
             });
             item.addEventListener("blur", function () {
+                sendGlobalShortcut(app);
                 setTimeout(() => {
                     this.classList.add("fn__none");
                     this.previousElementSibling.textContent = this.value;
                     this.previousElementSibling.classList.remove("fn__none");
                 }, Constants.TIMEOUT_INPUT);    // 隐藏的话点击删除无法 target 会为 li
             });
+            /// #if !BROWSER
+            item.addEventListener("focus", () => {
+                ipcRenderer.send(Constants.SIYUAN_CMD, {
+                    cmd: "unregisterAll",
+                });
+            });
+            /// #endif
         });
     },
-    _getKeymapString(event: KeyboardEvent, it: HTMLInputElement) {
+    _getKeymapString(event: KeyboardEvent) {
         let keymapStr = "";
         if (event.ctrlKey && !event.metaKey && isMac()) {
             keymapStr += "⌃";
@@ -444,11 +461,6 @@ export const keymap = {
                 keymapStr += Constants.KEYCODELIST[event.keyCode] || (event.key.length > 1 ? event.key : event.key.toUpperCase());
             }
         }
-        it.setAttribute("data-value", keymapStr);
-        // Mac 中文下会直接输入
-        setTimeout(() => {
-            it.value = updateHotkeyTip(keymapStr);
-        });
         return keymapStr;
     }
 };

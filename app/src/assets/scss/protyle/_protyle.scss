@@ -73,6 +73,7 @@
     padding: 4px;
     transition: var(--b3-transition);
     cursor: pointer;
+    position: relative;
 
     &:hover svg {
       color: var(--b3-theme-on-surface);
@@ -80,6 +81,15 @@
 
     &:active {
       cursor: grabbing;
+    }
+
+    span {
+      z-index: 2;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
     }
   }
 
@@ -147,19 +157,14 @@
     margin-right: 8px;
     opacity: 1;
     border: 0;
-    background-color: transparent;
-    color: var(--b3-theme-on-surface);
     line-height: 24px;
     border-radius: var(--b3-border-radius);
     align-self: center;
     padding: 0 4px;
     font-size: 12px;
     white-space: nowrap;
-
-    &:hover {
-      color: var(--b3-theme-on-background);
-      background-color: var(--b3-list-hover);
-    }
+    color: var(--b3-theme-on-background);
+    background-color: var(--b3-list-hover);
   }
 
   &__arrow {
@@ -329,6 +334,7 @@
   position: relative;
   font-size: 16px;
   border-radius: var(--b3-border-radius);
+  font-family: var(--b3-font-family-protyle);
 
   &:hover .protyle-title__icon {
     opacity: 1;

@@ -53,11 +53,15 @@ func performTransactions(c *gin.Context) {
 		return
 	}
 
+	timestamp := int64(arg["reqId"].(float64))
 	var transactions []*model.Transaction
 	if err = gulu.JSON.UnmarshalJSON(data, &transactions); nil != err {
 		ret.Code = -1
 		ret.Msg = "parses request failed"
 		return
+	}
+	for _, transaction := range transactions {
+		transaction.Timestamp = timestamp
 	}
 
 	model.PerformTransactions(&transactions)
@@ -79,8 +83,10 @@ func pushTransactions(app, session string, transactions []*model.Transaction) {
 	pushMode := util.PushModeBroadcastExcludeSelf
 	if 0 < len(transactions) && 0 < len(transactions[0].DoOperations) {
 		model.WaitForWritingFiles()
-		if strings.Contains(strings.ToLower(transactions[0].DoOperations[0].Action), "attrview") {
-			pushMode = util.PushModeBroadcast
+		if action := transactions[0].DoOperations[0].Action; strings.Contains(strings.ToLower(action), "attrview") {
+			if "setAttrViewName" != action {
+				pushMode = util.PushModeBroadcast
+			}
 		}
 	}
 

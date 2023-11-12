@@ -15,6 +15,9 @@
   animation-duration: 150ms;
   animation-fill-mode: both;
   animation-name: zoomIn;
+  max-height: 90vh;
+  overflow: auto;
+  box-sizing: border-box;
 
   a {
     color: var(--b3-theme-secondary);

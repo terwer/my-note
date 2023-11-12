@@ -343,13 +343,12 @@
         ipcRenderer.send('siyuan-first-quit')
     })
     document.getElementById('min').addEventListener('click', () => {
-        const {getCurrentWindow} = require('@electron/remote')
-        getCurrentWindow().minimize()
+        const {ipcRenderer} = require('electron')
+        ipcRenderer.send("siyuan-cmd", "minimize");
     })
 
     document.querySelectorAll('.choosePath').forEach((item) => {
-        item.addEventListener('click', () => {
-            const {dialog} = require('@electron/remote')
+        item.addEventListener('click', async () => {
             const path = require('path')
             const fs = require('fs')
 
@@ -358,50 +357,48 @@
                 fs.mkdirSync(defaultWorkspace, {mode: 0o755, recursive: true})
             }
 
-            dialog.showOpenDialog({
+            const {ipcRenderer} = require('electron')
+            const result = await ipcRenderer.invoke("siyuan-get", {
+                cmd: "showOpenDialog",
                 defaultPath: defaultWorkspace,
                 properties: ['openDirectory', 'createDirectory'],
-            }).then((result) => {
-                if (result.canceled) {
-                    return
-                }
+            });
 
-                const {ipcRenderer} = require('electron')
-                const initPath = result.filePaths[0]
+            if (result.canceled) {
+                return
+            }
+            const initPath = result.filePaths[0]
 
-                if (isICloudPath(initPath)) {
-                    let msg = '⚠️ This folder is under the iCloud sync path, please change another path'
-                    if (isChinese(currentLang)) {
-                        msg = '⚠️ 该文件夹位于 iCloud 同步路径下，请更换其他路径'
-                    }
-                    alert(msg)
-                    return
-                }
-
-                if (isCloudDrivePath(initPath)) {
-                    let msg = '⚠️ The folder path can not contain onedrive, dropbox, google drive, pcloud and 坚果云, please change another path'
-                    if (isChinese(currentLang)) {
-                        msg = '⚠️ 文件夹路径不能包含 onedrive、dropbox、google drive、pcloud 和 坚果云，请更换其他路径'
-                    }
-                    alert(msg)
-                    return
-                }
-
-                let msg = '⚠️ Do not set the workspace under the path of a third-party sync disk, otherwise the data will be damaged (iCloud/OneDrive/Dropbox/Google Drive/Nutstore/Baidu Netdisk/Tencent Weiyun, etc.), continue?'
+            if (isICloudPath(initPath)) {
+                let msg = '⚠️ This folder is under the iCloud sync path, please change another path'
                 if (isChinese(currentLang)) {
-                    msg = '⚠️ 请勿将工作空间设置在第三方同步盘路径下，否则数据会被损坏（iCloud/OneDrive/Dropbox/Google Drive/坚果云/百度网盘/腾讯微云等），是否继续？'
+                    msg = '⚠️ 该文件夹位于 iCloud 同步路径下，请更换其他路径'
                 }
-                if (!confirm(msg)) {
-                    return
-                }
+                alert(msg)
+                return
+            }
 
-                if (!fs.existsSync(initPath)) {
-                    fs.mkdirSync(initPath, {mode: 0o755, recursive: true})
+            if (isCloudDrivePath(initPath)) {
+                let msg = '⚠️ The folder path can not contain onedrive, dropbox, google drive, pcloud and 坚果云, please change another path'
+                if (isChinese(currentLang)) {
+                    msg = '⚠️ 文件夹路径不能包含 onedrive、dropbox、google drive、pcloud 和 坚果云，请更换其他路径'
                 }
-                ipcRenderer.send('siyuan-first-init', {
-                    workspace: initPath,
-                    lang: document.querySelector('.lang').value
-                })
+                alert(msg)
+                return
+            }
+            let msg = '⚠️ Do not set the workspace under the path of a third-party sync disk, otherwise the data will be damaged (iCloud/OneDrive/Dropbox/Google Drive/Nutstore/Baidu Netdisk/Tencent Weiyun, etc.), continue?'
+            if (isChinese(currentLang)) {
+                msg = '⚠️ 请勿将工作空间设置在第三方同步盘路径下，否则数据会被损坏（iCloud/OneDrive/Dropbox/Google Drive/坚果云/百度网盘/腾讯微云等），是否继续？'
+            }
+            if (!confirm(msg)) {
+                return
+            }
+            if (!fs.existsSync(initPath)) {
+                fs.mkdirSync(initPath, {mode: 0o755, recursive: true})
+            }
+            ipcRenderer.send('siyuan-first-init', {
+                workspace: initPath,
+                lang: document.querySelector('.lang').value
             })
         })
     })
@@ -421,15 +418,47 @@
 
         // macOS 端对工作空间放置在 iCloud 路径下做检查 https://github.com/siyuan-note/siyuan/issues/7747
         const path = require('path')
-        const iCloudRoot = path.join(decodeURIComponent(getSearch('home')), 'Library', 'Mobile Documents')
-        const allFiles = walk(iCloudRoot)
+        const homePath = decodeURIComponent(getSearch('home'))
         const absPathLower = absPath.toLowerCase()
-        for (const file of allFiles) {
-            if (-1 < absPathLower.indexOf(file.toLowerCase())) {
-                return true
+        const iCloudRoot = path.join(homePath, 'Library', 'Mobile Documents')
+        if (!simpleCheckIcloudPath(absPath, homePath)) {
+            // 简单判断无法通过则复杂验证
+            const allFiles = walk(iCloudRoot)
+            for (const file of allFiles) {
+                if (-1 < absPathLower.indexOf(file.toLowerCase())) {
+                    return true
+                }
             }
         }
         return false
+    }
+
+    // 简单判断 iCloud 同步目录
+    // 不允许 为桌面 文档 和 iCloud 文件夹 和软链接
+    const simpleCheckIcloudPath = (absPath, homePath) => {
+        const fs = require('fs')
+        let stat = fs.lstatSync(absPath)
+        if (stat.isSymbolicLink()) {
+            return false
+        }
+
+        const path = require('path')
+        const absPathLower = absPath.toLowerCase()
+        const iCloudRoot = path.join(homePath, 'Library', 'Mobile Documents')
+        if (absPathLower.startsWith(iCloudRoot.toLowerCase())) {
+            return false
+        }
+
+        const documentsRoot = path.join(homePath, 'Documents')
+        if (absPathLower.startsWith(documentsRoot.toLowerCase())) {
+            return false
+        }
+
+        const desktopRoot = path.join(homePath, 'Desktop')
+        if (absPathLower.startsWith(desktopRoot.toLowerCase())) {
+            return false
+        }
+        return true
     }
 
     const walk = (dir, files = []) => {
@@ -440,7 +469,6 @@
                 console.log("dir [" + dir + "] not exists")
                 return files
             }
-
             dirFiles = fs.readdirSync(dir)
         } catch (e) {
             console.error("read dir [" + dir + "] failed: ", e)
@@ -459,9 +487,8 @@
                 if (files.includes(dir + path.sep + f)) {
                     continue
                 }
-                walk(dir + path.sep + f, files)
-            } else {
                 files.push(dir + path.sep + f)
+                walk(dir + path.sep + f, files)
             }
         }
         return files

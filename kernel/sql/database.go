@@ -689,6 +689,16 @@ func buildSpanFromNode(n *ast.Node, tree *parse.Tree, rootID, boxID, p string) (
 			attributes = append(attributes, attrs...)
 		}
 
+		if ast.NodeInlineHTML == n.Type {
+			// 没有行级 HTML，只有块级 HTML，这里转换为块
+			b, attrs := buildBlockFromNode(n, tree)
+			b.Type = ast.NodeHTMLBlock.String()
+			blocks = append(blocks, b)
+			attributes = append(attributes, attrs...)
+			walkStatus = ast.WalkContinue
+			return
+		}
+
 		if 1 > len(nodes) {
 			walkStatus = ast.WalkContinue
 			return
@@ -871,12 +881,6 @@ func heading(node *ast.Node) *ast.Node {
 	currentLevel := 16
 	if ast.NodeHeading == node.Type {
 		currentLevel = node.HeadingLevel
-	} else if ast.NodeSuperBlock == node.Type {
-		superBlockHeading := treenode.SuperBlockHeading(node)
-		if nil != superBlockHeading {
-			node = superBlockHeading
-			currentLevel = node.HeadingLevel
-		}
 	}
 
 	for prev := node.Previous; nil != prev; prev = prev.Previous {
@@ -1328,6 +1332,8 @@ func nSort(n *ast.Node) int {
 	case ast.NodeBlockquote:
 		return 20
 	case ast.NodeSuperBlock:
+		return 30
+	case ast.NodeAttributeView:
 		return 30
 	case ast.NodeText, ast.NodeTextMark:
 		if n.IsTextMarkType("tag") {

@@ -9,7 +9,8 @@ import {Bookmark} from "./Bookmark";
 import {Tag} from "./Tag";
 import {Graph} from "./Graph";
 import {Model} from "../Model";
-import {getDockByType, resizeTabs, setPanelFocus} from "../util";
+import {setPanelFocus} from "../util";
+import {getDockByType, resizeTabs} from "../tabUtil";
 import {Inbox} from "./Inbox";
 import {Protyle} from "../../protyle";
 import {Backlink} from "./Backlink";
@@ -218,6 +219,7 @@ export class Dock {
         } else {
             this.layout.element.style.opacity = "";
             this.layout.element.style.transform = "";
+            this.layout.element.style.zIndex = "";
             if (hasActive) {
                 this.resizeElement.classList.remove("fn__none");
             }
@@ -252,6 +254,7 @@ export class Dock {
             this.layout.element.style.opacity = "1";
         }
         this.layout.element.style.transform = "";
+        this.layout.element.style.zIndex = (++window.siyuan.zIndex).toString();
         if (this.position === "Left") {
             this.layout.element.style.left = `${this.element.clientWidth}px`;
         } else if (this.position === "Right") {

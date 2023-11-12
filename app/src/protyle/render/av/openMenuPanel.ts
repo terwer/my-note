@@ -1,19 +1,31 @@
 import {transaction} from "../../wysiwyg/transaction";
 import {fetchPost} from "../../../util/fetch";
-import {addCol} from "./addCol";
+import {addCol} from "./col";
 import {bindEditEvent, duplicateCol, getColIconByType, getEditHTML} from "./col";
 import {setPosition} from "../../../util/setPosition";
-import {hasClosestByAttribute} from "../../util/hasClosest";
+import {hasClosestByAttribute, hasClosestByClassName} from "../../util/hasClosest";
 import {bindSelectEvent, getSelectHTML, addColOptionOrCell, setColOption, removeCellOption} from "./select";
 import {addFilter, getFiltersHTML, setFilter} from "./filter";
 import {addSort, bindSortsEvent, getSortsHTML} from "./sort";
 import {bindDateEvent, getDateHTML, setDateValue} from "./date";
 import {formatNumber} from "./number";
+import {removeAttrViewColAnimation, updateAttrViewCellAnimation} from "./action";
+import {addAssetLink, bindAssetEvent, editAssetItem, getAssetHTML, updateAssetCell} from "./asset";
+import {Constants} from "../../../constants";
+import {hideElements} from "../../ui/hideElements";
+import {isLocalPath, pathPosix} from "../../../util/pathName";
+import {openEmojiPanel, unicode2Emoji} from "../../../emoji";
+import {getSearch} from "../../../util/functions";
+/// #if !MOBILE
+import {openAsset} from "../../../editor/util";
+/// #endif
+import {previewImage} from "../../preview/image";
+import {assetMenu} from "../../../menus/protyle";
 
 export const openMenuPanel = (options: {
     protyle: IProtyle,
-    blockElement: HTMLElement,
-    type: "select" | "properties" | "config" | "sorts" | "filters" | "edit" | "date",
+    blockElement: Element,
+    type: "select" | "properties" | "config" | "sorts" | "filters" | "edit" | "date" | "asset",
     colId?: string, // for edit
     cellElements?: HTMLElement[]    // for select & date
 }) => {
@@ -24,10 +36,8 @@ export const openMenuPanel = (options: {
     }
     window.siyuan.menus.menu.remove();
     const avID = options.blockElement.getAttribute("data-av-id");
-    const nodeID = options.blockElement.getAttribute("data-node-id");
     fetchPost("/api/av/renderAttributeView", {
         id: avID,
-        nodeID
     }, (response) => {
         const data = response.data as IAV;
         let html;
@@ -41,33 +51,39 @@ export const openMenuPanel = (options: {
             html = getFiltersHTML(data.view);
         } else if (options.type === "select") {
             html = getSelectHTML(data.view, options.cellElements);
+        } else if (options.type === "asset") {
+            html = getAssetHTML(data.view, options.cellElements);
         } else if (options.type === "edit") {
             html = getEditHTML({protyle: options.protyle, data, colId: options.colId});
         } else if (options.type === "date") {
             html = getDateHTML(data.view, options.cellElements);
         }
 
-        document.body.insertAdjacentHTML("beforeend", `<div class="av__panel">
+        document.body.insertAdjacentHTML("beforeend", `<div class="av__panel" style="z-index: ${++window.siyuan.zIndex}">
     <div class="b3-dialog__scrim" data-type="close"></div>
     <div class="b3-menu">${html}</div>
 </div>`);
         avPanelElement = document.querySelector(".av__panel");
         const menuElement = avPanelElement.lastElementChild as HTMLElement;
-        const tabRect = options.blockElement.querySelector(".layout-tab-bar").getBoundingClientRect();
-        if (options.type === "select") {
+        const tabRect = options.blockElement.querySelector(".layout-tab-bar")?.getBoundingClientRect();
+        if (["select", "date", "asset"].includes(options.type)) {
             const cellRect = options.cellElements[options.cellElements.length - 1].getBoundingClientRect();
-            setPosition(menuElement, cellRect.left, cellRect.bottom, cellRect.height);
-            bindSelectEvent(options.protyle, data, menuElement, options.cellElements);
-            const inputElement = menuElement.querySelector("input");
-            inputElement.select();
-            inputElement.focus();
-        } else if (options.type === "date") {
-            const cellRect = options.cellElements[options.cellElements.length - 1].getBoundingClientRect();
-            setPosition(menuElement, cellRect.left, cellRect.bottom, cellRect.height);
-            bindDateEvent({protyle: options.protyle, data, menuElement, cellElements: options.cellElements});
-            const inputElement = menuElement.querySelector("input");
-            inputElement.select();
-            inputElement.focus();
+            if (options.type === "select") {
+                bindSelectEvent(options.protyle, data, menuElement, options.cellElements);
+            } else if (options.type === "date") {
+                bindDateEvent({protyle: options.protyle, data, menuElement, cellElements: options.cellElements});
+            } else if (options.type === "asset") {
+                bindAssetEvent({protyle: options.protyle, data, menuElement, cellElements: options.cellElements});
+                setTimeout(() => {
+                    setPosition(menuElement, cellRect.left, cellRect.bottom, cellRect.height);
+                }, Constants.TIMEOUT_LOAD);  // 等待图片加载
+            }
+            if (["select", "date"].includes(options.type)) {
+                const inputElement = menuElement.querySelector("input");
+                inputElement.select();
+                inputElement.focus();
+                setPosition(menuElement, cellRect.left, cellRect.bottom, cellRect.height);
+            }
         } else {
             setPosition(menuElement, tabRect.right - menuElement.clientWidth, tabRect.bottom, tabRect.height);
             if (options.type === "sorts") {
@@ -85,15 +101,18 @@ export const openMenuPanel = (options: {
             window.siyuan.dragElement.style.opacity = "";
             const sourceElement = window.siyuan.dragElement;
             window.siyuan.dragElement = undefined;
-            if (options.protyle.disabled) {
+            if (options.protyle && options.protyle.disabled) {
                 event.preventDefault();
                 event.stopPropagation();
                 return;
             }
-            const target = event.target as HTMLElement;
-            const targetElement = hasClosestByAttribute(target, "draggable", "true");
-            if (!targetElement ||
-                (!targetElement.classList.contains("dragover__top") && !targetElement.classList.contains("dragover__bottom"))) {
+            if (!options.protyle && window.siyuan.config.readonly) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            const targetElement = avPanelElement.querySelector(".dragover__bottom, .dragover__top") as HTMLElement;
+            if (!targetElement) {
                 return;
             }
             let type = "columns";
@@ -102,6 +121,8 @@ export const openMenuPanel = (options: {
                 type = "sorts";
             } else if (targetElement.querySelector('[data-type="removeFilter"]')) {
                 type = "filters";
+            } else if (targetElement.querySelector('[data-type="editAssetItem"]')) {
+                type = "assets";
             } else if (targetElement.querySelector('[data-type="setColOption"]')) {
                 const colId = options.cellElements ? options.cellElements[0].dataset.colId : menuElement.querySelector(".b3-menu__item").getAttribute("data-col-id");
                 const changeData = data.view.columns.find((column) => column.id === colId).options;
@@ -216,6 +237,31 @@ export const openMenuPanel = (options: {
                 menuElement.innerHTML = getFiltersHTML(data.view);
                 return;
             }
+            if (type === "assets") {
+                if (isTop) {
+                    targetElement.before(sourceElement);
+                } else {
+                    targetElement.after(sourceElement);
+                }
+                const replaceValue: IAVCellAssetValue[] = [];
+                Array.from(targetElement.parentElement.children).forEach((item: HTMLElement) => {
+                    if (item.dataset.content) {
+                        replaceValue.push({
+                            content: item.dataset.content,
+                            name: item.dataset.name,
+                            type: item.dataset.type as "image" | "file",
+                        });
+                    }
+                });
+                updateAssetCell({
+                    protyle: options.protyle,
+                    data,
+                    cellElements: options.cellElements,
+                    type: "replace",
+                    replaceValue
+                });
+                return;
+            }
             transaction(options.protyle, [{
                 action: "sortAttrViewCol",
                 avID,
@@ -249,13 +295,17 @@ export const openMenuPanel = (options: {
         let dragoverElement: HTMLElement;
         avPanelElement.addEventListener("dragover", (event: DragEvent) => {
             const target = event.target as HTMLElement;
-            const targetElement = hasClosestByAttribute(target, "draggable", "true");
+            let targetElement = hasClosestByAttribute(target, "draggable", "true");
+            if (!targetElement) {
+                targetElement = hasClosestByAttribute(document.elementFromPoint(event.clientX, event.clientY - 1), "draggable", "true");
+            }
             if (!targetElement || targetElement.isSameNode(window.siyuan.dragElement)) {
                 return;
             }
             event.preventDefault();
             if (dragoverElement && targetElement.isSameNode(dragoverElement)) {
                 const nodeRect = targetElement.getBoundingClientRect();
+                targetElement.classList.remove("dragover__bottom", "dragover__top");
                 if (event.clientY > nodeRect.top + nodeRect.height / 2) {
                     targetElement.classList.add("dragover__bottom");
                 } else {
@@ -265,12 +315,10 @@ export const openMenuPanel = (options: {
             }
             dragoverElement = targetElement;
         });
-        avPanelElement.addEventListener("dragleave", (event) => {
-            const target = event.target as HTMLElement;
-            const targetElement = hasClosestByAttribute(target, "draggable", "true");
-            if (targetElement) {
-                targetElement.classList.remove("dragover__top", "dragover__bottom");
-            }
+        avPanelElement.addEventListener("dragleave", () => {
+            avPanelElement.querySelectorAll(".dragover__bottom, .dragover__top").forEach((item: HTMLElement) => {
+                item.classList.remove("dragover__bottom", "dragover__top");
+            });
         });
         avPanelElement.addEventListener("dragend", () => {
             if (window.siyuan.dragElement) {
@@ -283,7 +331,12 @@ export const openMenuPanel = (options: {
             while (target && !target.isSameNode(avPanelElement)) {
                 const type = target.dataset.type;
                 if (type === "close") {
-                    avPanelElement.remove();
+                    if (options.protyle.toolbar.subElement.className.includes("fn__none")) {
+                        avPanelElement.remove();
+                    } else {
+                        // 优先关闭资源文件搜索
+                        hideElements(["util"], options.protyle);
+                    }
                     window.siyuan.menus.menu.remove();
                     event.preventDefault();
                     event.stopPropagation();
@@ -455,6 +508,32 @@ export const openMenuPanel = (options: {
                     event.preventDefault();
                     event.stopPropagation();
                     break;
+                } else if (type === "update-icon") {
+                    const rect = target.getBoundingClientRect();
+                    openEmojiPanel("", "av", {
+                        x: rect.left,
+                        y: rect.bottom,
+                        h: rect.height,
+                        w: rect.width
+                    }, (unicode) => {
+                        const colId = menuElement.querySelector(".b3-menu__item").getAttribute("data-col-id");
+                        transaction(options.protyle, [{
+                            action: "setAttrViewColIcon",
+                            id: colId,
+                            avID,
+                            data: unicode,
+                        }], [{
+                            action: "setAttrViewColIcon",
+                            id: colId,
+                            avID,
+                            data: target.dataset.icon,
+                        }]);
+                        target.innerHTML = unicode ? unicode2Emoji(unicode) : `<svg><use xlink:href="#${getColIconByType(target.dataset.colType as TAVCol)}"></use></svg>`;
+                        updateAttrViewCellAnimation(options.blockElement.querySelector(`.av__row--header .av__cell[data-col-id="${colId}"]`));
+                    });
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
                 } else if (type === "showAllCol") {
                     const doOperations: IOperation[] = [];
                     const undoOperations: IOperation[] = [];
@@ -518,6 +597,47 @@ export const openMenuPanel = (options: {
                         colId: target.parentElement.dataset.id
                     });
                     bindEditEvent({protyle: options.protyle, data, menuElement});
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
+                } else if (type === "updateColType") {
+                    if (target.dataset.newType !== target.dataset.oldType) {
+                        const name = target.dataset.name;
+                        transaction(options.protyle, [{
+                            action: "updateAttrViewCol",
+                            id: options.colId,
+                            avID,
+                            name,
+                            type: target.dataset.newType as TAVCol,
+                        }], [{
+                            action: "updateAttrViewCol",
+                            id: options.colId,
+                            avID,
+                            name,
+                            type: target.dataset.oldType as TAVCol,
+                        }]);
+                    }
+                    avPanelElement.remove();
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
+                } else if (type === "goUpdateColType") {
+                    const editMenuElement = hasClosestByClassName(target, "b3-menu");
+                    if (editMenuElement) {
+                        editMenuElement.firstElementChild.classList.add("fn__none");
+                        editMenuElement.lastElementChild.classList.remove("fn__none");
+                    }
+                    setPosition(menuElement, tabRect.right - menuElement.clientWidth, tabRect.bottom, tabRect.height);
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
+                } else if (type === "goEditCol") {
+                    const editMenuElement = hasClosestByClassName(target, "b3-menu");
+                    if (editMenuElement) {
+                        editMenuElement.firstElementChild.classList.remove("fn__none");
+                        editMenuElement.lastElementChild.classList.add("fn__none");
+                    }
+                    setPosition(menuElement, tabRect.right - menuElement.clientWidth, tabRect.bottom, tabRect.height);
                     event.preventDefault();
                     event.stopPropagation();
                     break;
@@ -587,7 +707,7 @@ export const openMenuPanel = (options: {
                         type: colData.type,
                         avID,
                         colId,
-                        nodeID,
+                        icon: colData.icon,
                         newValue: colData.name
                     });
                     avPanelElement.remove();
@@ -608,6 +728,7 @@ export const openMenuPanel = (options: {
                         type: colData.type,
                         id: colId
                     }]);
+                    removeAttrViewColAnimation(options.blockElement, colId);
                     avPanelElement.remove();
                     event.preventDefault();
                     event.stopPropagation();
@@ -628,6 +749,75 @@ export const openMenuPanel = (options: {
                     event.preventDefault();
                     event.stopPropagation();
                     break;
+                } else if (type === "addAssetLink") {
+                    addAssetLink(options.protyle, data, options.cellElements, target);
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
+                } else if (type === "addAssetExist") {
+                    const rect = target.getBoundingClientRect();
+                    assetMenu(options.protyle, {
+                        x: rect.right,
+                        y: rect.bottom,
+                        w: target.parentElement.clientWidth + 8,
+                        h: rect.height
+                    }, (url) => {
+                        let value: IAVCellAssetValue;
+                        if (Constants.SIYUAN_ASSETS_IMAGE.includes(pathPosix().extname(url).toLowerCase())) {
+                            value = {
+                                type: "image",
+                                content: url,
+                                name: ""
+                            };
+                        } else {
+                            value = {
+                                type: "file",
+                                content: url,
+                                name: pathPosix().basename(url).substring(0, Constants.SIZE_LINK_TEXT_MAX)
+                            };
+                        }
+                        updateAssetCell({
+                            protyle: options.protyle,
+                            data,
+                            cellElements: options.cellElements,
+                            type: "addUpdate",
+                            addUpdateValue: [value]
+                        });
+                        window.siyuan.menus.menu.remove();
+                    });
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
+                } else if (type === "openAssetItem") {
+                    const assetLink = target.parentElement.dataset.content;
+                    const suffix = pathPosix().extname(assetLink);
+                    /// #if !MOBILE
+                    if (isLocalPath(assetLink) && (
+                        [".pdf"].concat(Constants.SIYUAN_ASSETS_AUDIO).concat(Constants.SIYUAN_ASSETS_VIDEO).includes(suffix) && (
+                            suffix !== ".pdf" || (suffix === ".pdf" && !assetLink.startsWith("file://"))
+                        )
+                    )) {
+                        openAsset(options.protyle.app, assetLink.trim(), parseInt(getSearch("page", assetLink)), "right");
+                    } else if (Constants.SIYUAN_ASSETS_IMAGE.includes(suffix)) {
+                        previewImage(assetLink);
+                    } else {
+                        window.open(assetLink);
+                    }
+                    /// #else
+                    if (Constants.SIYUAN_ASSETS_IMAGE.includes(suffix)) {
+                        previewImage(assetLink);
+                    } else {
+                        window.open(assetLink);
+                    }
+                    /// #endif
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
+                } else if (type === "editAssetItem") {
+                    editAssetItem(options.protyle, data, options.cellElements, target.parentElement);
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
                 } else if (type === "clearDate") {
                     setDateValue({
                         cellElements: options.cellElements,
@@ -638,7 +828,8 @@ export const openMenuPanel = (options: {
                             isNotEmpty: false,
                             content: null,
                             content2: null,
-                            hasEndDate: false
+                            hasEndDate: false,
+                            isNotTime: true,
                         }
                     });
                     avPanelElement.remove();
@@ -661,7 +852,7 @@ const getPropertiesHTML = (data: IAVTable) => {
     <svg class="b3-menu__icon"><use xlink:href="#iconDrag"></use></svg>
     <div class="fn__flex-1">
         <span class="b3-chip">
-            <svg><use xlink:href="#${getColIconByType(item.type)}"></use></svg>
+            ${item.icon ? unicode2Emoji(item.icon, "icon", true) : `<svg class="icon"><use xlink:href="#${getColIconByType(item.type)}"></use></svg>`}
             <span class="fn__ellipsis">${item.name}</span>
         </span>
     </div>
@@ -673,7 +864,7 @@ const getPropertiesHTML = (data: IAVTable) => {
     <svg class="b3-menu__icon"><use xlink:href="#iconDrag"></use></svg>
     <div class="fn__flex-1">
         <span class="b3-chip">
-            <svg><use xlink:href="#${getColIconByType(item.type)}"></use></svg>
+            ${item.icon ? unicode2Emoji(item.icon, "icon", true) : `<svg class="icon"><use xlink:href="#${getColIconByType(item.type)}"></use></svg>`}
             <span class="fn__ellipsis">${item.name}</span>
         </span>
     </div>
@@ -702,7 +893,6 @@ ${hideHTML}`;
         <svg><use xlink:href="#iconLeft"></use></svg>
     </span>
     <span class="b3-menu__label ft__center">${window.siyuan.languages.attr}</span>
-    <svg class="b3-menu__action" data-type="close" style="opacity: 1"><use xlink:href="#iconCloseRound"></use></svg>
 </button>
 <button class="b3-menu__separator"></button>
 <button class="b3-menu__item" data-type="nobg">
@@ -728,8 +918,7 @@ ${hideHTML}
 const getConfigHTML = (data: IAVTable) => {
     return `<div class="b3-menu__items">
 <button class="b3-menu__item" data-type="nobg">
-    <span class="b3-menu__label">${window.siyuan.languages.config}</span>
-    <svg class="b3-menu__action" data-type="close" style="opacity: 1"><use xlink:href="#iconCloseRound"></use></svg>
+    <span class="b3-menu__label ft__center">${window.siyuan.languages.config}</span>
 </button>
 <button class="b3-menu__separator"></button>
 <button class="b3-menu__item" data-type="goProperties">

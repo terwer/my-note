@@ -3,14 +3,7 @@ import {addStyle} from "../util/addStyle";
 import {Constants} from "../../constants";
 import {hasNextSibling, hasPreviousSibling} from "../wysiwyg/getBlock";
 import {hasClosestBlock} from "../util/hasClosest";
-
-declare const katex: {
-    renderToString(math: string, option: {
-        displayMode: boolean;
-        output: string;
-        macros: IObject
-    }): string;
-};
+import {looseJsonParse} from "../../util/functions";
 
 export const mathRender = (element: Element, cdn = Constants.PROTYLE_CDN, maxWidth = false) => {
     let mathElements: Element[] = [];
@@ -37,15 +30,17 @@ export const mathRender = (element: Element, cdn = Constants.PROTYLE_CDN, maxWid
                 }
                 let macros = {};
                 try {
-                    macros = JSON.parse(window.siyuan.config.editor.katexMacros || "{}");
+                    macros = looseJsonParse(window.siyuan.config.editor.katexMacros || "{}");
                 } catch (e) {
                     console.warn("KaTex macros is not JSON", e);
                 }
                 try {
-                    renderElement.innerHTML = katex.renderToString(Lute.UnEscapeHTMLStr(mathElement.getAttribute("data-content")), {
+                    renderElement.innerHTML = window.katex.renderToString(Lute.UnEscapeHTMLStr(mathElement.getAttribute("data-content")), {
                         displayMode: mathElement.tagName === "DIV",
                         output: "html",
-                        macros
+                        macros,
+                        trust: true, // REF: https://katex.org/docs/supported#html
+                        strict: (errorCode) => errorCode === "unicodeTextInMathMode" ? "ignore" : "warn",
                     });
                     renderElement.classList.remove("ft__error");
                     const blockElement = hasClosestBlock(mathElement);

@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, height=device-height, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <link rel="manifest" href="/manifest.webmanifest">
-    <style id="editorFontSize" type="text/css"></style>
 </head>
 <body class="fn__flex-column">
 <div id="loading" class="b3-dialog b3-dialog--open">
@@ -19,9 +18,6 @@
     <svg id="toolbarSync" class="toolbar__icon fn__none">
         <use xlink:href="#iconCloudSucc"></use>
     </svg>
-    <svg id="toolbarEdit" class="toolbar__icon fn__hidden">
-        <use xlink:href="#iconEdit"></use>
-    </svg>
     <svg id="toolbarMore" class="toolbar__icon">
         <use xlink:href="#iconMore"></use>
     </svg>
@@ -29,7 +25,7 @@
 <div id="editor" class="fn__none fn__flex-1"></div>
 <div id="empty" class="b3-list--mobile"></div>
 <div id="sidebar" class="side-panel fn__flex-column">
-    <div class="toolbar toolbar--border">
+    <div class="toolbar toolbar--border" style="-webkit-user-select: none">
         <svg data-type="sidebar-file-tab" class="toolbar__icon toolbar__icon--active"><use xlink:href="#iconFiles"></use></svg>
         <svg data-type="sidebar-outline-tab" class="toolbar__icon"><use xlink:href="#iconAlignCenter"></use></svg>
         <svg data-type="sidebar-bookmark-tab" class="toolbar__icon"><use xlink:href="#iconBookmark"></use></svg>

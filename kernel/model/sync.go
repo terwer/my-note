@@ -235,7 +235,7 @@ func checkSync(boot, exit, byHand bool) bool {
 			return false
 		}
 	case conf.ProviderWebDAV, conf.ProviderS3:
-		if !IsOneTimePaid() {
+		if !IsPaidUser() {
 			return false
 		}
 	}
@@ -322,6 +322,11 @@ func incReindex(upserts, removes []string) (upsertRootIDs, removeRootIDs []strin
 }
 
 func SetCloudSyncDir(name string) {
+	if !cloud.IsValidCloudDirName(name) {
+		util.PushErrMsg(Conf.Language(37), 5000)
+		return
+	}
+
 	if Conf.Sync.CloudName == name {
 		return
 	}
@@ -378,6 +383,11 @@ func SetSyncProviderS3(s3 *conf.S3) (err error) {
 	s3.Bucket = strings.TrimSpace(s3.Bucket)
 	s3.Region = strings.TrimSpace(s3.Region)
 	s3.Timeout = util.NormalizeTimeout(s3.Timeout)
+
+	if !cloud.IsValidCloudDirName(s3.Bucket) {
+		util.PushErrMsg(Conf.Language(37), 5000)
+		return
+	}
 
 	Conf.Sync.S3 = s3
 	Conf.Save()
@@ -760,6 +770,7 @@ var KernelID = gulu.Rand.String(7)
 func dialSyncWebSocket() (c *websocket.Conn, err error) {
 	endpoint := util.GetCloudWebSocketServer() + "/apis/siyuan/dejavu/ws"
 	header := http.Header{
+		"User-Agent":        []string{util.UserAgent},
 		"x-siyuan-uid":      []string{Conf.User.UserId},
 		"x-siyuan-kernel":   []string{KernelID},
 		"x-siyuan-ver":      []string{util.Ver},

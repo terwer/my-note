@@ -26,7 +26,7 @@ export const scrollEvent = (protyle: IProtyle, element: HTMLElement) => {
 
         protyle.wysiwyg.element.querySelectorAll(".av").forEach((item: HTMLElement) => {
             if (item.parentElement.classList.contains("protyle-wysiwyg")) {
-                const headerTop = item.offsetTop + 48;
+                const headerTop = item.offsetTop + 43;
                 const headerElement = item.querySelector(".av__row--header") as HTMLElement;
                 if (headerElement) {
                     if (headerTop < element.scrollTop && headerTop + headerElement.parentElement.clientHeight > element.scrollTop) {
@@ -38,7 +38,7 @@ export const scrollEvent = (protyle: IProtyle, element: HTMLElement) => {
                 const footerElement = item.querySelector(".av__row--footer") as HTMLElement;
                 if (footerElement) {
                     const footerBottom = headerTop + footerElement.parentElement.clientHeight;
-                    const scrollBottom = element.scrollTop + element.clientHeight;
+                    const scrollBottom = element.scrollTop + element.clientHeight + 5;
                     if (headerTop + 42 + 36 * 2 < scrollBottom && footerBottom > scrollBottom) {
                         footerElement.style.transform = `translateY(${scrollBottom - footerBottom}px)`;
                     } else {
@@ -63,7 +63,9 @@ export const scrollEvent = (protyle: IProtyle, element: HTMLElement) => {
                 const targetElement = document.elementFromPoint(elementRect.left + elementRect.width / 2, elementRect.top + 10);
                 const blockElement = hasClosestBlock(targetElement);
                 if (!blockElement) {
-                    if (protyle.wysiwyg.element.firstElementChild.getAttribute("data-eof") === "1" &&
+                    if ((protyle.wysiwyg.element.firstElementChild.getAttribute("data-eof") === "1" ||
+                        // goHome 时 data-eof 不为 1
+                            protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-index") === "0") &&
                         (hasClosestByClassName(targetElement, "protyle-background") || hasClosestByClassName(targetElement, "protyle-title"))) {
                         const inputElement = protyle.scroll.element.querySelector(".b3-slider") as HTMLInputElement;
                         inputElement.value = "1";

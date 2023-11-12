@@ -5,7 +5,6 @@ import {exportLayout} from "../layout/util";
 /// #endif
 /// #if !BROWSER
 import {ipcRenderer} from "electron";
-import {getCurrentWindow} from "@electron/remote";
 /// #endif
 import {hideMessage, showMessage} from "./message";
 import {Dialog} from "./index";
@@ -19,9 +18,10 @@ import {getAllModels} from "../layout/getAll";
 import {reloadProtyle} from "../protyle/util/reload";
 import {Tab} from "../layout/Tab";
 import {setEmpty} from "../mobile/util/setEmpty";
-import {hideElements} from "../protyle/ui/hideElements";
+import {hideAllElements, hideElements} from "../protyle/ui/hideElements";
 import {App} from "../index";
 import {saveScroll} from "../protyle/scroll/saveScroll";
+import {isInAndroid, isInIOS} from "../protyle/util/compatibility";
 
 const updateTitle = (rootID: string, tab: Tab) => {
     fetchPost("/api/block/getDocInfo", {
@@ -141,7 +141,7 @@ export const kernelError = () => {
         return;
     }
     let iosReStart = "";
-    if (window.siyuan.config.system.container === "ios" && window.webkit?.messageHandlers) {
+    if (isInIOS()) {
         iosReStart = `<div class="fn__hr"></div><div class="fn__flex"><div class="fn__flex-1"></div><button class="b3-button">${window.siyuan.languages.retry}</button></div>`;
     }
     const dialog = new Dialog({
@@ -168,6 +168,7 @@ export const kernelError = () => {
 };
 
 export const exitSiYuan = () => {
+    hideAllElements(["util"]);
     /// #if MOBILE
     saveScroll(window.siyuan.mobile.editor.protyle);
     /// #endif
@@ -181,7 +182,7 @@ export const exitSiYuan = () => {
                         /// #if !BROWSER
                         ipcRenderer.send(Constants.SIYUAN_QUIT, location.port);
                         /// #else
-                        if (["ios", "android"].includes(window.siyuan.config.system.container) && (window.webkit?.messageHandlers || window.JSAndroid)) {
+                        if (isInIOS() || isInAndroid()) {
                             window.location.href = "siyuan://api/system/exit";
                         }
                         /// #endif
@@ -199,7 +200,7 @@ export const exitSiYuan = () => {
                     // 桌面端退出拉起更新安装时有时需要重启两次 https://github.com/siyuan-note/siyuan/issues/6544
                     // 这里先将主界面隐藏
                     setTimeout(() => {
-                        getCurrentWindow().hide();
+                        ipcRenderer.send(Constants.SIYUAN_CMD, "hide");
                     }, 2000);
                     // 然后等待一段时间后再退出，避免界面主进程退出以后内核子进程被杀死
                     setTimeout(() => {
@@ -221,7 +222,7 @@ export const exitSiYuan = () => {
             /// #if !BROWSER
             ipcRenderer.send(Constants.SIYUAN_QUIT, location.port);
             /// #else
-            if (["ios", "android"].includes(window.siyuan.config.system.container) && (window.webkit?.messageHandlers || window.JSAndroid)) {
+            if (isInIOS() || isInAndroid()) {
                 window.location.href = "siyuan://api/system/exit";
             }
             /// #endif
@@ -286,7 +287,7 @@ export const progressStatus = (data: IWebSocketData) => {
 export const progressLoading = (data: IWebSocketData) => {
     let progressElement = document.getElementById("progress");
     if (!progressElement) {
-        document.body.insertAdjacentHTML("beforeend", '<div id="progress"></div>');
+        document.body.insertAdjacentHTML("beforeend", `<div id="progress" style="z-index: ${++window.siyuan.zIndex}"></div>`);
         progressElement = document.getElementById("progress");
     }
     // code 0: 有进度；1: 无进度；2: 关闭
@@ -295,8 +296,8 @@ export const progressLoading = (data: IWebSocketData) => {
         return;
     }
     if (data.code === 0) {
-        progressElement.innerHTML = `<div class="b3-dialog__scrim" style="z-index:400;opacity: 1"></div>
-<div style="position: fixed;top: 45vh;width: 70vw;left: 15vw;color:var(--b3-theme-on-surface);z-index:400;">
+        progressElement.innerHTML = `<div class="b3-dialog__scrim" style="opacity: 1"></div>
+<div style="position: fixed;top: 45vh;width: 70vw;left: 15vw;color:var(--b3-theme-on-surface);">
     <div style="text-align: right">${data.data.current}/${data.data.total}</div>
     <div style="margin: 8px 0;height: 8px;border-radius: var(--b3-border-radius);overflow: hidden;background-color:#fff;"><div style="width: ${data.data.current / data.data.total * 100}%;transition: var(--b3-transition);background-color: var(--b3-theme-primary);height: 8px;"></div></div>
     <div>${data.msg}</div>
@@ -305,8 +306,8 @@ export const progressLoading = (data: IWebSocketData) => {
         if (progressElement.lastElementChild) {
             progressElement.lastElementChild.lastElementChild.innerHTML = data.msg;
         } else {
-            progressElement.innerHTML = `<div class="b3-dialog__scrim" style="z-index:400;opacity: 1"></div>
-<div style="position: fixed;top: 45vh;width: 70vw;left: 15vw;color:var(--b3-theme-on-surface);z-index:400;">
+            progressElement.innerHTML = `<div class="b3-dialog__scrim" style="opacity: 1"></div>
+<div style="position: fixed;top: 45vh;width: 70vw;left: 15vw;color:var(--b3-theme-on-surface);">
     <div style="margin: 8px 0;height: 8px;border-radius: var(--b3-border-radius);overflow: hidden;background-color:#fff;"><div style="background-color: var(--b3-theme-primary);height: 8px;background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.2) 75%, transparent 75%, transparent);animation: stripMove 450ms linear infinite;background-size: 50px 50px;"></div></div>
     <div>${data.msg}</div>
 </div>`;
@@ -368,7 +369,7 @@ export const setTitle = (title: string) => {
     const dragElement = document.getElementById("drag");
     const workspaceName = getWorkspaceName();
     if (title === window.siyuan.languages.siyuanNote) {
-        const versionTitle = `${title} - ${workspaceName} - v${Constants.SIYUAN_VERSION}`;
+        const versionTitle = `${workspaceName} - ${window.siyuan.languages.siyuanNote} v${Constants.SIYUAN_VERSION}`;
         document.title = versionTitle;
         if (dragElement) {
             dragElement.textContent = versionTitle;

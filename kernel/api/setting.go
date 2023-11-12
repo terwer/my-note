@@ -91,9 +91,6 @@ func setAI(c *gin.Context) {
 	if 0 > ai.OpenAI.APIMaxTokens {
 		ai.OpenAI.APIMaxTokens = 0
 	}
-	if 4096 < ai.OpenAI.APIMaxTokens {
-		ai.OpenAI.APIMaxTokens = 4096
-	}
 
 	model.Conf.AI = ai
 	model.Conf.Save()
@@ -445,11 +442,7 @@ func getCloudUser(c *gin.Context) {
 	if nil != t {
 		token = t.(string)
 	}
-	if err := model.RefreshUser(token); nil != err {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		return
-	}
+	model.RefreshUser(token)
 	ret.Data = model.Conf.User
 }
 

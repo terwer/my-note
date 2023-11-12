@@ -350,6 +350,15 @@ func InitConf() {
 	if 0 > Conf.Flashcard.ReviewCardLimit {
 		Conf.Flashcard.ReviewCardLimit = 200
 	}
+	if 0 >= Conf.Flashcard.RequestRetention || 1 <= Conf.Flashcard.RequestRetention {
+		Conf.Flashcard.RequestRetention = conf.NewFlashcard().RequestRetention
+	}
+	if 0 >= Conf.Flashcard.MaximumInterval || 36500 <= Conf.Flashcard.MaximumInterval {
+		Conf.Flashcard.MaximumInterval = conf.NewFlashcard().MaximumInterval
+	}
+	if "" == Conf.Flashcard.Weights || 17 != len(strings.Split(Conf.Flashcard.Weights, ",")) {
+		Conf.Flashcard.Weights = conf.NewFlashcard().Weights
+	}
 
 	if nil == Conf.AI {
 		Conf.AI = conf.NewAI()
@@ -432,9 +441,9 @@ func initLang() {
 		label := langMap["_label"].(string)
 		kernelLangs := langMap["_kernel"].(map[string]interface{})
 		for k, v := range kernelLangs {
-			num, err := strconv.Atoi(k)
-			if nil != err {
-				logging.LogErrorf("parse language configuration [%s] item [%d] failed [%s] failed: %s", p, num, err)
+			num, convErr := strconv.Atoi(k)
+			if nil != convErr {
+				logging.LogErrorf("parse language configuration [%s] item [%d] failed: %s", p, num, convErr)
 				continue
 			}
 			kernelMap[num] = v.(string)
@@ -498,6 +507,9 @@ func Close(force bool, execInstallPkg int) (exitCode int) {
 				return
 			} else if 2 == execInstallPkg { // 执行新版本安装
 				waitSecondForExecInstallPkg = true
+				if gulu.OS.IsWindows() {
+					util.PushMsg(Conf.Language(130), 1000*30)
+				}
 				go execNewVerInstallPkg(newVerInstallPkgPath)
 			}
 		}
@@ -514,16 +526,17 @@ func Close(force bool, execInstallPkg int) (exitCode int) {
 
 	time.Sleep(500 * time.Millisecond)
 	if waitSecondForExecInstallPkg {
-		util.PushMsg(Conf.Language(130), 1000*5)
 		// 桌面端退出拉起更新安装时有时需要重启两次 https://github.com/siyuan-note/siyuan/issues/6544
 		// 这里多等待一段时间，等待安装程序启动
-		time.Sleep(4 * time.Second)
+		if gulu.OS.IsWindows() {
+			time.Sleep(30 * time.Second)
+		}
 	}
-	logging.LogInfof("exited kernel")
 	closeSyncWebSocket()
-	util.WebSocketServer.Close()
 	go func() {
 		time.Sleep(500 * time.Millisecond)
+		logging.LogInfof("exited kernel")
+		util.WebSocketServer.Close()
 		os.Exit(logging.ExitCodeOk)
 	}()
 	return
@@ -714,12 +727,12 @@ func IsSubscriber() bool {
 	return nil != Conf.User && (-1 == Conf.User.UserSiYuanProExpireTime || 0 < Conf.User.UserSiYuanProExpireTime) && 0 == Conf.User.UserSiYuanSubscriptionStatus
 }
 
-func IsOneTimePaid() bool {
+func IsPaidUser() bool {
 	if IsSubscriber() {
 		return true
 	}
 	return nil != Conf.User // Sign in to use S3/WebDAV data sync https://github.com/siyuan-note/siyuan/issues/8779
-	// TODO https://github.com/siyuan-note/siyuan/issues/8780
+	// TODO S3/WebDAV data sync and backup are available for a fee https://github.com/siyuan-note/siyuan/issues/8780
 	// return nil != Conf.User && 1 == Conf.User.UserSiYuanOneTimePayStatus
 }
 
@@ -799,7 +812,7 @@ func clearCorruptedNotebooks() {
 
 		boxDirPath := filepath.Join(util.DataDir, dir.Name())
 		boxConfPath := filepath.Join(boxDirPath, ".siyuan", "conf.json")
-		if !gulu.File.IsExist(boxConfPath) {
+		if !filelock.IsExist(boxConfPath) {
 			logging.LogWarnf("found a corrupted box [%s]", boxDirPath)
 			continue
 		}
@@ -885,7 +898,7 @@ func upgradeUserGuide() {
 		boxDirPath := filepath.Join(util.DataDir, boxID)
 		boxConf := conf.NewBoxConf()
 		boxConfPath := filepath.Join(boxDirPath, ".siyuan", "conf.json")
-		if !gulu.File.IsExist(boxConfPath) {
+		if !filelock.IsExist(boxConfPath) {
 			logging.LogWarnf("found a corrupted box [%s]", boxDirPath)
 			continue
 		}

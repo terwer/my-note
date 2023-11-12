@@ -1,6 +1,5 @@
 /// #if !BROWSER
 import {escapeHtml} from "../../util/escape";
-import {shell} from "electron";
 import * as path from "path";
 /// #endif
 import {hideMessage, showMessage} from "../../dialog/message";
@@ -12,6 +11,7 @@ import {Constants} from "../../constants";
 import {highlightRender} from "../render/highlightRender";
 import {processRender} from "../util/processCode";
 import {openByMobile, setStorageVal} from "../util/compatibility";
+import {showFileInFolder} from "../../util/pathName";
 
 export const afterExport = (exportPath: string, msgId: string) => {
     /// #if !BROWSER
@@ -19,7 +19,7 @@ export const afterExport = (exportPath: string, msgId: string) => {
 <div class="fn__space"></div>
 <button class="b3-button b3-button--white">${window.siyuan.languages.showInFolder}</button>`, 6000, "info", msgId);
     document.querySelector(`#message [data-id="${msgId}"] button`).addEventListener("click", () => {
-        shell.showItemInFolder(path.join(exportPath));
+        showFileInFolder(path.join(exportPath));
         hideMessage(msgId);
     });
     /// #endif
@@ -29,7 +29,9 @@ export const exportImage = (id: string) => {
     const exportDialog = new Dialog({
         title: window.siyuan.languages.exportAsImage,
         content: `<div class="b3-dialog__content" style="${isMobile() ? "padding:8px;" : ""};background-color: var(--b3-theme-background)">
-    <div style="${isMobile() ? "padding: 16px;margin: 16px 0" : "padding: 48px;margin: 8px 0 24px"};border: 1px solid var(--b3-border-color);border-radius: var(--b3-border-radius-b);" class="export-img protyle-wysiwyg${window.siyuan.config.editor.displayBookmarkIcon ? " protyle-wysiwyg--attr" : ""}" id="preview"></div>
+    <div style="${isMobile() ? "padding: 16px;margin: 16px 0" : "padding: 48px;margin: 8px 0 24px"};border: 1px solid var(--b3-border-color);border-radius: var(--b3-border-radius-b);" 
+class="export-img protyle-wysiwyg${window.siyuan.config.editor.displayBookmarkIcon ? " protyle-wysiwyg--attr" : ""}" 
+id="preview"></div>
     <div class="fn__hr--b"></div>
     <div class="fn__hr--b"></div>
 </div>
@@ -89,6 +91,19 @@ export const exportImage = (id: string) => {
     });
     const refreshPreview = (response: IWebSocketData) => {
         previewElement.innerHTML = response.data.content;
+        previewElement.setAttribute("data-doc-type", response.data.type || "NodeDocument");
+        if (response.data.attrs.memo) {
+            previewElement.setAttribute("memo", response.data.attrs.memo);
+        }
+        if (response.data.attrs.name) {
+            previewElement.setAttribute("name", response.data.attrs.name);
+        }
+        if (response.data.attrs.bookmark) {
+            previewElement.setAttribute("bookmark", response.data.attrs.bookmark);
+        }
+        if (response.data.attrs.alias) {
+            previewElement.setAttribute("alias", response.data.attrs.alias);
+        }
         processRender(previewElement);
         highlightRender(previewElement);
         previewElement.querySelectorAll("table").forEach((item: HTMLElement) => {

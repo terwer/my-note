@@ -163,6 +163,31 @@ func removeWorkspaceDir(c *gin.Context) {
 	}
 }
 
+func removeWorkspaceDirPhysically(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	path := arg["path"].(string)
+	if gulu.File.IsDir(path) {
+		err := os.RemoveAll(path)
+		if nil != err {
+			ret.Code = -1
+			ret.Msg = err.Error()
+			return
+		}
+	}
+
+	logging.LogInfof("removed workspace [%s] physically", path)
+	if util.WorkspaceDir == path {
+		os.Exit(logging.ExitCodeOk)
+	}
+}
+
 type Workspace struct {
 	Path   string `json:"path"`
 	Closed bool   `json:"closed"`
@@ -221,10 +246,10 @@ func getWorkspaces(c *gin.Context) {
 		}
 	}
 	sort.Slice(openedWorkspaces, func(i, j int) bool {
-		return natsort.Compare(util.RemoveEmoji(filepath.Base(openedWorkspaces[i].Path)), util.RemoveEmoji(filepath.Base(openedWorkspaces[j].Path)))
+		return natsort.Compare(util.RemoveEmojiInvisible(filepath.Base(openedWorkspaces[i].Path)), util.RemoveEmojiInvisible(filepath.Base(openedWorkspaces[j].Path)))
 	})
 	sort.Slice(closedWorkspaces, func(i, j int) bool {
-		return natsort.Compare(util.RemoveEmoji(filepath.Base(closedWorkspaces[i].Path)), util.RemoveEmoji(filepath.Base(closedWorkspaces[j].Path)))
+		return natsort.Compare(util.RemoveEmojiInvisible(filepath.Base(closedWorkspaces[i].Path)), util.RemoveEmojiInvisible(filepath.Base(closedWorkspaces[j].Path)))
 	})
 	workspaces = append(workspaces, openedWorkspaces...)
 	workspaces = append(workspaces, closedWorkspaces...)
@@ -306,7 +331,8 @@ func isInvalidWorkspacePath(absPath string) bool {
 	if !gulu.File.IsValidFilename(name) {
 		return true
 	}
-	if 16 < utf8.RuneCountInString(name) {
+	if 32 < utf8.RuneCountInString(name) {
+		// Adjust workspace name length limit to 32 runes https://github.com/siyuan-note/siyuan/issues/9440
 		return true
 	}
 	toLower := strings.ToLower(name)

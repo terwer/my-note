@@ -53,6 +53,21 @@ type BlockTree struct {
 	Type     string // 类型
 }
 
+func GetBlockTreesByType(typ string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.Type == typ {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
+}
+
 func GetBlockTreeByPath(path string) (ret *BlockTree) {
 	blockTrees.Range(func(key, value interface{}) bool {
 		slice := value.(*btSlice)
@@ -112,6 +127,7 @@ func GetBlockTreeRootByPath(boxID, path string) (ret *BlockTree) {
 }
 
 func GetBlockTreeRootByHPath(boxID, hPath string) (ret *BlockTree) {
+	hPath = gulu.Str.RemoveInvisible(hPath)
 	blockTrees.Range(func(key, value interface{}) bool {
 		slice := value.(*btSlice)
 		slice.m.Lock()
@@ -128,6 +144,7 @@ func GetBlockTreeRootByHPath(boxID, hPath string) (ret *BlockTree) {
 }
 
 func GetBlockTreeRootByHPathPreferredParentID(boxID, hPath, preferredParentID string) (ret *BlockTree) {
+	hPath = gulu.Str.RemoveInvisible(hPath)
 	var roots []*BlockTree
 	blockTrees.Range(func(key, value interface{}) bool {
 		slice := value.(*btSlice)
@@ -215,6 +232,21 @@ func GetBlockTreesByPathPrefix(pathPrefix string) (ret []*BlockTree) {
 		slice.m.Lock()
 		for _, b := range slice.data {
 			if strings.HasPrefix(b.Path, pathPrefix) {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
+}
+
+func GetBlockTreesByRootID(rootID string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.RootID == rootID {
 				ret = append(ret, b)
 			}
 		}

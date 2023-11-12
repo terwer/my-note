@@ -21,7 +21,7 @@ export const renderBacklink = (protyle: IProtyle, backlinkData: {
     protyle.wysiwyg.element.innerHTML = html;
     processRender(protyle.wysiwyg.element);
     highlightRender(protyle.wysiwyg.element);
-    avRender(protyle.wysiwyg.element);
+    avRender(protyle.wysiwyg.element, protyle);
     blockRender(protyle, protyle.wysiwyg.element);
     removeLoading(protyle);
     if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly) {
@@ -75,7 +75,7 @@ export const loadBreadcrumb = (protyle: IProtyle, element: HTMLElement) => {
         }
         element.parentElement.insertAdjacentHTML("afterend", setBacklinkFold(getResponse.data.content, true));
         processRender(element.parentElement.parentElement);
-        avRender(element.parentElement.parentElement);
+        avRender(element.parentElement.parentElement, protyle);
         blockRender(protyle, element.parentElement.parentElement);
         if (getResponse.data.isSyncing) {
             disabledForeverProtyle(protyle);
@@ -113,5 +113,5 @@ export const genBreadcrumb = (blockPaths: IBreadcrumb[], renderFirst = false) =>
             html += '<svg class="protyle-breadcrumb__arrow"><use xlink:href="#iconRight"></use></svg>';
         }
     });
-    return `<div contenteditable="false" class="protyle-breadcrumb__bar protyle-breadcrumb__bar--nowrap">${html}</div>`;
+    return `<div contenteditable="false" style="margin-bottom: 8px" class="protyle-breadcrumb__bar protyle-breadcrumb__bar--nowrap">${html}</div>`;
 };

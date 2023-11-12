@@ -93,6 +93,7 @@
       &--text {
         background-color: var(--b3-theme-surface);
         padding: 16px 24px;
+        overflow: auto;
 
         .b3-button--outline {
           white-space: normal;
@@ -151,6 +152,16 @@
       width: 100%;
       text-align: center;
     }
+
+    &__svg {
+      flex-wrap: wrap;
+
+      svg {
+        margin: 8px;
+        height: 16px;
+        width: 16px;
+      }
+    }
   }
 
   &-about__logo {
@@ -191,7 +202,7 @@
   &-keymap {
     &__key {
       padding: 2px 4px;
-      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace, var(--b3-font-family);
       line-height: 1;
       color: var(--b3-theme-on-surface);
       vertical-align: middle;
@@ -211,6 +222,7 @@
 
     div.b3-list-item > .b3-list-item__text {
       padding-left: 4px;
+      user-select: none;
     }
   }
 

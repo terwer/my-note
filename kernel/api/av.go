@@ -21,6 +21,7 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
+	"github.com/siyuan-note/siyuan/kernel/av"
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -35,8 +36,7 @@ func renderAttributeView(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
-	nodeID := arg["nodeID"].(string)
-	view, attrView, err := model.RenderAttributeView(id, nodeID)
+	view, attrView, err := model.RenderAttributeView(id)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -61,6 +61,7 @@ func renderAttributeView(c *gin.Context) {
 		"viewID":   view.GetID(),
 		"views":    views,
 		"view":     view,
+		"isMirror": av.IsMirror(attrView.ID),
 	}
 }
 
@@ -92,7 +93,7 @@ func setAttributeViewBlockAttr(c *gin.Context) {
 	rowID := arg["rowID"].(string)
 	cellID := arg["cellID"].(string)
 	value := arg["value"].(interface{})
-	blockAttributeViewKeys := model.UpdateAttributeViewCell(avID, keyID, rowID, cellID, value)
+	blockAttributeViewKeys := model.UpdateAttributeViewCell(nil, avID, keyID, rowID, cellID, value)
 	util.BroadcastByType("protyle", "refreshAttributeView", 0, "", map[string]interface{}{"id": avID})
 	ret.Data = blockAttributeViewKeys
 }

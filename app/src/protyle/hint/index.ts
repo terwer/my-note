@@ -16,7 +16,7 @@ import {getContenteditableElement, hasNextSibling, hasPreviousSibling} from "../
 import {transaction, updateTransaction} from "../wysiwyg/transaction";
 import {insertHTML} from "../util/insertHTML";
 import {highlightRender} from "../render/highlightRender";
-import {imgMenu} from "../../menus/protyle";
+import {assetMenu, imgMenu} from "../../menus/protyle";
 import {hideElements} from "../ui/hideElements";
 import {fetchPost} from "../../util/fetch";
 import {getDisplayName, pathPosix} from "../../util/pathName";
@@ -30,7 +30,7 @@ import {openMobileFileById} from "../../mobile/editor";
 import {processRender} from "../util/processCode";
 import {AIChat} from "../../ai/chat";
 import {isMobile} from "../../util/functions";
-import {isCtrl} from "../util/compatibility";
+import {isCtrl, isIPhone} from "../util/compatibility";
 import {avRender} from "../render/av/render";
 import {genIconHTML} from "../render/util";
 
@@ -61,12 +61,11 @@ export class Hint {
                 if (this.source !== "search") {
                     this.fill(decodeURIComponent(btnElement.getAttribute("data-value")), protyle, true, isCtrl(event));
                 } else {
-                    // 划选引用点击，需先重置 range
                     setTimeout(() => {
-                        this.fill(decodeURIComponent(btnElement.getAttribute("data-value")), protyle);
-                    }, 148);
-                    focusByRange(protyle.toolbar.range);
+                        this.fill(decodeURIComponent(btnElement.getAttribute("data-value")), protyle, true, !isCtrl(event));
+                    }, 148);    // 划选引用点击，需先重置 range
                 }
+                focusByRange(protyle.toolbar.range);
 
                 event.preventDefault();
                 event.stopPropagation(); // https://github.com/siyuan-note/siyuan/issues/3710
@@ -159,10 +158,8 @@ ${unicode2Emoji(emoji.unicode)}</button>`;
         const currentLineValue = protyle.toolbar.range.startContainer.textContent.substring(0, start) || "";
         const key = this.getKey(currentLineValue, protyle.options.hint.extend);
         if (typeof key === "undefined" ||
-            (   // 除 emoji 提示外，其余在 inline-code 内移动不进行提示
-                this.splitChar !== ":" && hasClosestByAttribute(protyle.toolbar.range.startContainer, "data-type", "NodeCodeBlock")
-            )
-        ) {
+            hasClosestByAttribute(protyle.toolbar.range.startContainer, "data-type", "code") ||
+            hasClosestByAttribute(protyle.toolbar.range.startContainer, "data-type", "NodeCodeBlock")) {
             this.element.classList.add("fn__none");
             clearTimeout(this.timeId);
             return;
@@ -278,10 +275,10 @@ ${unicode2Emoji(emoji.unicode)}</button>`;
         }
         this.element.style.width = Math.max(protyle.element.clientWidth / 2, 320) + "px";
         if (this.source === "av") {
-            const blockElement = hasClosestBlock(protyle.toolbar.range.startContainer);
-            if (blockElement) {
-                const rowAddRect = blockElement.querySelector(".av__row--add").getBoundingClientRect();
-                setPosition(this.element, rowAddRect.left, rowAddRect.bottom, rowAddRect.height);
+            const cellElement = hasClosestByClassName(protyle.toolbar.range.startContainer, "av__cell");
+            if (cellElement) {
+                const cellRect = cellElement.getBoundingClientRect();
+                setPosition(this.element, cellRect.left, cellRect.bottom, cellRect.height);
             }
         } else {
             const textareaPosition = getSelectionPosition(protyle.wysiwyg.element);
@@ -305,8 +302,8 @@ ${unicode2Emoji(emoji.unicode)}</button>`;
                 upDownHint(this.element.lastElementChild, event);
                 if (event.key === "Enter") {
                     setTimeout(() => {
-                        this.fill(decodeURIComponent(this.element.querySelector(".b3-list-item--focus").getAttribute("data-value")), protyle);
-                    }, 148);
+                        this.fill(decodeURIComponent(this.element.querySelector(".b3-list-item--focus").getAttribute("data-value")), protyle, true, !isCtrl(event));
+                    }, 148);    // 划选引用点击，需先重置 range
                     focusByRange(protyle.toolbar.range);
                     event.preventDefault();
                 } else if (event.key === "Escape") {
@@ -353,6 +350,7 @@ ${genHintItemHTML(item)}
                 searchHTML = `<button style="width: calc(100% - 16px)" class="b3-list-item b3-list-item--two" data-value="">${window.siyuan.languages.emptyContent}</button>`;
             }
             this.element.lastElementChild.innerHTML = searchHTML;
+            setPosition(this.element, parseInt(this.element.style.left), parseInt(this.element.style.right));
         });
     }
 
@@ -370,7 +368,7 @@ ${genHintItemHTML(item)}
             }
             lazyLoadEmojiImg(panelElement);
         } else {
-            this.element.innerHTML = `<div class="emojis">
+            this.element.innerHTML = `<div style="padding: 0" class="emojis">
 <div class="emojis__panel">${filterEmoji(value, 256)}</div>
 <div class="fn__flex${value ? " fn__none" : ""}">
     <button data-type="0" class="emojis__type ariaLabel" aria-label="${window.siyuan.languages.recentEmoji}">${unicode2Emoji("2b50")}</button>
@@ -412,9 +410,12 @@ ${genHintItemHTML(item)}
             return;
         }
         if (this.source === "av") {
+            const cellElement = hasClosestByClassName(protyle.toolbar.range.startContainer, "av__cell");
+            if (!cellElement) {
+                return;
+            }
+            const previousID = cellElement.dataset.blockId;
             const avID = nodeElement.getAttribute("data-av-id");
-            const rowsElement = nodeElement.querySelectorAll(".av__row");
-            const previousID = rowsElement[rowsElement.length - 1].getAttribute("data-id");
             let tempElement = document.createElement("div");
             tempElement.innerHTML = value.replace(/<mark>/g, "").replace(/<\/mark>/g, "");
             tempElement = tempElement.firstElementChild as HTMLDivElement;
@@ -429,28 +430,34 @@ ${genHintItemHTML(item)}
                         markdown: ""
                     }, response => {
                         transaction(protyle, [{
-                            action: "insertAttrViewBlock",
+                            action: "replaceAttrViewBlock",
                             avID,
                             previousID,
-                            srcIDs: [response.data],
+                            nextID: response.data,
+                            isDetached: false,
                         }], [{
-                            action: "removeAttrViewBlock",
-                            srcIDs: [response.data],
+                            action: "replaceAttrViewBlock",
                             avID,
+                            previousID: response.data,
+                            nextID: previousID,
+                            isDetached: true,
                         }]);
                     });
                 });
             } else {
                 const sourceId = tempElement.getAttribute("data-id");
                 transaction(protyle, [{
-                    action: "insertAttrViewBlock",
+                    action: "replaceAttrViewBlock",
                     avID,
                     previousID,
-                    srcIDs: [sourceId],
+                    nextID: sourceId,
+                    isDetached: false,
                 }], [{
-                    action: "removeAttrViewBlock",
-                    srcIDs: [sourceId],
+                    action: "replaceAttrViewBlock",
                     avID,
+                    previousID: sourceId,
+                    nextID: previousID,
+                    isDetached: true,
                 }]);
             }
             return;
@@ -493,7 +500,7 @@ ${genHintItemHTML(item)}
 
         if (this.lastIndex > -1) {
             range.setStart(range.startContainer, this.lastIndex);
-            if (navigator.userAgent.indexOf("iPhone") > -1) {
+            if (isIPhone()) {
                 focusByRange(range);
             }
         }
@@ -511,7 +518,7 @@ ${genHintItemHTML(item)}
                 }, response => {
                     protyle.toolbar.setInlineMark(protyle, "block-ref", "range", {
                         type: "id",
-                        color: `${response.data}${Constants.ZWSP}${(fileNames.length === 2 || refIsS) ? "s" : "d"}${Constants.ZWSP}${(fileNames.length === 2 ? fileNames[0] : realFileName).substring(0, window.siyuan.config.editor.blockRefDynamicAnchorTextMaxLen)}`
+                        color: `${response.data}${Constants.ZWSP}${refIsS ? "s" : "d"}${Constants.ZWSP}${(refIsS ? fileNames[0] : realFileName).substring(0, window.siyuan.config.editor.blockRefDynamicAnchorTextMaxLen)}`
                     });
                 });
             });
@@ -535,6 +542,12 @@ ${genHintItemHTML(item)}
                     tempElement.setAttribute("data-subtype", "s");
                     tempElement.innerText = staticText;
                 }
+            } else {
+                tempElement.setAttribute("data-subtype", "d");
+                const dynamicTexts = tempElement.innerText.split(Constants.ZWSP);
+                if (dynamicTexts.length === 2) {
+                    tempElement.innerText = dynamicTexts[1];
+                }
             }
             protyle.toolbar.setInlineMark(protyle, "block-ref", "range", {
                 type: "id",
@@ -550,7 +563,7 @@ ${genHintItemHTML(item)}
                 emoji = unicode2Emoji(value) + " ";
             }
             insertHTML(protyle.lute.SpinBlockDOM(emoji), protyle);
-        } else if (["「「", "{{"].includes(this.splitChar) || this.splitChar === "#" || this.splitChar === ":") {
+        } else if (["「「", "「『", "『「", "『『", "{{"].includes(this.splitChar) || this.splitChar === "#" || this.splitChar === ":") {
             if (value === "") {
                 const editElement = getContenteditableElement(nodeElement);
                 if (editElement.textContent === "") {
@@ -593,7 +606,9 @@ ${genHintItemHTML(item)}
             } else if (value === Constants.ZWSP + 2) {
                 range.deleteContents();
                 this.fixImageCursor(range);
-                protyle.toolbar.showAssets(protyle, nodeElement, range);
+                protyle.toolbar.range = range;
+                const rangePosition = getSelectionPosition(nodeElement, range);
+                assetMenu(protyle, {x: rangePosition.left, y: rangePosition.top + 26, w: 0, h: 26});
                 updateTransaction(protyle, id, nodeElement.outerHTML, html);
                 return;
             } else if (value === Constants.ZWSP + 3) {
@@ -758,16 +773,17 @@ ${genHintItemHTML(item)}
                     const rect = nodeElement.getBoundingClientRect();
                     window.siyuan.menus.menu.popup({
                         x: rect.left,
-                        y: rect.top
-                    }, true);
+                        y: rect.top,
+                        isLeft: true
+                    });
                     const itemElement = window.siyuan.menus.menu.element.querySelector('[data-id="assetSubMenu"]');
                     itemElement.classList.add("b3-menu__item--show");
                     window.siyuan.menus.menu.showSubMenu(itemElement.querySelector(".b3-menu__submenu"));
-                    window.siyuan.menus.menu.element.querySelectorAll("input")[0].focus();
+                    window.siyuan.menus.menu.element.querySelector("textarea").focus();
                 } else if (value === "---") {
                     focusBlock(nodeElement);
                 } else if (nodeElement.classList.contains("av")) {
-                    avRender(nodeElement);
+                    avRender(nodeElement, protyle);
                 } else {
                     focusByWbr(nodeElement, range);
                 }

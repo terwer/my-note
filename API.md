@@ -992,7 +992,24 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     * `path`: the file path under the workspace path
 * Return value
 
-  File content
+    * Response status code `200`: File content
+    * Response status code `202`: Exception information
+
+      ```json
+      {
+        "code": 404,
+        "msg": "",
+        "data": null
+      }
+      ```
+
+        * `code`: non-zero for exceptions
+
+            * `-1`: Parameter parsing error
+            * `404`: Not Found (file doesn't exist)
+            * `405`: Method Not Allowed (it's a directory)
+            * `500`: Server Error (stat file failed / read file failed)
+        * `msg`: a piece of text describing the error
 
 ### Put file
 
@@ -1064,10 +1081,10 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
 
   ```json
   {
-    "path": "/data/20210808180117-6v0mkxr/20200923234011-ieuun1p.sy"
+    "path": "/data/20210808180117-6v0mkxr/20200923234011-ieuun1p"
   }
   ```
-    * `path`: the file path under the workspace path
+    * `path`: the dir path under the workspace path
 * Return value
 
   ```json
@@ -1075,16 +1092,18 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     "code": 0,
     "msg": "",
     "data": [
-        {
-            "isDir": true,
-            "isSymlink": false,
-            "name": "20210808180320-abz7w6k"
-        },
-        {
-            "isDir": false,
-            "isSymlink": false,
-            "name": "20210808180320-abz7w6k.sy"
-        }
+      {
+        "isDir": true,
+        "isSymlink": false,
+        "name": "20210808180303-6yi0dv5",
+        "updated": 1691467624
+      },
+      {
+        "isDir": false,
+        "isSymlink": false,
+        "name": "20210808180303-6yi0dv5.sy",
+        "updated": 1663298365
+      }
     ]
   }
   ```
@@ -1130,7 +1149,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
       "/conf/appearance/boot",
       "/conf/appearance/langs",
       "/conf/appearance/emojis/conf.json",
-      "/conf/appearance/icons/index.html",
+      "/conf/appearance/icons/index.html"
     ],
     "name": "zip-file-name"
   }
@@ -1269,7 +1288,9 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
             "Cookie": ""
         }
     ],
-    "payload": {}
+    "payload": {},
+    "payloadEncoding": "text",
+    "responseEncoding": "text"
   }
   ```
 
@@ -1279,6 +1300,22 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     * `contentType`: Content-Type, default is `application/json`
     * `headers`: HTTP headers
     * `payload`: HTTP payload, object or string
+    * `payloadEncoding`: The encoding scheme used by `pyaload`, default is `text`, optional values are as follows
+
+        * `text`
+        * `base64` | `base64-std`
+        * `base64-url`
+        * `base32` | `base32-std`
+        * `base32-hex`
+        * `hex`
+    * `responseEncoding`: The encoding scheme used by `body` in response data, default is `text`, optional values are as follows
+
+        * `text`
+        * `base64` | `base64-std`
+        * `base64-url`
+        * `base32` | `base32-std`
+        * `base32-hex`
+        * `hex`
 * Return value
 
   ```json
@@ -1287,6 +1324,7 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     "msg": "",
     "data": {
       "body": "",
+      "bodyEncoding": "text",
       "contentType": "text/html",
       "elapsed": 1976,
       "headers": {
@@ -1296,6 +1334,15 @@ View API token in <kbd>Settings - About</kbd>, request header: `Authorization: T
     }
   }
   ```
+
+    * `bodyEncoding`：The encoding scheme used by `body`, is consistent with field `responseEncoding` in request, default is `text`, optional values are as follows
+
+        * `text`
+        * `base64` | `base64-std`
+        * `base64-url`
+        * `base32` | `base32-std`
+        * `base32-hex`
+        * `hex`
 
 ## System
 

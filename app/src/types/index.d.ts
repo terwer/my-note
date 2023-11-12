@@ -24,6 +24,7 @@ type TOperation =
     | "removeFlashcards"
     | "updateAttrViewCell"
     | "updateAttrViewCol"
+    | "updateAttrViewColTemplate"
     | "sortAttrViewRow"
     | "sortAttrViewCol"
     | "setAttrViewColHidden"
@@ -33,19 +34,26 @@ type TOperation =
     | "removeAttrViewColOption"
     | "updateAttrViewColOption"
     | "setAttrViewName"
+    | "doUpdateUpdated"
+    | "setAttrViewColIcon"
     | "setAttrViewFilters"
     | "setAttrViewSorts"
     | "setAttrViewColCalc"
     | "updateAttrViewColNumberFormat"
+    | "replaceAttrViewBlock"
 type TBazaarType = "templates" | "icons" | "widgets" | "themes" | "plugins"
 type TCardType = "doc" | "notebook" | "all"
 type TEventBus = "ws-main" |
     "click-blockicon" | "click-editorcontent" | "click-pdf" | "click-editortitleicon" |
     "open-noneditableblock" |
     "open-menu-blockref" | "open-menu-fileannotationref" | "open-menu-tag" | "open-menu-link" | "open-menu-image" |
-    "open-menu-av" | "open-menu-content" | "open-menu-breadcrumbmore" |
+    "open-menu-av" | "open-menu-content" | "open-menu-breadcrumbmore" | "open-menu-doctree" |
+    "open-siyuan-url-plugin" | "open-siyuan-url-block" |
+    "paste" |
     "input-search" |
-    "loaded-protyle"
+    "loaded-protyle" | "loaded-protyle-dynamic" | "loaded-protyle-static" |
+    "switch-protyle" |
+    "destroy-protyle"
 type TAVCol =
     "text"
     | "date"
@@ -58,6 +66,10 @@ type TAVCol =
     | "url"
     | "email"
     | "phone"
+    | "mAsset"
+    | "template"
+    | "created"
+    | "updated"
 type THintSource = "search" | "av" | "hint";
 type TAVFilterOperator =
     "="
@@ -77,10 +89,50 @@ type TAVFilterOperator =
 declare module "blueimp-md5"
 
 interface Window {
+    echarts: {
+        init(element: HTMLElement, theme?: string, options?: { width: number }): {
+            setOption(option: any): void;
+            getZr(): any;
+            on(name: string, event: (e: any) => void): any;
+            containPixel(name: string, position: number[]): any;
+            resize(): void;
+        };
+        dispose(element: Element): void;
+        getInstanceById(id: string): { resize: () => void };
+    }
+    ABCJS: {
+        renderAbc(element: Element, text: string, options: { responsive: string }): void;
+    }
+    hljs: {
+        listLanguages(): string[];
+        highlight(text: string, options: { language?: string, ignoreIllegals: boolean }): { value: string };
+        getLanguage(text: string): { name: string };
+    };
+    katex: {
+        renderToString(math: string, option: {
+            displayMode: boolean;
+            output: string;
+            macros: IObject;
+            trust: boolean;
+            strict: (errorCode: string) => "ignore" | "warn";
+        }): string;
+    }
+    mermaid: {
+        initialize(options: any): void,
+        init(options: any, element: Element): void
+    };
+    plantumlEncoder: {
+        encode(options: string): string,
+    };
+    pdfjsLib: any
+
     dataLayer: any[]
+
     siyuan: ISiyuan
     webkit: any
-    html2canvas: (element: Element, opitons: { useCORS: boolean }) => Promise<any>;
+    html2canvas: (element: Element, opitons: {
+        useCORS: boolean
+    }) => Promise<any>;
     JSAndroid: {
         returnDesktop(): void
         openExternal(url: string): void
@@ -89,11 +141,6 @@ interface Window {
         writeImageClipboard(uri: string): void
         readClipboard(): string
         getBlockURL(): string
-    }
-
-    newWindow: {
-        positionPDF(pathStr: string, page: string | number): void
-        switchTabById(id: string): void
     }
 
     Protyle: import("../protyle/method").default
@@ -107,6 +154,14 @@ interface Window {
     hideKeyboardToolbar(): void
 
     openFileByURL(URL: string): boolean
+}
+
+interface IPosition {
+    x: number,
+    y: number,
+    w?: number,
+    h?: number,
+    isLeft?: boolean
 }
 
 interface ISaveLayout {
@@ -141,6 +196,23 @@ interface IPluginSettingOption {
     createActionElement?(): HTMLElement
 }
 
+interface ISearchAssetOption {
+    keys: string[],
+    col: string,
+    row: string,
+    layout: number,
+    method: number,
+    types: {
+        ".txt": boolean,
+        ".md": boolean,
+        ".docx": boolean,
+        ".xlsx": boolean,
+        ".pptx": boolean,
+    },
+    sort: number,
+    k: string,
+}
+
 interface ISearchOption {
     page: number
     removed?: boolean  // 移除后需记录搜索内容 https://github.com/siyuan-note/siyuan/issues/7745
@@ -166,6 +238,7 @@ interface ISearchOption {
         codeBlock: boolean
         htmlBlock: boolean
         embedBlock: boolean
+        databaseBlock: boolean
     }
 }
 
@@ -217,7 +290,10 @@ interface IBackStack {
     },
     scrollTop?: number,
     callback?: string[],
-    position?: { start: number, end: number }
+    position?: {
+        start: number,
+        end: number
+    }
     // 仅桌面端
     protyle?: IProtyle,
     zoomId?: string
@@ -248,14 +324,18 @@ interface INotebook {
 }
 
 interface ISiyuan {
-    storage?: { [key: string]: any },
-    printWin?: import("electron").BrowserWindow
+    zIndex: number
+    storage?: {
+        [key: string]: any
+    },
     transactions?: {
         protyle: IProtyle,
         doOperations: IOperation[],
         undoOperations: IOperation[]
     }[]
-    reqIds: { [key: string]: number },
+    reqIds: {
+        [key: string]: number
+    },
     editorIsFullscreen?: boolean,
     hideBreadcrumb?: boolean,
     notebooks?: INotebook[],
@@ -279,7 +359,11 @@ interface ISiyuan {
         userSiYuanSubscriptionType: number // 0 年付；1 终生；2 月付
         userSiYuanSubscriptionStatus: number // -1：未订阅，0：订阅可用，1：订阅封禁，2：订阅过期
         userToken: string
-        userTitles: { name: string, icon: string, desc: string }[]
+        userTitles: {
+            name: string,
+            icon: string,
+            desc: string
+        }[]
     },
     dragElement?: HTMLElement,
     layout?: {
@@ -309,11 +393,7 @@ interface ISiyuan {
     bookmarkLabel?: string[]
     blockPanels: import("../block/Panel").BlockPanel[],
     dialogs: import("../dialog").Dialog[],
-    viewer?: {
-        destroyed: boolean,
-        show: () => void,
-        destroy: () => void,
-    }
+    viewer?: Viewer
 }
 
 interface IScrollAttr {
@@ -339,6 +419,7 @@ interface IOperation {
     previousID?: string
     retData?: any
     nextID?: string // insert 专享
+    isDetached?: boolean // insertAttrViewBlock 专享
     srcIDs?: string[] // insertAttrViewBlock 专享
     name?: string // addAttrViewCol 专享
     type?: TAVCol // addAttrViewCol 专享
@@ -374,7 +455,10 @@ interface ILayoutJSON extends ILayoutOptions {
 
 interface IDockTab {
     type: string;
-    size: { width: number, height: number }
+    size: {
+        width: number,
+        height: number
+    }
     show: boolean
     icon: string
     title: string
@@ -387,10 +471,11 @@ interface ICommand {
     langText?: string, // 显示的文本, 指定后不再使用 langKey 对应的 i18n 文本
     hotkey: string,
     customHotkey?: string,
-    callback?: () => void
-    fileTreeCallback?: (file: import("../layout/dock/Files").Files) => void
-    editorCallback?: (protyle: IProtyle) => void
-    dockCallback?: (element: HTMLElement) => void
+    callback?: () => void   // 其余回调存在时将不会触
+    globalCallback?: () => void // 焦点不在应用内时执行的回调
+    fileTreeCallback?: (file: import("../layout/dock/Files").Files) => void // 焦点在文档树上时执行的回调
+    editorCallback?: (protyle: IProtyle) => void     // 焦点在编辑器上时执行的回调
+    dockCallback?: (element: HTMLElement) => void    // 焦点在 dock 上时执行的回调
 }
 
 interface IPluginData {
@@ -403,12 +488,20 @@ interface IPluginData {
 
 interface IPluginDockTab {
     position: TPluginDockPosition,
-    size: { width: number, height: number },
+    size: {
+        width: number,
+        height: number
+    },
     icon: string,
     hotkey?: string,
     title: string,
     index?: number
     show?: boolean
+}
+
+interface IExportOptions {
+    type: string,
+    id: string,
 }
 
 interface IOpenFileOptions {
@@ -419,11 +512,11 @@ interface IOpenFileOptions {
         title: string,
         icon: string,
         data?: any
+        id: string,
         fn?: (options: {
             tab: import("../layout/Tab").Tab,
             data: any,
-            app: import("../index").App
-        }) => import("../layout/Model").Model,
+        }) => import("../layout/Model").Model,   // plugin 0.8.3 历史兼容
     }
     assetPath?: string, // asset 必填
     fileName?: string, // file 必填
@@ -469,6 +562,7 @@ interface IExport {
     addTitle: boolean;
     markdownYFM: boolean;
     pdfFooter: string;
+    docxTemplate: string;
 }
 
 interface IEditor {
@@ -567,7 +661,11 @@ interface IConfig {
         mark: boolean
         list: boolean
         superBlock: boolean
+        heading: boolean
         deck: boolean
+        requestRetention: number
+        maximumInterval: number
+        weights: string
     }
     ai: {
         openAI: {
@@ -613,6 +711,7 @@ interface IConfig {
     }
     openHelp: boolean
     system: {
+        lockScreenMode: number   // 0：手动，1：手动+跟随系统
         networkProxy: {
             host: string
             port: string
@@ -642,7 +741,10 @@ interface IConfig {
     localIPs: string[]
     readonly: boolean   // 全局只读
     uiLayout: Record<string, any>
-    langs: { label: string, name: string }[]
+    langs: {
+        label: string,
+        name: string
+    }[]
     appearance: IAppearance
     editor: IEditor,
     fileTree: IFileTree
@@ -655,6 +757,7 @@ interface IConfig {
         sort: number
     }
     search: {
+        databaseBlock: boolean
         embedBlock: boolean
         htmlBlock: boolean
         document: boolean
@@ -737,13 +840,25 @@ interface IKeymap {
             [key: string]: IKeymapItem
         }
     }
-    general: { [key: string]: IKeymapItem }
+    general: {
+        [key: string]: IKeymapItem
+    }
     editor: {
-        general: { [key: string]: IKeymapItem }
-        insert: { [key: string]: IKeymapItem }
-        heading: { [key: string]: IKeymapItem }
-        list: { [key: string]: IKeymapItem }
-        table: { [key: string]: IKeymapItem }
+        general: {
+            [key: string]: IKeymapItem
+        }
+        insert: {
+            [key: string]: IKeymapItem
+        }
+        heading: {
+            [key: string]: IKeymapItem
+        }
+        list: {
+            [key: string]: IKeymapItem
+        }
+        table: {
+            [key: string]: IKeymapItem
+        }
     }
 }
 
@@ -825,6 +940,7 @@ interface IModels {
 }
 
 interface IMenu {
+    iconClass?: string,
     label?: string,
     click?: (element: HTMLElement, event: MouseEvent) => boolean | void | Promise<boolean | void>
     type?: "separator" | "submenu" | "readonly",
@@ -916,6 +1032,7 @@ interface IAVColumn {
     hidden: boolean,
     type: TAVCol,
     numberFormat: string,
+    template: string,
     calc: {
         operator: string,
         result: IAVCellValue
@@ -941,15 +1058,39 @@ interface IAVCell {
 }
 
 interface IAVCellValue {
+    id?: string,
     type?: TAVCol,
-    text?: { content: string },
-    number?: { content?: number, isNotEmpty: boolean, format?: string, formattedContent?: string },
-    mSelect?: { content: string, color: string }[]
-    block?: { content: string, id?: string }
-    url?: { content: string }
-    phone?: { content: string }
-    email?: { content: string }
+    isDetached?: boolean,
+    text?: {
+        content: string
+    },
+    number?: {
+        content?: number,
+        isNotEmpty: boolean,
+        format?: string,
+        formattedContent?: string
+    },
+    mSelect?: IAVCellSelectValue[]
+    mAsset?: IAVCellAssetValue[]
+    block?: {
+        content: string,
+        id?: string
+    }
+    url?: {
+        content: string
+    }
+    phone?: {
+        content: string
+    }
+    email?: {
+        content: string
+    }
+    template?: {
+        content: string
+    }
     date?: IAVCellDateValue
+    created?: IAVCellDateValue
+    updated?: IAVCellDateValue
 }
 
 interface IAVCellDateValue {
@@ -958,4 +1099,16 @@ interface IAVCellDateValue {
     content2?: number,
     isNotEmpty2?: boolean
     hasEndDate?: boolean
+    isNotTime?: boolean // 默认 true
+}
+
+interface IAVCellSelectValue {
+    content: string,
+    color: string
+}
+
+interface IAVCellAssetValue {
+    content: string,
+    name: string,
+    type: "file" | "image"
 }

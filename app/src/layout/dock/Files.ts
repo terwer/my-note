@@ -1,7 +1,8 @@
 import {escapeHtml} from "../../util/escape";
 import {Tab} from "../Tab";
 import {Model} from "../Model";
-import {getDockByType, getInstanceById, setPanelFocus} from "../util";
+import {getInstanceById, setPanelFocus} from "../util";
+import {getDockByType} from "../tabUtil";
 import {Constants} from "../../constants";
 import {getDisplayName, pathPosix, setNoteBook} from "../../util/pathName";
 import {newFile} from "../../util/newFile";
@@ -45,8 +46,22 @@ export class Files extends Model {
                             this.onMount(data);
                             break;
                         case "createnotebook":
-                            setNoteBook();
-                            this.element.insertAdjacentHTML("beforeend", this.genNotebook(data.data.box));
+                            setNoteBook((notebooks) => {
+                                let previousId: string;
+                                notebooks.find(item => {
+                                    if (!item.closed) {
+                                        if (item.id === data.data.box.id) {
+                                            if (previousId) {
+                                                this.element.querySelector(`.b3-list[data-url="${previousId}"]`).insertAdjacentHTML("afterend", this.genNotebook(data.data.box));
+                                            } else {
+                                                this.element.insertAdjacentHTML("afterbegin", this.genNotebook(data.data.box));
+                                            }
+                                            return true;
+                                        }
+                                        previousId = item.id;
+                                    }
+                                });
+                            });
                             break;
                         case "unmount":
                         case "removeDoc":
@@ -108,7 +123,13 @@ export class Files extends Model {
                 if (target.classList.contains("b3-list-item__icon")) {
                     event.preventDefault();
                     event.stopPropagation();
-                    openEmojiPanel(target.parentElement.getAttribute("data-url"), target, true);
+                    const rect = target.getBoundingClientRect();
+                    openEmojiPanel(target.parentElement.getAttribute("data-url"), "notebook", {
+                        x: rect.left,
+                        y: rect.bottom,
+                        h: rect.height,
+                        w: rect.width,
+                    });
                     break;
                 } else if (type === "toggle") {
                     if (this.closeElement.classList.contains("fn__flex-1")) {
@@ -225,10 +246,21 @@ export class Files extends Model {
                     if (!event.metaKey && !event.ctrlKey && target.classList.contains("b3-list-item__icon") && window.siyuan.config.system.container !== "ios") {
                         event.preventDefault();
                         event.stopPropagation();
+                        const rect = target.getBoundingClientRect();
                         if (target.parentElement.getAttribute("data-type") === "navigation-file") {
-                            openEmojiPanel(target.parentElement.getAttribute("data-node-id"), target);
+                            openEmojiPanel(target.parentElement.getAttribute("data-node-id"), "doc", {
+                                x: rect.left,
+                                y: rect.bottom,
+                                h: rect.height,
+                                w: rect.width,
+                            });
                         } else {
-                            openEmojiPanel(target.parentElement.parentElement.getAttribute("data-url"), target, true);
+                            openEmojiPanel(target.parentElement.parentElement.getAttribute("data-url"), "notebook", {
+                                x: rect.left,
+                                y: rect.bottom,
+                                h: rect.height,
+                                w: rect.width,
+                            });
                         }
                         break;
                     } else if (!event.metaKey && !event.ctrlKey && target.classList.contains("b3-list-item__toggle")) {
@@ -243,7 +275,12 @@ export class Files extends Model {
                         const pathString = target.parentElement.getAttribute("data-path");
                         if (!window.siyuan.config.readonly) {
                             if (type === "new") {
-                                newFile(options.app, notebookId, pathString);
+                                newFile({
+                                    app: options.app,
+                                    notebookId,
+                                    currentPath: pathString,
+                                    useSavePath: false
+                                });
                             } else if (type === "more-root") {
                                 initNavigationMenu(options.app, target.parentElement).popup({
                                     x: event.clientX,
@@ -384,7 +421,10 @@ export class Files extends Model {
             if (window.siyuan.config.readonly) {
                 return;
             }
-            const liElement = hasClosestByTag(event.target, "LI");
+            let liElement = hasClosestByTag(event.target, "LI");
+            if (!liElement) {
+                liElement = hasClosestByTag(document.elementFromPoint(event.clientX, event.clientY - 1), "LI");
+            }
             if (!liElement || !window.siyuan.dragElement) {
                 event.preventDefault();
                 return;
@@ -448,14 +488,13 @@ export class Files extends Model {
             liElement.classList.add("dragover");
             event.preventDefault();
         });
-        this.element.addEventListener("dragleave", (event: DragEvent & { target: HTMLElement }) => {
-            const liElement = hasClosestByTag(event.target, "LI");
-            if (liElement) {
-                liElement.classList.remove("dragover", "dragover__bottom", "dragover__top");
-            }
+        this.element.addEventListener("dragleave", () => {
+            this.element.querySelectorAll(".dragover, .dragover__bottom, .dragover__top").forEach((item: HTMLElement) => {
+                item.classList.remove("dragover", "dragover__bottom", "dragover__top");
+            });
         });
         this.element.addEventListener("drop", async (event: DragEvent & { target: HTMLElement }) => {
-            const newElement = hasClosestByTag(event.target, "LI");
+            const newElement = this.element.querySelector(".dragover, .dragover__bottom, .dragover__top");
             if (!newElement) {
                 return;
             }
@@ -463,6 +502,7 @@ export class Files extends Model {
             if (!newUlElement) {
                 return;
             }
+            const oldScrollTop = this.element.scrollTop;
             const toURL = newUlElement.getAttribute("data-url");
             const toPath = newElement.getAttribute("data-path");
             let gutterType = "";
@@ -610,7 +650,7 @@ export class Files extends Model {
                                     showMessage(window.siyuan.languages.emptyContent);
                                     return;
                                 }
-                                this.onLsHTML(response.data);
+                                this.onLsHTML(response.data, oldScrollTop);
                             });
                         }
                     });
@@ -858,7 +898,7 @@ export class Files extends Model {
         }
     }
 
-    private onLsHTML(data: { files: IFile[], box: string, path: string }) {
+    private onLsHTML(data: { files: IFile[], box: string, path: string }, scrollTop?: number) {
         let fileHTML = "";
         data.files.forEach((item: IFile) => {
             fileHTML += this.genFileHTML(item);
@@ -885,6 +925,9 @@ export class Files extends Model {
                     item.classList.remove("file-tree__sliderDown");
                     item.removeAttribute("style");
                 });
+                if (typeof scrollTop === "number") {
+                    this.element.scroll({top: scrollTop, behavior: "smooth"});
+                }
             }, 120);
         }, 2);
     }
@@ -999,12 +1042,13 @@ export class Files extends Model {
         const ariaLabel = `${getDisplayName(item.name, true, true)} ${item.hSize}${item.bookmark ? "<br>" + window.siyuan.languages.bookmark + " " + item.bookmark : ""}${item.name1 ? "<br>" + window.siyuan.languages.name + " " + item.name1 : ""}${item.alias ? "<br>" + window.siyuan.languages.alias + " " + item.alias : ""}${item.memo ? "<br>" + window.siyuan.languages.memo + " " + item.memo : ""}${item.subFileCount !== 0 ? window.siyuan.languages.includeSubFile.replace("x", item.subFileCount) : ""}<br>${window.siyuan.languages.modifiedAt} ${item.hMtime}<br>${window.siyuan.languages.createdAt} ${item.hCtime}`;
         return `<li data-node-id="${item.id}" data-name="${Lute.EscapeHTMLStr(item.name)}" draggable="true" data-count="${item.subFileCount}" 
 data-type="navigation-file" 
+style="--file-toggle-width:${(item.path.split("/").length - 2) * 18 + 40}px" 
 class="b3-list-item b3-list-item--hide-action" data-path="${item.path}">
     <span style="padding-left: ${(item.path.split("/").length - 2) * 18 + 22}px" class="b3-list-item__toggle b3-list-item__toggle--hl${item.subFileCount === 0 ? " fn__hidden" : ""}">
         <svg class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg>
     </span>
     <span class="b3-list-item__icon b3-tooltips b3-tooltips__n" aria-label="${window.siyuan.languages.changeIcon}">${unicode2Emoji(item.icon || (item.subFileCount === 0 ? Constants.SIYUAN_IMAGE_FILE : Constants.SIYUAN_IMAGE_FOLDER))}</span>
-    <span class="b3-list-item__text ariaLabel" 
+    <span class="b3-list-item__text ariaLabel" data-position="parentE"
 aria-label="${escapeHtml(ariaLabel)}">${getDisplayName(item.name, true, true)}</span>
     <span data-type="more-file" class="b3-list-item__action b3-tooltips b3-tooltips__nw" aria-label="${window.siyuan.languages.more}">
         <svg><use xlink:href="#iconMore"></use></svg>

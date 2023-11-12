@@ -53,7 +53,7 @@ func NewEditor() *Editor {
 	return &Editor{
 		FontSize:                        16,
 		FontSizeScrollZoom:              false,
-		CodeSyntaxHighlightLineNum:      true,
+		CodeSyntaxHighlightLineNum:      false,
 		CodeTabSpaces:                   0,
 		CodeLineWrap:                    false,
 		CodeLigatures:                   false,
@@ -71,7 +71,7 @@ func NewEditor() *Editor {
 		EmbedBlockBreadcrumb:            false,
 		ListLogicalOutdent:              false,
 		FloatWindowMode:                 0,
-		DynamicLoadBlocks:               128,
+		DynamicLoadBlocks:               192,
 		Justify:                         false,
 		RTL:                             false,
 		BacklinkExpandCount:             8,

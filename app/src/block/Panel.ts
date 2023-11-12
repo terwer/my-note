@@ -1,7 +1,6 @@
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {Protyle} from "../protyle";
 import {genUUID} from "../util/genID";
-import {setPadding} from "../protyle/ui/initUI";
 import {setPosition} from "../util/setPosition";
 import {hideElements} from "../protyle/ui/hideElements";
 import {Constants} from "../constants";
@@ -11,10 +10,11 @@ import {openNewWindowById} from "../window/openNewWindow";
 /// #if !MOBILE
 import {moveResize} from "../dialog/moveResize";
 /// #endif
-import {disabledProtyle} from "../protyle/util/onGet";
 import {fetchPost} from "../util/fetch";
 import {showMessage} from "../dialog/message";
 import {App} from "../index";
+import {isMobile} from "../util/functions";
+import {resize} from "../protyle/util/resize";
 
 export class BlockPanel {
     public element: HTMLElement;
@@ -48,7 +48,7 @@ export class BlockPanel {
         this.isBacklink = options.isBacklink;
 
         this.element = document.createElement("div");
-        this.element.classList.add("block__popover", "block__popover--top");
+        this.element.classList.add("block__popover");
 
         const parentElement = hasClosestByClassName(this.targetElement, "block__popover", true);
         let level = 1;
@@ -94,11 +94,8 @@ export class BlockPanel {
             }
         });
         this.element.addEventListener("click", (event) => {
-            document.querySelectorAll(".block__popover--top").forEach(item => {
-                item.classList.remove("block__popover--top");
-            });
             if (this.element && window.siyuan.blockPanels.length > 1) {
-                this.element.classList.add("block__popover--top");
+                this.element.style.zIndex = (++window.siyuan.zIndex).toString();
             }
 
             let target = event.target as HTMLElement;
@@ -133,7 +130,7 @@ export class BlockPanel {
         moveResize(this.element, (type: string) => {
             if (type !== "move") {
                 this.editors.forEach(item => {
-                    setPadding(item.protyle);
+                    resize(item.protyle);
                 });
             }
             const pinElement = this.element.firstElementChild.querySelector('[data-type="pin"]');
@@ -158,7 +155,11 @@ export class BlockPanel {
             const action = [];
             if (response.data.rootID !== this.nodeIds[index]) {
                 action.push(Constants.CB_GET_ALL);
+            } else {
+                action.push(Constants.CB_GET_CONTEXT);
+                action.push(Constants.CB_GET_HL);
             }
+
             if (this.isBacklink) {
                 action.push(Constants.CB_GET_BACKLINK);
             }
@@ -173,9 +174,6 @@ export class BlockPanel {
                 },
                 typewriterMode: false,
                 after: (editor) => {
-                    if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly) {
-                        disabledProtyle(editor.protyle);
-                    }
                     editorElement.addEventListener("mouseleave", () => {
                         hideElements(["gutter"], editor.protyle);
                     });
@@ -185,6 +183,13 @@ export class BlockPanel {
                     if (afterCB) {
                         afterCB();
                     }
+                    // https://ld246.com/article/1653639418266
+                    if (editor.protyle.element.nextElementSibling || editor.protyle.element.previousElementSibling) {
+                        editor.protyle.element.style.minHeight = Math.min(30 + editor.protyle.wysiwyg.element.clientHeight, window.innerHeight / 3) + "px";
+                    }
+                    // 由于 afterCB 中高度的设定，需在之后再进行设定
+                    // 49 = 16（上图标）+16（下图标）+8（padding）+9（底部距离）
+                    editor.protyle.scroll.element.parentElement.setAttribute("style", `--b3-dynamicscroll-width:${Math.min(editor.protyle.contentElement.clientHeight - 49, 200)}px;${isMobile() ? "" : "right:10px"}`);
                 }
             });
             this.editors.push(editor);
@@ -268,7 +273,9 @@ export class BlockPanel {
                             }
                         }
                         // 单击嵌入块悬浮窗的位置最好是覆盖嵌入块
-                        setPosition(this.element, targetRect.left, Math.max(top - 84, Constants.SIZE_TOOLBAR_HEIGHT), 0, 8);
+                        // 防止图片撑高后悬浮窗显示不下，只能设置高度
+                        this.element.style.height = Math.min(window.innerHeight - Constants.SIZE_TOOLBAR_HEIGHT, targetRect.height + 42) + "px";
+                        setPosition(this.element, targetRect.left, Math.max(top - 42, Constants.SIZE_TOOLBAR_HEIGHT), -42, 0);
                     } else if (this.targetElement) {
                         if (this.targetElement.classList.contains("pdf__rect")) {
                             targetRect = this.targetElement.firstElementChild.getBoundingClientRect();
@@ -283,14 +290,18 @@ export class BlockPanel {
                         setPosition(this.element, targetRect.left, targetRect.bottom + 4, targetRect.height + 12, 8);
                     } else if (typeof this.x === "number" && typeof this.y === "number") {
                         setPosition(this.element, this.x, this.y);
+                        this.element.style.maxHeight = Math.floor(window.innerHeight - Math.max(this.y, Constants.SIZE_TOOLBAR_HEIGHT) - 12) + "px";
                     }
                     const elementRect = this.element.getBoundingClientRect();
-                    if (this.targetElement && elementRect.top < targetRect.top) {
-                        this.element.style.maxHeight = Math.floor(targetRect.top - elementRect.top - 8) + "px";
-                    } else {
-                        this.element.style.maxHeight = Math.floor(window.innerHeight - elementRect.top - 8) + "px";
+                    if (this.targetElement && !this.targetElement.classList.contains("protyle-wysiwyg__embed")) {
+                        if (elementRect.top < targetRect.top) {
+                            this.element.style.maxHeight = Math.floor(targetRect.top - elementRect.top - 8) + "px";
+                        } else {
+                            this.element.style.maxHeight = Math.floor(window.innerHeight - elementRect.top - 8) + "px";
+                        }
                     }
                     this.element.classList.add("block__popover--open");
+                    this.element.style.zIndex = (++window.siyuan.zIndex).toString();
                 } : undefined);
             } else {
                 observer.observe(item);

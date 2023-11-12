@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
@@ -37,6 +38,7 @@ import (
 	"github.com/88250/lute/parse"
 	"github.com/dustin/go-humanize"
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/imroc/req/v3"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
@@ -87,6 +89,12 @@ func NetImg2LocalAssets(rootID, originalURL string) (err error) {
 			return
 		}
 	}
+
+	browserClient := req.C().
+		SetUserAgent(util.UserAgent).
+		SetTimeout(30 * time.Second).
+		EnableInsecureSkipVerify(). // HTTPS certificate is no longer verified when `Convert network images to local images` https://github.com/siyuan-note/siyuan/issues/9080
+		SetProxy(httpclient.ProxyFromEnvironment)
 
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if !entering {
@@ -140,7 +148,8 @@ func NetImg2LocalAssets(rootID, originalURL string) (err error) {
 					//}
 				}
 				util.PushUpdateMsg(msgId, fmt.Sprintf(Conf.Language(119), u), 15000)
-				request := httpclient.NewBrowserRequest()
+				request := browserClient.R()
+				request.SetRetryCount(1).SetRetryFixedInterval(3 * time.Second)
 				if "" != originalURL {
 					request.SetHeader("Referer", originalURL) // 改进浏览器剪藏扩展转换本地图片成功率 https://github.com/siyuan-note/siyuan/issues/7464
 				}
@@ -211,11 +220,26 @@ func NetImg2LocalAssets(rootID, originalURL string) (err error) {
 	return
 }
 
-func SearchAssetsByName(keyword string) (ret []*cache.Asset) {
+func SearchAssetsByName(keyword string, exts []string) (ret []*cache.Asset) {
 	ret = []*cache.Asset{}
 
 	count := 0
+	filterByExt := 0 < len(exts)
 	for _, asset := range cache.GetAssets() {
+		if filterByExt {
+			ext := filepath.Ext(asset.HName)
+			includeExt := false
+			for _, e := range exts {
+				if strings.ToLower(ext) == strings.ToLower(e) {
+					includeExt = true
+					break
+				}
+			}
+			if !includeExt {
+				continue
+			}
+		}
+
 		if !strings.Contains(strings.ToLower(asset.HName), strings.ToLower(keyword)) {
 			continue
 		}
@@ -416,7 +440,7 @@ func RemoveUnusedAssets() (ret []string) {
 	var hashes []string
 	for _, p := range unusedAssets {
 		historyPath := filepath.Join(historyDir, p)
-		if p = filepath.Join(util.DataDir, p); gulu.File.IsExist(p) {
+		if p = filepath.Join(util.DataDir, p); filelock.IsExist(p) {
 			if err = filelock.Copy(p, historyPath); nil != err {
 				return
 			}
@@ -429,7 +453,7 @@ func RemoveUnusedAssets() (ret []string) {
 	sql.BatchRemoveAssetsQueue(hashes)
 
 	for _, unusedAsset := range unusedAssets {
-		if unusedAsset = filepath.Join(util.DataDir, unusedAsset); gulu.File.IsExist(unusedAsset) {
+		if unusedAsset = filepath.Join(util.DataDir, unusedAsset); filelock.IsExist(unusedAsset) {
 			if err := os.RemoveAll(unusedAsset); nil != err {
 				logging.LogErrorf("remove unused asset [%s] failed: %s", unusedAsset, err)
 			}
@@ -447,7 +471,7 @@ func RemoveUnusedAssets() (ret []string) {
 
 func RemoveUnusedAsset(p string) (ret string) {
 	absPath := filepath.Join(util.DataDir, p)
-	if !gulu.File.IsExist(absPath) {
+	if !filelock.IsExist(absPath) {
 		return absPath
 	}
 
@@ -459,7 +483,7 @@ func RemoveUnusedAsset(p string) (ret string) {
 
 	newP := strings.TrimPrefix(absPath, util.DataDir)
 	historyPath := filepath.Join(historyDir, newP)
-	if gulu.File.IsExist(absPath) {
+	if filelock.IsExist(absPath) {
 		if err = filelock.Copy(absPath, historyPath); nil != err {
 			return
 		}
@@ -503,6 +527,15 @@ func RenameAsset(oldPath, newName string) (err error) {
 		logging.LogErrorf("copy asset [%s] failed: %s", oldPath, err)
 		return
 	}
+
+	if filelock.IsExist(filepath.Join(util.DataDir, oldPath+".sya")) {
+		// Rename the .sya annotation file when renaming a PDF asset https://github.com/siyuan-note/siyuan/issues/9390
+		if err = filelock.Copy(filepath.Join(util.DataDir, oldPath+".sya"), filepath.Join(util.DataDir, newPath+".sya")); nil != err {
+			logging.LogErrorf("copy PDF annotation [%s] failed: %s", oldPath+".sya", err)
+			return
+		}
+	}
+
 	oldName := path.Base(oldPath)
 
 	notebooks, err := ListNotebooks()
@@ -654,6 +687,37 @@ func UnusedAssets() (ret []string) {
 			continue
 		}
 	}
+
+	// 排除数据库中引用的资源文件
+	storageAvDir := filepath.Join(util.DataDir, "storage", "av")
+	if gulu.File.IsDir(storageAvDir) {
+		entries, readErr := os.ReadDir(storageAvDir)
+		if nil != readErr {
+			logging.LogErrorf("read dir [%s] failed: %s", storageAvDir, readErr)
+			err = readErr
+			return
+		}
+
+		for _, entry := range entries {
+			if !strings.HasSuffix(entry.Name(), ".json") || !ast.IsNodeIDPattern(strings.TrimSuffix(entry.Name(), ".json")) {
+				continue
+			}
+
+			data, readDataErr := filelock.ReadFile(filepath.Join(util.DataDir, "storage", "av", entry.Name()))
+			if nil != readDataErr {
+				logging.LogErrorf("read file [%s] failed: %s", entry.Name(), readDataErr)
+				err = readDataErr
+				return
+			}
+
+			for asset, _ := range assetsPathMap {
+				if bytes.Contains(data, []byte(asset)) {
+					toRemoves = append(toRemoves, asset)
+				}
+			}
+		}
+	}
+
 	for _, toRemove := range toRemoves {
 		delete(assetsPathMap, toRemove)
 	}
@@ -740,7 +804,7 @@ func MissingAssets() (ret []string) {
 			if "" == assetsPathMap[dest] {
 				if strings.HasPrefix(dest, "assets/.") {
 					// Assets starting with `.` should not be considered missing assets https://github.com/siyuan-note/siyuan/issues/8821
-					if !gulu.File.IsExist(filepath.Join(util.DataDir, dest)) {
+					if !filelock.IsExist(filepath.Join(util.DataDir, dest)) {
 						ret = append(ret, dest)
 					}
 				} else {
@@ -843,6 +907,12 @@ func assetsLinkDestsInTree(tree *parse.Tree) (ret []string) {
 		return ast.WalkContinue
 	})
 	ret = gulu.Str.RemoveDuplicatedElem(ret)
+	for i, dest := range ret {
+		// 对于 macOS 的 rtfd 文件夹格式需要特殊处理，为其加上结尾 /
+		if strings.HasSuffix(dest, ".rtfd") {
+			ret[i] = dest + "/"
+		}
+	}
 	return
 }
 

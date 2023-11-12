@@ -31,6 +31,14 @@ import (
 	"github.com/siyuan-note/logging"
 )
 
+func IsSymlinkPath(absPath string) bool {
+	fi, err := os.Lstat(absPath)
+	if nil != err {
+		return false
+	}
+	return 0 != fi.Mode()&os.ModeSymlink
+}
+
 func IsEmptyDir(p string) bool {
 	if !gulu.File.IsDir(p) {
 		return false
@@ -134,14 +142,20 @@ func FilterUploadFileName(name string) string {
 
 func TruncateLenFileName(name string) (ret string) {
 	// 插入资源文件时文件名长度最大限制 189 字节 https://github.com/siyuan-note/siyuan/issues/7099
+	ext := filepath.Ext(name)
 	var byteCount int
+	truncated := false
 	buf := bytes.Buffer{}
 	for _, r := range name {
 		byteCount += utf8.RuneLen(r)
-		if 189 < byteCount {
+		if 189-len(ext) < byteCount {
+			truncated = true
 			break
 		}
 		buf.WriteRune(r)
+	}
+	if truncated {
+		buf.WriteString(ext)
 	}
 	ret = buf.String()
 	return

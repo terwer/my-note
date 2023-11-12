@@ -5,7 +5,6 @@
   border: 1px solid var(--b3-theme-surface-lighter);
   background-color: var(--b3-menu-background);
   padding: 8px 0;
-  z-index: 210;
   box-sizing: border-box;
 
   &::-webkit-scrollbar,
@@ -43,14 +42,14 @@
 
     .b3-menu {
       &__submenu {
-        top: 48.5px;
+        top: 48px;
         left: 0;
         bottom: 0;
         max-height: none;
         right: 0;
         box-shadow: none;
         border: 0;
-        padding: 24px 0;
+        padding: 0;
         border-radius: 0;
 
         & > .b3-menu__item:first-child {
@@ -168,7 +167,10 @@
 
     &[disabled="disabled"] {
       cursor: not-allowed;
-      opacity: 0.38;
+
+      & > *:not(.b3-menu__submenu) {
+        opacity: 0.38;
+      }
     }
 
     &--show {
@@ -208,7 +210,7 @@
       color: var(--b3-theme-primary);
     }
 
-    &--current {
+    &--current:not(.b3-menu__item--readonly) {
       background-color: var(--b3-list-hover);
 
       & > .b3-menu__action {
@@ -284,7 +286,7 @@
     border: 1px solid var(--b3-theme-surface-lighter);
     border-radius: var(--b3-border-radius-b);
     background-color: var(--b3-menu-background);
-    padding: 8px;
+    padding: 8px 0;
     position: fixed;
     box-shadow: var(--b3-dialog-shadow);
     z-index: 1;
@@ -294,7 +296,7 @@
     font-size: 0.75rem;
     margin-left: 16px;
     color: var(--b3-theme-on-surface);
-    font-family: Consolas, Monaco, monospace;
+    font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace, var(--b3-font-family);
   }
 
   // for protyle hint
@@ -315,15 +317,15 @@
 .emojis {
   word-break: break-all;
   white-space: normal;
-  height: 50vh;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  max-height: 386px;
+  padding: 8px 0;
+  height: 100%;
+  box-sizing: border-box;
 
   &__item {
     font-size: 24px;
-    line-height: 24px;
+    line-height: 0.9em; // windows 需要这样设置
     font-family: var(--b3-font-family-emoji);
     text-align: center;
     height: 28px;
@@ -333,7 +335,7 @@
     transition: var(--b3-transition);
     background-color: transparent;
     border: 0;
-    margin: 0;
+    margin: 1px;
     overflow: hidden;
 
     img, svg {

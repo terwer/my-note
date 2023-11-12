@@ -46,6 +46,8 @@ import (
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/riff"
+	"github.com/siyuan-note/siyuan/kernel/av"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
@@ -411,6 +413,19 @@ func ExportDocx(id, savePath string, removeAssets, merge bool) (err error) {
 		"-o", tmpDocxPath,
 	}
 
+	// Pandoc template for exporting docx https://github.com/siyuan-note/siyuan/issues/8740
+	docxTemplate := gulu.Str.RemoveInvisible(Conf.Export.DocxTemplate)
+	docxTemplate = strings.TrimSpace(docxTemplate)
+	if "" != docxTemplate {
+		if !gulu.File.IsExist(docxTemplate) {
+			logging.LogErrorf("docx template [%s] not found", docxTemplate)
+			msg := fmt.Sprintf(Conf.Language(197), docxTemplate)
+			return errors.New(msg)
+		}
+
+		args = append(args, "--reference-doc", docxTemplate)
+	}
+
 	pandoc := exec.Command(Conf.Export.PandocBin, args...)
 	gulu.CmdAttr(pandoc)
 	pandoc.Stdin = bytes.NewBufferString(content)
@@ -510,8 +525,19 @@ func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string
 		theme = Conf.Appearance.ThemeDark
 	}
 	srcs = []string{"icons", "themes/" + theme}
+	appearancePath := util.AppearancePath
+	if util.IsSymlinkPath(util.AppearancePath) {
+		// Support for symlinked theme folder when exporting HTML https://github.com/siyuan-note/siyuan/issues/9173
+		var readErr error
+		appearancePath, readErr = filepath.EvalSymlinks(util.AppearancePath)
+		if nil != readErr {
+			logging.LogErrorf("readlink [%s] failed: %s", util.AppearancePath, readErr)
+			return
+		}
+	}
+
 	for _, src := range srcs {
-		from := filepath.Join(util.AppearancePath, src)
+		from := filepath.Join(appearancePath, src)
 		to := filepath.Join(savePath, "appearance", src)
 		if err := filelock.Copy(from, to); nil != err {
 			logging.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
@@ -559,7 +585,7 @@ func ExportMarkdownHTML(id, savePath string, docx, merge bool) (name, dom string
 	return
 }
 
-func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, dom string) {
+func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, dom string, node *ast.Node) {
 	savePath = strings.TrimSpace(savePath)
 
 	bt := treenode.GetBlockTree(id)
@@ -568,6 +594,7 @@ func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, do
 	}
 
 	tree := prepareExportTree(bt)
+	node = treenode.GetNodeInTree(tree, id)
 
 	if merge {
 		var mergeErr error
@@ -649,8 +676,18 @@ func ExportHTML(id, savePath string, pdf, image, keepFold, merge bool) (name, do
 			theme = Conf.Appearance.ThemeDark
 		}
 		srcs = []string{"icons", "themes/" + theme}
+		appearancePath := util.AppearancePath
+		if util.IsSymlinkPath(util.AppearancePath) {
+			// Support for symlinked theme folder when exporting HTML https://github.com/siyuan-note/siyuan/issues/9173
+			var readErr error
+			appearancePath, readErr = filepath.EvalSymlinks(util.AppearancePath)
+			if nil != readErr {
+				logging.LogErrorf("readlink [%s] failed: %s", util.AppearancePath, readErr)
+				return
+			}
+		}
 		for _, src := range srcs {
-			from := filepath.Join(util.AppearancePath, src)
+			from := filepath.Join(appearancePath, src)
 			to := filepath.Join(savePath, "appearance", src)
 			if err := filelock.Copy(from, to); nil != err {
 				logging.LogErrorf("copy appearance from [%s] to [%s] failed: %s", from, savePath, err)
@@ -896,6 +933,7 @@ func processPDFLinkEmbedAssets(pdfCtx *pdfcpu.Context, assetDests []string, remo
 	now := pdfcpu.StringLiteral(pdfcpu.DateString(time.Now()))
 	for _, link := range assetLinks {
 		link.URI = strings.ReplaceAll(link.URI, "http://"+util.LocalHost+":"+util.ServerPort+"/export/temp/", "")
+		link.URI = strings.ReplaceAll(link.URI, "http://"+util.LocalHost+":"+util.ServerPort+"/", "") // Exporting PDF embedded asset files as attachments fails https://github.com/siyuan-note/siyuan/issues/7414#issuecomment-1704573557
 		link.URI, _ = url.PathUnescape(link.URI)
 		if idx := strings.Index(link.URI, "?"); 0 < idx {
 			link.URI = link.URI[:idx]
@@ -1080,7 +1118,7 @@ func ExportPandocConvertZip(id, pandocTo, ext string) (name, zipPath string) {
 		docPaths = append(docPaths, docFile.path)
 	}
 
-	zipPath = exportPandocConvertZip(boxID, baseFolderName, docPaths, "gfm+footnotes", pandocTo, ext)
+	zipPath = exportPandocConvertZip(boxID, baseFolderName, docPaths, "gfm+footnotes+hard_line_breaks", pandocTo, ext)
 	name = strings.TrimSuffix(filepath.Base(block.Path), ".sy")
 	return
 }
@@ -1309,7 +1347,7 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 
 			if !gulu.File.IsDir(srcPath) && strings.HasSuffix(strings.ToLower(srcPath), ".pdf") {
 				sya := srcPath + ".sya"
-				if gulu.File.IsExist(sya) {
+				if filelock.IsExist(sya) {
 					// Related PDF annotation information is not exported when exporting .sy.zip https://github.com/siyuan-note/siyuan/issues/7836
 					if syaErr := filelock.Copy(sya, destPath+".sya"); nil != syaErr {
 						logging.LogErrorf("copy sya from [%s] to [%s] failed: %s", sya, destPath+".sya", syaErr)
@@ -1321,13 +1359,58 @@ func exportSYZip(boxID, rootDirPath, baseFolderName string, docPaths []string) (
 		}
 	}
 
+	// 导出数据库 Attribute View export https://github.com/siyuan-note/siyuan/issues/8710
+	exportStorageAvDir := filepath.Join(exportFolder, "storage", "av")
+	for _, tree := range trees {
+		ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+			if !entering {
+				return ast.WalkContinue
+			}
+
+			if ast.NodeAttributeView != n.Type {
+				return ast.WalkContinue
+			}
+
+			avID := n.AttributeViewID
+			avJSONPath := av.GetAttributeViewDataPath(avID)
+			if !filelock.IsExist(avJSONPath) {
+				return ast.WalkContinue
+			}
+
+			if copyErr := filelock.Copy(avJSONPath, filepath.Join(exportStorageAvDir, avID+".json")); nil != copyErr {
+				logging.LogErrorf("copy av json failed: %s", copyErr)
+			}
+			return ast.WalkContinue
+		})
+	}
+
+	// 导出闪卡 Export related flashcard data when exporting .sy.zip https://github.com/siyuan-note/siyuan/issues/9372
+	exportStorageRiffDir := filepath.Join(exportFolder, "storage", "riff")
+	deck, loadErr := riff.LoadDeck(exportStorageRiffDir, builtinDeckID, Conf.Flashcard.RequestRetention, Conf.Flashcard.MaximumInterval, Conf.Flashcard.Weights)
+	if nil != loadErr {
+		logging.LogErrorf("load deck [%s] failed: %s", name, loadErr)
+	} else {
+		for _, tree := range trees {
+			cards := getTreeFlashcards(tree.ID)
+
+			for _, card := range cards {
+				deck.AddCard(card.ID(), card.BlockID())
+			}
+		}
+		if 0 < deck.CountCards() {
+			if saveErr := deck.Save(); nil != saveErr {
+				logging.LogErrorf("save deck [%s] failed: %s", name, saveErr)
+			}
+		}
+	}
+
 	// 导出自定义排序
 	sortPath := filepath.Join(util.DataDir, box.ID, ".siyuan", "sort.json")
 	fullSortIDs := map[string]int{}
 	sortIDs := map[string]int{}
 	var sortData []byte
 	var sortErr error
-	if gulu.File.IsExist(sortPath) {
+	if filelock.IsExist(sortPath) {
 		sortData, sortErr = filelock.ReadFile(sortPath)
 		if nil != sortErr {
 			logging.LogErrorf("read sort conf failed: %s", sortErr)
@@ -1440,6 +1523,25 @@ func exportMarkdownContent0(tree *parse.Tree, cloudAssetsBase string, assetsDest
 			}
 			return ast.WalkContinue
 		})
+	}
+
+	// When exporting Markdown, `<br />` nodes in non-tables are replaced with `\n` text nodes https://github.com/siyuan-note/siyuan/issues/9509
+	var unlinks []*ast.Node
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if ast.NodeBr == n.Type {
+			if !n.ParentIs(ast.NodeTableCell) {
+				n.InsertBefore(&ast.Node{Type: ast.NodeText, Tokens: []byte("\n")})
+				unlinks = append(unlinks, n)
+			}
+		}
+		return ast.WalkContinue
+	})
+	for _, unlink := range unlinks {
+		unlink.Unlink()
 	}
 
 	renderer := render.NewProtyleExportMdRenderer(tree, luteEngine.RenderOptions)
@@ -1784,6 +1886,90 @@ func exportTree(tree *parse.Tree, wysiwyg, expandKaTexMacros, keepFold bool,
 	}
 	for _, emptyParagraph := range emptyParagraphs {
 		emptyParagraph.AppendChild(&ast.Node{Type: ast.NodeText, Tokens: []byte(editor.Zwj)})
+	}
+
+	unlinks = nil
+	// Attribute View export https://github.com/siyuan-note/siyuan/issues/8710
+	ast.Walk(ret.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if ast.NodeAttributeView != n.Type {
+			return ast.WalkContinue
+		}
+
+		avID := n.AttributeViewID
+		if avJSONPath := av.GetAttributeViewDataPath(avID); !filelock.IsExist(avJSONPath) {
+			return ast.WalkContinue
+		}
+
+		attrView, err := av.ParseAttributeView(avID)
+		if nil != err {
+			logging.LogErrorf("parse attribute view [%s] failed: %s", avID, err)
+			return ast.WalkContinue
+		}
+
+		view, err := attrView.GetView()
+		if nil != err {
+			logging.LogErrorf("get attribute view [%s] failed: %s", avID, err)
+			return ast.WalkContinue
+		}
+
+		table, err := renderAttributeViewTable(attrView, view)
+		if nil != err {
+			logging.LogErrorf("render attribute view [%s] table failed: %s", avID, err)
+			return ast.WalkContinue
+		}
+
+		var aligns []int
+		for range table.Columns {
+			aligns = append(aligns, 0)
+		}
+		mdTable := &ast.Node{Type: ast.NodeTable, TableAligns: aligns}
+		mdTableHead := &ast.Node{Type: ast.NodeTableHead}
+		mdTable.AppendChild(mdTableHead)
+		mdTableHeadRow := &ast.Node{Type: ast.NodeTableRow, TableAligns: aligns}
+		mdTableHead.AppendChild(mdTableHeadRow)
+		for _, col := range table.Columns {
+			cell := &ast.Node{Type: ast.NodeTableCell}
+			cell.AppendChild(&ast.Node{Type: ast.NodeText, Tokens: []byte(col.Name)})
+			mdTableHeadRow.AppendChild(cell)
+		}
+		for _, row := range table.Rows {
+			mdTableRow := &ast.Node{Type: ast.NodeTableRow, TableAligns: aligns}
+			mdTable.AppendChild(mdTableRow)
+			for _, cell := range row.Cells {
+				mdTableCell := &ast.Node{Type: ast.NodeTableCell}
+				mdTableRow.AppendChild(mdTableCell)
+				var val string
+				if nil != cell.Value {
+					if av.KeyTypeDate == cell.Value.Type {
+						if nil != cell.Value.Date {
+							cell.Value.Date = av.NewFormattedValueDate(cell.Value.Date.Content, cell.Value.Date.Content2, av.DateFormatNone, cell.Value.Date.IsNotTime)
+						}
+					} else if av.KeyTypeCreated == cell.Value.Type {
+						if nil != cell.Value.Created {
+							cell.Value.Created = av.NewFormattedValueCreated(cell.Value.Created.Content, 0, av.CreatedFormatNone)
+						}
+					} else if av.KeyTypeUpdated == cell.Value.Type {
+						if nil != cell.Value.Updated {
+							cell.Value.Updated = av.NewFormattedValueUpdated(cell.Value.Updated.Content, 0, av.UpdatedFormatNone)
+						}
+					}
+
+					val = cell.Value.String()
+				}
+				mdTableCell.AppendChild(&ast.Node{Type: ast.NodeText, Tokens: []byte(val)})
+			}
+		}
+
+		n.InsertBefore(mdTable)
+		unlinks = append(unlinks, n)
+		return ast.WalkContinue
+	})
+	for _, n := range unlinks {
+		n.Unlink()
 	}
 	return ret
 }

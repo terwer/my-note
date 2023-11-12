@@ -114,7 +114,27 @@ func GetBlockRefText(id string) string {
 	if nil == node {
 		return ErrBlockNotFound.Error()
 	}
+
+	ast.Walk(node, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if n.IsTextMarkType("inline-memo") {
+			// Block ref anchor text no longer contains contents of inline-level memos https://github.com/siyuan-note/siyuan/issues/9363
+			n.TextMarkInlineMemoContent = ""
+			return ast.WalkContinue
+		}
+		return ast.WalkContinue
+	})
 	return getNodeRefText(node)
+}
+
+func GetDOMText(dom string) (ret string) {
+	luteEngine := NewLute()
+	tree := luteEngine.BlockDOM2Tree(dom)
+	ret = renderBlockText(tree.Root.FirstChild, nil)
+	return
 }
 
 func getBlockRefText(id string, tree *parse.Tree) (ret string) {
@@ -129,12 +149,19 @@ func getBlockRefText(id string, tree *parse.Tree) (ret string) {
 }
 
 func getNodeRefText(node *ast.Node) string {
+	if nil == node {
+		return ""
+	}
+
 	if ret := node.IALAttr("name"); "" != ret {
 		ret = strings.TrimSpace(ret)
 		ret = util.EscapeHTML(ret)
 		return ret
 	}
+	return getNodeRefText0(node)
+}
 
+func getNodeRefText0(node *ast.Node) string {
 	switch node.Type {
 	case ast.NodeBlockQueryEmbed:
 		return "Query Embed Block..."
@@ -277,6 +304,8 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 		name := util.EscapeHTML(parent.IALAttr("name"))
 		if ast.NodeDocument == parent.Type {
 			name = util.EscapeHTML(box.Name) + util.EscapeHTML(hPath)
+		} else if ast.NodeAttributeView == parent.Type {
+			name = treenode.GetAttributeViewName(parent.AttributeViewID)
 		} else {
 			if "" == name {
 				if ast.NodeListItem == parent.Type {

@@ -68,7 +68,7 @@ export const openBookmarkMenu = (element: HTMLElement, event: MouseEvent, bookma
             label: window.siyuan.languages.remove,
             click: () => {
                 const bookmarkText = element.querySelector(".b3-list-item__text").textContent;
-                confirmDialog(window.siyuan.languages.deleteOpConfirm, `${window.siyuan.languages.confirmDelete} <b>${escapeHtml(bookmarkText)}</b>?`, () => {
+                confirmDialog(window.siyuan.languages.deleteOpConfirm, window.siyuan.languages.removeBookmark.replace("${x}", `<b>${escapeHtml(bookmarkText)}</b>`), () => {
                     if (id) {
                         fetchPost("/api/attr/setBlockAttrs", {id, attrs: {bookmark: ""}}, () => {
                             bookmarkObj.update();
@@ -88,6 +88,5 @@ export const openBookmarkMenu = (element: HTMLElement, event: MouseEvent, bookma
         }).element);
     }
     window.siyuan.menus.menu.element.setAttribute("data-name", "bookmarkMenu");
-    window.siyuan.menus.menu.element.style.zIndex = "221";  // 移动端被右侧栏遮挡
     window.siyuan.menus.menu.popup({x: event.clientX - 11, y: event.clientY + 11, h: 22, w: 12});
 };

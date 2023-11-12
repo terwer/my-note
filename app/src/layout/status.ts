@@ -1,21 +1,22 @@
 /// #if !MOBILE
-import {getDockByType, resizeTabs} from "./util";
+import {getDockByType} from "./tabUtil";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {fetchPost} from "../util/fetch";
 import {mountHelp} from "../util/mount";
 /// #if !BROWSER
-import {getCurrentWindow} from "@electron/remote";
+import { ipcRenderer } from "electron";
 /// #endif
 /// #endif
 import {MenuItem} from "../menus/Menu";
 import {Constants} from "../constants";
-import {resetFloatDockSize} from "./dock/util";
+import {toggleDockBar} from "./dock/util";
+import {updateHotkeyTip} from "../protyle/util/compatibility";
 
 export const initStatus = (isWindow = false) => {
     /// #if !MOBILE
     let barDockHTML = "";
     if (!isWindow) {
-        barDockHTML = `<div id="barDock" class="toolbar__item b3-tooltips b3-tooltips__e${window.siyuan.config.readonly || isWindow ? " fn__none" : ""}" aria-label="${window.siyuan.config.uiLayout.hideDock ? window.siyuan.languages.showDock : window.siyuan.languages.hideDock}">
+        barDockHTML = `<div id="barDock" class="toolbar__item ariaLabel${window.siyuan.config.readonly || isWindow ? " fn__none" : ""}" aria-label="${window.siyuan.languages.toggleDock} ${updateHotkeyTip(window.siyuan.config.keymap.general.toggleDock.custom)}">
     <svg>
         <use xlink:href="#${window.siyuan.config.uiLayout.hideDock ? "iconDock" : "iconHideDock"}"></use>
     </svg>
@@ -26,31 +27,14 @@ export const initStatus = (isWindow = false) => {
 <div class="fn__flex-1"></div>
 <div class="status__backgroundtask fn__none"></div>
 <div class="status__counter"></div>
-<div id="statusHelp" class="toolbar__item b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.help}">
+<div id="statusHelp" class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages.help}">
     <svg><use xlink:href="#iconHelp"></use></svg>
 </div>`;
     document.querySelector("#status").addEventListener("click", (event) => {
         let target = event.target as HTMLElement;
         while (target.id !== "status") {
             if (target.id === "barDock") {
-                const useElement = target.firstElementChild.firstElementChild;
-                const dockIsShow = useElement.getAttribute("xlink:href") === "#iconHideDock";
-                if (dockIsShow) {
-                    useElement.setAttribute("xlink:href", "#iconDock");
-                    target.setAttribute("aria-label", window.siyuan.languages.showDock);
-                } else {
-                    useElement.setAttribute("xlink:href", "#iconHideDock");
-                    target.setAttribute("aria-label", window.siyuan.languages.hideDock);
-                }
-                document.querySelectorAll(".dock").forEach(item => {
-                    if (dockIsShow) {
-                        item.classList.add("fn__none");
-                    } else if (item.querySelectorAll(".dock__item").length > 1) {
-                        item.classList.remove("fn__none");
-                    }
-                });
-                resizeTabs();
-                resetFloatDockSize();
+                toggleDockBar(target.firstElementChild.firstElementChild);
                 event.stopPropagation();
                 break;
             } else if (target.classList.contains("status__backgroundtask")) {
@@ -69,7 +53,7 @@ export const initStatus = (isWindow = false) => {
                     }).element);
                 });
                 const rect = target.getBoundingClientRect();
-                window.siyuan.menus.menu.popup({x: rect.right, y: rect.top}, true);
+                window.siyuan.menus.menu.popup({x: rect.right, y: rect.top, isLeft: true});
                 event.stopPropagation();
                 break;
             } else if (target.id === "statusHelp") {
@@ -103,7 +87,7 @@ export const initStatus = (isWindow = false) => {
                     label: window.siyuan.languages.debug,
                     icon: "iconBug",
                     click: () => {
-                        getCurrentWindow().webContents.openDevTools({mode: "bottom"});
+                        ipcRenderer.send(Constants.SIYUAN_CMD, "openDevTools");
                     }
                 }).element);
                 /// #endif
@@ -122,7 +106,7 @@ export const initStatus = (isWindow = false) => {
                     }
                 }).element);
                 const rect = target.getBoundingClientRect();
-                window.siyuan.menus.menu.popup({x: rect.right, y: rect.top}, true);
+                window.siyuan.menus.menu.popup({x: rect.right, y: rect.top, isLeft: true});
                 event.stopPropagation();
                 break;
             } else if (target.classList.contains("b3-menu__item")) {
@@ -211,6 +195,9 @@ export const renderStatusbarCounter = (stat: {
     imageCount: number,
     refCount: number
 }) => {
+    if(!stat) {
+        return;
+    }
     let html = `<span class="ft__on-surface">${window.siyuan.languages.runeCount}</span>&nbsp;${stat.runeCount}<span class="fn__space"></span>
 <span class="ft__on-surface">${window.siyuan.languages.wordCount}</span>&nbsp;${stat.wordCount}<span class="fn__space"></span>`;
     if (0 < stat.linkCount) {

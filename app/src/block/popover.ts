@@ -16,13 +16,21 @@ export const initBlockPopover = (app: App) => {
         }
         const aElement = hasClosestByAttribute(event.target, "data-type", "a", true) ||
             hasClosestByAttribute(event.target, "data-type", "tab-header") ||
+            hasClosestByClassName(event.target, "av__celltext") ||
             hasClosestByClassName(event.target, "ariaLabel") ||
             hasClosestByAttribute(event.target, "data-type", "inline-memo");
         if (aElement) {
             let tip = aElement.getAttribute("aria-label") || aElement.getAttribute("data-inline-memo-content");
-            // 折叠块标文案替换
-            if (hasClosestByAttribute(event.target, "data-type", "fold", true)) {
-                tip = window.siyuan.languages.fold;
+            if (aElement.classList.contains("av__celltext")) {
+                if (aElement.scrollWidth > aElement.parentElement.clientWidth - 11) {
+                    if (aElement.querySelector(".av__cellicon")) {
+                        tip = `${aElement.firstChild.textContent} ➡️ ${aElement.lastChild.textContent}`;
+                    } else {
+                        tip = aElement.textContent;
+                    }
+                } else {
+                    return;
+                }
             }
             if (!tip) {
                 tip = aElement.getAttribute("data-href");
@@ -36,8 +44,13 @@ export const initBlockPopover = (app: App) => {
                 event.stopPropagation();
                 return;
             }
-        } else if (!aElement && !hasClosestByAttribute(event.target, "id", "tooltip", true)) {
-            hideTooltip();
+        } else if (!aElement) {
+            const tipElement = hasClosestByAttribute(event.target, "id", "tooltip", true);
+            if (!tipElement || (
+                tipElement && (tipElement.clientHeight >= tipElement.scrollHeight && tipElement.clientWidth >= tipElement.scrollWidth)
+            )) {
+                hideTooltip();
+            }
         }
         if (window.siyuan.config.editor.floatWindowMode === 1 || window.siyuan.shiftIsPressed) {
             clearTimeout(timeoutHide);
@@ -46,6 +59,10 @@ export const initBlockPopover = (app: App) => {
             }, 200);
 
             if (!getTarget(event, aElement)) {
+                return;
+            }
+            // https://github.com/siyuan-note/siyuan/issues/9007
+            if (event.relatedTarget && !document.contains(event.relatedTarget as Node)) {
                 return;
             }
             if (window.siyuan.ctrlIsPressed) {
@@ -136,8 +153,7 @@ const hidePopover = (event: MouseEvent & { target: HTMLElement, path: HTMLElemen
         } else {
             for (let i = 0; i < window.siyuan.blockPanels.length; i++) {
                 const item = window.siyuan.blockPanels[i];
-                if ((item.targetElement || typeof item.x === "number") && item.element.getAttribute("data-pin") === "false" &&
-                    parseInt(item.element.getAttribute("data-level")) > (maxEditLevels[item.element.getAttribute("data-oid")] || 0)) {
+                if ((item.targetElement || typeof item.x === "number") && item.element.getAttribute("data-pin") === "false") {
                     item.destroy();
                     i--;
                 }
@@ -158,8 +174,9 @@ const getTarget = (event: MouseEvent & { target: HTMLElement }, aElement: false 
     if (!popoverTargetElement) {
         popoverTargetElement = hasClosestByClassName(event.target, "popover__block") as HTMLElement;
     }
-    if (!popoverTargetElement && aElement && aElement.getAttribute("data-href")?.startsWith("siyuan://blocks") &&
-        aElement.getAttribute("prevent-popover") !== "true") {
+    if (!popoverTargetElement && aElement && (
+        (aElement.getAttribute("data-href")?.startsWith("siyuan://blocks") && aElement.getAttribute("prevent-popover") !== "true") ||
+        (aElement.classList.contains("av__celltext") && aElement.dataset.type === "url"))) {
         popoverTargetElement = aElement;
     }
     if (!popoverTargetElement || window.siyuan.altIsPressed ||
@@ -210,6 +227,9 @@ export const showPopover = async (app: App, showRef = false) => {
     } else if (popoverTargetElement.getAttribute("data-type")?.split(" ").includes("a")) {
         // 以思源协议开头的链接
         ids = [getIdFromSYProtocol(popoverTargetElement.getAttribute("data-href"))];
+    } else if (popoverTargetElement.dataset.type === "url") {
+        // 在 database 的 url 列中以思源协议开头的链接
+        ids = [getIdFromSYProtocol(popoverTargetElement.textContent.trim())];
     } else {
         // pdf
         let targetId;

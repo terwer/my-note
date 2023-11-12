@@ -1,4 +1,3 @@
-import {setTitle} from "../../dialog/processSystem";
 import {Constants} from "../../constants";
 import {hideElements} from "../ui/hideElements";
 import {fetchPost} from "../../util/fetch";
@@ -17,6 +16,7 @@ import {isMobile} from "../../util/functions";
 import {foldPassiveType} from "../wysiwyg/renderBacklink";
 import {showMessage} from "../../dialog/message";
 import {avRender} from "../render/av/render";
+import {hideTooltip} from "../../dialog/tooltip";
 
 export const onGet = (options: {
     data: IWebSocketData,
@@ -91,8 +91,10 @@ export const onGet = (options: {
         if (options.protyle.options.render.title) {
             // 页签没有打开
             options.protyle.title.render(options.protyle, response);
-        } else if (options.protyle.options.render.background) {
-            options.protyle.background.render(response.data.ial, options.protyle.block.rootID);
+        } else {
+            if (options.protyle.options.render.background) {
+                options.protyle.background.render(response.data.ial, options.protyle.block.rootID);
+            }
             options.protyle.wysiwyg.renderCustom(response.data.ial);
         }
 
@@ -104,9 +106,6 @@ export const onGet = (options: {
             isSyncing: options.data.data.isSyncing,
             afterCB: options.afterCB,
         }, options.protyle);
-        if (options.protyle.model) {
-            setTitle(response.data.ial.title);
-        }
         removeLoading(options.protyle);
     });
 };
@@ -147,17 +146,26 @@ const setHTML = (options: {
         }
         protyle.wysiwyg.element.insertAdjacentHTML("beforeend", options.content);
     } else if (options.action.includes(Constants.CB_GET_BEFORE)) {
-        const lastElement = protyle.wysiwyg.element.firstElementChild as HTMLElement;
-        const lastTop = lastElement.getBoundingClientRect().top;
+        const firstElement = protyle.wysiwyg.element.firstElementChild as HTMLElement;
+        const lastTop = firstElement.getBoundingClientRect().top;
         protyle.wysiwyg.element.insertAdjacentHTML("afterbegin", options.content);
-        protyle.contentElement.scrollTop = protyle.contentElement.scrollTop + (lastElement.getBoundingClientRect().top - lastTop);
+        protyle.contentElement.scrollTop = protyle.contentElement.scrollTop + (firstElement.getBoundingClientRect().top - lastTop);
         protyle.scroll.lastScrollTop = protyle.contentElement.scrollTop;
         // 动态加载移除
         if (!protyle.wysiwyg.element.querySelector(".protyle-wysiwyg--select") && !protyle.scroll.keepLazyLoad) {
-            while (protyle.wysiwyg.element.childElementCount > 2 && protyle.contentElement.scrollHeight > REMOVED_OVER_HEIGHT &&
-            protyle.wysiwyg.element.lastElementChild.getBoundingClientRect().top > window.innerHeight) {
-                protyle.wysiwyg.element.lastElementChild.remove();
+            const removeElements: Element[] = [];
+            let childCount = protyle.wysiwyg.element.childElementCount;
+            let scrollHeight = protyle.contentElement.scrollHeight;
+            let lastElement = protyle.wysiwyg.element.lastElementChild;
+            while (childCount > 2 && scrollHeight > REMOVED_OVER_HEIGHT && lastElement.getBoundingClientRect().top > window.innerHeight) {
+                removeElements.push(lastElement);
+                lastElement = lastElement.previousElementSibling;
+                childCount--;
+                scrollHeight -= lastElement.clientHeight + 8;   // 大部分元素的 margin
             }
+            removeElements.forEach((item) => {
+                item.remove();
+            });
             hideElements(["toolbar"], protyle);
         }
     } else {
@@ -168,7 +176,7 @@ const setHTML = (options: {
     }
     processRender(protyle.wysiwyg.element);
     highlightRender(protyle.wysiwyg.element);
-    avRender(protyle.wysiwyg.element);
+    avRender(protyle.wysiwyg.element, protyle);
     blockRender(protyle, protyle.wysiwyg.element);
     if (options.action.includes(Constants.CB_GET_HISTORY)) {
         return;
@@ -232,7 +240,14 @@ const setHTML = (options: {
             protyle.breadcrumb.element.nextElementSibling.textContent = "";
         }
         protyle.element.removeAttribute("disabled-forever");
-        if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly) {
+        let readOnly = window.siyuan.config.readonly ? "true" : "false";
+        if (readOnly === "false") {
+            readOnly = protyle.wysiwyg.element.getAttribute(Constants.CUSTOM_SY_READONLY);
+            if (!readOnly) {
+                readOnly = window.siyuan.config.editor.readOnly ? "true" : "false";
+            }
+        }
+        if (readOnly === "true") {
             disabledProtyle(protyle);
         } else {
             enableProtyle(protyle);
@@ -249,16 +264,9 @@ const setHTML = (options: {
         });
         protyle.options.defId = undefined;
     }
-    // https://ld246.com/article/1653639418266
-    if (protyle.element.classList.contains("block__edit")) {
-        if (protyle.element.nextElementSibling || protyle.element.previousElementSibling) {
-            protyle.element.style.minHeight = Math.min(30 + protyle.wysiwyg.element.clientHeight, window.innerHeight / 3) + "px";
-        }
-        // 49 = 16（上图标）+16（下图标）+8（padding）+9（底部距离）
-        protyle.scroll.element.parentElement.setAttribute("style", `--b3-dynamicscroll-width:${Math.min(protyle.contentElement.clientHeight - 49, 200)}px;${isMobile() ? "" : "right:10px"}`);
-    }
     // 屏幕太高的页签 https://github.com/siyuan-note/siyuan/issues/5018
     if (!protyle.scroll.element.classList.contains("fn__none") &&
+        !protyle.element.classList.contains("block__edit") &&   // 不能为浮窗，否则悬浮为根文档无法打开整个文档 https://github.com/siyuan-note/siyuan/issues/9082
         protyle.wysiwyg.element.lastElementChild.getAttribute("data-eof") !== "2" &&
         protyle.contentElement.scrollHeight > 0 && // 没有激活的页签 https://github.com/siyuan-note/siyuan/issues/5255
         !options.action.includes(Constants.CB_GET_FOCUSFIRST) && // 防止 eof 为true https://github.com/siyuan-note/siyuan/issues/5291
@@ -273,6 +281,12 @@ const setHTML = (options: {
     }
 
     if (options.action.includes(Constants.CB_GET_APPEND) || options.action.includes(Constants.CB_GET_BEFORE)) {
+        protyle.app.plugins.forEach(item => {
+            item.eventBus.emit("loaded-protyle-dynamic", {
+                protyle,
+                positon: options.action.includes(Constants.CB_GET_APPEND) ? "afterend" : "beforebegin"
+            });
+        });
         return;
     }
     if (protyle.options.render.breadcrumb) {
@@ -283,7 +297,8 @@ const setHTML = (options: {
         options.afterCB();
     }
     protyle.app.plugins.forEach(item => {
-        item.eventBus.emit("loaded-protyle", protyle);
+        item.eventBus.emit("loaded-protyle", protyle);  // 准备废弃
+        item.eventBus.emit("loaded-protyle-static", {protyle});
     });
 };
 
@@ -307,6 +322,9 @@ export const disabledProtyle = (protyle: IProtyle) => {
         titleElement.setAttribute("contenteditable", "false");
         titleElement.style.userSelect = "text";
     }
+    /// #if MOBILE
+    document.getElementById("toolbarName").setAttribute("readonly", "readonly");
+    /// #endif
     if (protyle.background) {
         protyle.background.element.classList.remove("protyle-background--enable");
         protyle.background.element.classList.remove("protyle-background--mobileshow");
@@ -319,6 +337,11 @@ export const disabledProtyle = (protyle: IProtyle) => {
     protyle.wysiwyg.element.querySelectorAll('[contenteditable="true"][spellcheck]').forEach(item => {
         item.setAttribute("contenteditable", "false");
     });
+    if (protyle.breadcrumb) {
+        protyle.breadcrumb.element.parentElement.querySelector('[data-type="readonly"] use').setAttribute("xlink:href", "#iconLock");
+        protyle.breadcrumb.element.parentElement.querySelector('[data-type="readonly"]').setAttribute("aria-label", window.siyuan.languages.unlockEdit);
+    }
+    hideTooltip();
 };
 
 /** 解除编辑器禁用 */
@@ -330,6 +353,7 @@ export const enableProtyle = (protyle: IProtyle) => {
     if (isMobile()) {
         // Android 端空块输入法弹出会收起 https://ld246.com/article/1689713888289
         // iPhone，iPad 端 protyle.wysiwyg.element contenteditable 为 true 时，输入会在块中间插入 span 导致保存失败 https://ld246.com/article/1643473862873/comment/1643813765839#comments
+        document.getElementById("toolbarName").removeAttribute("readonly");
     } else {
         protyle.wysiwyg.element.setAttribute("contenteditable", "true");
         protyle.wysiwyg.element.style.userSelect = "";
@@ -347,6 +371,11 @@ export const enableProtyle = (protyle: IProtyle) => {
             item.setAttribute("contenteditable", "true");
         }
     });
+    if (protyle.breadcrumb) {
+        protyle.breadcrumb.element.parentElement.querySelector('[data-type="readonly"] use').setAttribute("xlink:href", "#iconUnlock");
+        protyle.breadcrumb.element.parentElement.querySelector('[data-type="readonly"]').setAttribute("aria-label", window.siyuan.languages.lockEdit);
+    }
+    hideTooltip();
 };
 
 

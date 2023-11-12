@@ -20,8 +20,8 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
             "historyRetentionDays", "historyRetentionDaysTip", "clearHistory", "katexMacros", "katexMacrosTip",
             "editReadonly", "editReadonlyTip", "embedBlockBreadcrumb", "embedBlockBreadcrumbTip", "outlineOutdentTip",
             "outdent", "floatWindowMode", "floatWindowModeTip", "justify", "justifyTip", "rtl", "rtlTip", "spellcheck",
-            "spellcheckTip", "backlinkExpand", "backlinkExpandTip", "onlySearchForDocTip", "dynamicLoadBlocks",
-            "dynamicLoadBlocksTip", "fontSizeScrollZoom", "fontSizeScrollZoomTip"
+            "spellcheckTip", "backlinkExpand", "backlinkExpandTip", "onlySearchForDoc", "onlySearchForDocTip",
+            "dynamicLoadBlocks", "dynamicLoadBlocksTip", "fontSizeScrollZoom", "fontSizeScrollZoomTip"
         ]),
 
         // 文档树
@@ -32,7 +32,10 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
         // 闪卡
         getLang(["riffCard", "flashcardNewCardLimit", "flashcardNewCardLimitTip", "flashcardReviewCardLimit",
             "flashcardNewCardLimit", "flashcardReviewCardLimitTip", "flashcardMark", "flashcardMarkTip", "flashcardList",
-            "flashcardSuperBlock", "flashcardDeck", "flashcardDeckTip"]),
+            "flashcardSuperBlock", "flashcardHeading", "flashcardDeck", "flashcardDeckTip",
+            "flashcardFSRSParamRequestRetention", "flashcardFSRSParamRequestRetentionTip",
+            "flashcardFSRSParamMaximumInterval", "flashcardFSRSParamMaximumIntervalTip", "flashcardFSRSParamWeights",
+            "flashcardFSRSParamWeightsTip"]),
 
         // AI
         ["AI"].concat(getLang(["ai", "apiTimeout", "apiTimeoutTip", "apiMaxTokens", "apiMaxTokensTip", "apiKey",
@@ -58,7 +61,8 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
         // 搜索
         getLang(["search", "searchLimit", "searchLimit1", "memo", "name", "alias", "keywordsLimit",
             "doc", "headings", "list1", "listItem", "code", "math", "table", "quote", "superBlock", "paragraph",
-            "indexAssetPath"]),
+            "indexAssetPath", "embedBlock", "database", "searchBackmention", "searchVirtualRef", "searchBlockAttr",
+            "searchBlockType", "searchCaseSensitive"]),
 
         // 快捷键
         getLang(["keymap", "keymapTip2"].concat(Object.keys(Constants.SIYUAN_KEYMAP.general))
@@ -80,10 +84,10 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
 
         // 关于
         getLang(["autoLaunch", "autoLaunchTip", "about", "about1", "about2", "about3", "about4", "about5", "about6",
-            "about9", "about10", "about11", "about12", "about13", "about14", "about17", "config", "dataRepoKey",
-            "dataRepoKeyTip1", "dataRepoKeyTip2", "slogan", "currentVer", "checkUpdate", "updatePath", "systemLog",
-            "importKey", "genKey", "genKeyByPW", "copyKey", "resetRepo", "systemLogTip", "export", "visitAnnouncements",
-            "safeQuit", "directConnection", "siyuanNote", "key", "password", "copied", "resetRepoTip",
+            "about7", "about8", "about9", "about10", "about11", "about12", "about13", "about14", "about17", "config",
+            "dataRepoKey", "dataRepoKeyTip1", "dataRepoKeyTip2", "slogan", "currentVer", "checkUpdate", "updatePath",
+            "systemLog", "importKey", "genKey", "genKeyByPW", "copyKey", "resetRepo", "systemLogTip", "export",
+            "downloadLatestVer", "safeQuit", "directConnection", "siyuanNote", "key", "password", "copied", "resetRepoTip",
             "autoDownloadUpdatePkg", "autoDownloadUpdatePkgTip", "networkProxy", "keyPlaceholder", "initRepoKeyTip",
             "googleAnalytics", "googleAnalyticsTip"]),
     ];

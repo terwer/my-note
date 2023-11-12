@@ -16,7 +16,7 @@ import {scrollCenter} from "../../util/highlightById";
 import {hideElements} from "../ui/hideElements";
 import {avRender} from "../render/av/render";
 
-export const pasteEscaped = async (protyle:IProtyle, nodeElement:Element) => {
+export const pasteEscaped = async (protyle: IProtyle, nodeElement: Element) => {
     try {
         // * _ [ ] ! \ ` < > & ~ { } ( ) = # $ ^ |
         let clipText = await readText();
@@ -117,7 +117,7 @@ export const pasteText = (protyle: IProtyle, textPlain: string, nodeElement: Ele
     blockRender(protyle, protyle.wysiwyg.element);
     processRender(protyle.wysiwyg.element);
     highlightRender(protyle.wysiwyg.element);
-    avRender(protyle.wysiwyg.element);
+    avRender(protyle.wysiwyg.element, protyle);
     filterClipboardHint(protyle, textPlain);
     scrollCenter(protyle, undefined, false, "smooth");
 };
@@ -125,10 +125,10 @@ export const pasteText = (protyle: IProtyle, textPlain: string, nodeElement: Ele
 export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEvent) & { target: HTMLElement }) => {
     event.stopPropagation();
     event.preventDefault();
-    let textHTML;
-    let textPlain;
-    let siyuanHTML;
-    let files;
+    let textHTML: string;
+    let textPlain: string;
+    let siyuanHTML: string;
+    let files: FileList | DataTransferItemList;
     if ("clipboardData" in event) {
         textHTML = event.clipboardData.getData("text/html");
         textPlain = event.clipboardData.getData("text/plain");
@@ -194,6 +194,37 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
         textHTML = Lute.Sanitize(textHTML);
     }
 
+    if (protyle && protyle.app && protyle.app.plugins) {
+        for (let i = 0; i < protyle.app.plugins.length; i++) {
+            const response: IObject & { files: FileList } = await new Promise((resolve) => {
+                const emitResult = protyle.app.plugins[i].eventBus.emit("paste", {
+                    protyle,
+                    resolve,
+                    textHTML,
+                    textPlain,
+                    siyuanHTML,
+                    files
+                });
+                if (emitResult) {
+                    resolve(undefined);
+                }
+            });
+
+            if (response?.textHTML) {
+                textHTML = response.textHTML;
+            }
+            if (response?.textPlain) {
+                textPlain = response.textPlain;
+            }
+            if (response?.siyuanHTML) {
+                siyuanHTML = response.siyuanHTML;
+            }
+            if (response?.files) {
+                files = response.files as FileList;
+            }
+        }
+    }
+
     const nodeElement = hasClosestBlock(event.target);
     if (!nodeElement) {
         if (files && files.length > 0) {
@@ -210,6 +241,12 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
     if (nodeElement.getAttribute("data-type") === "NodeCodeBlock" ||
         protyle.toolbar.getCurrentType(range).includes("code")) {
         // 粘贴在代码位置
+        // https://github.com/siyuan-note/siyuan/issues/9142
+        // https://github.com/siyuan-note/siyuan/issues/9323
+        // 需排除行内代码 https://github.com/siyuan-note/siyuan/issues/9369
+        if (nodeElement.querySelector(".protyle-action")?.contains(range.startContainer)) {
+            range.setStart(nodeElement.querySelector(".hljs").firstChild, 0);
+        }
         insertHTML(textPlain, protyle);
         return;
     } else if (siyuanHTML) {
@@ -220,7 +257,7 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
         tempElement.querySelectorAll("[data-node-id]").forEach((e) => {
             const newId = Lute.NewNodeID();
             e.setAttribute("data-node-id", newId);
-            e.removeAttribute("custom-riff-decks");
+            e.removeAttribute(Constants.CUSTOM_RIFF_DECKS);
             e.classList.remove("protyle-wysiwyg--select", "protyle-wysiwyg--hl");
             e.setAttribute("updated", newId.split("-")[0]);
             isBlock = true;
@@ -238,7 +275,7 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
         blockRender(protyle, protyle.wysiwyg.element);
         processRender(protyle.wysiwyg.element);
         highlightRender(protyle.wysiwyg.element);
-        avRender(protyle.wysiwyg.element);
+        avRender(protyle.wysiwyg.element, protyle);
     } else if (code) {
         if (!code.startsWith('<div data-type="NodeCodeBlock" class="code-block" data-node-id="')) {
             // 原有代码在行内元素中粘贴会嵌套
@@ -288,7 +325,7 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
                 blockRender(protyle, protyle.wysiwyg.element);
                 processRender(protyle.wysiwyg.element);
                 highlightRender(protyle.wysiwyg.element);
-                avRender(protyle.wysiwyg.element);
+                avRender(protyle.wysiwyg.element, protyle);
                 filterClipboardHint(protyle, response.data);
                 scrollCenter(protyle, undefined, false, "smooth");
             });
@@ -297,6 +334,7 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
             uploadFiles(protyle, files);
         } else if (textPlain.trim() !== "" && files && files.length === 0) {
             if (range.toString() !== "") {
+                const firstLine = textPlain.split("\n")[0];
                 if (isDynamicRef(textPlain)) {
                     protyle.toolbar.setInlineMark(protyle, "block-ref", "range", {
                         type: "id",
@@ -304,10 +342,10 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
                         color: `${textPlain.substring(2, 22 + 2)}${Constants.ZWSP}s${Constants.ZWSP}${range.toString()}`
                     });
                     return;
-                } else if (isFileAnnotation(textPlain)) {
+                } else if (isFileAnnotation(firstLine)) {
                     protyle.toolbar.setInlineMark(protyle, "file-annotation-ref", "range", {
                         type: "file-annotation-ref",
-                        color: textPlain.substring(2).replace(/ ".+">>$/, "")
+                        color: firstLine.substring(2).replace(/ ".+">>$/, "")
                     });
                     return;
                 } else if (protyle.lute.IsValidLinkDest(textPlain)) {
@@ -326,7 +364,7 @@ export const paste = async (protyle: IProtyle, event: (ClipboardEvent | DragEven
         blockRender(protyle, protyle.wysiwyg.element);
         processRender(protyle.wysiwyg.element);
         highlightRender(protyle.wysiwyg.element);
-        avRender(protyle.wysiwyg.element);
+        avRender(protyle.wysiwyg.element, protyle);
     }
     scrollCenter(protyle, undefined, false, "smooth");
 };

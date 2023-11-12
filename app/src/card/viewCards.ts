@@ -8,7 +8,7 @@ import {getIconByType} from "../editor/getIcon";
 import {unicode2Emoji} from "../emoji";
 import {addLoading} from "../protyle/ui/initUI";
 import {Constants} from "../constants";
-import {disabledProtyle, onGet} from "../protyle/util/onGet";
+import {onGet} from "../protyle/util/onGet";
 import {App} from "../index";
 
 export const viewCards = (app: App, deckID: string, title: string, deckType: "Tree" | "" | "Notebook", cb?: (response: IWebSocketData) => void) => {
@@ -65,9 +65,7 @@ export const viewCards = (app: App, deckID: string, title: string, deckType: "Tr
             if (window.siyuan.mobile) {
                 window.siyuan.mobile.popEditor = edit;
             }
-            if (window.siyuan.config.editor.readOnly) {
-                disabledProtyle(edit.protyle);
-            }
+            dialog.editor = edit;
             getArticle(edit, dialog.element.querySelector(".b3-list-item--focus")?.getAttribute("data-id"));
         }
         const previousElement = dialog.element.querySelector('[data-type="previous"]');
@@ -76,7 +74,6 @@ export const viewCards = (app: App, deckID: string, title: string, deckType: "Tr
         if (response.data.pageCount > 1) {
             nextElement.removeAttribute("disabled");
         }
-        dialog.element.style.zIndex = "200";
         dialog.element.setAttribute("data-key", "viewCards");
         dialog.element.addEventListener("click", (event) => {
             if (typeof event.detail === "string") {
@@ -256,7 +253,9 @@ const getArticle = (edit: Protyle, id: string) => {
         size: Constants.SIZE_GET_MAX,
     }, getResponse => {
         onGet({
-            data: getResponse, protyle: edit.protyle, action: [Constants.CB_GET_ALL, Constants.CB_GET_HTML]
+            data: getResponse,
+            protyle: edit.protyle,
+            action: getResponse.data.rootID === getResponse.data.id ? [Constants.CB_GET_HTML] : [Constants.CB_GET_ALL, Constants.CB_GET_HTML],
         });
     });
 };

@@ -8,7 +8,7 @@ export const openByMobile = (uri: string) => {
     }
     if (window.siyuan.config.system.container === "ios") {
         window.location.href = uri;
-    } else if (window.siyuan.config.system.container === "android" && window.JSAndroid) {
+    } else if (isInAndroid()) {
         window.JSAndroid.openExternal(uri);
     } else {
         window.open(uri);
@@ -16,7 +16,7 @@ export const openByMobile = (uri: string) => {
 };
 
 export const readText = () => {
-    if ("android" === window.siyuan.config.system.container && window.JSAndroid) {
+    if (isInAndroid()) {
         return window.JSAndroid.readClipboard();
     }
     return navigator.clipboard.readText();
@@ -29,19 +29,19 @@ export const writeText = (text: string) => {
     }
     try {
         // navigator.clipboard.writeText 抛出异常不进入 catch，这里需要先处理移动端复制
-        if ("android" === window.siyuan.config.system.container && window.JSAndroid) {
+        if (isInAndroid()) {
             window.JSAndroid.writeClipboard(text);
             return;
         }
-        if ("ios" === window.siyuan.config.system.container && window.webkit?.messageHandlers) {
+        if (isInIOS()) {
             window.webkit.messageHandlers.setClipboard.postMessage(text);
             return;
         }
         navigator.clipboard.writeText(text);
     } catch (e) {
-        if (window.siyuan.config.system.container === "ios" && window.webkit?.messageHandlers) {
+        if (isInIOS()) {
             window.webkit.messageHandlers.setClipboard.postMessage(text);
-        } else if (window.siyuan.config.system.container === "android" && window.JSAndroid) {
+        } else if (isInAndroid()) {
             window.JSAndroid.writeClipboard(text);
         } else {
             const textElement = document.createElement("textarea");
@@ -66,7 +66,7 @@ export const copyPlainText = async (text: string) => {
 
 // 用户 iPhone 点击延迟/需要双击的处理
 export const getEventName = () => {
-    if (navigator.userAgent.indexOf("iPhone") > -1) {
+    if (isIPhone()) {
         return "touchstart";
     } else {
         return "click";
@@ -93,13 +93,29 @@ export const isHuawei = () => {
     return window.siyuan.config.system.osPlatform.toLowerCase().indexOf("huawei") > -1;
 };
 
+export const isIPhone = () => {
+    return navigator.userAgent.indexOf("iPhone") > -1;
+};
+
+export const isIPad = () => {
+    return navigator.userAgent.indexOf("iPad") > -1;
+};
+
 export const isMac = () => {
     return navigator.platform.toUpperCase().indexOf("MAC") > -1;
 };
 
+export const isInAndroid = () => {
+    return window.siyuan.config.system.container === "android" && window.JSAndroid;
+};
+
+export const isInIOS = () => {
+    return window.siyuan.config.system.container === "ios" && window.webkit?.messageHandlers;
+};
+
 // Mac，Windows 快捷键展示
 export const updateHotkeyTip = (hotkey: string) => {
-    if (/Mac/.test(navigator.platform) || navigator.platform === "iPhone") {
+    if (isMac()) {
         return hotkey;
     }
 
@@ -129,25 +145,24 @@ export const updateHotkeyTip = (hotkey: string) => {
     return keys.join("+");
 };
 
-export const hotKey2Electron = (key: string) => {
-    let electronKey = "";
-    if (key.indexOf("⌘") > -1) {
-        electronKey += "CommandOrControl+";
-    }
-    if (key.indexOf("⇧") > -1) {
-        electronKey += "Shift+";
-    }
-    if (key.indexOf("⌥") > -1) {
-        electronKey += "Alt+";
-    }
-    return electronKey + key.substr(key.length - 1);
-};
-
 export const getLocalStorage = (cb: () => void) => {
     fetchPost("/api/storage/getLocalStorage", undefined, (response) => {
         window.siyuan.storage = response.data;
         // 历史数据迁移
         const defaultStorage: any = {};
+        defaultStorage[Constants.LOCAL_SEARCHASSET] = {
+            keys: [],
+            col: "",
+            row: "",
+            layout: 0,
+            method: 0,
+            types: {},
+            sort: 0,
+            k: "",
+        };
+        Constants.SIYUAN_ASSETS_SEARCH.forEach(type => {
+            defaultStorage[Constants.LOCAL_SEARCHASSET].types[type] = true;
+        });
         defaultStorage[Constants.LOCAL_SEARCHKEYS] = {
             keys: [],
             replaceKeys: [],
@@ -166,6 +181,9 @@ export const getLocalStorage = (cb: () => void) => {
         defaultStorage[Constants.LOCAL_LAYOUTS] = [];   // {name: "", layout:{}}
         defaultStorage[Constants.LOCAL_AI] = [];   // {name: "", memo: ""}
         defaultStorage[Constants.LOCAL_PLUGINTOPUNPIN] = [];
+        defaultStorage[Constants.LOCAL_FLASHCARD] = {
+            fullscreen: false
+        };
         defaultStorage[Constants.LOCAL_BAZAAR] = {
             theme: "0",
             template: "0",
@@ -212,13 +230,15 @@ export const getLocalStorage = (cb: () => void) => {
                 superBlock: window.siyuan.config.search.superBlock,
                 paragraph: window.siyuan.config.search.paragraph,
                 embedBlock: window.siyuan.config.search.embedBlock,
+                databaseBlock: window.siyuan.config.search.databaseBlock,
             }
         };
         defaultStorage[Constants.LOCAL_ZOOM] = 1;
 
-        [Constants.LOCAL_EXPORTIMG, Constants.LOCAL_SEARCHKEYS, Constants.LOCAL_PDFTHEME, Constants.LOCAL_BAZAAR, Constants.LOCAL_EXPORTWORD,
-            Constants.LOCAL_EXPORTPDF, Constants.LOCAL_DOCINFO, Constants.LOCAL_FONTSTYLES, Constants.LOCAL_SEARCHDATA,
-            Constants.LOCAL_ZOOM, Constants.LOCAL_LAYOUTS, Constants.LOCAL_AI, Constants.LOCAL_PLUGINTOPUNPIN].forEach((key) => {
+        [Constants.LOCAL_EXPORTIMG, Constants.LOCAL_SEARCHKEYS, Constants.LOCAL_PDFTHEME, Constants.LOCAL_BAZAAR,
+            Constants.LOCAL_EXPORTWORD, Constants.LOCAL_EXPORTPDF, Constants.LOCAL_DOCINFO, Constants.LOCAL_FONTSTYLES,
+            Constants.LOCAL_SEARCHDATA, Constants.LOCAL_ZOOM, Constants.LOCAL_LAYOUTS, Constants.LOCAL_AI,
+            Constants.LOCAL_PLUGINTOPUNPIN, Constants.LOCAL_SEARCHASSET, Constants.LOCAL_FLASHCARD].forEach((key) => {
             if (typeof response.data[key] === "string") {
                 try {
                     const parseData = JSON.parse(response.data[key]);

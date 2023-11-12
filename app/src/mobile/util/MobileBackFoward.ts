@@ -85,12 +85,19 @@ const focusStack = (backStack: IBackStack) => {
         protyle.wysiwyg.element.innerHTML = getResponse.data.content;
         processRender(protyle.wysiwyg.element);
         highlightRender(protyle.wysiwyg.element);
-        avRender(protyle.wysiwyg.element);
+        avRender(protyle.wysiwyg.element, protyle);
         blockRender(protyle, protyle.wysiwyg.element, backStack.scrollTop);
         if (getResponse.data.isSyncing) {
             disabledForeverProtyle(protyle);
         } else {
-            if (protyle.disabled) {
+            let readOnly = window.siyuan.config.readonly ? "true" : "false";
+            if (readOnly === "false") {
+                readOnly = protyle.wysiwyg.element.getAttribute(Constants.CUSTOM_SY_READONLY);
+                if (!readOnly) {
+                    readOnly = window.siyuan.config.editor.readOnly ? "true" : "false";
+                }
+            }
+            if (readOnly === "true") {
                 disabledProtyle(protyle);
             } else {
                 enableProtyle(protyle);
@@ -102,18 +109,20 @@ const focusStack = (backStack: IBackStack) => {
 
 export const pushBack = () => {
     const protyle = getCurrentEditor().protyle;
-    window.siyuan.backStack.push({
-        id: protyle.block.showAll ? protyle.block.id : protyle.block.rootID,
-        data: {
-            startId: protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-id"),
-            endId: protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),
-            notebookId: protyle.notebookId,
-            path: protyle.path,
-        },
-        scrollTop: protyle.contentElement.scrollTop,
-        callback: protyle.block.action,
-        zoomId: protyle.block.showAll ? protyle.block.id : undefined
-    });
+    if (protyle.wysiwyg.element.firstElementChild) {
+        window.siyuan.backStack.push({
+            id: protyle.block.showAll ? protyle.block.id : protyle.block.rootID,
+            data: {
+                startId: protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-id"),
+                endId: protyle.wysiwyg.element.lastElementChild.getAttribute("data-node-id"),
+                notebookId: protyle.notebookId,
+                path: protyle.path,
+            },
+            scrollTop: protyle.contentElement.scrollTop,
+            callback: protyle.block.action,
+            zoomId: protyle.block.showAll ? protyle.block.id : undefined
+        });
+    }
 };
 
 export const goBack = () => {
@@ -123,7 +132,12 @@ export const goBack = () => {
         window.siyuan.menus.menu.element.dispatchEvent(new CustomEvent("click", {detail: "back"}));
         return;
     } else if (document.getElementById("model").style.transform === "translateY(0px)") {
-        document.getElementById("model").style.transform = "";
+        const searchAssetsPanelElement = document.getElementById("searchAssetsPanel");
+        if (!searchAssetsPanelElement || searchAssetsPanelElement.classList.contains("fn__none")) {
+            document.getElementById("model").style.transform = "";
+        } else {
+            searchAssetsPanelElement.classList.add("fn__none");
+        }
         return;
     } else if (window.siyuan.viewer && !window.siyuan.viewer.destroyed) {
         window.siyuan.viewer.destroy();

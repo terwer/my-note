@@ -1,5 +1,6 @@
 import {Tab} from "../Tab";
-import {getDockByType, setPanelFocus} from "../util";
+import {setPanelFocus} from "../util";
+import {getDockByType} from "../tabUtil";
 import {Model} from "../Model";
 import {Constants} from "../../constants";
 import {addScript} from "../../protyle/util/addScript";
@@ -464,7 +465,9 @@ export class Graph extends Model {
                 if (id) {
                     this.blockId = id;
                 }
-                if (!isCurrentEditor(this.blockId)) {
+                if (!isCurrentEditor(this.blockId) &&
+                    this.graphElement.firstElementChild.classList.contains("fn__none") // 引用右键打开关系图
+                ) {
                     return;
                 }
                 this.graphData = response.data;
@@ -653,14 +656,14 @@ export class Graph extends Model {
                             app: this.app,
                             id: node.id,
                             position: "bottom",
-                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]
+                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]
                         });
                     } else if (window.siyuan.altIsPressed) {
                         openFileById({
                             app: this.app,
                             id: node.id,
                             position: "right",
-                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]
+                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]
                         });
                     } else if (window.siyuan.ctrlIsPressed) {
                         window.siyuan.blockPanels.push(new BlockPanel({
@@ -674,7 +677,7 @@ export class Graph extends Model {
                         openFileById({
                             app: this.app,
                             id: node.id,
-                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]
+                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]
                         });
                     }
                 });

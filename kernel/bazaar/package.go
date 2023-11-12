@@ -19,7 +19,6 @@ package bazaar
 import (
 	"bytes"
 	"errors"
-	"golang.org/x/mod/semver"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +33,7 @@ import (
 	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/util"
+	"golang.org/x/mod/semver"
 	textUnicode "golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -77,6 +77,7 @@ type Package struct {
 	Description   *Description `json:"description"`
 	Readme        *Readme      `json:"readme"`
 	Funding       *Funding     `json:"funding"`
+	Keywords      []string     `json:"keywords"`
 
 	PreferredFunding string `json:"preferredFunding"`
 	PreferredName    string `json:"preferredName"`
@@ -240,11 +241,11 @@ func getPreferredFunding(funding *Funding) string {
 
 func PluginJSON(pluginDirName string) (ret *Plugin, err error) {
 	p := filepath.Join(util.DataDir, "plugins", pluginDirName, "plugin.json")
-	if !gulu.File.IsExist(p) {
+	if !filelock.IsExist(p) {
 		err = os.ErrNotExist
 		return
 	}
-	data, err := os.ReadFile(p)
+	data, err := filelock.ReadFile(p)
 	if nil != err {
 		logging.LogErrorf("read plugin.json [%s] failed: %s", p, err)
 		return
@@ -260,11 +261,11 @@ func PluginJSON(pluginDirName string) (ret *Plugin, err error) {
 
 func WidgetJSON(widgetDirName string) (ret *Widget, err error) {
 	p := filepath.Join(util.DataDir, "widgets", widgetDirName, "widget.json")
-	if !gulu.File.IsExist(p) {
+	if !filelock.IsExist(p) {
 		err = os.ErrNotExist
 		return
 	}
-	data, err := os.ReadFile(p)
+	data, err := filelock.ReadFile(p)
 	if nil != err {
 		logging.LogErrorf("read widget.json [%s] failed: %s", p, err)
 		return
@@ -300,11 +301,11 @@ func IconJSON(iconDirName string) (ret *Icon, err error) {
 
 func TemplateJSON(templateDirName string) (ret *Template, err error) {
 	p := filepath.Join(util.DataDir, "templates", templateDirName, "template.json")
-	if !gulu.File.IsExist(p) {
+	if !filelock.IsExist(p) {
 		err = os.ErrNotExist
 		return
 	}
-	data, err := os.ReadFile(p)
+	data, err := filelock.ReadFile(p)
 	if nil != err {
 		logging.LogErrorf("read template.json [%s] failed: %s", p, err)
 		return
@@ -390,7 +391,7 @@ func isOutdatedTheme(theme *Theme, bazaarThemes []*Theme) bool {
 	}
 
 	for _, pkg := range bazaarThemes {
-		if theme.URL == pkg.URL && theme.Name == pkg.Name && theme.Author == pkg.Author && theme.Version < pkg.Version {
+		if theme.URL == pkg.URL && theme.Name == pkg.Name && theme.Author == pkg.Author && 0 > semver.Compare("v"+theme.Version, "v"+pkg.Version) {
 			theme.RepoHash = pkg.RepoHash
 			return true
 		}
@@ -410,7 +411,7 @@ func isOutdatedIcon(icon *Icon, bazaarIcons []*Icon) bool {
 	}
 
 	for _, pkg := range bazaarIcons {
-		if icon.URL == pkg.URL && icon.Name == pkg.Name && icon.Author == pkg.Author && icon.Version < pkg.Version {
+		if icon.URL == pkg.URL && icon.Name == pkg.Name && icon.Author == pkg.Author && 0 > semver.Compare("v"+icon.Version, "v"+pkg.Version) {
 			icon.RepoHash = pkg.RepoHash
 			return true
 		}
@@ -430,7 +431,7 @@ func isOutdatedPlugin(plugin *Plugin, bazaarPlugins []*Plugin) bool {
 	}
 
 	for _, pkg := range bazaarPlugins {
-		if plugin.URL == pkg.URL && plugin.Name == pkg.Name && plugin.Author == pkg.Author && plugin.Version < pkg.Version {
+		if plugin.URL == pkg.URL && plugin.Name == pkg.Name && plugin.Author == pkg.Author && 0 > semver.Compare("v"+plugin.Version, "v"+pkg.Version) {
 			plugin.RepoHash = pkg.RepoHash
 			return true
 		}
@@ -450,7 +451,7 @@ func isOutdatedWidget(widget *Widget, bazaarWidgets []*Widget) bool {
 	}
 
 	for _, pkg := range bazaarWidgets {
-		if widget.URL == pkg.URL && widget.Name == pkg.Name && widget.Author == pkg.Author && widget.Version < pkg.Version {
+		if widget.URL == pkg.URL && widget.Name == pkg.Name && widget.Author == pkg.Author && 0 > semver.Compare("v"+widget.Version, "v"+pkg.Version) {
 			widget.RepoHash = pkg.RepoHash
 			return true
 		}
@@ -470,7 +471,7 @@ func isOutdatedTemplate(template *Template, bazaarTemplates []*Template) bool {
 	}
 
 	for _, pkg := range bazaarTemplates {
-		if template.URL == pkg.URL && template.Name == pkg.Name && template.Author == pkg.Author && template.Version < pkg.Version {
+		if template.URL == pkg.URL && template.Name == pkg.Name && template.Author == pkg.Author && 0 > semver.Compare("v"+template.Version, "v"+pkg.Version) {
 			template.RepoHash = pkg.RepoHash
 			return true
 		}

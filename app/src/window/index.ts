@@ -19,17 +19,19 @@ import {initMessage} from "../dialog/message";
 import {getAllTabs} from "../layout/getAll";
 import {getLocalStorage} from "../protyle/util/compatibility";
 import {init} from "../window/init";
-import {positionPDF, switchTabById} from "./global/function";
 import {loadPlugins} from "../plugin/loader";
 
 class App {
     public plugins: import("../plugin").Plugin[] = [];
+    public appId: string;
 
     constructor() {
         addScriptSync(`${Constants.PROTYLE_CDN}/js/lute/lute.min.js?v=${Constants.SIYUAN_VERSION}`, "protyleLuteScript");
         addScript(`${Constants.PROTYLE_CDN}/js/protyle-html.js?v=${Constants.SIYUAN_VERSION}`, "protyleWcHtmlScript");
         addBaseURL();
+        this.appId = Constants.SIYUAN_APPID;
         window.siyuan = {
+            zIndex: 10,
             transactions: [],
             reqIds: {},
             backStack: [],
@@ -148,9 +150,3 @@ class App {
 }
 
 new App();
-
-// 再次点击新窗口已打开的 PDF 时，需进行定位
-window.newWindow = {
-    positionPDF: positionPDF,
-    switchTabById: switchTabById
-};

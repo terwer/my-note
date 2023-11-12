@@ -18,6 +18,7 @@ package model
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -63,11 +64,6 @@ func IsUnfoldHeading(transactions *[]*Transaction) bool {
 	return false
 }
 
-var (
-	txQueue     []*Transaction
-	txQueueLock = sync.Mutex{}
-)
-
 func WaitForWritingFiles() {
 	var printLog bool
 	var lastPrintLog bool
@@ -84,25 +80,34 @@ func WaitForWritingFiles() {
 	}
 }
 
+var (
+	txQueue   = make(chan *Transaction, 7)
+	flushLock = sync.Mutex{}
+)
+
 func isWritingFiles() bool {
 	time.Sleep(time.Duration(20) * time.Millisecond)
-	return 0 < len(txQueue) || util.IsMutexLocked(&txQueueLock) || util.IsMutexLocked(&flushLock)
+	return 0 < len(txQueue) || util.IsMutexLocked(&flushLock)
 }
 
-func FlushTxJob() {
-	flushTx()
+func init() {
+	go func() {
+		for {
+			select {
+			case tx := <-txQueue:
+				flushTx(tx)
+			}
+		}
+	}()
 }
 
-var flushLock = sync.Mutex{}
-
-func flushTx() {
+func flushTx(tx *Transaction) {
 	defer logging.Recover()
 	flushLock.Lock()
 	defer flushLock.Unlock()
 
-	currentTx := mergeTx()
 	start := time.Now()
-	if txErr := performTx(currentTx); nil != txErr {
+	if txErr := performTx(tx); nil != txErr {
 		switch txErr.code {
 		case TxErrCodeBlockNotFound:
 			util.PushTxErr("Transaction failed", txErr.code, nil)
@@ -114,45 +119,17 @@ func flushTx() {
 		}
 	}
 	elapsed := time.Now().Sub(start).Milliseconds()
-	if 0 < len(currentTx.DoOperations) {
+	if 0 < len(tx.DoOperations) {
 		if 2000 < elapsed {
 			logging.LogWarnf("op tx [%dms]", elapsed)
 		}
 	}
 }
 
-func mergeTx() (ret *Transaction) {
-	txQueueLock.Lock()
-	defer txQueueLock.Unlock()
-
-	ret = &Transaction{}
-	var doOps []*Operation
-	for _, tx := range txQueue {
-		for _, op := range tx.DoOperations {
-			if l := len(doOps); 0 < l {
-				lastOp := doOps[l-1]
-				if "update" == lastOp.Action && "update" == op.Action && lastOp.ID == op.ID { // 连续相同的更新操作
-					lastOp.discard = true
-				}
-			}
-			doOps = append(doOps, op)
-		}
-	}
-
-	for _, op := range doOps {
-		if !op.discard {
-			ret.DoOperations = append(ret.DoOperations, op)
-		}
-	}
-
-	txQueue = nil
-	return
-}
-
 func PerformTransactions(transactions *[]*Transaction) {
-	txQueueLock.Lock()
-	txQueue = append(txQueue, *transactions...)
-	txQueueLock.Unlock()
+	for _, tx := range *transactions {
+		txQueue <- tx
+	}
 	return
 }
 
@@ -213,6 +190,8 @@ func performTx(tx *Transaction) (ret *TxErr) {
 			ret = tx.doUnfoldHeading(op)
 		case "setAttrs":
 			ret = tx.doSetAttrs(op)
+		case "doUpdateUpdated":
+			ret = tx.doUpdateUpdated(op)
 		case "addFlashcards":
 			ret = tx.doAddFlashcards(op)
 		case "removeFlashcards":
@@ -229,6 +208,8 @@ func performTx(tx *Transaction) (ret *TxErr) {
 			ret = tx.doSetAttrViewColumnWrap(op)
 		case "setAttrViewColHidden":
 			ret = tx.doSetAttrViewColumnHidden(op)
+		case "setAttrViewColIcon":
+			ret = tx.doSetAttrViewColumnIcon(op)
 		case "insertAttrViewBlock":
 			ret = tx.doInsertAttrViewBlock(op)
 		case "removeAttrViewBlock":
@@ -255,6 +236,10 @@ func performTx(tx *Transaction) (ret *TxErr) {
 			ret = tx.doSetAttrViewColCalc(op)
 		case "updateAttrViewColNumberFormat":
 			ret = tx.doUpdateAttrViewColNumberFormat(op)
+		case "replaceAttrViewBlock":
+			ret = tx.doReplaceAttrViewBlock(op)
+		case "updateAttrViewColTemplate":
+			ret = tx.doUpdateAttrViewColTemplate(op)
 		}
 
 		if nil != ret {
@@ -449,9 +434,9 @@ func (tx *Transaction) doPrependInsert(operation *Operation) (ret *TxErr) {
 	var err error
 	block := treenode.GetBlockTree(operation.ParentID)
 	if nil == block {
-		msg := fmt.Sprintf("not found parent block [%s]", operation.ParentID)
-		logging.LogErrorf(msg)
-		return &TxErr{code: TxErrCodeBlockNotFound, id: operation.ParentID}
+		logging.LogWarnf("not found block [%s]", operation.ParentID)
+		util.ReloadUI() // 比如分屏后编辑器状态不一致，这里强制重新载入界面
+		return
 	}
 	tree, err := tx.loadTree(block.ID)
 	if nil != err {
@@ -533,9 +518,9 @@ func (tx *Transaction) doAppendInsert(operation *Operation) (ret *TxErr) {
 	var err error
 	block := treenode.GetBlockTree(operation.ParentID)
 	if nil == block {
-		msg := fmt.Sprintf("not found parent block [%s]", operation.ParentID)
-		logging.LogErrorf(msg)
-		return &TxErr{code: TxErrCodeBlockNotFound, id: operation.ParentID}
+		logging.LogWarnf("not found block [%s]", operation.ParentID)
+		util.ReloadUI() // 比如分屏后编辑器状态不一致，这里强制重新载入界面
+		return
 	}
 	tree, err := tx.loadTree(block.ID)
 	if nil != err {
@@ -692,11 +677,12 @@ func (tx *Transaction) doDelete(operation *Operation) (ret *TxErr) {
 	var err error
 	id := operation.ID
 	tree, err := tx.loadTree(id)
-	if ErrBlockNotFound == err {
-		return nil // move 以后这里会空，算作正常情况
-	}
-
 	if nil != err {
+		if errors.Is(err, ErrBlockNotFound) {
+			// move 以后这里会空，算作正常情况
+			return
+		}
+
 		msg := fmt.Sprintf("load tree [%s] failed: %s", id, err)
 		logging.LogErrorf(msg)
 		return &TxErr{code: TxErrCodeBlockNotFound, id: id}
@@ -726,11 +712,15 @@ func (tx *Transaction) doDelete(operation *Operation) (ret *TxErr) {
 	}
 
 	syncDelete2AttributeView(node)
+	if ast.NodeAttributeView == node.Type {
+		avID := node.AttributeViewID
+		av.RemoveBlockRel(avID, node.ID)
+	}
 	return
 }
 
 func syncDelete2AttributeView(node *ast.Node) {
-	avs := node.IALAttr(NodeAttrNameAvs)
+	avs := node.IALAttr(av.NodeAttrNameAvs)
 	if "" == avs {
 		return
 	}
@@ -773,9 +763,9 @@ func (tx *Transaction) doInsert(operation *Operation) (ret *TxErr) {
 		}
 	}
 	if nil == block {
-		msg := fmt.Sprintf("not found next block [%s]", operation.NextID)
-		logging.LogErrorf(msg)
-		return &TxErr{code: TxErrCodeBlockNotFound, id: operation.NextID}
+		logging.LogWarnf("not found block [%s, %s, %s]", operation.ParentID, operation.PreviousID, operation.NextID)
+		util.ReloadUI() // 比如分屏后编辑器状态不一致，这里强制重新载入界面
+		return
 	}
 
 	tree, err := tx.loadTree(block.ID)
@@ -813,7 +803,7 @@ func (tx *Transaction) doInsert(operation *Operation) (ret *TxErr) {
 
 				// 只有全局 assets 才移动到相对 assets
 				targetP := filepath.Join(assets, filepath.Base(assetPath))
-				if e = filelock.Move(assetPath, targetP); nil != err {
+				if e = filelock.Rename(assetPath, targetP); nil != err {
 					logging.LogErrorf("copy path of asset from [%s] to [%s] failed: %s", assetPath, targetP, err)
 					return ast.WalkContinue
 				}
@@ -912,6 +902,11 @@ func (tx *Transaction) doInsert(operation *Operation) (ret *TxErr) {
 		return &TxErr{code: TxErrCodeWriteTree, msg: err.Error(), id: block.ID}
 	}
 
+	if ast.NodeAttributeView == insertedNode.Type {
+		avID := insertedNode.AttributeViewID
+		av.UpsertBlockRel(avID, insertedNode.ID)
+	}
+
 	operation.ID = insertedNode.ID
 	operation.ParentID = insertedNode.Parent.ID
 	return
@@ -919,9 +914,13 @@ func (tx *Transaction) doInsert(operation *Operation) (ret *TxErr) {
 
 func (tx *Transaction) doUpdate(operation *Operation) (ret *TxErr) {
 	id := operation.ID
-
 	tree, err := tx.loadTree(id)
 	if nil != err {
+		if errors.Is(err, ErrBlockNotFound) {
+			logging.LogWarnf("not found block [%s]", id)
+			return
+		}
+
 		logging.LogErrorf("load tree [%s] failed: %s", id, err)
 		return &TxErr{code: TxErrCodeBlockNotFound, id: id}
 	}
@@ -993,6 +992,39 @@ func (tx *Transaction) doUpdate(operation *Operation) (ret *TxErr) {
 
 	createdUpdated(updatedNode)
 	tx.nodes[updatedNode.ID] = updatedNode
+	if err = tx.writeTree(tree); nil != err {
+		return &TxErr{code: TxErrCodeWriteTree, msg: err.Error(), id: id}
+	}
+
+	if ast.NodeAttributeView == updatedNode.Type {
+		avID := updatedNode.AttributeViewID
+		av.UpsertBlockRel(avID, updatedNode.ID)
+	}
+	return
+}
+
+func (tx *Transaction) doUpdateUpdated(operation *Operation) (ret *TxErr) {
+	id := operation.ID
+	tree, err := tx.loadTree(id)
+	if nil != err {
+		if errors.Is(err, ErrBlockNotFound) {
+			logging.LogWarnf("not found block [%s]", id)
+			return
+		}
+
+		logging.LogErrorf("load tree [%s] failed: %s", id, err)
+		return &TxErr{code: TxErrCodeBlockNotFound, id: id}
+	}
+
+	node := treenode.GetNodeInTree(tree, id)
+	if nil == node {
+		logging.LogErrorf("get node [%s] in tree [%s] failed", id, tree.Root.ID)
+		return &TxErr{msg: ErrBlockNotFound.Error(), id: id}
+	}
+
+	node.SetIALAttr("updated", operation.Data.(string))
+	createdUpdated(node)
+	tx.nodes[node.ID] = node
 	if err = tx.writeTree(tree); nil != err {
 		return &TxErr{code: TxErrCodeWriteTree, msg: err.Error(), id: id}
 	}
@@ -1089,18 +1121,20 @@ type Operation struct {
 
 	DeckID string `json:"deckID"` // 用于添加/删除闪卡
 
-	AvID   string   `json:"avID"`   // 属性视图 ID
-	SrcIDs []string `json:"srcIDs"` // 用于将块拖拽到属性视图中
-	Name   string   `json:"name"`   // 属性视图列名
-	Typ    string   `json:"type"`   // 属性视图列类型
-	Format string   `json:"format"` // 属性视图列格式化
-	KeyID  string   `json:"keyID"`  // 属性视列 ID
-	RowID  string   `json:"rowID"`  // 属性视图行 ID
+	AvID       string   `json:"avID"`       // 属性视图 ID
+	SrcIDs     []string `json:"srcIDs"`     // 用于将块拖拽到属性视图中
+	IsDetached bool     `json:"isDetached"` // 用于标识是否是脱离块，仅存在于属性视图中
+	Name       string   `json:"name"`       // 属性视图列名
+	Typ        string   `json:"type"`       // 属性视图列类型
+	Format     string   `json:"format"`     // 属性视图列格式化
+	KeyID      string   `json:"keyID"`      // 属性视列 ID
+	RowID      string   `json:"rowID"`      // 属性视图行 ID
 
 	discard bool // 用于标识是否在事务合并中丢弃
 }
 
 type Transaction struct {
+	Timestamp      int64        `json:"timestamp"`
 	DoOperations   []*Operation `json:"doOperations"`
 	UndoOperations []*Operation `json:"undoOperations"`
 
@@ -1243,7 +1277,7 @@ func refreshDynamicRefTexts(updatedDefNodes map[string]*ast.Node, updatedTrees m
 
 	// 2. 更新属性视图主键内容
 	for _, updatedDefNode := range updatedDefNodes {
-		avs := updatedDefNode.IALAttr(NodeAttrNameAvs)
+		avs := updatedDefNode.IALAttr(av.NodeAttrNameAvs)
 		if "" == avs {
 			continue
 		}

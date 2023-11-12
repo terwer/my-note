@@ -4,9 +4,11 @@ import {fetchPost} from "../util/fetch";
 import {isMobile, isWindow} from "../util/functions";
 /// #if !MOBILE
 import {Custom} from "../layout/dock/Custom";
+import {getAllModels} from "../layout/getAll";
 /// #endif
 import {Tab} from "../layout/Tab";
-import {getDockByType, setPanelFocus} from "../layout/util";
+import {setPanelFocus} from "../layout/util";
+import {getDockByType} from "../layout/tabUtil";
 import {hasClosestByAttribute} from "../protyle/util/hasClosest";
 import {BlockPanel} from "../block/Panel";
 import {Setting} from "./Setting";
@@ -104,7 +106,7 @@ export class Plugin {
             iconElement.innerHTML = (options.icon.startsWith("icon") ? `<svg class="b3-menu__icon"><use xlink:href="#${options.icon}"></use></svg>` : options.icon) +
                 `<span class="b3-menu__label">${options.title}</span>`;
         } else if (!isWindow()) {
-            iconElement.className = "toolbar__item b3-tooltips b3-tooltips__sw";
+            iconElement.className = "toolbar__item ariaLabel";
             iconElement.setAttribute("aria-label", options.title);
             iconElement.innerHTML = options.icon.startsWith("icon") ? `<svg><use xlink:href="#${options.icon}"></use></svg>` : options.icon;
             iconElement.addEventListener("click", options.callback);
@@ -178,6 +180,22 @@ export class Plugin {
                 resolve(response);
             });
         });
+    }
+
+    public getOpenedTab() {
+        const tabs: { [key: string]: Custom[] } = {};
+        const modelKeys = Object.keys(this.models);
+        modelKeys.forEach(item => {
+            tabs[item.replace(this.name, "")] = [];
+        });
+        /// #if !MOBILE
+        getAllModels().custom.find(item => {
+            if (modelKeys.includes(item.type)) {
+                tabs[item.type.replace(this.name, "")].push(item);
+            }
+        });
+        /// #endif
+        return tabs;
     }
 
     public addTab(options: {

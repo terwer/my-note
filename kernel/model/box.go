@@ -111,8 +111,19 @@ func ListNotebooks() (ret []*Box, err error) {
 		boxConf := conf.NewBoxConf()
 		boxDirPath := filepath.Join(util.DataDir, dir.Name())
 		boxConfPath := filepath.Join(boxDirPath, ".siyuan", "conf.json")
-		if !gulu.File.IsExist(boxConfPath) {
+		if !filelock.IsExist(boxConfPath) {
+			// Automatically move corrupted notebook folders to the corrupted folder https://github.com/siyuan-note/siyuan/issues/9202
 			logging.LogWarnf("found a corrupted box [%s]", boxDirPath)
+			to := filepath.Join(util.WorkspaceDir, "corrupted", time.Now().Format("2006-01-02-150405"), dir.Name())
+			if copyErr := filelock.Copy(boxDirPath, to); nil != copyErr {
+				logging.LogErrorf("copy corrupted notebook dir [%s] failed: %s", boxDirPath, copyErr)
+				continue
+			}
+			if removeErr := filelock.Remove(boxDirPath); nil != removeErr {
+				logging.LogErrorf("remove corrupted data file [%s] failed: %s", boxDirPath, removeErr)
+				continue
+			}
+			util.ReloadUI()
 			continue
 		}
 
@@ -141,21 +152,21 @@ func ListNotebooks() (ret []*Box, err error) {
 	switch Conf.FileTree.Sort {
 	case util.SortModeNameASC:
 		sort.Slice(ret, func(i, j int) bool {
-			return util.PinYinCompare(util.RemoveEmoji(ret[i].Name), util.RemoveEmoji(ret[j].Name))
+			return util.PinYinCompare(util.RemoveEmojiInvisible(ret[i].Name), util.RemoveEmojiInvisible(ret[j].Name))
 		})
 	case util.SortModeNameDESC:
 		sort.Slice(ret, func(i, j int) bool {
-			return util.PinYinCompare(util.RemoveEmoji(ret[j].Name), util.RemoveEmoji(ret[i].Name))
+			return util.PinYinCompare(util.RemoveEmojiInvisible(ret[j].Name), util.RemoveEmojiInvisible(ret[i].Name))
 		})
 	case util.SortModeUpdatedASC:
 	case util.SortModeUpdatedDESC:
 	case util.SortModeAlphanumASC:
 		sort.Slice(ret, func(i, j int) bool {
-			return natsort.Compare(util.RemoveEmoji(ret[i].Name), util.RemoveEmoji(ret[j].Name))
+			return natsort.Compare(util.RemoveEmojiInvisible(ret[i].Name), util.RemoveEmojiInvisible(ret[j].Name))
 		})
 	case util.SortModeAlphanumDESC:
 		sort.Slice(ret, func(i, j int) bool {
-			return natsort.Compare(util.RemoveEmoji(ret[j].Name), util.RemoveEmoji(ret[i].Name))
+			return natsort.Compare(util.RemoveEmojiInvisible(ret[j].Name), util.RemoveEmojiInvisible(ret[i].Name))
 		})
 	case util.SortModeCustom:
 		sort.Slice(ret, func(i, j int) bool { return ret[i].Sort < ret[j].Sort })
@@ -173,7 +184,7 @@ func (box *Box) GetConf() (ret *conf.BoxConf) {
 	ret = conf.NewBoxConf()
 
 	confPath := filepath.Join(util.DataDir, box.ID, ".siyuan/conf.json")
-	if !gulu.File.IsExist(confPath) {
+	if !filelock.IsExist(confPath) {
 		return
 	}
 
@@ -294,7 +305,7 @@ func (box *Box) Stat(p string) (ret *FileInfo) {
 }
 
 func (box *Box) Exist(p string) bool {
-	return gulu.File.IsExist(filepath.Join(util.DataDir, box.ID, p))
+	return filelock.IsExist(filepath.Join(util.DataDir, box.ID, p))
 }
 
 func (box *Box) Mkdir(path string) error {
@@ -322,7 +333,7 @@ func (box *Box) Move(oldPath, newPath string) error {
 	fromPath := filepath.Join(boxLocalPath, oldPath)
 	toPath := filepath.Join(boxLocalPath, newPath)
 
-	if err := filelock.Move(fromPath, toPath); nil != err {
+	if err := filelock.Rename(fromPath, toPath); nil != err {
 		msg := fmt.Sprintf(Conf.Language(5), box.Name, fromPath, err)
 		logging.LogErrorf("move [path=%s] in box [%s] failed: %s", fromPath, box.Name, err)
 		return errors.New(msg)
@@ -380,6 +391,11 @@ func isSkipFile(filename string) bool {
 
 func moveTree(tree *parse.Tree) {
 	treenode.SetBlockTreePath(tree)
+
+	if hidden := tree.Root.IALAttr("custom-hidden"); "true" == hidden {
+		tree.Root.RemoveIALAttr("custom-hidden")
+		filesys.WriteTree(tree)
+	}
 	sql.UpsertTreeQueue(tree)
 
 	box := Conf.Box(tree.Box)

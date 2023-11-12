@@ -23,7 +23,6 @@
 
   &--float {
     position: fixed;
-    z-index: 3;
     min-height: auto;
     transition: transform .2s cubic-bezier(0, 0, .2, 1) 0ms, opacity .3s cubic-bezier(0, 0, .2, 1) 0ms;
 
@@ -89,7 +88,7 @@
   }
 
   &__tab--active {
-    .b3-list--background .b3-list-item--focus:not(.dragover):not(.dragover__top):not(.dragover__bottom) {
+    .b3-list--background .b3-list-item--focus {
       background-color: var(--b3-theme-primary-lightest);
     }
 
@@ -344,6 +343,7 @@
   user-select: none;
   background-color: var(--b3-theme-surface);
   box-sizing: border-box;
+  -webkit-user-select: none;
 
   &:hover .dock__item--pin {
     opacity: 1;

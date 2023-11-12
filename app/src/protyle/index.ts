@@ -2,7 +2,7 @@ import {Constants} from "../constants";
 import {Hint} from "./hint";
 import {setLute} from "./render/setLute";
 import {Preview} from "./preview";
-import {addLoading, initUI, removeLoading, setPadding} from "./ui/initUI";
+import {addLoading, initUI, removeLoading} from "./ui/initUI";
 import {Undo} from "./undo";
 import {Upload} from "./upload";
 import {Options} from "./util/Options";
@@ -14,7 +14,7 @@ import {WYSIWYG} from "./wysiwyg";
 import {Toolbar} from "./toolbar";
 import {Gutter} from "./gutter";
 import {Breadcrumb} from "./breadcrumb";
-import {onTransaction} from "./wysiwyg/transaction";
+import {onTransaction, transaction} from "./wysiwyg/transaction";
 import {fetchPost} from "../util/fetch";
 /// #if !MOBILE
 import {Title} from "./header/Title";
@@ -103,7 +103,7 @@ export class Protyle {
                         case "refreshAttributeView":
                             Array.from(this.protyle.wysiwyg.element.querySelectorAll(`[data-av-id="${data.data.id}"]`)).forEach((item: HTMLElement) => {
                                 item.removeAttribute("data-render");
-                                avRender(item);
+                                avRender(item, this.protyle);
                             });
                             break;
                         case "addLoading":
@@ -113,14 +113,22 @@ export class Protyle {
                             break;
                         case "transactions":
                             data.data[0].doOperations.forEach((item: IOperation) => {
-                                onTransaction(this.protyle, item, false);
+                                if (!this.protyle.preview.element.classList.contains("fn__none") &&
+                                    item.action !== "updateAttrs"   // 预览模式下点击只读
+                                ) {
+                                    this.protyle.preview.render(this.protyle);
+                                } else {
+                                    onTransaction(this.protyle, item, false);
+                                }
                             });
                             break;
                         case "readonly":
-                            if (data.data) {
-                                disabledProtyle(this.protyle);
-                            } else {
-                                enableProtyle(this.protyle);
+                            if (!this.protyle.wysiwyg.element.getAttribute(Constants.CUSTOM_SY_READONLY)) {
+                                if (data.data) {
+                                    disabledProtyle(this.protyle);
+                                } else {
+                                    enableProtyle(this.protyle);
+                                }
                             }
                             break;
                         case "heading2doc":
@@ -204,7 +212,6 @@ export class Protyle {
                     }
                 }
             });
-            setPadding(this.protyle);
             if (options.backlinkData) {
                 this.protyle.block.rootID = options.blockId;
                 renderBacklink(this.protyle, options.backlinkData);
@@ -215,49 +222,54 @@ export class Protyle {
                 removeLoading(this.protyle);
                 return;
             }
-            if (options.scrollAttr ||
-                (mergedOptions.action.includes(Constants.CB_GET_SCROLL) && this.protyle.options.mode !== "preview")) {
-                if (!options.scrollAttr) {
-                    fetchPost("/api/block/getDocInfo", {
-                        id: options.blockId
-                    }, (response) => {
-                        let scrollObj;
-                        if (response.data.ial.scroll) {
-                            try {
-                                scrollObj = JSON.parse(response.data.ial.scroll.replace(/&quot;/g, '"'));
-                            } catch (e) {
-                                scrollObj = undefined;
+            if (options.scrollAttr) {
+                getDocByScroll({
+                    protyle: this.protyle,
+                    scrollAttr: options.scrollAttr,
+                    mergedOptions,
+                    cb: () => {
+                        this.afterOnGet(mergedOptions);
+                    }
+                });
+            } else if (this.protyle.options.mode !== "preview" &&
+                (mergedOptions.action.includes(Constants.CB_GET_SCROLL) || mergedOptions.action.includes(Constants.CB_GET_ROOTSCROLL))) {
+                fetchPost("/api/block/getDocInfo", {
+                    id: options.blockId
+                }, (response) => {
+                    if (!mergedOptions.action.includes(Constants.CB_GET_SCROLL) &&
+                        response.data.rootID !== options.blockId && mergedOptions.action.includes(Constants.CB_GET_ROOTSCROLL)) {
+                        // 打开根文档保持上一次历史，否则按照原有 action 执行 https://github.com/siyuan-note/siyuan/issues/9082
+                        this.getDoc(mergedOptions);
+                        return;
+                    }
+                    let scrollObj;
+                    if (response.data.ial.scroll) {
+                        try {
+                            scrollObj = JSON.parse(response.data.ial.scroll.replace(/&quot;/g, '"'));
+                        } catch (e) {
+                            scrollObj = undefined;
+                        }
+                    }
+                    if (scrollObj) {
+                        scrollObj.rootId = response.data.rootID;
+                        getDocByScroll({
+                            protyle: this.protyle,
+                            scrollAttr: scrollObj,
+                            mergedOptions,
+                            cb: () => {
+                                this.afterOnGet(mergedOptions);
                             }
-                        }
-                        if (scrollObj) {
-                            scrollObj.rootId = response.data.rootID;
-                            getDocByScroll({
-                                protyle: this.protyle,
-                                scrollAttr: scrollObj,
-                                mergedOptions,
-                                cb: () => {
-                                    this.afterOnGet(mergedOptions);
-                                }
-                            });
-                        } else {
-                            this.getDoc(mergedOptions);
-                        }
-                    });
-                } else {
-                    getDocByScroll({
-                        protyle: this.protyle,
-                        scrollAttr: options.scrollAttr,
-                        mergedOptions,
-                        cb: () => {
-                            this.afterOnGet(mergedOptions);
-                        }
-                    });
-                }
+                        });
+                    } else {
+                        this.getDoc(mergedOptions);
+                    }
+                });
             } else {
                 this.getDoc(mergedOptions);
             }
+        } else {
+            this.protyle.contentElement.classList.add("protyle-content--transition");
         }
-        this.protyle.contentElement.classList.add("protyle-content--transition");
     }
 
     private getDoc(mergedOptions: IOptions) {
@@ -294,7 +306,7 @@ export class Protyle {
             });
             /// #endif
         }
-
+        resize(this.protyle);   // 需等待 fullwidth 获取后设定完毕再重新计算 padding 和元素
         // 需等待 getDoc 完成后再执行，否则在无页签的时候 updatePanelByEditor 会执行2次
         // 只能用 focusin，否则点击表格无法执行
         this.protyle.wysiwyg.element.addEventListener("focusin", () => {
@@ -330,6 +342,7 @@ export class Protyle {
         if (mergedOptions.after) {
             mergedOptions.after(this);
         }
+        this.protyle.contentElement.classList.add("protyle-content--transition");
     }
 
     private init() {
@@ -377,5 +390,9 @@ export class Protyle {
 
     public insert(html: string, isBlock = false, useProtyleRange = false) {
         insertHTML(html, this.protyle, isBlock, useProtyleRange);
+    }
+
+    public transaction( doOperations: IOperation[], undoOperations?: IOperation[]) {
+        transaction(this.protyle,  doOperations, undoOperations);
     }
 }

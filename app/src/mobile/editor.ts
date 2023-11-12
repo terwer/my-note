@@ -3,7 +3,7 @@ import {setEditor} from "./util/setEmpty";
 import {closePanel} from "./util/closePanel";
 import {Constants} from "../constants";
 import {fetchPost} from "../util/fetch";
-import {disabledProtyle, onGet} from "../protyle/util/onGet";
+import {onGet} from "../protyle/util/onGet";
 import {addLoading} from "../protyle/ui/initUI";
 import {scrollCenter} from "../util/highlightById";
 import {hasClosestByAttribute} from "../protyle/util/hasClosest";
@@ -69,12 +69,6 @@ export const openMobileFileById = (app: App, id: string, action = [Constants.CB_
                 typewriterMode: true,
                 preview: {
                     actions: ["mp-wechat", "zhihu"]
-                },
-                after: (editor) => {
-                    // protyle 仅初始化一次，后续更新时会对 url 等再次复制
-                    if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly) {
-                        disabledProtyle(editor.protyle);
-                    }
                 }
             });
         }

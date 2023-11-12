@@ -1,6 +1,7 @@
 /// #if !MOBILE
 import {Tab} from "../Tab";
-import {getDockByType, setPanelFocus} from "../util";
+import {setPanelFocus} from "../util";
+import {getDockByType} from "../tabUtil";
 /// #endif
 import {fetchPost} from "../../util/fetch";
 import {updateHotkeyTip} from "../../protyle/util/compatibility";
@@ -254,7 +255,6 @@ ${(Lute.New()).MarkdownStr("", data.shorthandContent)}
         }
 
         window.siyuan.menus.menu.popup({x: event.clientX, y: event.clientY + 16});
-        window.siyuan.menus.menu.element.style.zIndex = "221";  // 移动端被右侧栏遮挡
     }
 
     private remove(id?: string) {

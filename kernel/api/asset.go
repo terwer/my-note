@@ -18,7 +18,6 @@ package api
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -28,6 +27,13 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func fullReindexAssetContent(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	model.ReindexAssetContent()
+}
 
 func getImageOCRText(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
@@ -146,12 +152,12 @@ func getFileAnnotation(c *gin.Context) {
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
 	}
-	if !gulu.File.IsExist(readPath) {
+	if !filelock.IsExist(readPath) {
 		ret.Code = 1
 		return
 	}
 
-	data, err := os.ReadFile(readPath)
+	data, err := filelock.ReadFile(readPath)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
