@@ -27,6 +27,7 @@ type TOperation =
     | "updateAttrViewColTemplate"
     | "sortAttrViewRow"
     | "sortAttrViewCol"
+    | "setAttrViewColPin"
     | "setAttrViewColHidden"
     | "setAttrViewColWrap"
     | "setAttrViewColWidth"
@@ -41,19 +42,30 @@ type TOperation =
     | "setAttrViewColCalc"
     | "updateAttrViewColNumberFormat"
     | "replaceAttrViewBlock"
+    | "addAttrViewView"
+    | "setAttrViewViewName"
+    | "removeAttrViewView"
+    | "setAttrViewViewIcon"
+    | "duplicateAttrViewView"
+    | "sortAttrViewView"
+    | "setAttrViewPageSize"
+    | "updateAttrViewColRelation"
+    | "updateAttrViewColRollup"
 type TBazaarType = "templates" | "icons" | "widgets" | "themes" | "plugins"
 type TCardType = "doc" | "notebook" | "all"
-type TEventBus = "ws-main" |
+type TEventBus = "ws-main" | "sync-start" | "sync-end" | "sync-fail" |
     "click-blockicon" | "click-editorcontent" | "click-pdf" | "click-editortitleicon" |
     "open-noneditableblock" |
     "open-menu-blockref" | "open-menu-fileannotationref" | "open-menu-tag" | "open-menu-link" | "open-menu-image" |
-    "open-menu-av" | "open-menu-content" | "open-menu-breadcrumbmore" | "open-menu-doctree" |
+    "open-menu-av" | "open-menu-content" | "open-menu-breadcrumbmore" | "open-menu-doctree" | "open-menu-inbox" |
     "open-siyuan-url-plugin" | "open-siyuan-url-block" |
     "paste" |
     "input-search" |
     "loaded-protyle" | "loaded-protyle-dynamic" | "loaded-protyle-static" |
     "switch-protyle" |
-    "destroy-protyle"
+    "destroy-protyle" |
+    "lock-screen" |
+    "mobile-keyboard-show" | "mobile-keyboard-hide"
 type TAVCol =
     "text"
     | "date"
@@ -70,6 +82,7 @@ type TAVCol =
     | "template"
     | "created"
     | "updated"
+    | "checkbox"
 type THintSource = "search" | "av" | "hint";
 type TAVFilterOperator =
     "="
@@ -86,11 +99,15 @@ type TAVFilterOperator =
     | "Ends with"
     | "Is between"
     | "Is relative to today"
+    | "Is true"
+    | "Is false"
 declare module "blueimp-md5"
 
 interface Window {
     echarts: {
-        init(element: HTMLElement, theme?: string, options?: { width: number }): {
+        init(element: HTMLElement, theme?: string, options?: {
+            width: number
+        }): {
             setOption(option: any): void;
             getZr(): any;
             on(name: string, event: (e: any) => void): any;
@@ -98,15 +115,26 @@ interface Window {
             resize(): void;
         };
         dispose(element: Element): void;
-        getInstanceById(id: string): { resize: () => void };
+        getInstanceById(id: string): {
+            resize: () => void
+        };
     }
     ABCJS: {
-        renderAbc(element: Element, text: string, options: { responsive: string }): void;
+        renderAbc(element: Element, text: string, options: {
+            responsive: string
+        }): void;
     }
     hljs: {
         listLanguages(): string[];
-        highlight(text: string, options: { language?: string, ignoreIllegals: boolean }): { value: string };
-        getLanguage(text: string): { name: string };
+        highlight(text: string, options: {
+            language?: string,
+            ignoreIllegals: boolean
+        }): {
+            value: string
+        };
+        getLanguage(text: string): {
+            name: string
+        };
     };
     katex: {
         renderToString(math: string, option: {
@@ -131,7 +159,8 @@ interface Window {
     siyuan: ISiyuan
     webkit: any
     html2canvas: (element: Element, opitons: {
-        useCORS: boolean
+        useCORS: boolean,
+        scale?: number
     }) => Promise<any>;
     JSAndroid: {
         returnDesktop(): void
@@ -188,6 +217,13 @@ interface ICard {
     nextDues: IObject
 }
 
+interface ICardData  {
+    cards: ICard[],
+    unreviewedCount: number
+    unreviewedNewCardCount: number
+    unreviewedOldCardCount: number
+}
+
 interface IPluginSettingOption {
     title: string
     description?: string
@@ -239,7 +275,10 @@ interface ISearchOption {
         htmlBlock: boolean
         embedBlock: boolean
         databaseBlock: boolean
-    }
+    },
+    replaceTypes: {
+        [key: string]: boolean;
+    },
 }
 
 interface ITextOption {
@@ -258,6 +297,7 @@ interface ISnippet {
 interface IInbox {
     oId: string
     shorthandContent: string
+    shorthandMd: string
     shorthandDesc: string
     shorthandFrom: number
     shorthandTitle: string
@@ -410,6 +450,8 @@ interface IScrollAttr {
 interface IOperation {
     action: TOperation, // move， delete 不需要传 data
     id?: string,
+    isTwoWay?: boolean, // 是否双向关联
+    backRelationKeyID?: string, // 双向关联的目标关联列 ID
     avID?: string,  // av
     format?: string // updateAttrViewColNumberFormat 专享
     keyID?: string // updateAttrViewCell 专享
@@ -562,6 +604,10 @@ interface IExport {
     addTitle: boolean;
     markdownYFM: boolean;
     pdfFooter: string;
+    pdfWatermarkStr: string;
+    pdfWatermarkDesc: string;
+    imageWatermarkStr: string;
+    imageWatermarkDesc: string;
     docxTemplate: string;
 }
 
@@ -647,6 +693,10 @@ interface IAccount {
 }
 
 interface IConfig {
+    snippet: {
+        enabledCSS: boolean
+        enabledJS: boolean
+    }
     cloudRegion: number
     bazaar: {
         trust: boolean
@@ -903,7 +953,7 @@ interface IBlockTree {
 }
 
 interface IBlock {
-    riffCardReps?: number   // 闪卡复习次数
+    riffCard?: IRiffCard,
     depth?: number,
     box?: string;
     path?: string;
@@ -925,6 +975,11 @@ interface IBlock {
     ial: IObject
 }
 
+interface IRiffCard {
+    due?: string;
+    reps?: number; // 闪卡复习次数
+}
+
 interface IModels {
     editor: import("../editor").Editor [],
     graph: import("../layout/dock/Graph").Graph[],
@@ -943,7 +998,7 @@ interface IMenu {
     iconClass?: string,
     label?: string,
     click?: (element: HTMLElement, event: MouseEvent) => boolean | void | Promise<boolean | void>
-    type?: "separator" | "submenu" | "readonly",
+    type?: "separator" | "submenu" | "readonly" | "empty",
     accelerator?: string,
     action?: string,
     id?: string,
@@ -1000,22 +1055,23 @@ interface IAVView {
     name: string
     id: string
     type: string
+    icon: string
 }
 
-interface IAVTable {
+interface IAVTable extends IAVView {
     columns: IAVColumn[],
     filters: IAVFilter[],
     sorts: IAVSort[],
-    name: string,
-    type: "table"
     rows: IAVRow[],
-    id: string
+    rowCount: number,
+    pageSize: number,
 }
 
 interface IAVFilter {
     column: string,
     operator: TAVFilterOperator,
-    value: IAVCellValue
+    value: IAVCellValue,
+    type?: TAVCol   // 仅用于标识新增时的类型，用于区分 rollup
 }
 
 interface IAVSort {
@@ -1024,24 +1080,24 @@ interface IAVSort {
 }
 
 interface IAVColumn {
-    width: number,
+    width: string,
     icon: string,
     id: string,
     name: string,
     wrap: boolean,
+    pin: boolean,
     hidden: boolean,
     type: TAVCol,
     numberFormat: string,
     template: string,
-    calc: {
-        operator: string,
-        result: IAVCellValue
-    },
+    calc: IAVCalc,
     // 选项列表
     options?: {
         name: string,
         color: string,
-    }[]
+    }[],
+    relation?: IAVCellRelationValue,
+    rollup?: IAVCellRollupValue
 }
 
 interface IAVRow {
@@ -1059,7 +1115,7 @@ interface IAVCell {
 
 interface IAVCellValue {
     id?: string,
-    type?: TAVCol,
+    type: TAVCol,
     isDetached?: boolean,
     text?: {
         content: string
@@ -1087,6 +1143,16 @@ interface IAVCellValue {
     }
     template?: {
         content: string
+    },
+    checkbox?: {
+        checked: boolean
+    }
+    relation?: {
+        blockIDs: string[]
+        contents?: string[]
+    }
+    rollup?: {
+        contents?: IAVCellValue[]
     }
     date?: IAVCellDateValue
     created?: IAVCellDateValue
@@ -1099,6 +1165,7 @@ interface IAVCellDateValue {
     content2?: number,
     isNotEmpty2?: boolean
     hasEndDate?: boolean
+    formattedContent?: string,
     isNotTime?: boolean // 默认 true
 }
 
@@ -1111,4 +1178,21 @@ interface IAVCellAssetValue {
     content: string,
     name: string,
     type: "file" | "image"
+}
+
+interface IAVCellRelationValue {
+    avID?: string
+    backKeyID?: string
+    isTwoWay?: boolean
+}
+
+interface IAVCellRollupValue {
+    relationKeyID?: string  // 关联列 ID
+    keyID?: string
+    calc?: IAVCalc
+}
+
+interface IAVCalc {
+    operator?: string,
+    result?: IAVCellValue
 }

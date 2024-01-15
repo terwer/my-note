@@ -52,6 +52,7 @@ func Serve(fastMode bool) {
 	ginServer := gin.New()
 	ginServer.MaxMultipartMemory = 1024 * 1024 * 32 // 插入较大的资源文件时内存占用较大 https://github.com/siyuan-note/siyuan/issues/5023
 	ginServer.Use(
+		model.ControlConcurrency, // 请求串行化 Concurrency control when requesting the kernel API https://github.com/siyuan-note/siyuan/issues/9939
 		model.Timing,
 		model.Recover,
 		corsMiddleware(), // 后端服务支持 CORS 预检请求验证 https://github.com/siyuan-note/siyuan/pull/5593
@@ -78,11 +79,6 @@ func Serve(fastMode bool) {
 	servePublic(ginServer)
 	serveRepoDiff(ginServer)
 	api.ServeAPI(ginServer)
-
-	// TODO 升级后结束旧内核进程
-	//if !fastMode && "prod" == util.Mode && util.ContainerStd == util.Container {
-	//	killRunningKernel()
-	//}
 
 	var host string
 	if model.Conf.System.NetworkServe || util.ContainerDocker == util.Container {
@@ -208,8 +204,9 @@ func serveAppearance(ginServer *gin.Engine) {
 
 	siyuan.Handle("GET", "/", func(c *gin.Context) {
 		userAgentHeader := c.GetHeader("User-Agent")
+		logging.LogInfof("serving [/] for user-agent [%s]", userAgentHeader)
 
-		/* Carry query parameters when redirecting */
+		// Carry query parameters when redirecting
 		location := url.URL{}
 		queryParams := c.Request.URL.Query()
 		queryParams.Set("r", gulu.Rand.String(7))
@@ -317,19 +314,42 @@ func serveCheckAuth(c *gin.Context) {
 		return
 	}
 
+	keymapHideWindow := "⌥M"
+	if nil != (*model.Conf.Keymap)["general"] {
+		switch (*model.Conf.Keymap)["general"].(type) {
+		case map[string]interface{}:
+			keymapGeneral := (*model.Conf.Keymap)["general"].(map[string]interface{})
+			if nil != keymapGeneral["toggleWin"] {
+				switch keymapGeneral["toggleWin"].(type) {
+				case map[string]interface{}:
+					toggleWin := keymapGeneral["toggleWin"].(map[string]interface{})
+					if nil != toggleWin["custom"] {
+						keymapHideWindow = toggleWin["custom"].(string)
+					}
+				}
+			}
+		}
+		if "" == keymapHideWindow {
+			keymapHideWindow = "⌥M"
+		}
+	}
 	model := map[string]interface{}{
-		"l0":               model.Conf.Language(173),
-		"l1":               model.Conf.Language(174),
-		"l2":               template.HTML(model.Conf.Language(172)),
-		"l3":               model.Conf.Language(175),
-		"l4":               model.Conf.Language(176),
-		"l5":               model.Conf.Language(177),
-		"l6":               model.Conf.Language(178),
-		"l7":               template.HTML(model.Conf.Language(184)),
-		"appearanceMode":   model.Conf.Appearance.Mode,
-		"appearanceModeOS": model.Conf.Appearance.ModeOS,
-		"workspace":        filepath.Base(util.WorkspaceDir),
-		"workspacePath":    util.WorkspaceDir,
+		"l0":                     model.Conf.Language(173),
+		"l1":                     model.Conf.Language(174),
+		"l2":                     template.HTML(model.Conf.Language(172)),
+		"l3":                     model.Conf.Language(175),
+		"l4":                     model.Conf.Language(176),
+		"l5":                     model.Conf.Language(177),
+		"l6":                     model.Conf.Language(178),
+		"l7":                     template.HTML(model.Conf.Language(184)),
+		"l8":                     model.Conf.Language(95),
+		"appearanceMode":         model.Conf.Appearance.Mode,
+		"appearanceModeOS":       model.Conf.Appearance.ModeOS,
+		"workspace":              filepath.Base(util.WorkspaceDir),
+		"workspacePath":          util.WorkspaceDir,
+		"keymapGeneralToggleWin": keymapHideWindow,
+		"trayMenuLangs":          util.TrayMenuLangs[util.Lang],
+		"workspaceDir":           util.WorkspaceDir,
 	}
 	buf := &bytes.Buffer{}
 	if err = tpl.Execute(buf, model); nil != err {

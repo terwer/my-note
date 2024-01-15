@@ -3,12 +3,12 @@ import {
     hasClosestByClassName,
     hasTopClosestByClassName,
 } from "../../protyle/util/hasClosest";
-import {closePanel} from "./closePanel";
+import {closeModel, closePanel} from "./closePanel";
 import {popMenu} from "../menu";
 import {activeBlur, hideKeyboardToolbar} from "./keyboardToolbar";
 import {isIPhone} from "../../protyle/util/compatibility";
 import {App} from "../../index";
-import {globalTouchEnd} from "../../boot/globalEvent/touch";
+import {globalTouchEnd, globalTouchStart} from "../../boot/globalEvent/touch";
 
 let clientX: number;
 let clientY: number;
@@ -41,8 +41,7 @@ export const handleTouchEnd = (event: TouchEvent, app: App) => {
         (window.siyuan.mobile.editor && !window.siyuan.mobile.editor.protyle.toolbar.subElement.classList.contains("fn__none")) ||
         hasClosestByClassName(target, "viewer-container") ||
         hasClosestByClassName(target, "keyboard") ||
-        hasClosestByAttribute(target, "id", "commonMenu") ||
-        hasClosestByAttribute(target, "id", "model", true)
+        hasClosestByAttribute(target, "id", "commonMenu")
     ) {
         return;
     }
@@ -64,10 +63,12 @@ export const handleTouchEnd = (event: TouchEvent, app: App) => {
         } else if (scrollElement.classList.contains("code-block")) {
             scrollElement = scrollElement.firstElementChild.nextElementSibling as HTMLElement;
         } else if (scrollElement.classList.contains("av")) {
-            scrollElement = scrollElement.querySelector(".av__scroll") as HTMLElement;
+            scrollElement = hasClosestByClassName(target, "layout-tab-bar") || hasClosestByClassName(target, "av__scroll");
         }
-        if ((xDiff <= 0 && scrollElement.scrollLeft > 0) ||
-            (xDiff >= 0 && scrollElement.clientWidth + scrollElement.scrollLeft < scrollElement.scrollWidth)) {
+        if (scrollElement && (
+            (xDiff <= 0 && scrollElement.scrollLeft > 0) ||
+            (xDiff >= 0 && scrollElement.clientWidth + scrollElement.scrollLeft < scrollElement.scrollWidth)
+        )) {
             // 左滑拉出菜单后右滑至代码块右侧有空间时，需关闭菜单
             closePanel();
             return;
@@ -82,6 +83,13 @@ export const handleTouchEnd = (event: TouchEvent, app: App) => {
     }
 
     const isXScroll = Math.abs(xDiff) > Math.abs(yDiff);
+    const modelElement = hasClosestByAttribute(target, "id", "model");
+    if (modelElement) {
+        if (isXScroll && firstDirection === "toRight" && !lastClientX) {
+            closeModel();
+        }
+        return;
+    }
     const menuElement = hasClosestByAttribute(target, "id", "menu");
     if (menuElement) {
         if (isXScroll) {
@@ -145,6 +153,9 @@ export const handleTouchEnd = (event: TouchEvent, app: App) => {
 };
 
 export const handleTouchStart = (event: TouchEvent) => {
+    if (globalTouchStart(event)) {
+        return;
+    }
     firstDirection = null;
     xDiff = undefined;
     yDiff = undefined;
@@ -162,7 +173,6 @@ export const handleTouchStart = (event: TouchEvent) => {
     }
 };
 
-
 let previousClientX: number;
 export const handleTouchMove = (event: TouchEvent) => {
     const target = event.target as HTMLElement;
@@ -172,8 +182,8 @@ export const handleTouchMove = (event: TouchEvent) => {
         (window.siyuan.mobile.editor && !window.siyuan.mobile.editor.protyle.toolbar.subElement.classList.contains("fn__none")) ||
         hasClosestByClassName(target, "keyboard") ||
         hasClosestByClassName(target, "viewer-container") ||
-        hasClosestByAttribute(target, "id", "commonMenu") ||
-        hasClosestByAttribute(target, "id", "model", true)) {
+        hasClosestByAttribute(target, "id", "commonMenu")
+    ) {
         return;
     }
     if (getSelection().rangeCount > 0) {
@@ -206,6 +216,9 @@ export const handleTouchMove = (event: TouchEvent) => {
     }
     previousClientX = event.touches[0].clientX;
     if (Math.abs(xDiff) > Math.abs(yDiff)) {
+        if (hasClosestByAttribute(target, "id", "model", true)) {
+            return;
+        }
         let scrollElement = hasClosestByAttribute(target, "data-type", "NodeCodeBlock") ||
             hasClosestByAttribute(target, "data-type", "NodeAttributeView") ||
             hasClosestByAttribute(target, "data-type", "NodeTable") ||
@@ -216,10 +229,12 @@ export const handleTouchMove = (event: TouchEvent) => {
             } else if (scrollElement.classList.contains("code-block")) {
                 scrollElement = scrollElement.firstElementChild.nextElementSibling as HTMLElement;
             } else if (scrollElement.classList.contains("av")) {
-                scrollElement = scrollElement.querySelector(".av__scroll") as HTMLElement;
+                scrollElement = hasClosestByClassName(target, "layout-tab-bar") || hasClosestByClassName(target, "av__scroll");
             }
-            if ((xDiff < 0 && scrollElement.scrollLeft > 0) ||
-                (xDiff > 0 && scrollElement.clientWidth + scrollElement.scrollLeft < scrollElement.scrollWidth)) {
+            if (scrollElement && (
+                (xDiff < 0 && scrollElement.scrollLeft > 0) ||
+                (xDiff > 0 && scrollElement.clientWidth + scrollElement.scrollLeft < scrollElement.scrollWidth)
+            )) {
                 return;
             }
         }

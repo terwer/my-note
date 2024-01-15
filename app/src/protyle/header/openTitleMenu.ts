@@ -183,12 +183,13 @@ export const openTitleMenu = (protyle: IProtyle, position: IPosition) => {
                     k: localData.k,
                     r: localData.r,
                     page: 1,
-                    types: Object.assign({}, localData.types)
+                    types: Object.assign({}, localData.types),
+                    replaceTypes: Object.assign({}, localData.replaceTypes)
                 });
                 /// #else
                 openSearch({
                     app: protyle.app,
-                    hotkey: window.siyuan.config.keymap.general.search.custom,
+                    hotkey: Constants.DIALOG_SEARCH,
                     notebookId: protyle.notebookId,
                     searchPath
                 });

@@ -26,7 +26,6 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/88250/gulu"
@@ -61,12 +60,9 @@ type Box struct {
 	historyGenerated int64 // 最近一次历史生成时间
 }
 
-var statLock = sync.Mutex{}
-
 func StatJob() {
-	statLock.Lock()
-	defer statLock.Unlock()
 
+	Conf.m.Lock()
 	Conf.Stat.TreeCount = treenode.CountTrees()
 	Conf.Stat.CTreeCount = treenode.CeilTreeCount(Conf.Stat.TreeCount)
 	Conf.Stat.BlockCount = treenode.CountBlocks()
@@ -74,6 +70,7 @@ func StatJob() {
 	Conf.Stat.DataSize, Conf.Stat.AssetsSize = util.DataSize()
 	Conf.Stat.CDataSize = util.CeilSize(Conf.Stat.DataSize)
 	Conf.Stat.CAssetsSize = util.CeilSize(Conf.Stat.AssetsSize)
+	Conf.m.Unlock()
 	Conf.Save()
 
 	logging.LogInfof("auto stat [trees=%d, blocks=%d, dataSize=%s, assetsSize=%s]", Conf.Stat.TreeCount, Conf.Stat.BlockCount, humanize.Bytes(uint64(Conf.Stat.DataSize)), humanize.Bytes(uint64(Conf.Stat.AssetsSize)))
@@ -111,42 +108,40 @@ func ListNotebooks() (ret []*Box, err error) {
 		boxConf := conf.NewBoxConf()
 		boxDirPath := filepath.Join(util.DataDir, dir.Name())
 		boxConfPath := filepath.Join(boxDirPath, ".siyuan", "conf.json")
-		if !filelock.IsExist(boxConfPath) {
-			// Automatically move corrupted notebook folders to the corrupted folder https://github.com/siyuan-note/siyuan/issues/9202
+		isExistConf := filelock.IsExist(boxConfPath)
+		if !isExistConf {
+			// 数据同步时展开文档树操作可能导致数据丢失 https://github.com/siyuan-note/siyuan/issues/7129
 			logging.LogWarnf("found a corrupted box [%s]", boxDirPath)
-			to := filepath.Join(util.WorkspaceDir, "corrupted", time.Now().Format("2006-01-02-150405"), dir.Name())
-			if copyErr := filelock.Copy(boxDirPath, to); nil != copyErr {
-				logging.LogErrorf("copy corrupted notebook dir [%s] failed: %s", boxDirPath, copyErr)
+		} else {
+			data, readErr := filelock.ReadFile(boxConfPath)
+			if nil != readErr {
+				logging.LogErrorf("read box conf [%s] failed: %s", boxConfPath, readErr)
 				continue
 			}
-			if removeErr := filelock.Remove(boxDirPath); nil != removeErr {
-				logging.LogErrorf("remove corrupted data file [%s] failed: %s", boxDirPath, removeErr)
+			if readErr = gulu.JSON.UnmarshalJSON(data, boxConf); nil != readErr {
+				logging.LogErrorf("parse box conf [%s] failed: %s", boxConfPath, readErr)
+				os.RemoveAll(boxConfPath)
 				continue
 			}
-			util.ReloadUI()
-			continue
-		}
-
-		data, readErr := filelock.ReadFile(boxConfPath)
-		if nil != readErr {
-			logging.LogErrorf("read box conf [%s] failed: %s", boxConfPath, readErr)
-			continue
-		}
-		if readErr = gulu.JSON.UnmarshalJSON(data, boxConf); nil != readErr {
-			logging.LogErrorf("parse box conf [%s] failed: %s", boxConfPath, readErr)
-			os.RemoveAll(boxConfPath)
-			continue
 		}
 
 		id := dir.Name()
-		ret = append(ret, &Box{
+		box := &Box{
 			ID:       id,
 			Name:     boxConf.Name,
 			Icon:     boxConf.Icon,
 			Sort:     boxConf.Sort,
 			SortMode: boxConf.SortMode,
 			Closed:   boxConf.Closed,
-		})
+		}
+
+		if !isExistConf {
+			// Automatically create notebook conf.json if not found it https://github.com/siyuan-note/siyuan/issues/9647
+			box.SaveConf(boxConf)
+			box.Unindex()
+			logging.LogWarnf("fixed a corrupted box [%s]", boxDirPath)
+		}
+		ret = append(ret, box)
 	}
 
 	switch Conf.FileTree.Sort {
@@ -263,10 +258,12 @@ func (box *Box) Ls(p string) (ret []*FileInfo, totals int, err error) {
 			continue
 		}
 		if strings.HasSuffix(name, ".tmp") {
-			// 移除写入失败时产生的临时文件
+			// 移除写入失败时产生的并且早于 30 分钟前的临时文件，近期创建的临时文件可能正在写入中
 			removePath := filepath.Join(util.DataDir, box.ID, p, name)
-			if removeErr := os.Remove(removePath); nil != removeErr {
-				logging.LogWarnf("remove tmp file [%s] failed: %s", removePath, removeErr)
+			if info.ModTime().Before(time.Now().Add(-30 * time.Minute)) {
+				if removeErr := os.Remove(removePath); nil != removeErr {
+					logging.LogWarnf("remove tmp file [%s] failed: %s", removePath, removeErr)
+				}
 			}
 			continue
 		}
@@ -504,8 +501,6 @@ func FullReindex() {
 	task.AppendTask(task.DatabaseIndexFull, fullReindex)
 	task.AppendTask(task.DatabaseIndexRef, IndexRefs)
 	task.AppendTask(task.ReloadUI, util.ReloadUI)
-
-	// TODO ReindexAssetContent()
 }
 
 func fullReindex() {

@@ -7,6 +7,9 @@ import {openMenuPanel} from "./openMenuPanel";
 import {getLabelByNumberFormat} from "./number";
 import {removeAttrViewColAnimation, updateAttrViewCellAnimation} from "./action";
 import {openEmojiPanel, unicode2Emoji} from "../../../emoji";
+import {focusBlock} from "../../util/selection";
+import {toggleUpdateRelationBtn} from "./relation";
+import {bindRollupEvent, getRollupHTML} from "./rollup";
 
 export const duplicateCol = (options: {
     protyle: IProtyle,
@@ -23,7 +26,7 @@ export const duplicateCol = (options: {
     } else {
         options.newValue = `${options.newValue} (1)`;
     }
-    if (["select", "mSelect"].includes(options.type)) {
+    if (["select", "mSelect", "rollup"].includes(options.type)) {
         fetchPost("/api/av/renderAttributeView", {id: options.avID}, (response) => {
             const data = response.data as IAV;
             let colOptions;
@@ -39,10 +42,6 @@ export const duplicateCol = (options: {
                 avID: options.avID,
                 type: options.type,
                 data: options.icon,
-                id
-            }, {
-                action: "sortAttrViewCol",
-                avID: options.avID,
                 previousID: options.colId,
                 id
             }, {
@@ -63,12 +62,8 @@ export const duplicateCol = (options: {
             avID: options.avID,
             type: options.type,
             data: options.icon,
-            id
-        }, {
-            action: "sortAttrViewCol",
-            avID: options.avID,
+            id,
             previousID: options.colId,
-            id
         }], [{
             action: "removeAttrViewCol",
             id,
@@ -81,7 +76,7 @@ export const duplicateCol = (options: {
         type: options.type,
         name: options.newValue,
         icon: options.icon,
-        previousId: options.colId,
+        previousID: options.colId,
         id
     });
 };
@@ -99,7 +94,7 @@ export const getEditHTML = (options: {
         }
     });
     let html = `<button class="b3-menu__item" data-type="nobg" data-col-id="${options.colId}">
-    <span class="block__icon" style="padding: 8px;margin-left: -4px;" data-type="goProperties">
+    <span class="block__icon" style="padding: 8px;margin-left: -4px;" data-type="go-properties">
         <svg><use xlink:href="#iconLeft"></use></svg>
     </span>
     <span class="b3-menu__label ft__center">${window.siyuan.languages.edit}</span>
@@ -107,20 +102,20 @@ export const getEditHTML = (options: {
 <button class="b3-menu__separator"></button>
 <button class="b3-menu__item" data-type="nobg">
     <span style="padding: 5px;margin-right: 8px;width: 14px;font-size: 14px;" class="block__icon block__icon--show" data-col-type="${colData.type}" data-icon="${colData.icon}" data-type="update-icon">${colData.icon ? unicode2Emoji(colData.icon) : `<svg><use xlink:href="#${getColIconByType(colData.type)}"></use></svg>`}</span>
-    <span class="b3-menu__label" style="padding: 4px"><input data-type="name" class="b3-text-field fn__block" type="text" value="${colData.name}"></span>
+    <span class="b3-menu__label" style="padding: 4px;display: flex;"><input data-type="name" class="b3-text-field fn__block" type="text" value="${colData.name}"></span>
 </button>
 <button class="b3-menu__item" data-type="goUpdateColType">
     <span class="b3-menu__label">${window.siyuan.languages.type}</span>
     <span class="fn__space"></span>
     <svg class="b3-menu__icon"><use xlink:href="#${getColIconByType(colData.type)}"></use></svg>
     <span class="b3-menu__accelerator" style="margin-left: 0">${getColNameByType(colData.type)}</span>
-    <svg class="b3-menu__icon b3-menu__icon--arrow"><use xlink:href="#iconRight"></use></svg>
+    <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
 </button>`;
     if (colData.options && colData.options.length > 0) {
         html += `<button class="b3-menu__separator"></button>
 <button class="b3-menu__item">
     <svg class="b3-menu__icon" style=""><use xlink:href="#iconAdd"></use></svg>
-    <span class="b3-menu__label" style="padding: 4px"><input data-type="addOption" class="b3-text-field fn__block fn__size200" type="text" placeholder="Enter ${window.siyuan.languages.addAttr}"></span>
+    <span class="b3-menu__label" style="padding: 4px;display: flex"><input data-type="addOption" class="b3-text-field fn__block fn__size200" type="text" placeholder="Enter ${window.siyuan.languages.addAttr}"></span>
 </button>`;
         colData.options.forEach(item => {
             html += `<button class="b3-menu__item${html ? "" : " b3-menu__item--current"}" draggable="true" data-name="${item.name}" data-color="${item.color}">
@@ -133,8 +128,7 @@ export const getEditHTML = (options: {
     <svg class="b3-menu__action" data-type="setColOption"><use xlink:href="#iconEdit"></use></svg>
 </button>`;
         });
-    }
-    if (colData.type === "number") {
+    } else if (colData.type === "number") {
         html += `<button class="b3-menu__separator"></button>
 <button class="b3-menu__item" data-type="numberFormat" data-format="${colData.numberFormat}">
     <svg class="b3-menu__icon"><use xlink:href="#iconFormat"></use></svg>
@@ -146,6 +140,27 @@ export const getEditHTML = (options: {
 <button class="b3-menu__item">
     <textarea rows="${colData.template.split("\n").length}" placeholder="${window.siyuan.languages.template}" data-type="updateTemplate" style="margin: 4px 0" rows="1" class="fn__block b3-text-field">${colData.template}</textarea>
 </button>`;
+    } else if (colData.type === "relation") {
+        const isSelf = colData.relation?.avID === options.data.id;
+        html += `<button class="b3-menu__item" data-type="goSearchAV" data-av-id="${colData.relation?.avID || ""}" data-old-value='${JSON.stringify(colData.relation || {})}'>
+    <span class="b3-menu__label">${window.siyuan.languages.relatedTo}</span>
+    <span class="b3-menu__accelerator">${isSelf ? window.siyuan.languages.thisDatabase : ""}</span>
+    <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
+</button>
+<label class="b3-menu__item fn__none">
+    <span class="fn__flex-center">${window.siyuan.languages.backRelation}</span>
+    <svg class="b3-menu__icon b3-menu__icon--small fn__none"><use xlink:href="#iconHelp"></use></svg>
+    <span class="fn__space fn__flex-1"></span>
+    <input data-type="backRelation" type="checkbox" class="b3-switch b3-switch--menu" ${colData.relation?.isTwoWay ? "checked" : ""}>
+</label>
+<div class="b3-menu__item fn__flex-column fn__none" data-type="nobg">
+    <input data-old-value="" data-type="colName" style="margin: 8px 0 4px" class="b3-text-field fn__block" placeholder="${window.siyuan.languages.title}">
+</div>
+<div class="b3-menu__item fn__flex-column fn__none" data-type="nobg">
+    <button style="margin: 4px 0 8px;" class="b3-button fn__block" data-type="updateRelation">${window.siyuan.languages.confirm}</button>
+</div>`;
+    } else if (colData.type === "rollup") {
+        html += getRollupHTML({colData});
     }
     return `<div class="b3-menu__items">
     ${html}
@@ -154,7 +169,7 @@ export const getEditHTML = (options: {
         <svg class="b3-menu__icon" style=""><use xlink:href="#icon${colData.hidden ? "Eye" : "Eyeoff"}"></use></svg>
         <span class="b3-menu__label">${colData.hidden ? window.siyuan.languages.showCol : window.siyuan.languages.hideCol}</span>
     </button>
-    <button class="b3-menu__item" data-type="duplicateCol">
+    <button class="b3-menu__item${colData.type === "relation" ? " fn__none" : ""}" data-type="duplicateCol">
         <svg class="b3-menu__icon" style=""><use xlink:href="#iconCopy"></use></svg>
         <span class="b3-menu__label">${window.siyuan.languages.duplicate}</span>
     </button>
@@ -164,7 +179,7 @@ export const getEditHTML = (options: {
     </button>
 </div>
 <div class="b3-menu__items fn__none">
-    <button class="b3-menu__item" data-type="nobg" data-col-id="${options.colId}">
+    <button class="b3-menu__item" data-type="nobg" data-col-id="${colData.id}">
         <span class="block__icon" style="padding: 8px;margin-left: -4px;" data-type="goEditCol">
             <svg><use xlink:href="#iconLeft"></use></svg>
         </span>
@@ -177,16 +192,23 @@ export const getEditHTML = (options: {
     ${genUpdateColItem("mSelect", colData.type, colData.name)}
     ${genUpdateColItem("date", colData.type, colData.name)}
     ${genUpdateColItem("mAsset", colData.type, colData.name)}
+    ${genUpdateColItem("checkbox", colData.type, colData.name)}
     ${genUpdateColItem("url", colData.type, colData.name)}
     ${genUpdateColItem("email", colData.type, colData.name)}
     ${genUpdateColItem("phone", colData.type, colData.name)}
     ${genUpdateColItem("template", colData.type, colData.name)}
+    ${genUpdateColItem("relation", colData.type, colData.name)}
+    ${genUpdateColItem("rollup", colData.type, colData.name)}
     ${genUpdateColItem("created", colData.type, colData.name)}
     ${genUpdateColItem("updated", colData.type, colData.name)}
 </div>`;
 };
 
-export const bindEditEvent = (options: { protyle: IProtyle, data: IAV, menuElement: HTMLElement }) => {
+export const bindEditEvent = (options: {
+    protyle: IProtyle,
+    data: IAV,
+    menuElement: HTMLElement
+}) => {
     const avID = options.data.id;
     const colId = options.menuElement.querySelector(".b3-menu__item").getAttribute("data-col-id");
     const colData = options.data.view.columns.find((item: IAVColumn) => item.id === colId);
@@ -210,7 +232,7 @@ export const bindEditEvent = (options: { protyle: IProtyle, data: IAV, menuEleme
             type: colData.type,
         }]);
         colData.name = newValue;
-        updateAttrViewCellAnimation(options.protyle.wysiwyg.element.querySelector(`.av__row--header .av__cell[data-col-id="${colId}"]`));
+        updateAttrViewCellAnimation(options.protyle.wysiwyg.element.querySelector(`.av__row--header .av__cell[data-col-id="${colId}"]`), undefined, {name: newValue});
     });
     nameElement.addEventListener("keydown", (event: KeyboardEvent) => {
         if (event.isComposing) {
@@ -223,7 +245,7 @@ export const bindEditEvent = (options: { protyle: IProtyle, data: IAV, menuEleme
             options.menuElement.parentElement.remove();
         }
     });
-
+    nameElement.select();
     const tplElement = options.menuElement.querySelector('[data-type="updateTemplate"]') as HTMLTextAreaElement;
     if (tplElement) {
         tplElement.addEventListener("blur", () => {
@@ -260,47 +282,75 @@ export const bindEditEvent = (options: { protyle: IProtyle, data: IAV, menuEleme
     }
 
     const addOptionElement = options.menuElement.querySelector('[data-type="addOption"]') as HTMLInputElement;
-    if (!addOptionElement) {
-        return;
-    }
-    addOptionElement.addEventListener("keydown", (event: KeyboardEvent) => {
-        if (event.isComposing) {
-            return;
-        }
-        if (event.key === "Escape") {
-            options.menuElement.parentElement.remove();
-        }
-        if (event.key === "Enter") {
-            let hasSelected = false;
-            colData.options.find((item) => {
-                if (addOptionElement.value === item.name) {
-                    hasSelected = true;
-                    return true;
-                }
-            });
-            if (hasSelected || !addOptionElement.value) {
+    if (addOptionElement) {
+        addOptionElement.addEventListener("keydown", (event: KeyboardEvent) => {
+            if (event.isComposing) {
                 return;
             }
-            colData.options.push({
-                color: (colData.options.length + 1).toString(),
-                name: addOptionElement.value
+            if (event.key === "Escape") {
+                options.menuElement.parentElement.remove();
+            }
+            if (event.key === "Enter") {
+                let hasSelected = false;
+                colData.options.find((item) => {
+                    if (addOptionElement.value === item.name) {
+                        hasSelected = true;
+                        return true;
+                    }
+                });
+                if (hasSelected || !addOptionElement.value) {
+                    return;
+                }
+                colData.options.push({
+                    color: (colData.options.length + 1).toString(),
+                    name: addOptionElement.value
+                });
+                transaction(options.protyle, [{
+                    action: "updateAttrViewColOptions",
+                    id: colId,
+                    avID,
+                    data: colData.options
+                }], [{
+                    action: "removeAttrViewColOption",
+                    id: colId,
+                    avID,
+                    data: addOptionElement.value
+                }]);
+                options.menuElement.innerHTML = getEditHTML({protyle: options.protyle, colId, data: options.data});
+                bindEditEvent({protyle: options.protyle, menuElement: options.menuElement, data: options.data});
+                (options.menuElement.querySelector('[data-type="addOption"]') as HTMLInputElement).focus();
+            }
+        });
+    }
+
+    const backRelationElement = options.menuElement.querySelector('[data-type="backRelation"]') as HTMLInputElement;
+    if (backRelationElement) {
+        backRelationElement.addEventListener("change", () => {
+            toggleUpdateRelationBtn(options.menuElement, avID);
+        });
+        const goSearchElement = options.menuElement.querySelector('[data-type="goSearchAV"]') as HTMLElement;
+        const oldValue = JSON.parse(goSearchElement.getAttribute("data-old-value"));
+        const inputElement = options.menuElement.querySelector('[data-type="colName"]') as HTMLInputElement;
+        inputElement.addEventListener("input", () => {
+            toggleUpdateRelationBtn(options.menuElement, avID);
+        });
+        if (oldValue.avID) {
+            fetchPost("/api/av/getAttributeView", {id: oldValue.avID}, (response) => {
+                goSearchElement.querySelector(".b3-menu__accelerator").textContent = oldValue.avID === avID ? window.siyuan.languages.thisDatabase : (response.data.av.name || window.siyuan.languages.title);
+                response.data.av.keyValues.find((item: { key: { id: string, name: string } }) => {
+                    if (item.key.id === oldValue.backKeyID) {
+                        inputElement.setAttribute("data-old-value", item.key.name || window.siyuan.languages.title);
+                        inputElement.value = item.key.name || window.siyuan.languages.title;
+                        return true;
+                    }
+                });
+                toggleUpdateRelationBtn(options.menuElement, avID);
             });
-            transaction(options.protyle, [{
-                action: "updateAttrViewColOptions",
-                id: colId,
-                avID,
-                data: colData.options
-            }], [{
-                action: "removeAttrViewColOption",
-                id: colId,
-                avID,
-                data: addOptionElement.value
-            }]);
-            options.menuElement.innerHTML = getEditHTML({protyle: options.protyle, colId, data: options.data});
-            bindEditEvent({protyle: options.protyle, menuElement: options.menuElement, data: options.data});
-            (options.menuElement.querySelector('[data-type="addOption"]') as HTMLInputElement).focus();
+        } else {
+            toggleUpdateRelationBtn(options.menuElement, avID);
         }
-    });
+    }
+    bindRollupEvent(options);
 };
 
 export const getColNameByType = (type: TAVCol) => {
@@ -315,6 +365,10 @@ export const getColNameByType = (type: TAVCol) => {
             return window.siyuan.languages[type];
         case "mSelect":
             return window.siyuan.languages.multiSelect;
+        case "relation":
+            return window.siyuan.languages.relation;
+        case "rollup":
+            return window.siyuan.languages.rollup;
         case "updated":
             return window.siyuan.languages.updatedTime;
         case "created":
@@ -323,6 +377,8 @@ export const getColNameByType = (type: TAVCol) => {
             return window.siyuan.languages.link;
         case "mAsset":
             return window.siyuan.languages.assets;
+        case "checkbox":
+            return window.siyuan.languages.checkbox;
     }
 };
 
@@ -338,6 +394,10 @@ export const getColIconByType = (type: TAVCol) => {
             return "iconListItem";
         case "mSelect":
             return "iconList";
+        case "relation":
+            return "iconOpen";
+        case "rollup":
+            return "iconSearch";
         case "date":
             return "iconCalendar";
         case "updated":
@@ -353,33 +413,35 @@ export const getColIconByType = (type: TAVCol) => {
             return "iconPhone";
         case "template":
             return "iconMath";
+        case "checkbox":
+            return "iconCheck";
     }
 };
 
-export const addAttrViewColAnimation = (options: {
+const addAttrViewColAnimation = (options: {
     blockElement: Element,
     protyle: IProtyle,
     type: TAVCol,
     name: string,
-    previousId?: string,
     id: string,
-    icon?: string
+    icon?: string,
+    previousID: string
 }) => {
     if (!options.blockElement) {
         return;
     }
     options.blockElement.querySelectorAll(".av__row").forEach((item, index) => {
         let previousElement;
-        if (options.previousId) {
-            previousElement = item.querySelector(`[data-col-id="${options.previousId}"]`);
+        if (options.previousID) {
+            previousElement = item.querySelector(`[data-col-id="${options.previousID}"]`);
         } else {
             previousElement = item.lastElementChild.previousElementSibling;
         }
         let html = "";
         if (index === 0) {
-            html = `<div class="av__cell" data-icon="${options.icon || ""}" data-col-id="${options.id}" data-dtype="${options.type}" style="width: 200px;white-space: nowrap;">
+            html = `<div class="av__cell" data-icon="${options.icon || ""}" data-col-id="${options.id}" data-dtype="${options.type}" data-wrap="false" style="width: 200px;">
     <div draggable="true" class="av__cellheader">
-        ${options.icon ? unicode2Emoji(options.icon, "av__cellicon", true) : `<svg class="av__cellicon"><use xlink:href="#${getColIconByType(options.type)}"></use></svg>`}
+        ${options.icon ? unicode2Emoji(options.icon, "av__cellheadericon", true) : `<svg class="av__cellheadericon"><use xlink:href="#${getColIconByType(options.type)}"></use></svg>`}
         <span class="av__celltext">${options.name}</span>
     </div>
     <div class="av__widthdrag"></div>
@@ -390,7 +452,6 @@ export const addAttrViewColAnimation = (options: {
         previousElement.insertAdjacentHTML("afterend", html);
     });
     window.siyuan.menus.menu.remove();
-    showColMenu(options.protyle, options.blockElement, options.blockElement.querySelector(`.av__row--header .av__cell[data-col-id="${options.id}"]`));
 };
 
 export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElement: HTMLElement) => {
@@ -399,7 +460,7 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
     const avID = blockElement.getAttribute("data-av-id");
     const oldValue = cellElement.querySelector(".av__celltext").textContent.trim();
     const menu = new Menu("av-header-cell", () => {
-        const newValue = (window.siyuan.menus.menu.element.querySelector(".b3-text-field") as HTMLInputElement).value;
+        const newValue = (menu.element.querySelector(".b3-text-field") as HTMLInputElement).value;
         if (newValue === oldValue) {
             return;
         }
@@ -416,7 +477,9 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
             name: oldValue,
             type,
         }]);
-        updateAttrViewCellAnimation(cellElement);
+        updateAttrViewCellAnimation(blockElement.querySelector(`.av__row--header .av__cell[data-col-id="${colId}"]`), undefined, {name: newValue});
+        // https://github.com/siyuan-note/siyuan/issues/9862
+        focusBlock(blockElement);
     });
     menu.addItem({
         iconHTML: `<span style="align-self: center;margin-right: 8px;width: 14px;" class="block__icon block__icon--show">${cellElement.dataset.icon ? unicode2Emoji(cellElement.dataset.icon) : `<svg><use xlink:href="#${getColIconByType(type)}"></use></svg>`}</span>`,
@@ -446,7 +509,7 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
                     }]);
                     iconElement.setAttribute("data-icon", unicode);
                     iconElement.innerHTML = unicode ? unicode2Emoji(unicode) : `<svg><use xlink:href="#${getColIconByType(type)}"></use></svg>`;
-                    updateAttrViewCellAnimation(cellElement);
+                    updateAttrViewCellAnimation(blockElement.querySelector(`.av__row--header .av__cell[data-col-id="${colId}"]`), undefined, {icon: unicode});
                 });
                 event.preventDefault();
                 event.stopPropagation();
@@ -457,6 +520,7 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
                 }
                 if (event.key === "Enter") {
                     menu.close();
+                    event.preventDefault();
                 }
             });
         }
@@ -466,7 +530,19 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
             icon: "iconEdit",
             label: window.siyuan.languages.edit,
             click() {
-                openMenuPanel({protyle, blockElement, type: "edit", colId});
+                const colName = (menu.element.querySelector(".b3-text-field") as HTMLInputElement).value;
+                openMenuPanel({
+                    protyle,
+                    blockElement,
+                    type: "edit",
+                    colId,
+                    cb(avElement) {
+                        // 修改名字后点击编辑，需要更新名字
+                        const editNameElement = avElement.querySelector('.b3-text-field[data-type="name"]') as HTMLInputElement;
+                        editNameElement.value = colName;
+                        editNameElement.select();
+                    }
+                });
             }
         });
     }
@@ -535,23 +611,16 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
                         filter = {
                             column: colId,
                             operator: getDefaultOperatorByType(type),
-                            value: genCellValue(type, "")
+                            value: genCellValue(type, ""),
+                            type,
                         };
                         avData.view.filters.push(filter);
-                        transaction(protyle, [{
-                            action: "setAttrViewFilters",
-                            avID,
-                            data: [filter]
-                        }], [{
-                            action: "setAttrViewFilters",
-                            avID,
-                            data: []
-                        }]);
                     }
                     setFilter({
                         filter,
                         protyle,
                         data: avData,
+                        blockElement: blockElement,
                         target: blockElement.querySelector(`.av__row--header .av__cell[data-col-id="${colId}"]`),
                     });
                 });
@@ -559,6 +628,33 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
         });
     }
     menu.addSeparator();
+
+    menu.addItem({
+        icon: "iconInsertLeft",
+        label: window.siyuan.languages.insertColumnLeft,
+        click() {
+            const addMenu = addCol(protyle, blockElement, cellElement.previousElementSibling?.getAttribute("data-col-id") || "");
+            const addRect = cellElement.getBoundingClientRect();
+            addMenu.open({
+                x: addRect.left,
+                y: addRect.bottom,
+                h: addRect.height
+            });
+        }
+    });
+    menu.addItem({
+        icon: "iconInsertRight",
+        label: window.siyuan.languages.insertColumnRight,
+        click() {
+            const addMenu = addCol(protyle, blockElement, cellElement.getAttribute("data-col-id") || "");
+            const addRect = cellElement.getBoundingClientRect();
+            addMenu.open({
+                x: addRect.left,
+                y: addRect.bottom,
+                h: addRect.height
+            });
+        }
+    });
     if (type !== "block") {
         menu.addItem({
             icon: "iconEyeoff",
@@ -577,20 +673,43 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
                 }]);
             }
         });
-        menu.addItem({
-            icon: "iconCopy",
-            label: window.siyuan.languages.duplicate,
-            click() {
-                duplicateCol({
-                    protyle,
-                    type,
-                    avID,
-                    colId,
-                    icon: menu.element.querySelector(".block__icon").getAttribute("data-icon"),
-                    newValue: (window.siyuan.menus.menu.element.querySelector(".b3-text-field") as HTMLInputElement).value
-                });
-            }
-        });
+    }
+    const isPin = cellElement.dataset.pin === "true";
+    menu.addItem({
+        icon: isPin ? "iconUnpin" : "iconPin",
+        label: isPin ? window.siyuan.languages.unfreezeCol : window.siyuan.languages.freezeCol,
+        click() {
+            transaction(protyle, [{
+                action: "setAttrViewColPin",
+                id: colId,
+                avID,
+                data: !isPin
+            }], [{
+                action: "setAttrViewColPin",
+                id: colId,
+                avID,
+                data: isPin
+            }]);
+            updateAttrViewCellAnimation(blockElement.querySelector(`.av__row--header .av__cell[data-col-id="${colId}"]`), undefined, {pin: !isPin});
+        }
+    });
+    if (type !== "block") {
+        if (type !== "relation") {
+            menu.addItem({
+                icon: "iconCopy",
+                label: window.siyuan.languages.duplicate,
+                click() {
+                    duplicateCol({
+                        protyle,
+                        type,
+                        avID,
+                        colId,
+                        icon: menu.element.querySelector(".block__icon").getAttribute("data-icon"),
+                        newValue: (window.siyuan.menus.menu.element.querySelector(".b3-text-field") as HTMLInputElement).value
+                    });
+                }
+            });
+        }
         menu.addItem({
             icon: "iconTrashcan",
             label: window.siyuan.languages.delete,
@@ -604,7 +723,8 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
                     name: oldValue,
                     avID,
                     type: type,
-                    id: colId
+                    id: colId,
+                    previousID: cellElement.previousElementSibling?.getAttribute("data-col-id") || "",
                 }]);
                 removeAttrViewColAnimation(blockElement, colId);
             }
@@ -612,8 +732,8 @@ export const showColMenu = (protyle: IProtyle, blockElement: Element, cellElemen
         menu.addSeparator();
     }
     menu.addItem({
-        label: `<label class="fn__flex" style="margin: 4px 0"><span>${window.siyuan.languages.wrap}</span><span class="fn__space fn__flex-1"></span>
-<input type="checkbox" class="b3-switch fn__flex-center"${cellElement.style.whiteSpace === "nowrap" ? "" : " checked"}></label>`,
+        label: `<label class="fn__flex" style="margin: 4px 0;padding-right: 6px"><span>${window.siyuan.languages.wrap}</span><span class="fn__space fn__flex-1"></span>
+<input type="checkbox" class="b3-switch fn__flex-center"${cellElement.dataset.wrap === "true" ? " checked" : ""}></label>`,
         bind(element) {
             const inputElement = element.querySelector("input") as HTMLInputElement;
             inputElement.addEventListener("change", () => {
@@ -652,9 +772,12 @@ const genUpdateColItem = (type: TAVCol, oldType: TAVCol, name: string) => {
 </button>`;
 };
 
-export const addCol = (protyle: IProtyle, blockElement: Element) => {
+export const addCol = (protyle: IProtyle, blockElement: Element, previousID?: string) => {
     const menu = new Menu("av-header-add");
     const avID = blockElement.getAttribute("data-av-id");
+    if (typeof previousID === "undefined") {
+        previousID = Array.from(blockElement.querySelectorAll(".av__row--header .av__cell")).pop().getAttribute("data-col-id");
+    }
     menu.addItem({
         icon: "iconAlignLeft",
         label: window.siyuan.languages.text,
@@ -665,7 +788,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.text,
                 avID,
                 type: "text",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -676,7 +800,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "text",
                 name: window.siyuan.languages.text,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -690,7 +815,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.number,
                 avID,
                 type: "number",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -701,7 +827,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "number",
                 name: window.siyuan.languages.number,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -715,7 +842,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.select,
                 avID,
                 type: "select",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -726,7 +854,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "select",
                 name: window.siyuan.languages.select,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -740,7 +869,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.multiSelect,
                 avID,
                 type: "mSelect",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -751,7 +881,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "mSelect",
                 name: window.siyuan.languages.multiSelect,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -765,7 +896,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.date,
                 avID,
                 type: "date",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -776,7 +908,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "date",
                 name: window.siyuan.languages.date,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -790,7 +923,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.assets,
                 avID,
                 type: "mAsset",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -801,7 +935,35 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "mAsset",
                 name: window.siyuan.languages.assets,
-                id
+                id,
+                previousID
+            });
+        }
+    });
+    menu.addItem({
+        icon: "iconCheck",
+        label: window.siyuan.languages.checkbox,
+        click() {
+            const id = Lute.NewNodeID();
+            transaction(protyle, [{
+                action: "addAttrViewCol",
+                name: window.siyuan.languages.checkbox,
+                avID,
+                type: "checkbox",
+                id,
+                previousID
+            }], [{
+                action: "removeAttrViewCol",
+                id,
+                avID,
+            }]);
+            addAttrViewColAnimation({
+                blockElement: blockElement,
+                protyle: protyle,
+                type: "checkbox",
+                name: window.siyuan.languages.checkbox,
+                id,
+                previousID
             });
         }
     });
@@ -815,7 +977,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.link,
                 avID,
                 type: "url",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -826,7 +989,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "url",
                 name: window.siyuan.languages.link,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -840,7 +1004,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.email,
                 avID,
                 type: "email",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -851,7 +1016,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "email",
                 name: window.siyuan.languages.email,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -865,7 +1031,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.phone,
                 avID,
                 type: "phone",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -876,7 +1043,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "phone",
                 name: window.siyuan.languages.phone,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -890,7 +1058,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.template,
                 avID,
                 type: "template",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -901,7 +1070,62 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "template",
                 name: window.siyuan.languages.template,
-                id
+                id,
+                previousID
+            });
+        }
+    });
+    menu.addItem({
+        icon: "iconOpen",
+        label: window.siyuan.languages.relation,
+        click() {
+            const id = Lute.NewNodeID();
+            transaction(protyle, [{
+                action: "addAttrViewCol",
+                name: window.siyuan.languages.relation,
+                avID,
+                type: "relation",
+                id,
+                previousID
+            }], [{
+                action: "removeAttrViewCol",
+                id,
+                avID,
+            }]);
+            addAttrViewColAnimation({
+                blockElement: blockElement,
+                protyle: protyle,
+                type: "relation",
+                name: window.siyuan.languages.relation,
+                id,
+                previousID
+            });
+        }
+    });
+    menu.addItem({
+        icon: "iconSearch",
+        label: window.siyuan.languages.rollup,
+        click() {
+            const id = Lute.NewNodeID();
+            transaction(protyle, [{
+                action: "addAttrViewCol",
+                name: window.siyuan.languages.rollup,
+                avID,
+                type: "rollup",
+                id,
+                previousID
+            }], [{
+                action: "removeAttrViewCol",
+                id,
+                avID,
+            }]);
+            addAttrViewColAnimation({
+                blockElement: blockElement,
+                protyle: protyle,
+                type: "rollup",
+                name: window.siyuan.languages.rollup,
+                id,
+                previousID
             });
         }
     });
@@ -915,7 +1139,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.createdTime,
                 avID,
                 type: "created",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -926,7 +1151,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "created",
                 name: window.siyuan.languages.createdTime,
-                id
+                id,
+                previousID
             });
         }
     });
@@ -940,7 +1166,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 name: window.siyuan.languages.updatedTime,
                 avID,
                 type: "updated",
-                id
+                id,
+                previousID
             }], [{
                 action: "removeAttrViewCol",
                 id,
@@ -951,7 +1178,8 @@ export const addCol = (protyle: IProtyle, blockElement: Element) => {
                 protyle: protyle,
                 type: "updated",
                 name: window.siyuan.languages.updatedTime,
-                id
+                id,
+                previousID
             });
         }
     });

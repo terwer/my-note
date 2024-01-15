@@ -203,8 +203,8 @@ export const fontEvent = (protyle: IProtyle, nodeElements: Element[], type?: str
             color = "var(--b3-card-error-color)" + Constants.ZWSP + "var(--b3-card-error-background)";
         } else {
             const fontStyles = localFontStyles[0].split(Constants.ZWSP);
-            type = fontStyles[0];
-            color = fontStyles[1];
+            type = fontStyles.splice(0, 1)[0];
+            color = fontStyles.join(Constants.ZWSP);
         }
     }
     if (nodeElements && nodeElements.length > 0) {
@@ -216,10 +216,16 @@ export const fontEvent = (protyle: IProtyle, nodeElements: Element[], type?: str
                 e.style.textShadow = "";
                 e.style.backgroundColor = "";
                 e.style.fontSize = "";
+                if (e.classList.contains("av")) {
+                    e.querySelector(".av__container").setAttribute("style", "--av-background:var(--b3-theme-background)");
+                }
             } else if (type === "style1") {
                 const colorList = color.split(Constants.ZWSP);
                 e.style.backgroundColor = colorList[0];
                 e.style.color = colorList[1];
+                if (e.classList.contains("av")) {
+                    e.querySelector(".av__container").setAttribute("style", `--av-background:${colorList[0]}`);
+                }
             } else if (type === "style2") {
                 e.style.webkitTextStroke = "0.2px var(--b3-theme-on-background)";
                 e.style.webkitTextFillColor = "transparent";
@@ -229,6 +235,9 @@ export const fontEvent = (protyle: IProtyle, nodeElements: Element[], type?: str
                 e.style.color = color;
             } else if (type === "backgroundColor") {
                 e.style.backgroundColor = color;
+                if (e.classList.contains("av")) {
+                    e.querySelector(".av__container").setAttribute("style", `--av-background:${color}`);
+                }
             } else if (type === "fontSize") {
                 e.style.fontSize = color;
             }

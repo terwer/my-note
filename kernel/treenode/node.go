@@ -18,7 +18,6 @@ package treenode
 
 import (
 	"bytes"
-	"github.com/Masterminds/sprig/v3"
 	"github.com/siyuan-note/siyuan/kernel/av"
 	"github.com/siyuan-note/siyuan/kernel/cache"
 	"strings"
@@ -137,7 +136,39 @@ func ExportNodeStdMd(node *ast.Node, luteEngine *lute.Lute) string {
 	return markdown
 }
 
-func NodeStaticContent(node *ast.Node, excludeTypes []string, includeTextMarkATitleURL, includeAssetPath bool) string {
+func IsNodeOCRed(node *ast.Node) (ret bool) {
+	if !util.TesseractEnabled || nil == node {
+		return true
+	}
+
+	ret = true
+	ast.Walk(node, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if ast.NodeImage == n.Type {
+			linkDest := n.ChildByType(ast.NodeLinkDest)
+			if nil == linkDest {
+				return ast.WalkContinue
+			}
+
+			linkDestStr := linkDest.TokensStr()
+			if !cache.ExistAsset(linkDestStr) {
+				return ast.WalkContinue
+			}
+
+			if !util.ExistsAssetText(linkDestStr) {
+				ret = false
+				return ast.WalkStop
+			}
+		}
+		return ast.WalkContinue
+	})
+	return
+}
+
+func NodeStaticContent(node *ast.Node, excludeTypes []string, includeTextMarkATitleURL, includeAssetPath, fullAttrView bool) string {
 	if nil == node {
 		return ""
 	}
@@ -147,7 +178,11 @@ func NodeStaticContent(node *ast.Node, excludeTypes []string, includeTextMarkATi
 	}
 
 	if ast.NodeAttributeView == node.Type {
-		return getAttributeViewContent(node.AttributeViewID)
+		if fullAttrView {
+			return getAttributeViewContent(node.AttributeViewID)
+		}
+
+		return getAttributeViewName(node.AttributeViewID)
 	}
 
 	buf := bytes.Buffer{}
@@ -393,11 +428,12 @@ var typeAbbrMap = map[string]string{
 	"NodeThematicBreak":    "tb",
 	"NodeVideo":            "video",
 	"NodeAudio":            "audio",
-	"NodeText":             "text",
-	"NodeImage":            "img",
-	"NodeLinkText":         "link_text",
-	"NodeLinkDest":         "link_dest",
-	"NodeTextMark":         "textmark",
+	// 行级元素
+	"NodeText":     "text",
+	"NodeImage":    "img",
+	"NodeLinkText": "link_text",
+	"NodeLinkDest": "link_dest",
+	"NodeTextMark": "textmark",
 }
 
 var abbrTypeMap = map[string]string{}
@@ -496,6 +532,28 @@ func GetAttributeViewName(avID string) (name string) {
 	return
 }
 
+func getAttributeViewName(avID string) (name string) {
+	if "" == avID {
+		return
+	}
+
+	attrView, err := av.ParseAttributeView(avID)
+	if nil != err {
+		logging.LogErrorf("parse attribute view [%s] failed: %s", avID, err)
+		return
+	}
+
+	buf := bytes.Buffer{}
+	buf.WriteString(attrView.Name)
+	buf.WriteByte(' ')
+	for _, v := range attrView.Views {
+		buf.WriteString(v.Name)
+		buf.WriteByte(' ')
+	}
+	name = strings.TrimSpace(buf.String())
+	return
+}
+
 func getAttributeViewContent(avID string) (content string) {
 	if "" == avID {
 		return
@@ -508,6 +566,8 @@ func getAttributeViewContent(avID string) (content string) {
 	}
 
 	buf := bytes.Buffer{}
+	buf.WriteString(attrView.Name)
+	buf.WriteByte(' ')
 	for _, v := range attrView.Views {
 		buf.WriteString(v.Name)
 		buf.WriteByte(' ')
@@ -526,7 +586,7 @@ func getAttributeViewContent(avID string) (content string) {
 		}
 	}
 	if nil == view {
-		content = buf.String()
+		content = strings.TrimSpace(buf.String())
 		return
 	}
 
@@ -558,6 +618,7 @@ func getAttributeViewContent(avID string) (content string) {
 func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *av.Table, err error) {
 	ret = &av.Table{
 		ID:      view.ID,
+		Icon:    view.Icon,
 		Name:    view.Name,
 		Columns: []*av.TableColumn{},
 		Rows:    []*av.TableRow{},
@@ -565,10 +626,9 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 
 	// 组装列
 	for _, col := range view.Table.Columns {
-		key, getErr := attrView.GetKey(col.ID)
-		if nil != getErr {
-			err = getErr
-			return
+		key, _ := attrView.GetKey(col.ID)
+		if nil == key {
+			continue
 		}
 
 		ret.Columns = append(ret.Columns, &av.TableColumn{
@@ -579,9 +639,12 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 			Options:      key.Options,
 			NumberFormat: key.NumberFormat,
 			Template:     key.Template,
+			Relation:     key.Relation,
+			Rollup:       key.Rollup,
 			Wrap:         col.Wrap,
 			Hidden:       col.Hidden,
 			Width:        col.Width,
+			Pin:          col.Pin,
 			Calc:         col.Calc,
 		})
 	}
@@ -661,6 +724,10 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 				tableCell.Value = &av.Value{ID: tableCell.ID, KeyID: col.ID, BlockID: rowID, Type: av.KeyTypeCreated}
 			case av.KeyTypeUpdated: // 填充更新时间列值，后面再渲染
 				tableCell.Value = &av.Value{ID: tableCell.ID, KeyID: col.ID, BlockID: rowID, Type: av.KeyTypeUpdated}
+			case av.KeyTypeRelation: // 清空关联列值，后面再渲染 https://ld246.com/article/1703831044435
+				if nil != tableCell.Value && nil != tableCell.Value.Relation {
+					tableCell.Value.Relation.Contents = nil
+				}
 			}
 
 			FillAttributeViewTableCellNilValue(tableCell, rowID, col.ID)
@@ -670,7 +737,7 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 		ret.Rows = append(ret.Rows, &tableRow)
 	}
 
-	// 渲染自动生成的列值，比如模板列、创建时间列和更新时间列
+	// 渲染自动生成的列值，比如模板列、关联列、汇总列、创建时间列和更新时间列
 	for _, row := range ret.Rows {
 		for _, cell := range row.Cells {
 			switch cell.ValueType {
@@ -678,7 +745,7 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 				keyValues := rows[row.ID]
 				ial := map[string]string{}
 				block := row.GetBlockValue()
-				if !block.IsDetached {
+				if nil != block && !block.IsDetached {
 					ial = cache.GetBlockIAL(row.ID)
 					if nil == ial {
 						ial = map[string]string{}
@@ -686,6 +753,60 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 				}
 				content := renderTemplateCol(ial, cell.Value.Template.Content, keyValues)
 				cell.Value.Template.Content = content
+			case av.KeyTypeRollup: // 渲染汇总列
+				rollupKey, _ := attrView.GetKey(cell.Value.KeyID)
+				if nil == rollupKey || nil == rollupKey.Rollup {
+					break
+				}
+
+				relKey, _ := attrView.GetKey(rollupKey.Rollup.RelationKeyID)
+				if nil == relKey || nil == relKey.Relation {
+					break
+				}
+
+				relVal := attrView.GetValue(relKey.ID, row.ID)
+				if nil == relVal || nil == relVal.Relation {
+					break
+				}
+
+				destAv, _ := av.ParseAttributeView(relKey.Relation.AvID)
+				if nil == destAv {
+					break
+				}
+
+				destKey, _ := destAv.GetKey(rollupKey.Rollup.KeyID)
+				if nil == destKey {
+					continue
+				}
+
+				for _, blockID := range relVal.Relation.BlockIDs {
+					destVal := destAv.GetValue(rollupKey.Rollup.KeyID, blockID)
+					if nil == destVal {
+						destVal = GetAttributeViewDefaultValue(ast.NewNodeID(), rollupKey.Rollup.KeyID, blockID, destKey.Type)
+					}
+					if av.KeyTypeNumber == destKey.Type {
+						destVal.Number.Format = destKey.NumberFormat
+						destVal.Number.FormatNumber()
+					}
+
+					cell.Value.Rollup.Contents = append(cell.Value.Rollup.Contents, destVal.Clone())
+				}
+
+				cell.Value.Rollup.RenderContents(rollupKey.Rollup.Calc, destKey)
+			case av.KeyTypeRelation: // 渲染关联列
+				relKey, _ := attrView.GetKey(cell.Value.KeyID)
+				if nil != relKey && nil != relKey.Relation {
+					destAv, _ := av.ParseAttributeView(relKey.Relation.AvID)
+					if nil != destAv {
+						blocks := map[string]string{}
+						for _, blockValue := range destAv.GetBlockKeyValues().Values {
+							blocks[blockValue.BlockID] = blockValue.Block.Content
+						}
+						for _, blockID := range cell.Value.Relation.BlockIDs {
+							cell.Value.Relation.Contents = append(cell.Value.Relation.Contents, blocks[blockID])
+						}
+					}
+				}
 			case av.KeyTypeCreated: // 渲染创建时间
 				createdStr := row.ID[:len("20060102150405")]
 				created, parseErr := time.ParseInLocation("20060102150405", createdStr, time.Local)
@@ -698,15 +819,14 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 			case av.KeyTypeUpdated: // 渲染更新时间
 				ial := map[string]string{}
 				block := row.GetBlockValue()
-				if !block.IsDetached {
+				if nil != block && !block.IsDetached {
 					ial = cache.GetBlockIAL(row.ID)
 					if nil == ial {
 						ial = map[string]string{}
 					}
 				}
 				updatedStr := ial["updated"]
-				if "" == updatedStr {
-					block := row.GetBlockValue()
+				if "" == updatedStr && nil != block {
 					cell.Value.Updated = av.NewFormattedValueUpdated(block.Block.Updated, 0, av.UpdatedFormatNone)
 					cell.Value.Updated.IsNotEmpty = true
 				} else {
@@ -726,8 +846,10 @@ func renderAttributeViewTable(attrView *av.AttributeView, view *av.View) (ret *a
 
 func FillAttributeViewTableCellNilValue(tableCell *av.TableCell, rowID, colID string) {
 	if nil == tableCell.Value {
-		tableCell.Value = &av.Value{ID: tableCell.ID, KeyID: colID, BlockID: rowID, Type: tableCell.ValueType}
+		tableCell.Value = GetAttributeViewDefaultValue(tableCell.ID, colID, rowID, tableCell.ValueType)
+		return
 	}
+
 	tableCell.Value.Type = tableCell.ValueType
 	switch tableCell.ValueType {
 	case av.KeyTypeText:
@@ -778,7 +900,56 @@ func FillAttributeViewTableCellNilValue(tableCell *av.TableCell, rowID, colID st
 		if nil == tableCell.Value.Updated {
 			tableCell.Value.Updated = &av.ValueUpdated{}
 		}
+	case av.KeyTypeCheckbox:
+		if nil == tableCell.Value.Checkbox {
+			tableCell.Value.Checkbox = &av.ValueCheckbox{}
+		}
+	case av.KeyTypeRelation:
+		if nil == tableCell.Value.Relation {
+			tableCell.Value.Relation = &av.ValueRelation{}
+		}
+	case av.KeyTypeRollup:
+		if nil == tableCell.Value.Rollup {
+			tableCell.Value.Rollup = &av.ValueRollup{}
+		}
 	}
+}
+
+func GetAttributeViewDefaultValue(valueID, keyID, blockID string, typ av.KeyType) (ret *av.Value) {
+	ret = &av.Value{ID: valueID, KeyID: keyID, BlockID: blockID, Type: typ}
+	switch typ {
+	case av.KeyTypeText:
+		ret.Text = &av.ValueText{}
+	case av.KeyTypeNumber:
+		ret.Number = &av.ValueNumber{}
+	case av.KeyTypeDate:
+		ret.Date = &av.ValueDate{}
+	case av.KeyTypeSelect:
+		ret.MSelect = []*av.ValueSelect{}
+	case av.KeyTypeMSelect:
+		ret.MSelect = []*av.ValueSelect{}
+	case av.KeyTypeURL:
+		ret.URL = &av.ValueURL{}
+	case av.KeyTypeEmail:
+		ret.Email = &av.ValueEmail{}
+	case av.KeyTypePhone:
+		ret.Phone = &av.ValuePhone{}
+	case av.KeyTypeMAsset:
+		ret.MAsset = []*av.ValueAsset{}
+	case av.KeyTypeTemplate:
+		ret.Template = &av.ValueTemplate{}
+	case av.KeyTypeCreated:
+		ret.Created = &av.ValueCreated{}
+	case av.KeyTypeUpdated:
+		ret.Updated = &av.ValueUpdated{}
+	case av.KeyTypeCheckbox:
+		ret.Checkbox = &av.ValueCheckbox{}
+	case av.KeyTypeRelation:
+		ret.Relation = &av.ValueRelation{}
+	case av.KeyTypeRollup:
+		ret.Rollup = &av.ValueRollup{}
+	}
+	return
 }
 
 func renderTemplateCol(ial map[string]string, tplContent string, rowValues []*av.KeyValues) string {
@@ -791,9 +962,11 @@ func renderTemplateCol(ial map[string]string, tplContent string, rowValues []*av
 		ial["updated"] = time.UnixMilli(block.Block.Updated).Format("20060102150405")
 	}
 
-	funcMap := sprig.TxtFuncMap()
 	goTpl := template.New("").Delims(".action{", "}")
-	tpl, tplErr := goTpl.Funcs(funcMap).Parse(tplContent)
+	tplFuncMap := util.BuiltInTemplateFuncs()
+	// 这里存在依赖问题所以不支持 SQLTemplateFuncs(&tplFuncMap)
+	goTpl = goTpl.Funcs(tplFuncMap)
+	tpl, tplErr := goTpl.Funcs(tplFuncMap).Parse(tplContent)
 	if nil != tplErr {
 		logging.LogWarnf("parse template [%s] failed: %s", tplContent, tplErr)
 		return ""
@@ -829,6 +1002,8 @@ func renderTemplateCol(ial map[string]string, tplContent string, rowValues []*av
 			v := rowValue.Values[0]
 			if av.KeyTypeNumber == v.Type {
 				dataModel[rowValue.Key.Name] = v.Number.Content
+			} else if av.KeyTypeDate == v.Type {
+				dataModel[rowValue.Key.Name] = time.UnixMilli(v.Date.Content)
 			} else {
 				dataModel[rowValue.Key.Name] = v.String()
 			}

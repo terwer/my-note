@@ -52,6 +52,8 @@ export abstract class Constants {
     public static readonly CUSTOM_RIFF_DECKS: string = "custom-riff-decks";
 
     // size
+    public static readonly SIZE_SCROLL_TB: number = 24;
+    public static readonly SIZE_SCROLL_STEP: number = 256;
     public static readonly SIZE_LINK_TEXT_MAX: number = 24;
     public static readonly SIZE_TOOLBAR_HEIGHT: number = isMobile() ? 0 : 32;
     public static readonly SIZE_GET_MAX = 102400;
@@ -73,9 +75,9 @@ export abstract class Constants {
     public static readonly CB_GET_ALL = "cb-get-all"; // 获取所有块
     public static readonly CB_GET_BACKLINK = "cb-get-backlink"; // 悬浮窗为传递型需展示上下文
     public static readonly CB_GET_UNUNDO = "cb-get-unundo"; // 不需要记录历史
-    public static readonly CB_GET_SCROLL = "cb-get-scroll"; // 滚动到指定位置
+    public static readonly CB_GET_SCROLL = "cb-get-scroll"; // 滚动到指定位置，用于直接打开文档，必有 rootID
     public static readonly CB_GET_CONTEXT = "cb-get-context"; // 包含上下文
-    public static readonly CB_GET_ROOTSCROLL = "cb-get-rootscroll"; // 如果为 rootID 就滚动到指定位置
+    public static readonly CB_GET_ROOTSCROLL = "cb-get-rootscroll"; // 如果为 rootID 就滚动到指定位置，必有 rootID
     public static readonly CB_GET_HTML = "cb-get-html"; // 直接渲染，不需要再 /api/block/getDocInfo，否则搜索表格无法定位
     public static readonly CB_GET_HISTORY = "cb-get-history"; // 历史渲染
 
@@ -98,6 +100,21 @@ export abstract class Constants {
     public static readonly LOCAL_AI = "local-ai";
     public static readonly LOCAL_PLUGINTOPUNPIN = "local-plugintopunpin";
     public static readonly LOCAL_FLASHCARD = "local-flashcard";
+    public static readonly LOCAL_FILEPOSITION = "local-fileposition";
+    public static readonly LOCAL_DIALOGPOSITION = "local-dialogposition";
+    public static readonly LOCAL_SESSION_FIRSTLOAD = "local-session-firstload";
+
+    // dialog
+    public static readonly DIALOG_OPENCARD = "dialog-opencard";
+    public static readonly DIALOG_MAKECARD = "dialog-makecard";
+    public static readonly DIALOG_VIEWCARDS = "dialog-viewcards";
+    public static readonly DIALOG_DIALYNOTE = "dialog-dialynote";
+    public static readonly DIALOG_RECENTDOCS = "dialog-recentdocs";
+    public static readonly DIALOG_SWITCHTAB = "dialog-switchtab";
+    public static readonly DIALOG_SEARCH = "dialog-search";
+    public static readonly DIALOG_REPLACE = "dialog-replace";
+    public static readonly DIALOG_GLOBALSEARCH = "dialog-globalsearch";
+    public static readonly DIALOG_HISTORYCOMPARE = "dialog-historycompare";
 
     // timeout
     public static readonly TIMEOUT_DBLCLICK = 190;
@@ -120,7 +137,7 @@ export abstract class Constants {
         9: "⇥",
         13: "↩",
         16: "⇧",
-        17: "⌘",
+        17: "⌃",
         18: "⌥",
         19: "Pause",
         20: "CapsLock",
@@ -221,7 +238,7 @@ export abstract class Constants {
     };
     // 冲突不使用 "⌘S/Q"
     // "⌘", "⇧", "⌥", "⌃"
-    // "⌘A", "⌘X", "⌘C", "⌘V", "⌘-", "⌘=", "⌘0", "⇧⌘V", "⌘/", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⌃⇧⇥", "⌃⇥", "⌘⇥", "⇧⌘⇥", "⇧⌘→", "⇧⌘←",
+    // "⌘A", "⌘X", "⌘C", "⌘V", "⌘-", "⌘=", "⌘0", "⇧⌘V", "⌘/", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⌃D", "⇧⌘→", "⇧⌘←",
     // "⌘Home", "⌘End", "⇧↩", "↩", "PageUp", "PageDown", "⌫", "⌦" 不可自定义
     public static readonly SIYUAN_KEYMAP: IKeymap = {
         general: {
@@ -265,6 +282,8 @@ export abstract class Constants {
             goToTab9: {default: "⌘9", custom: "⌘9"},
             goToTabNext: {default: "⇧⌘]", custom: "⇧⌘]"},
             goToTabPrev: {default: "⇧⌘[", custom: "⇧⌘["},
+            goToEditTabNext: {default: "⌃⇥", custom: "⌃⇥"},
+            goToEditTabPrev: {default: "⌃⇧⇥", custom: "⌃⇧⇥"},
             move: {default: "", custom: ""},
             selectOpen1: {default: "", custom: ""},
             toggleDock: {default: "", custom: ""},
@@ -277,6 +296,7 @@ export abstract class Constants {
             closeUnmodified: {default: "", custom: ""},
             closeLeft: {default: "", custom: ""},
             closeRight: {default: "", custom: ""},
+            tabToWindow: {default: "", custom: ""},
         },
         editor: {
             general: {
@@ -287,6 +307,7 @@ export abstract class Constants {
                 copyID: {default: "", custom: ""},
                 copyProtocolInMd: {default: "", custom: ""},
                 netImg2LocalAsset: {default: "", custom: ""},
+                netAssets2LocalAssets: {default: "", custom: ""},
                 optimizeTypography: {default: "", custom: ""},
                 hLayout: {default: "", custom: ""},
                 vLayout: {default: "", custom: ""},
@@ -507,6 +528,34 @@ export abstract class Constants {
                 }]
             ]
         }
+    };
+
+    public static readonly SIYUAN_DEFAULT_REPLACETYPES: {
+        [key: string]: boolean;
+    } = {
+        "text": true,
+        "imgText": true,
+        "imgTitle": true,
+        "imgSrc": false,
+        "aText": true,
+        "aTitle": true,
+        "aHref": false,
+        "code": false,
+        "em": true,
+        "strong": true,
+        "inlineMath": false,
+        "inlineMemo": true,
+        "kbd": true,
+        "mark": true,
+        "s": true,
+        "sub": true,
+        "sup": true,
+        "tag": true,
+        "u": true,
+        "docTitle": true,
+        "codeBlock": false,
+        "mathBlock": false,
+        "htmlBlock": false
     };
 
     // image

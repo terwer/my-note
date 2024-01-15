@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 // LayoutTable 描述了表格布局的结构。
@@ -28,10 +30,11 @@ type LayoutTable struct {
 	Spec int    `json:"spec"` // 布局格式版本
 	ID   string `json:"id"`   // 布局 ID
 
-	Columns []*ViewTableColumn `json:"columns"` // 表格列
-	RowIDs  []string           `json:"rowIds"`  // 行 ID，用于自定义排序
-	Filters []*ViewFilter      `json:"filters"` // 过滤规则
-	Sorts   []*ViewSort        `json:"sorts"`   // 排序规则
+	Columns  []*ViewTableColumn `json:"columns"`  // 表格列
+	RowIDs   []string           `json:"rowIds"`   // 行 ID，用于自定义排序
+	Filters  []*ViewFilter      `json:"filters"`  // 过滤规则
+	Sorts    []*ViewSort        `json:"sorts"`    // 排序规则
+	PageSize int                `json:"pageSize"` // 每页行数
 }
 
 type ViewTableColumn struct {
@@ -39,6 +42,7 @@ type ViewTableColumn struct {
 
 	Wrap   bool        `json:"wrap"`           // 是否换行
 	Hidden bool        `json:"hidden"`         // 是否隐藏
+	Pin    bool        `json:"pin"`            // 是否固定
 	Width  string      `json:"width"`          // 列宽度
 	Calc   *ColumnCalc `json:"calc,omitempty"` // 计算
 }
@@ -71,6 +75,10 @@ const (
 	CalcOperatorRange             CalcOperator = "Range"
 	CalcOperatorEarliest          CalcOperator = "Earliest"
 	CalcOperatorLatest            CalcOperator = "Latest"
+	CalcOperatorChecked           CalcOperator = "Checked"
+	CalcOperatorUnchecked         CalcOperator = "Unchecked"
+	CalcOperatorPercentChecked    CalcOperator = "Percent checked"
+	CalcOperatorPercentUnchecked  CalcOperator = "Percent unchecked"
 )
 
 func (value *Value) Compare(other *Value) int {
@@ -168,13 +176,98 @@ func (value *Value) Compare(other *Value) int {
 		}
 	case KeyTypeTemplate:
 		if nil != value.Template && nil != other.Template {
+			vContent := strings.TrimSpace(value.Template.Content)
+			oContent := strings.TrimSpace(other.Template.Content)
+			if util.IsNumeric(vContent) && util.IsNumeric(oContent) {
+				v1, _ := strconv.ParseFloat(vContent, 64)
+				v2, _ := strconv.ParseFloat(oContent, 64)
+				if v1 > v2 {
+					return 1
+				}
+
+				if v1 < v2 {
+					return -1
+				}
+				return 0
+			}
 			return strings.Compare(value.Template.Content, other.Template.Content)
+		}
+	case KeyTypeCheckbox:
+		if nil != value.Checkbox && nil != other.Checkbox {
+			if value.Checkbox.Checked && !other.Checkbox.Checked {
+				return 1
+			}
+			if !value.Checkbox.Checked && other.Checkbox.Checked {
+				return -1
+			}
+			return 0
+		}
+	case KeyTypeRelation:
+		if nil != value.Relation && nil != other.Relation {
+			vContent := strings.TrimSpace(strings.Join(value.Relation.Contents, " "))
+			oContent := strings.TrimSpace(strings.Join(other.Relation.Contents, " "))
+			return strings.Compare(vContent, oContent)
+		}
+	case KeyTypeRollup:
+		if nil != value.Rollup && nil != other.Rollup {
+			vContent := strings.TrimSpace(strings.Join(value.Relation.Contents, " "))
+			oContent := strings.TrimSpace(strings.Join(other.Relation.Contents, " "))
+			if util.IsNumeric(vContent) && util.IsNumeric(oContent) {
+				v1, _ := strconv.ParseFloat(vContent, 64)
+				v2, _ := strconv.ParseFloat(oContent, 64)
+				if v1 > v2 {
+					return 1
+				}
+
+				if v1 < v2 {
+					return -1
+				}
+				return 0
+			}
+			return strings.Compare(vContent, oContent)
 		}
 	}
 	return 0
 }
 
-func (value *Value) CompareOperator(other *Value, operator FilterOperator) bool {
+func (value *Value) CompareOperator(other *Value, operator FilterOperator, attrView *AttributeView, rowID string) bool {
+	if nil != value.Rollup && nil != other.Rollup {
+		rollupKey, _ := attrView.GetKey(value.KeyID)
+		if nil == rollupKey {
+			return false
+		}
+		relKey, _ := attrView.GetKey(rollupKey.Rollup.RelationKeyID)
+		if nil == relKey {
+			return false
+		}
+
+		relVal := attrView.GetValue(relKey.ID, rowID)
+		if nil == relVal || nil == relVal.Relation {
+			return false
+		}
+
+		destAv, _ := ParseAttributeView(relKey.Relation.AvID)
+		if nil == destAv {
+			return false
+		}
+
+		for _, blockID := range relVal.Relation.BlockIDs {
+			destVal := destAv.GetValue(rollupKey.Rollup.KeyID, blockID)
+			if nil == destVal {
+				continue
+			}
+
+			if destVal.compareOperator(other, operator, attrView) {
+				return true
+			}
+		}
+		return false
+	}
+
+	return value.compareOperator(other, operator, attrView)
+}
+
+func (value *Value) compareOperator(other *Value, operator FilterOperator, attrView *AttributeView) bool {
 	if nil == other {
 		return true
 	}
@@ -359,7 +452,7 @@ func (value *Value) CompareOperator(other *Value, operator FilterOperator) bool 
 		}
 	}
 
-	if nil != value.MSelect && nil != other.MSelect && 0 < len(value.MSelect) && 0 < len(other.MSelect) {
+	if nil != value.MSelect && nil != other.MSelect {
 		switch operator {
 		case FilterOperatorIsEqual, FilterOperatorContains:
 			contains := false
@@ -542,17 +635,61 @@ func (value *Value) CompareOperator(other *Value, operator FilterOperator) bool 
 			return "" != strings.TrimSpace(value.Template.Content)
 		}
 	}
-	return true
+
+	if nil != value.Checkbox {
+		switch operator {
+		case FilterOperatorIsTrue:
+			return value.Checkbox.Checked
+		case FilterOperatorIsFalse:
+			return !value.Checkbox.Checked
+		}
+	}
+
+	if nil != value.Relation && nil != other.Relation {
+		switch operator {
+		case FilterOperatorContains:
+			contains := false
+			for _, c := range value.Relation.Contents {
+				for _, c1 := range other.Relation.Contents {
+					if strings.Contains(c, c1) {
+						contains = true
+						break
+					}
+				}
+			}
+			return contains
+		case FilterOperatorDoesNotContain:
+			contains := false
+			for _, c := range value.Relation.Contents {
+				for _, c1 := range other.Relation.Contents {
+					if strings.Contains(c, c1) {
+						contains = true
+						break
+					}
+				}
+			}
+			return !contains
+		case FilterOperatorIsEmpty:
+			return 0 == len(value.Relation.Contents) || 1 == len(value.Relation.Contents) && "" == value.Relation.Contents[0]
+		case FilterOperatorIsNotEmpty:
+			return 0 != len(value.Relation.Contents) && !(1 == len(value.Relation.Contents) && "" == value.Relation.Contents[0])
+		}
+	}
+
+	return false
 }
 
 // Table 描述了表格实例的结构。
 type Table struct {
-	ID      string         `json:"id"`      // 表格布局 ID
-	Name    string         `json:"name"`    // 表格名称
-	Filters []*ViewFilter  `json:"filters"` // 过滤规则
-	Sorts   []*ViewSort    `json:"sorts"`   // 排序规则
-	Columns []*TableColumn `json:"columns"` // 表格列
-	Rows    []*TableRow    `json:"rows"`    // 表格行
+	ID       string         `json:"id"`       // 表格布局 ID
+	Icon     string         `json:"icon"`     // 表格图标
+	Name     string         `json:"name"`     // 表格名称
+	Filters  []*ViewFilter  `json:"filters"`  // 过滤规则
+	Sorts    []*ViewSort    `json:"sorts"`    // 排序规则
+	Columns  []*TableColumn `json:"columns"`  // 表格列
+	Rows     []*TableRow    `json:"rows"`     // 表格行
+	RowCount int            `json:"rowCount"` // 表格总行数
+	PageSize int            `json:"pageSize"` // 每页行数
 }
 
 type TableColumn struct {
@@ -562,14 +699,17 @@ type TableColumn struct {
 	Icon   string      `json:"icon"`   // 列图标
 	Wrap   bool        `json:"wrap"`   // 是否换行
 	Hidden bool        `json:"hidden"` // 是否隐藏
+	Pin    bool        `json:"pin"`    // 是否固定
 	Width  string      `json:"width"`  // 列宽度
 	Calc   *ColumnCalc `json:"calc"`   // 计算
 
 	// 以下是某些列类型的特有属性
 
-	Options      []*KeySelectOption `json:"options,omitempty"` // 选项列表
-	NumberFormat NumberFormat       `json:"numberFormat"`      // 列数字格式化
-	Template     string             `json:"template"`          // 模板内容
+	Options      []*SelectOption `json:"options,omitempty"`  // 选项列表
+	NumberFormat NumberFormat    `json:"numberFormat"`       // 列数字格式化
+	Template     string          `json:"template"`           // 模板内容
+	Relation     *Relation       `json:"relation,omitempty"` // 关联列
+	Rollup       *Rollup         `json:"rollup,omitempty"`   // 汇总列
 }
 
 type TableCell struct {
@@ -624,11 +764,6 @@ func (table *Table) SortRows() {
 	}
 
 	sort.Slice(table.Rows, func(i, j int) bool {
-		block := table.Rows[i].GetBlockValue()
-		if !block.IsInitialized && nil != block.Block && "" == block.Block.Content && block.IsDetached {
-			return false
-		}
-
 		for _, colIndexSort := range colIndexSorts {
 			result := table.Rows[i].Cells[colIndexSort.Index].Value.Compare(table.Rows[j].Cells[colIndexSort.Index].Value)
 			if 0 == result {
@@ -644,7 +779,7 @@ func (table *Table) SortRows() {
 	})
 }
 
-func (table *Table) FilterRows() {
+func (table *Table) FilterRows(attrView *AttributeView) {
 	if 1 > len(table.Filters) {
 		return
 	}
@@ -661,12 +796,6 @@ func (table *Table) FilterRows() {
 
 	rows := []*TableRow{}
 	for _, row := range table.Rows {
-		block := row.GetBlockValue()
-		if !block.IsInitialized && nil != block.Block && "" == block.Block.Content && block.IsDetached {
-			rows = append(rows, row)
-			continue
-		}
-
 		pass := true
 		for j, index := range colIndexes {
 			operator := table.Filters[j].Operator
@@ -685,7 +814,7 @@ func (table *Table) FilterRows() {
 				break
 			}
 
-			if !row.Cells[index].Value.CompareOperator(table.Filters[j].Value, operator) {
+			if !row.Cells[index].Value.CompareOperator(table.Filters[j].Value, operator, attrView, row.ID) {
 				pass = false
 				break
 			}
@@ -734,6 +863,12 @@ func (table *Table) CalcCols() {
 			table.calcColCreated(col, i)
 		case KeyTypeUpdated:
 			table.calcColUpdated(col, i)
+		case KeyTypeCheckbox:
+			table.calcColCheckbox(col, i)
+		case KeyTypeRelation:
+			table.calcColRelation(col, i)
+		case KeyTypeRollup:
+			table.calcColRollup(col, i)
 		}
 	}
 }
@@ -1840,6 +1975,179 @@ func (table *Table) calcColUpdated(col *TableColumn, colIndex int) {
 		}
 		if 0 != earliest && 0 != latest {
 			col.Calc.Result = &Value{Updated: NewFormattedValueUpdated(earliest, latest, UpdatedFormatDuration)}
+		}
+	}
+}
+
+func (table *Table) calcColCheckbox(col *TableColumn, colIndex int) {
+	switch col.Calc.Operator {
+	case CalcOperatorCountAll:
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(len(table.Rows)), NumberFormatNone)}
+	case CalcOperatorChecked:
+		countChecked := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Checkbox && row.Cells[colIndex].Value.Checkbox.Checked {
+				countChecked++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countChecked), NumberFormatNone)}
+	case CalcOperatorUnchecked:
+		countUnchecked := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Checkbox && !row.Cells[colIndex].Value.Checkbox.Checked {
+				countUnchecked++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countUnchecked), NumberFormatNone)}
+	case CalcOperatorPercentChecked:
+		countChecked := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Checkbox && row.Cells[colIndex].Value.Checkbox.Checked {
+				countChecked++
+			}
+		}
+		if 0 < len(table.Rows) {
+			col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countChecked)/float64(len(table.Rows)), NumberFormatPercent)}
+		}
+	case CalcOperatorPercentUnchecked:
+		countUnchecked := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Checkbox && !row.Cells[colIndex].Value.Checkbox.Checked {
+				countUnchecked++
+			}
+		}
+		if 0 < len(table.Rows) {
+			col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countUnchecked)/float64(len(table.Rows)), NumberFormatPercent)}
+		}
+	}
+}
+
+func (table *Table) calcColRelation(col *TableColumn, colIndex int) {
+	switch col.Calc.Operator {
+	case CalcOperatorCountAll:
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(len(table.Rows)), NumberFormatNone)}
+	case CalcOperatorCountValues:
+		countValues := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Relation {
+				countValues++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countValues), NumberFormatNone)}
+	case CalcOperatorCountUniqueValues:
+		countUniqueValues := 0
+		uniqueValues := map[string]bool{}
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Relation {
+				for _, id := range row.Cells[colIndex].Value.Relation.BlockIDs {
+					if !uniqueValues[id] {
+						uniqueValues[id] = true
+						countUniqueValues++
+					}
+				}
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countUniqueValues), NumberFormatNone)}
+	case CalcOperatorCountEmpty:
+		countEmpty := 0
+		for _, row := range table.Rows {
+			if nil == row.Cells[colIndex] || nil == row.Cells[colIndex].Value || nil == row.Cells[colIndex].Value.Relation || 0 == len(row.Cells[colIndex].Value.Relation.BlockIDs) {
+				countEmpty++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countEmpty), NumberFormatNone)}
+	case CalcOperatorCountNotEmpty:
+		countNotEmpty := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Relation && 0 < len(row.Cells[colIndex].Value.Relation.BlockIDs) {
+				countNotEmpty++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countNotEmpty), NumberFormatNone)}
+	case CalcOperatorPercentEmpty:
+		countEmpty := 0
+		for _, row := range table.Rows {
+			if nil == row.Cells[colIndex] || nil == row.Cells[colIndex].Value || nil == row.Cells[colIndex].Value.Relation || 0 == len(row.Cells[colIndex].Value.Relation.BlockIDs) {
+				countEmpty++
+			}
+		}
+		if 0 < len(table.Rows) {
+			col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countEmpty)/float64(len(table.Rows)), NumberFormatPercent)}
+		}
+	case CalcOperatorPercentNotEmpty:
+		countNotEmpty := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Relation && 0 < len(row.Cells[colIndex].Value.Relation.BlockIDs) {
+				countNotEmpty++
+			}
+		}
+		if 0 < len(table.Rows) {
+			col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countNotEmpty)/float64(len(table.Rows)), NumberFormatPercent)}
+		}
+	}
+}
+
+func (table *Table) calcColRollup(col *TableColumn, colIndex int) {
+	switch col.Calc.Operator {
+	case CalcOperatorCountAll:
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(len(table.Rows)), NumberFormatNone)}
+	case CalcOperatorCountValues:
+		countValues := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Rollup {
+				countValues++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countValues), NumberFormatNone)}
+	case CalcOperatorCountUniqueValues:
+		countUniqueValues := 0
+		uniqueValues := map[string]bool{}
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Rollup {
+				for _, content := range row.Cells[colIndex].Value.Rollup.Contents {
+					if !uniqueValues[content.String()] {
+						uniqueValues[content.String()] = true
+						countUniqueValues++
+					}
+				}
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countUniqueValues), NumberFormatNone)}
+	case CalcOperatorCountEmpty:
+		countEmpty := 0
+		for _, row := range table.Rows {
+			if nil == row.Cells[colIndex] || nil == row.Cells[colIndex].Value || nil == row.Cells[colIndex].Value.Rollup || 0 == len(row.Cells[colIndex].Value.Rollup.Contents) {
+				countEmpty++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countEmpty), NumberFormatNone)}
+	case CalcOperatorCountNotEmpty:
+		countNotEmpty := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Rollup && 0 < len(row.Cells[colIndex].Value.Rollup.Contents) {
+				countNotEmpty++
+			}
+		}
+		col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countNotEmpty), NumberFormatNone)}
+	case CalcOperatorPercentEmpty:
+		countEmpty := 0
+		for _, row := range table.Rows {
+			if nil == row.Cells[colIndex] || nil == row.Cells[colIndex].Value || nil == row.Cells[colIndex].Value.Rollup || 0 == len(row.Cells[colIndex].Value.Rollup.Contents) {
+				countEmpty++
+			}
+		}
+		if 0 < len(table.Rows) {
+			col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countEmpty)/float64(len(table.Rows)), NumberFormatPercent)}
+		}
+	case CalcOperatorPercentNotEmpty:
+		countNotEmpty := 0
+		for _, row := range table.Rows {
+			if nil != row.Cells[colIndex] && nil != row.Cells[colIndex].Value && nil != row.Cells[colIndex].Value.Rollup && 0 < len(row.Cells[colIndex].Value.Rollup.Contents) {
+				countNotEmpty++
+			}
+		}
+		if 0 < len(table.Rows) {
+			col.Calc.Result = &Value{Number: NewFormattedValueNumber(float64(countNotEmpty)/float64(len(table.Rows)), NumberFormatPercent)}
 		}
 	}
 }

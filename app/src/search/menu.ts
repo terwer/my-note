@@ -11,7 +11,7 @@ import {updateSearchResult} from "../mobile/menu/search";
 
 export const filterMenu = (config: ISearchOption, cb: () => void) => {
     const filterDialog = new Dialog({
-        title: window.siyuan.languages.type,
+        title: window.siyuan.languages.replaceType,
         content: `<div class="b3-dialog__content">
     <label class="fn__flex b3-label">
         <svg class="ft__on-surface svg fn__flex-center"><use xlink:href="#iconMath"></use></svg>
@@ -151,6 +151,40 @@ export const filterMenu = (config: ISearchOption, cb: () => void) => {
     });
 };
 
+export const replaceFilterMenu = (config: ISearchOption) => {
+    let html = "";
+    Object.keys(Constants.SIYUAN_DEFAULT_REPLACETYPES).forEach((key) => {
+        html += `<label class="fn__flex b3-label">
+    <span class="fn__space"></span>
+    <div class="fn__flex-1 fn__flex-center">
+        ${window.siyuan.languages.replaceTypes[key]}
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" data-type="${key}" type="checkbox"${config.replaceTypes[key] ? " checked" : ""}>
+</label>`;
+    });
+    const filterDialog = new Dialog({
+        title: window.siyuan.languages.replaceType,
+        content: `<div class="b3-dialog__content">${html}</div>
+<div class="b3-dialog__action">
+    <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
+    <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
+</div>`,
+        width: isMobile() ? "92vw" : "520px",
+        height: "70vh",
+    });
+    const btnsElement = filterDialog.element.querySelectorAll(".b3-button");
+    btnsElement[0].addEventListener("click", () => {
+        filterDialog.destroy();
+    });
+    btnsElement[1].addEventListener("click", () => {
+        filterDialog.element.querySelectorAll(".b3-switch").forEach((item: HTMLInputElement) => {
+            config.replaceTypes[item.getAttribute("data-type") as TSearchFilter] = item.checked;
+        });
+        filterDialog.destroy();
+    });
+};
+
 export const queryMenu = (config: ISearchOption, cb: () => void) => {
     if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
         window.siyuan.menus.menu.element.getAttribute("data-name") === "searchMethod") {
@@ -239,7 +273,7 @@ export const saveCriterion = (config: ISearchOption,
         saveDialog.destroy();
     });
     btnsElement[1].addEventListener("click", () => {
-        const value = saveDialog.element.querySelector("input").value;
+        const value = saveDialog.element.querySelector("input").value.trim();
         if (!value) {
             showMessage(window.siyuan.languages["_kernel"]["142"]);
             return;
@@ -336,11 +370,18 @@ export const moreMenu = async (config: ISearchOption,
     /// #if MOBILE
     window.siyuan.menus.menu.append(new MenuItem({
         iconHTML: "",
-        label: window.siyuan.languages.type,
+        label: window.siyuan.languages.searchType,
         click() {
             filterMenu(config, () => {
                 updateSearchResult(config, element, true);
             });
+        }
+    }).element);
+    window.siyuan.menus.menu.append(new MenuItem({
+        iconHTML: "",
+        label: window.siyuan.languages.replaceType,
+        click() {
+            replaceFilterMenu(config);
         }
     }).element);
     window.siyuan.menus.menu.append(new MenuItem({
@@ -520,7 +561,8 @@ export const moreMenu = async (config: ISearchOption,
 const configIsSame = (config: ISearchOption, config2: ISearchOption) => {
     if (config2.group === config.group && config2.hPath === config.hPath && config2.hasReplace === config.hasReplace &&
         config2.k === config.k && config2.method === config.method && config2.r === config.r &&
-        config2.sort === config.sort && objEquals(config2.types, config.types) && objEquals(config2.idPath, config.idPath)) {
+        config2.sort === config.sort && objEquals(config2.types, config.types) &&
+        objEquals(config2.replaceTypes, config.replaceTypes) && objEquals(config2.idPath, config.idPath)) {
         return true;
     }
     return false;
@@ -553,7 +595,7 @@ export const initCriteriaMenu = (element: HTMLElement, data: ISearchOption[], co
 <span class="fn__flex-1"></span>
 <button data-type="saveCriterion" class="b3-button b3-button--small b3-button--outline fn__flex-center">${window.siyuan.languages.saveCriterion}</button>
 <span class="fn__space"></span>
-<button data-type="removeCriterion" aria-label="${window.siyuan.languages.useCriterion}" class="b3-tooltips b3-tooltips__nw b3-button b3-button--small b3-button--outline fn__flex-center">${window.siyuan.languages.removeCriterion}</button>
+<button data-type="removeCriterion" aria-label="${window.siyuan.languages.useCriterion}" class="ariaLabel b3-button b3-button--small b3-button--outline fn__flex-center fn__flex-shrink" data-position="9bottom">${window.siyuan.languages.removeCriterion}</button>
 <span class="fn__space"></span>`;
         /// #endif
     });

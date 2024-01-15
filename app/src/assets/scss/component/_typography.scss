@@ -406,10 +406,6 @@
     max-width: 100%;
     user-select: none;
 
-    &:not([style]) {
-      display: initial;
-    }
-
     & > span:nth-child(2) {
       max-width: calc(100% - 10px);
       position: relative;
@@ -480,10 +476,6 @@
     right: 4px;
     top: 4px;
     display: flex;
-
-    &--show {
-      opacity: .86;
-    }
   }
 
   &-icon {

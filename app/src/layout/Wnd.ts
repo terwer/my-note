@@ -3,7 +3,7 @@ import {genUUID} from "../util/genID";
 import {
     getInstanceById,
     getWndByLayout, JSONToCenter,
-    newModelByInitData, pdfIsLoading,
+    newModelByInitData, pdfIsLoading, saveLayout,
     setPanelFocus,
     switchWnd
 } from "./util";
@@ -111,7 +111,11 @@ export class Wnd {
                     this.renderTabList(target);
                     break;
                 } else if (target.tagName === "LI" && target.getAttribute("data-id") && !pdfIsLoading(this.element)) {
-                    this.switchTab(target, true);
+                    if (target.classList.contains("item--focus")) {
+                        this.switchTab(target, true, true, false, false);
+                    } else {
+                        this.switchTab(target, true);
+                    }
                     break;
                 }
                 target = target.parentElement;
@@ -279,6 +283,7 @@ export class Wnd {
             } else {
                 oldTab.parent.children.push(tempTab);
             }
+            saveLayout();
         });
 
         this.element.addEventListener("dragenter", (event: DragEvent & { target: HTMLElement }) => {
@@ -402,7 +407,7 @@ export class Wnd {
         }
     }
 
-    public switchTab(target: HTMLElement, pushBack = false, update = true, resize = true) {
+    public switchTab(target: HTMLElement, pushBack = false, update = true, resize = true, isSaveLayout = true) {
         let currentTab: Tab;
         this.children.forEach((item) => {
             if (target === item.headElement) {
@@ -430,6 +435,9 @@ export class Wnd {
             if (initData) {
                 currentTab.addModel(newModelByInitData(this.app, currentTab, JSON.parse(initData)));
                 currentTab.headElement.removeAttribute("data-initdata");
+                if (isSaveLayout) {
+                    saveLayout();
+                }
                 return;
             }
         }
@@ -466,7 +474,7 @@ export class Wnd {
                     openFileById({
                         app: this.app,
                         id: keepCursorId,
-                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]
+                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL]
                     });
                 }
                 currentTab.headElement.removeAttribute("keep-cursor");
@@ -490,9 +498,12 @@ export class Wnd {
                 resize,
             });
         }
+        if (isSaveLayout) {
+            saveLayout();
+        }
     }
 
-    public addTab(tab: Tab, keepCursor = false) {
+    public addTab(tab: Tab, keepCursor = false, isSaveLayout = true) {
         if (keepCursor) {
             tab.headElement?.classList.remove("item--focus");
             tab.panelElement.classList.add("fn__none");
@@ -560,6 +571,9 @@ export class Wnd {
         setTabPosition();
         setModelsHash();
         /// #endif
+        if (isSaveLayout) {
+            saveLayout();
+        }
     }
 
     private renderTabList(target: HTMLElement) {
@@ -682,16 +696,14 @@ export class Wnd {
         model.send("closews", {});
     }
 
-    private removeTabAction = (id: string, closeAll = false, hasSaveScroll = true, animate = true) => {
+    private removeTabAction = (id: string, closeAll = false, animate = true) => {
         clearCounter();
         this.children.find((item, index) => {
             if (item.id === id) {
-                if (item.model instanceof Custom) {
-                    if (item.model.beforeDestroy) {
-                        item.model.beforeDestroy();
-                    }
+                if (item.model instanceof Custom && item.model.beforeDestroy) {
+                    item.model.beforeDestroy();
                 }
-                if (item.model instanceof Editor && hasSaveScroll) {
+                if (item.model instanceof Editor) {
                     saveScroll(item.model.editor.protyle);
                 }
                 if (this.children.length === 1) {
@@ -744,7 +756,7 @@ export class Wnd {
                             }
                         });
                         if (latestHeadElement && !closeAll) {
-                            this.switchTab(latestHeadElement, true, true, false);
+                            this.switchTab(latestHeadElement, true, true, false, false);
                             this.showHeading();
                         }
                     }
@@ -760,7 +772,7 @@ export class Wnd {
                 item.panelElement.remove();
                 this.destroyModel(item.model);
                 this.children.splice(index, 1);
-                resizeTabs();
+                resizeTabs(false);
                 return true;
             }
         });
@@ -776,10 +788,11 @@ export class Wnd {
                 /// #endif
                 const wnd = new Wnd(this.app);
                 window.siyuan.layout.centerLayout.addWnd(wnd);
-                wnd.addTab(newCenterEmptyTab(this.app));
+                wnd.addTab(newCenterEmptyTab(this.app), false, false);
                 setTitle(window.siyuan.languages.siyuanNote);
             }
         }
+        saveLayout();
         /// #if !BROWSER
         webFrame.clearCache();
         ipcRenderer.send(Constants.SIYUAN_CMD, "clearCache");
@@ -787,7 +800,7 @@ export class Wnd {
         /// #endif
     };
 
-    public removeTab(id: string, closeAll = false, needSaveScroll = true, animate = true) {
+    public removeTab(id: string, closeAll = false, animate = true) {
         for (let index = 0; index < this.children.length; index++) {
             const item = this.children[index];
             if (item.id === id) {
@@ -796,9 +809,9 @@ export class Wnd {
                         showMessage(window.siyuan.languages.uploading);
                         return;
                     }
-                    this.removeTabAction(id, closeAll, needSaveScroll, animate);
+                    this.removeTabAction(id, closeAll, animate);
                 } else {
-                    this.removeTabAction(id, closeAll, needSaveScroll, animate);
+                    this.removeTabAction(id, closeAll, animate);
                 }
                 return;
             }
@@ -874,6 +887,9 @@ export class Wnd {
         }
         tab.parent = this;
         hideAllElements(["toolbar"]);
+        /// #if !BROWSER
+        setTabPosition();
+        /// #endif
     }
 
     public split(direction: TDirection) {

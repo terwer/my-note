@@ -8,7 +8,22 @@ import {Constants} from "../../constants";
 import {highlightRender} from "../render/highlightRender";
 import {scrollCenter} from "../../util/highlightById";
 import {updateAVName} from "../render/av/action";
-import {readText} from "./compatibility";
+import {updateCellsValue} from "../render/av/cell";
+
+const processAV = (range: Range, html: string, protyle: IProtyle, blockElement: Element) => {
+    const text = protyle.lute.BlockDOM2EscapeMarkerContent(html);
+    const cellsElement: HTMLElement[] = Array.from(blockElement.querySelectorAll(".av__cell--select"));
+    const rowsElement = blockElement.querySelector(".av__row--select");
+    if (rowsElement) {
+        updateCellsValue(protyle, blockElement as HTMLElement, text);
+    } else if (cellsElement.length > 0) {
+        updateCellsValue(protyle, blockElement as HTMLElement, text, cellsElement);
+    } else {
+        range.insertNode(document.createTextNode(text));
+        range.collapse(false);
+        updateAVName(protyle, blockElement);
+    }
+};
 
 export const insertHTML = (html: string, protyle: IProtyle, isBlock = false,
                            // 移动端插入嵌入块时，获取到的 range 为旧值
@@ -41,18 +56,7 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false,
     }
     if (blockElement.classList.contains("av")) {
         range.deleteContents();
-        const text = readText();
-        if (typeof text === "string") {
-            range.insertNode(document.createTextNode(text));
-            range.collapse(false);
-            updateAVName(protyle, blockElement);
-        } else {
-            text.then((t) => {
-                range.insertNode(document.createTextNode(t));
-                range.collapse(false);
-                updateAVName(protyle, blockElement);
-            });
-        }
+        processAV(range, html, protyle, blockElement);
         return;
     }
     let id = blockElement.getAttribute("data-node-id");

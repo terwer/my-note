@@ -4,14 +4,14 @@ import {ipcRenderer} from "electron";
 /// #endif
 import {openHistory} from "../history/history";
 import {getOpenNotebookCount, originalPath, pathPosix, showFileInFolder} from "../util/pathName";
-import {mountHelp, newDailyNote} from "../util/mount";
+import {fetchNewDailyNote, mountHelp, newDailyNote} from "../util/mount";
 import {fetchPost} from "../util/fetch";
 import {Constants} from "../constants";
-import {isInAndroid, isInIOS, setStorageVal, writeText} from "../protyle/util/compatibility";
+import {isInAndroid, isInIOS, isIPad, setStorageVal, writeText} from "../protyle/util/compatibility";
 import {openCard} from "../card/openCard";
 import {openSetting} from "../config";
 import {getAllDocks} from "../layout/getAll";
-import {exportLayout} from "../layout/util";
+import {exportLayout, getAllLayout} from "../layout/util";
 import {getDockByType} from "../layout/tabUtil";
 import {exitSiYuan, lockScreen} from "../dialog/processSystem";
 import {showMessage} from "../dialog/message";
@@ -24,7 +24,7 @@ import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {confirmDialog} from "../dialog/confirmDialog";
 import {App} from "../index";
 import {isBrowser} from "../util/functions";
-import {unbindSaveUI} from "../boot/onGetConfig";
+import {openRecentDocs} from "../business/openRecentDocs";
 
 const togglePinDock = (dock: Dock, icon: string) => {
     return {
@@ -252,11 +252,7 @@ export const workspaceMenu = (app: App, rect: DOMRect) => {
                         if (item.name === value) {
                             saveDialog.destroy();
                             confirmDialog(window.siyuan.languages.save, window.siyuan.languages.exportTplTip, () => {
-                                item.layout = exportLayout({
-                                    reload: false,
-                                    onlyData: true,
-                                    errorExit: false,
-                                });
+                                item.layout = getAllLayout();
                                 setStorageVal(Constants.LOCAL_LAYOUTS, window.siyuan.storage[Constants.LOCAL_LAYOUTS]);
                             });
                             return true;
@@ -267,11 +263,7 @@ export const workspaceMenu = (app: App, rect: DOMRect) => {
                     }
                     window.siyuan.storage[Constants.LOCAL_LAYOUTS].push({
                         name: value,
-                        layout: exportLayout({
-                            reload: false,
-                            onlyData: true,
-                            errorExit: false,
-                        })
+                        layout: getAllLayout()
                     });
                     setStorageVal(Constants.LOCAL_LAYOUTS, window.siyuan.storage[Constants.LOCAL_LAYOUTS]);
                     saveDialog.destroy();
@@ -302,7 +294,6 @@ export const workspaceMenu = (app: App, rect: DOMRect) => {
                             return;
                         }
                         fetchPost("/api/system/setUILayout", {layout: item.layout}, () => {
-                            unbindSaveUI();
                             window.location.reload();
                         });
                     });
@@ -323,7 +314,7 @@ export const workspaceMenu = (app: App, rect: DOMRect) => {
                     icon: "iconCalendar",
                     accelerator: window.siyuan.config.keymap.general.dailyNote.custom,
                     click: () => {
-                        newDailyNote();
+                        newDailyNote(app);
                     }
                 }).element);
             } else {
@@ -335,10 +326,7 @@ export const workspaceMenu = (app: App, rect: DOMRect) => {
                             iconHTML: unicode2Emoji(item.icon || Constants.SIYUAN_IMAGE_NOTE, "b3-menu__icon", true),
                             accelerator: window.siyuan.storage[Constants.LOCAL_DAILYNOTEID] === item.id ? window.siyuan.config.keymap.general.dailyNote.custom : "",
                             click: () => {
-                                fetchPost("/api/filetree/createDailyNote", {
-                                    notebook: item.id,
-                                    app: Constants.SIYUAN_APPID,
-                                });
+                                fetchNewDailyNote(app, item.id);
                                 window.siyuan.storage[Constants.LOCAL_DAILYNOTEID] = item.id;
                                 setStorageVal(Constants.LOCAL_DAILYNOTEID, window.siyuan.storage[Constants.LOCAL_DAILYNOTEID]);
                             }
@@ -372,11 +360,19 @@ export const workspaceMenu = (app: App, rect: DOMRect) => {
                 }],
             }).element);
             window.siyuan.menus.menu.append(new MenuItem({
+                label: window.siyuan.languages.recentDocs,
+                icon: "iconFile",
+                accelerator: window.siyuan.config.keymap.general.recentDocs.custom,
+                click: () => {
+                    openRecentDocs();
+                }
+            }).element);
+            window.siyuan.menus.menu.append(new MenuItem({
                 label: window.siyuan.languages.lockScreen,
                 icon: "iconLock",
                 accelerator: window.siyuan.config.keymap.general.lockScreen.custom,
                 click: () => {
-                    lockScreen();
+                    lockScreen(app);
                 }
             }).element);
             window.siyuan.menus.menu.append(new MenuItem({
@@ -416,6 +412,19 @@ export const workspaceMenu = (app: App, rect: DOMRect) => {
             }
         }).element);
         /// #endif
+        if (isIPad() || isInAndroid() || !isBrowser()) {
+            window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
+            window.siyuan.menus.menu.append(new MenuItem({
+                label: window.siyuan.languages.safeQuit,
+                icon: "iconQuit",
+                click: () => {
+                    exportLayout({
+                        errorExit: true,
+                        cb: exitSiYuan,
+                    });
+                }
+            }).element);
+        }
         window.siyuan.menus.menu.popup({x: rect.left, y: rect.bottom});
     });
 };
@@ -439,7 +448,7 @@ const openWorkspace = (workspace: string) => {
 const workspaceItem = (item: IWorkspace) => {
     /// #if !BROWSER
     return {
-        label: `<div data-type="a" aria-label="${item.path}" class="fn__ellipsis" style="max-width: 256px">
+        label: `<div aria-label="${item.path}" class="fn__ellipsis ariaLabel" style="max-width: 256px">
     ${originalPath().basename(item.path)}
 </div>`,
         current: !item.closed,

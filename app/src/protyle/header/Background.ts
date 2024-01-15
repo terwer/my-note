@@ -1,5 +1,5 @@
 import {hasClosestByClassName} from "../util/hasClosest";
-import {getRandom, isMobile, isTouchDevice} from "../../util/functions";
+import {getRandom, isMobile} from "../../util/functions";
 import {hideElements} from "../ui/hideElements";
 import {uploadFiles} from "../upload";
 import {fetchPost} from "../../util/fetch";
@@ -14,6 +14,7 @@ import {getEventName} from "../util/compatibility";
 import {Dialog} from "../../dialog";
 import {Constants} from "../../constants";
 import {assetMenu} from "../../menus/protyle";
+import {previewImage} from "../preview/image";
 
 const bgs = [
     "background:radial-gradient(black 3px, transparent 4px),radial-gradient(black 3px, transparent 4px),linear-gradient(#fff 4px, transparent 0),linear-gradient(45deg, transparent 74px, transparent 75px, #a4a4a4 75px, #a4a4a4 76px, transparent 77px, transparent 109px),linear-gradient(-45deg, transparent 75px, transparent 76px, #a4a4a4 76px, #a4a4a4 77px, transparent 78px, transparent 109px),#fff;background-size: 109px 109px, 109px 109px,100% 6px, 109px 109px, 109px 109px;background-position: 54px 55px, 0px 0px, 0px 0px, 0px 0px, 0px 0px;",
@@ -131,76 +132,49 @@ export class Background {
         this.tagsElement = this.element.querySelector(".b3-chips") as HTMLElement;
         this.iconElement = this.element.querySelector(".protyle-background__icon") as HTMLElement;
         this.imgElement = this.element.firstElementChild.firstElementChild as HTMLImageElement;
-        if (isTouchDevice()) {
-            this.imgElement.addEventListener("touchstart", (event: TouchEvent & { target: HTMLElement }) => {
-                event.preventDefault();
-                if (!this.element.firstElementChild.querySelector(".protyle-icons").classList.contains("fn__none")) {
-                    return;
-                }
-                const y = event.touches[0].clientY;
-                const documentSelf = document;
-                const height = this.imgElement.naturalHeight * this.imgElement.clientWidth / this.imgElement.naturalWidth - this.imgElement.clientHeight;
-                let originalPositionY = parseFloat(this.imgElement.style.objectPosition.substring(7)) || 50;
-                if (this.imgElement.style.objectPosition.endsWith("px")) {
-                    originalPositionY = -parseInt(this.imgElement.style.objectPosition.substring(7)) / height * 100;
-                }
-                documentSelf.ontouchmove = (moveEvent) => {
-                    this.imgElement.style.objectPosition = `center ${((y - moveEvent.touches[0].clientY) / height * 100 + originalPositionY).toFixed(2)}%`;
-                    event.preventDefault();
-                };
 
-                documentSelf.ontouchend = () => {
-                    documentSelf.ontouchmove = null;
-                    documentSelf.ontouchstart = null;
-                    documentSelf.ondragstart = null;
-                    documentSelf.onselectstart = null;
-                    documentSelf.onselect = null;
-                };
-            });
-        } else {
-            this.element.addEventListener("dragover", async (event) => {
-                event.preventDefault();
-            });
-            this.element.addEventListener("drop", async (event: DragEvent & { target: HTMLElement }) => {
-                if (event.dataTransfer.types[0] === "Files" && event.dataTransfer.files[0].type.indexOf("image") !== -1) {
-                    uploadFiles(protyle, [event.dataTransfer.files[0]], undefined, (responseText) => {
-                        const response = JSON.parse(responseText);
-                        const style = `background-image:url("${response.data.succMap[Object.keys(response.data.succMap)[0]]}")`;
-                        this.ial["title-img"] = style;
-                        this.render(this.ial, protyle.block.rootID);
-                        fetchPost("/api/attr/setBlockAttrs", {
-                            id: protyle.block.rootID,
-                            attrs: {"title-img": style}
-                        });
+        this.element.addEventListener("dragover", async (event) => {
+            event.preventDefault();
+        });
+        this.element.addEventListener("drop", async (event: DragEvent & { target: HTMLElement }) => {
+            if (event.dataTransfer.types[0] === "Files" && event.dataTransfer.files[0].type.indexOf("image") !== -1) {
+                uploadFiles(protyle, [event.dataTransfer.files[0]], undefined, (responseText) => {
+                    const response = JSON.parse(responseText);
+                    const style = `background-image:url("${response.data.succMap[Object.keys(response.data.succMap)[0]]}")`;
+                    this.ial["title-img"] = style;
+                    this.render(this.ial, protyle.block.rootID);
+                    fetchPost("/api/attr/setBlockAttrs", {
+                        id: protyle.block.rootID,
+                        attrs: {"title-img": style}
                     });
-                }
-            });
-            this.imgElement.addEventListener("mousedown", (event: MouseEvent & { target: HTMLElement }) => {
+                });
+            }
+        });
+        this.imgElement.addEventListener("mousedown", (event: MouseEvent & { target: HTMLElement }) => {
+            event.preventDefault();
+            if (!this.element.firstElementChild.querySelector(".protyle-icons").classList.contains("fn__none")) {
+                return;
+            }
+            const y = event.clientY;
+            const documentSelf = document;
+            const height = this.imgElement.naturalHeight * this.imgElement.clientWidth / this.imgElement.naturalWidth - this.imgElement.clientHeight;
+            let originalPositionY = parseFloat(this.imgElement.style.objectPosition.substring(7)) || 50;
+            if (this.imgElement.style.objectPosition.endsWith("px")) {
+                originalPositionY = -parseInt(this.imgElement.style.objectPosition.substring(7)) / height * 100;
+            }
+            documentSelf.onmousemove = (moveEvent: MouseEvent) => {
+                this.imgElement.style.objectPosition = `center ${((y - moveEvent.clientY) / height * 100 + originalPositionY).toFixed(2)}%`;
                 event.preventDefault();
-                if (!this.element.firstElementChild.querySelector(".protyle-icons").classList.contains("fn__none")) {
-                    return;
-                }
-                const y = event.clientY;
-                const documentSelf = document;
-                const height = this.imgElement.naturalHeight * this.imgElement.clientWidth / this.imgElement.naturalWidth - this.imgElement.clientHeight;
-                let originalPositionY = parseFloat(this.imgElement.style.objectPosition.substring(7)) || 50;
-                if (this.imgElement.style.objectPosition.endsWith("px")) {
-                    originalPositionY = -parseInt(this.imgElement.style.objectPosition.substring(7)) / height * 100;
-                }
-                documentSelf.onmousemove = (moveEvent: MouseEvent) => {
-                    this.imgElement.style.objectPosition = `center ${((y - moveEvent.clientY) / height * 100 + originalPositionY).toFixed(2)}%`;
-                    event.preventDefault();
-                };
+            };
 
-                documentSelf.onmouseup = () => {
-                    documentSelf.onmousemove = null;
-                    documentSelf.onmouseup = null;
-                    documentSelf.ondragstart = null;
-                    documentSelf.onselectstart = null;
-                    documentSelf.onselect = null;
-                };
-            });
-        }
+            documentSelf.onmouseup = () => {
+                documentSelf.onmousemove = null;
+                documentSelf.onmouseup = null;
+                documentSelf.ondragstart = null;
+                documentSelf.onselectstart = null;
+                documentSelf.onselect = null;
+            };
+        });
         this.element.querySelector("input").addEventListener("change", (event: InputEvent & {
             target: HTMLInputElement
         }) => {
@@ -227,7 +201,17 @@ export class Background {
 
             while (target && !target.isEqualNode(this.element)) {
                 const type = target.getAttribute("data-type");
-                if (type === "position") {
+                if (target.tagName === "IMG") {
+                    const imgSrc = target.getAttribute("src");
+                    if (event.detail > 1 && !imgSrc.startsWith("data:image/png;base64")) {
+                        previewImage(imgSrc);
+                    }
+                    // 点击题头图菜单无法消失
+                    window.siyuan.menus.menu.remove();
+                    event.preventDefault();
+                    event.stopPropagation();
+                    break;
+                } else if (type === "position") {
                     const iconElements = this.element.firstElementChild.querySelectorAll(".protyle-icons");
                     iconElements[0].classList.add("fn__none");
                     iconElements[1].classList.remove("fn__none");
@@ -315,6 +299,9 @@ export class Background {
                             id: protyle.block.rootID,
                             attrs: {"title-img": this.ial["title-img"]}
                         });
+                        /// #if MOBILE
+                        window.siyuan.menus.menu.remove();
+                        /// #endif
                     }, Constants.SIYUAN_ASSETS_IMAGE);
                     event.preventDefault();
                     event.stopPropagation();
@@ -355,7 +342,7 @@ export class Background {
                         title: window.siyuan.languages.link,
                         width: isMobile() ? "92vw" : "520px",
                         content: `<div class="b3-dialog__content">
-        <input class="b3-text-field fn__block">
+        <input class="b3-text-field fn__block" value="${this.imgElement.src.startsWith("data:") ? "" : this.imgElement.getAttribute("src")}">
 </div>
 <div class="b3-dialog__action">
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
@@ -396,7 +383,8 @@ export class Background {
                         k: `#${target.textContent}#`,
                         r: "",
                         page: 1,
-                        types: Object.assign({}, searchOption.types)
+                        types: Object.assign({}, searchOption.types),
+                        replaceTypes: Object.assign({}, searchOption.replaceTypes)
                     });
                     /// #endif
                     event.preventDefault();

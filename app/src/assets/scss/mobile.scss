@@ -35,10 +35,6 @@
 .fn__flex-column[data-type="sidebar-file"] {
   .b3-list-item {
     -webkit-user-select: none;
-
-    &:hover {
-      background-color: transparent;
-    }
   }
 }
 
@@ -133,7 +129,9 @@
       opacity: 0.38;
     }
 
-    &--active {
+    &--active,
+    &:not(.toolbar__icon-deactivate):focus,
+    &:not(.toolbar__icon-deactivate):hover {
       background-color: var(--b3-list-hover);
     }
   }
@@ -192,6 +190,11 @@
 #model {
   box-sizing: border-box;
 
+  .toolbar__text {
+    min-height: 48px;
+    line-height: 48px;
+  }
+
   .config-about__logo {
     display: flex;
     align-items: center;
@@ -204,27 +207,24 @@
   .config-account {
     &__bg {
       position: relative;
-      margin-bottom: 82px;
       width: 100%;
       flex: 1;
     }
 
     &__cover {
-      position: absolute;
-      top: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 50vh;
       background-size: cover;
       background-position: center center;
     }
 
     &__avatar {
       position: absolute;
-      bottom: 24px;
+      top: 50vh;
       width: 128px;
       height: 128px;
       left: 50%;
-      margin-left: -64px;
+      margin: -160px 0 0 -64px;
       background-repeat: no-repeat;
       background-position: 50%;
       background-size: cover;
@@ -238,12 +238,9 @@
       width: 100%;
       box-sizing: border-box;
       padding: 16px;
-      margin-top: 10vh;
     }
 
     &__name {
-      bottom: -58px;
-      position: absolute;
       width: 100%;
       text-align: center;
     }
@@ -277,6 +274,7 @@
   border-top: 1px solid var(--b3-theme-surface-lighter);
   overflow: hidden;
   flex-direction: column;
+  z-index: 1;
 
   &__dynamic {
     overflow: auto;
@@ -371,9 +369,8 @@
     &-icon {
       height: 20px;
       width: 20px;
-      padding: 6px;
+      margin: 6px;
       flex-shrink: 0;
-      margin: 8px 0 8px 8px;
       font-size: 20px;
       text-align: center;
       line-height: 20px;
@@ -381,7 +378,7 @@
 
     &-text {
       line-height: 48px;
-      margin-left: 8px;
+      margin-left: 6px;
     }
   }
 }
@@ -482,6 +479,9 @@ html[lang="zh_CN"] .protyle-wysiwyg [data-node-id]:last-child [spellcheck][conte
   content: "键入文字";
 }
 
+.av__views .block__icon {
+  opacity: 1;
+}
 
 @media (max-width: 620px) {
   .protyle-wysiwyg [data-node-id].sb[data-sb-layout="col"] {

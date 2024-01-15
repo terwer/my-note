@@ -354,7 +354,9 @@ func refsFromTree(tree *parse.Tree) (refs []*Ref, fileAnnotationRefs []*FileAnno
 
 		if treenode.IsBlockRef(n) {
 			ref := buildRef(tree, n)
-			refs = append(refs, ref)
+			if !isRepeatedRef(refs, ref) {
+				refs = append(refs, ref)
+			}
 		} else if treenode.IsFileAnnotationRef(n) {
 			pathID := n.TextMarkFileAnnotationRefID
 			idx := strings.LastIndex(pathID, "/")
@@ -385,15 +387,32 @@ func refsFromTree(tree *parse.Tree) (refs []*Ref, fileAnnotationRefs []*FileAnno
 			fileAnnotationRefs = append(fileAnnotationRefs, ref)
 		} else if treenode.IsEmbedBlockRef(n) {
 			ref := buildEmbedRef(tree, n)
-			refs = append(refs, ref)
+			if !isRepeatedRef(refs, ref) {
+				refs = append(refs, ref)
+			}
 		}
 		return ast.WalkContinue
 	})
 	return
 }
 
+func isRepeatedRef(refs []*Ref, ref *Ref) bool {
+	// Repeated references to the same block within a block only count as one reference https://github.com/siyuan-note/siyuan/issues/9670
+	for _, r := range refs {
+		if r.DefBlockID == ref.DefBlockID && r.BlockID == ref.BlockID {
+			return true
+		}
+	}
+	return false
+}
+
 func buildRef(tree *parse.Tree, refNode *ast.Node) *Ref {
+	// 多个类型可能会导致渲染的 Markdown 不正确，所以这里只保留 block-ref 类型
+	tmpTyp := refNode.TextMarkType
+	refNode.TextMarkType = "block-ref"
 	markdown := treenode.ExportNodeStdMd(refNode, luteEngine)
+	refNode.TextMarkType = tmpTyp
+
 	defBlockID, text, _ := treenode.GetBlockRef(refNode)
 	var defBlockParentID, defBlockRootID, defBlockPath string
 	defBlock := treenode.GetBlockTree(defBlockID)
@@ -664,7 +683,7 @@ func buildSpanFromNode(n *ast.Node, tree *parse.Tree, rootID, boxID, p string) (
 		walkStatus = ast.WalkSkipChildren
 		return
 	case ast.NodeDocument:
-		if asset := docTitleImgAsset(n); nil != asset {
+		if asset := docTitleImgAsset(n, boxLocalPath, docDirLocalPath); nil != asset {
 			assets = append(assets, asset)
 		}
 		if tags := docTagSpans(n); 0 < len(tags) {
@@ -779,20 +798,30 @@ func buildBlockFromNode(n *ast.Node, tree *parse.Tree) (block *Block, attributes
 		length = utf8.RuneCountInString(fcontent)
 	} else if n.IsContainerBlock() {
 		markdown = treenode.ExportNodeStdMd(n, luteEngine)
-		content = treenode.NodeStaticContent(n, nil, true, indexAssetPath)
+		if !treenode.IsNodeOCRed(n) {
+			util.PushNodeOCRQueue(n)
+		}
+		content = treenode.NodeStaticContent(n, nil, true, indexAssetPath, true)
+
 		fc := treenode.FirstLeafBlock(n)
-		fcontent = treenode.NodeStaticContent(fc, nil, true, false)
+		if !treenode.IsNodeOCRed(fc) {
+			util.PushNodeOCRQueue(fc)
+		}
+		fcontent = treenode.NodeStaticContent(fc, nil, true, false, true)
+
 		parentID = n.Parent.ID
-		// 将标题块作为父节点
-		if h := heading(n); nil != h {
+		if h := heading(n); nil != h { // 如果在标题块下方，则将标题块作为父节点
 			parentID = h.ID
 		}
 		length = utf8.RuneCountInString(fcontent)
 	} else {
 		markdown = treenode.ExportNodeStdMd(n, luteEngine)
-		content = treenode.NodeStaticContent(n, nil, true, indexAssetPath)
+		if !treenode.IsNodeOCRed(n) {
+			util.PushNodeOCRQueue(n)
+		}
+		content = treenode.NodeStaticContent(n, nil, true, indexAssetPath, true)
+
 		parentID = n.Parent.ID
-		// 将标题块作为父节点
 		if h := heading(n); nil != h {
 			parentID = h.ID
 		}
@@ -878,6 +907,10 @@ func tagFromNode(node *ast.Node) (ret string) {
 }
 
 func heading(node *ast.Node) *ast.Node {
+	if nil == node {
+		return nil
+	}
+
 	currentLevel := 16
 	if ast.NodeHeading == node.Type {
 		currentLevel = node.HeadingLevel
@@ -1088,6 +1121,10 @@ func deleteByRootID(tx *sql.Tx, rootID string, context map[string]interface{}) (
 	if err = execStmtTx(tx, stmt, rootID); nil != err {
 		return
 	}
+	stmt = "DELETE FROM attributes WHERE root_id = ?"
+	if err = execStmtTx(tx, stmt, rootID); nil != err {
+		return
+	}
 	ClearCache()
 	eventbus.Publish(eventbus.EvtSQLDeleteBlocks, context, rootID)
 	return
@@ -1126,6 +1163,10 @@ func batchDeleteByRootIDs(tx *sql.Tx, rootIDs []string, context map[string]inter
 	if err = execStmtTx(tx, stmt); nil != err {
 		return
 	}
+	stmt = "DELETE FROM attributes WHERE root_id IN " + ids
+	if err = execStmtTx(tx, stmt); nil != err {
+		return
+	}
 	ClearCache()
 	eventbus.Publish(eventbus.EvtSQLDeleteBlocks, context, fmt.Sprintf("%d", len(rootIDs)))
 	return
@@ -1159,6 +1200,10 @@ func batchDeleteByPathPrefix(tx *sql.Tx, boxID, pathPrefix string) (err error) {
 		return
 	}
 	stmt = "DELETE FROM file_annotation_refs WHERE box = ? AND path LIKE ?"
+	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); nil != err {
+		return
+	}
+	stmt = "DELETE FROM attributes WHERE box = ? AND path LIKE ?"
 	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); nil != err {
 		return
 	}

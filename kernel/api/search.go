@@ -54,6 +54,11 @@ func fullTextSearchAssetContent(c *gin.Context) {
 		return
 	}
 
+	if !model.IsPaidUser() {
+		ret.Code = 1
+		return
+	}
+
 	page, pageSize, query, types, method, orderBy := parseSearchAssetContentArgs(arg)
 	assetContents, matchedAssetCount, pageCount := model.FullTextSearchAssetContent(query, types, method, orderBy, page, pageSize)
 	ret.Data = map[string]interface{}{
@@ -81,7 +86,18 @@ func findReplace(c *gin.Context) {
 	for _, id := range idsArg {
 		ids = append(ids, id.(string))
 	}
-	err := model.FindReplace(k, r, ids, paths, boxes, types, method, orderBy, groupBy)
+
+	replaceTypes := map[string]bool{}
+	// text, imgText, imgTitle, imgSrc, aText, aTitle, aHref, code, em, strong, inlineMath, inlineMemo, kbd, mark, s, sub, sup, tag, u
+	// docTitle, codeBlock, mathBlock, htmlBlock
+	if nil != arg["replaceTypes"] {
+		replaceTypesArg := arg["replaceTypes"].(map[string]interface{})
+		for t, b := range replaceTypesArg {
+			replaceTypes[t] = b.(bool)
+		}
+	}
+
+	err := model.FindReplace(k, r, replaceTypes, ids, paths, boxes, types, method, orderBy, groupBy)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -182,6 +198,59 @@ func searchTemplate(c *gin.Context) {
 	ret.Data = map[string]interface{}{
 		"blocks": blocks,
 		"k":      keyword,
+	}
+}
+
+func getEmbedBlock(c *gin.Context) {
+	// Query embed block supports executing JavaScript https://github.com/siyuan-note/siyuan/issues/9648
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	embedBlockID := arg["embedBlockID"].(string)
+	includeIDsArg := arg["includeIDs"].([]interface{})
+	var includeIDs []string
+	for _, includeID := range includeIDsArg {
+		includeIDs = append(includeIDs, includeID.(string))
+	}
+	headingMode := 0 // 0：带标题下方块
+	headingModeArg := arg["headingMode"]
+	if nil != headingModeArg {
+		headingMode = int(headingModeArg.(float64))
+	}
+	breadcrumb := false
+	breadcrumbArg := arg["breadcrumb"]
+	if nil != breadcrumbArg {
+		breadcrumb = breadcrumbArg.(bool)
+	}
+
+	blocks := model.GetEmbedBlock(embedBlockID, includeIDs, headingMode, breadcrumb)
+	ret.Data = map[string]interface{}{
+		"blocks": blocks,
+	}
+}
+
+func updateEmbedBlock(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	id := arg["id"].(string)
+	content := arg["content"].(string)
+
+	err := model.UpdateEmbedBlock(id, content)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
 	}
 }
 
