@@ -31,7 +31,7 @@ jobs:
           # owner: siyuan-note
           # repo: siyuan
           repository: ${{ github.repository }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
           excludes: prerelease, draft
 
       - name: Gather Release Information
@@ -45,7 +45,7 @@ jobs:
           echo "$changelog" >> $GITHUB_ENV
           echo "$EOF" >> $GITHUB_ENV
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
 
       - name: Extract version from package.json
         uses: sergeysova/jq-action@v2
@@ -62,7 +62,7 @@ jobs:
           body: ${{ env.release_body }}
           draft: false
           prerelease: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
 
   build:
     runs-on: ${{ matrix.config.os }}
@@ -204,7 +204,7 @@ jobs:
     - name: Upload Release
       uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_name: mynote-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
