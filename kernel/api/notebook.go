@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -67,6 +67,10 @@ func renameNotebook(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
 	name := arg["name"].(string)
 	err := model.RenameBox(notebook, name)
 	if nil != err {
@@ -94,6 +98,19 @@ func removeNotebook(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
+	if util.ReadOnly && !model.IsUserGuide(notebook) {
+		result := util.NewResult()
+		result.Code = -1
+		result.Msg = model.Conf.Language(34)
+		result.Data = map[string]interface{}{"closeTimeout": 5000}
+		c.JSON(200, result)
+		return
+	}
+
 	err := model.RemoveBox(notebook)
 	if nil != err {
 		ret.Code = -1
@@ -133,13 +150,20 @@ func createNotebook(c *gin.Context) {
 		return
 	}
 
+	box := model.Conf.Box(id)
+	if nil == box {
+		ret.Code = -1
+		ret.Msg = "opened notebook [" + id + "] not found"
+		return
+	}
+
 	ret.Data = map[string]interface{}{
-		"notebook": model.Conf.Box(id),
+		"notebook": box,
 	}
 
 	evt := util.NewCmdResult("createnotebook", 0, util.PushModeBroadcast)
 	evt.Data = map[string]interface{}{
-		"box":     model.Conf.Box(id),
+		"box":     box,
 		"existed": existed,
 	}
 	util.PushEvent(evt)
@@ -155,6 +179,19 @@ func openNotebook(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
+	if util.ReadOnly && !model.IsUserGuide(notebook) {
+		result := util.NewResult()
+		result.Code = -1
+		result.Msg = model.Conf.Language(34)
+		result.Data = map[string]interface{}{"closeTimeout": 5000}
+		c.JSON(200, result)
+		return
+	}
+
 	msgId := util.PushMsg(model.Conf.Language(45), 1000*60*15)
 	defer util.PushClearMsg(msgId)
 	existed, err := model.Mount(notebook)
@@ -164,9 +201,16 @@ func openNotebook(c *gin.Context) {
 		return
 	}
 
+	box := model.Conf.Box(notebook)
+	if nil == box {
+		ret.Code = -1
+		ret.Msg = "opened notebook [" + notebook + "] not found"
+		return
+	}
+
 	evt := util.NewCmdResult("mount", 0, util.PushModeBroadcast)
 	evt.Data = map[string]interface{}{
-		"box":     model.Conf.Box(notebook),
+		"box":     box,
 		"existed": existed,
 	}
 	evt.Callback = arg["callback"]
@@ -183,6 +227,9 @@ func closeNotebook(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
 	model.Unmount(notebook)
 }
 
@@ -196,7 +243,17 @@ func getNotebookConf(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
-	box := model.Conf.Box(notebook)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
+	box := model.Conf.GetBox(notebook)
+	if nil == box {
+		ret.Code = -1
+		ret.Msg = "notebook [" + notebook + "] not found"
+		return
+	}
+
 	ret.Data = map[string]interface{}{
 		"box":  box.ID,
 		"name": box.Name,
@@ -214,7 +271,16 @@ func setNotebookConf(c *gin.Context) {
 	}
 
 	notebook := arg["notebook"].(string)
-	box := model.Conf.Box(notebook)
+	if util.InvalidIDPattern(notebook, ret) {
+		return
+	}
+
+	box := model.Conf.GetBox(notebook)
+	if nil == box {
+		ret.Code = -1
+		ret.Msg = "notebook [" + notebook + "] not found"
+		return
+	}
 
 	param, err := gulu.JSON.MarshalJSON(arg["conf"])
 	if nil != err {
@@ -259,6 +325,11 @@ func setNotebookConf(c *gin.Context) {
 		}
 	}
 
+	boxConf.DocCreateSavePath = strings.TrimSpace(boxConf.DocCreateSavePath)
+	if "../" == boxConf.DocCreateSavePath {
+		boxConf.DocCreateSavePath = "../Untitled"
+	}
+
 	box.SaveConf(boxConf)
 	ret.Data = boxConf
 }
@@ -267,9 +338,25 @@ func lsNotebooks(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
 
-	notebooks, err := model.ListNotebooks()
-	if nil != err {
-		return
+	flashcard := false
+
+	// 兼容旧版接口，不能直接使用 util.JsonArg()
+	arg := map[string]interface{}{}
+	if err := c.ShouldBindJSON(&arg); nil == err {
+		if arg["flashcard"] != nil {
+			flashcard = arg["flashcard"].(bool)
+		}
+	}
+
+	var notebooks []*model.Box
+	if flashcard {
+		notebooks = model.GetFlashcardNotebooks()
+	} else {
+		var err error
+		notebooks, err = model.ListNotebooks()
+		if nil != err {
+			return
+		}
 	}
 
 	ret.Data = map[string]interface{}{

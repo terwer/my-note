@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -21,12 +21,20 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/88250/gulu"
 	"github.com/88250/lute/parse"
 	"github.com/emirpasic/gods/sets/hashset"
+	ignore "github.com/sabhiram/go-gitignore"
 	"github.com/siyuan-note/eventbus"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/filesys"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -34,19 +42,6 @@ var luteEngine = util.NewLute()
 
 func init() {
 	luteEngine.RenderOptions.KramdownBlockIAL = false // 数据库 markdown 字段为标准 md，但是要保留 span block ial
-}
-
-func InsertBlocksSpans(tx *sql.Tx, tree *parse.Tree, context map[string]interface{}) (err error) {
-	if err = insertBlocksSpans(tx, tree, context); nil != err {
-		logging.LogErrorf("insert tree [%s] into database failed: %s", tree.Box+tree.Path, err)
-	}
-	return
-}
-
-func InsertRefs(tx *sql.Tx, tree *parse.Tree) {
-	if err := insertRef(tx, tree); nil != err {
-		logging.LogErrorf("insert refs tree [%s] into database failed: %s", tree.Box+tree.Path, err)
-	}
 }
 
 const (
@@ -127,7 +122,8 @@ func insertBlocks0(tx *sql.Tx, bulk []*Block, context map[string]interface{}) (e
 	}
 	hashBuf.WriteString("blocks")
 	evtHash := fmt.Sprintf("%x", sha256.Sum256(hashBuf.Bytes()))[:7]
-	eventbus.Publish(eventbus.EvtSQLInsertBlocks, context, len(bulk), evtHash)
+	// 使用下面的 EvtSQLInsertBlocksFTS 就可以了
+	//eventbus.Publish(eventbus.EvtSQLInsertBlocks, context, current, total, len(bulk), evtHash)
 
 	stmt = fmt.Sprintf(BlocksFTSInsert, strings.Join(valueStrings, ","))
 	if err = prepareExecInsertTx(tx, stmt, valueArgs); nil != err {
@@ -292,7 +288,7 @@ func insertSpans0(tx *sql.Tx, bulk []*Span) (err error) {
 	return
 }
 
-func insertRefs(tx *sql.Tx, refs []*Ref) (err error) {
+func insertBlockRefs(tx *sql.Tx, refs []*Ref) (err error) {
 	if 1 > len(refs) {
 		return
 	}
@@ -395,32 +391,27 @@ func insertFileAnnotationRefs0(tx *sql.Tx, bulk []*FileAnnotationRef) (err error
 	return
 }
 
-func insertBlocksSpans(tx *sql.Tx, tree *parse.Tree, context map[string]interface{}) (err error) {
-	blocks, spans, assets, attributes := fromTree(tree.Root, tree)
-	if err = insertBlocks(tx, blocks, context); nil != err {
-		return
-	}
-	if err = insertSpans(tx, spans); nil != err {
-		return
-	}
-	if err = insertAssets(tx, assets); nil != err {
-		return
-	}
-	if err = insertAttributes(tx, attributes); nil != err {
-		return
-	}
-	return
-}
-
-func insertRef(tx *sql.Tx, tree *parse.Tree) (err error) {
+func insertRefs(tx *sql.Tx, tree *parse.Tree) (err error) {
 	refs, fileAnnotationRefs := refsFromTree(tree)
-	if err = insertRefs(tx, refs); nil != err {
+	if err = insertBlockRefs(tx, refs); nil != err {
 		return
 	}
 	if err = insertFileAnnotationRefs(tx, fileAnnotationRefs); nil != err {
 		return
 	}
 	return err
+}
+
+func indexTree(tx *sql.Tx, box, p string, context map[string]interface{}) (err error) {
+	tree, err := filesys.LoadTree(box, p, luteEngine)
+	if nil != err {
+		return
+	}
+
+	blocks, spans, assets, attributes := fromTree(tree.Root, tree)
+	refs, fileAnnotationRefs := refsFromTree(tree)
+	err = insertTree0(tx, tree, context, blocks, spans, assets, attributes, refs, fileAnnotationRefs)
+	return
 }
 
 func upsertTree(tx *sql.Tx, tree *parse.Tree, context map[string]interface{}) (err error) {
@@ -451,7 +442,10 @@ func upsertTree(tx *sql.Tx, tree *parse.Tree, context map[string]interface{}) (e
 	for _, b := range blocks {
 		toRemoves = append(toRemoves, b.ID)
 	}
-	deleteBlocksByIDs(tx, toRemoves)
+
+	if err = deleteBlocksByIDs(tx, toRemoves); nil != err {
+		return
+	}
 
 	if err = deleteSpansByPathTx(tx, tree.Box, tree.Path); nil != err {
 		return
@@ -469,12 +463,29 @@ func upsertTree(tx *sql.Tx, tree *parse.Tree, context map[string]interface{}) (e
 		return
 	}
 
+	refs, fileAnnotationRefs := refsFromTree(tree)
+	if err = insertTree0(tx, tree, context, blocks, spans, assets, attributes, refs, fileAnnotationRefs); nil != err {
+		return
+	}
+	return err
+}
+
+func insertTree0(tx *sql.Tx, tree *parse.Tree, context map[string]interface{},
+	blocks []*Block, spans []*Span, assets []*Asset, attributes []*Attribute,
+	refs []*Ref, fileAnnotationRefs []*FileAnnotationRef) (err error) {
+	if ignoreLines := getIndexIgnoreLines(); 0 < len(ignoreLines) {
+		// Support ignore index https://github.com/siyuan-note/siyuan/issues/9198
+		matcher := ignore.CompileIgnoreLines(ignoreLines...)
+		if matcher.MatchesPath("/" + path.Join(tree.Box, tree.Path)) {
+			return
+		}
+	}
+
 	if err = insertBlocks(tx, blocks, context); nil != err {
 		return
 	}
 
-	refs, fileAnnotationRefs := refsFromTree(tree)
-	if err = insertRefs(tx, refs); nil != err {
+	if err = insertBlockRefs(tx, refs); nil != err {
 		return
 	}
 	if err = insertFileAnnotationRefs(tx, fileAnnotationRefs); nil != err {
@@ -496,5 +507,55 @@ func upsertTree(tx *sql.Tx, tree *parse.Tree, context map[string]interface{}) (e
 	if err = insertAttributes(tx, attributes); nil != err {
 		return
 	}
-	return err
+	return
+}
+
+var (
+	indexIgnoreLastModified int64
+	indexIgnore             []string
+	indexIgnoreLock         = sync.Mutex{}
+)
+
+func getIndexIgnoreLines() (ret []string) {
+	// Support ignore index https://github.com/siyuan-note/siyuan/issues/9198
+
+	now := time.Now().UnixMilli()
+	if now-indexIgnoreLastModified < 30*1000 {
+		return indexIgnore
+	}
+
+	indexIgnoreLock.Lock()
+	defer indexIgnoreLock.Unlock()
+
+	indexIgnoreLastModified = now
+
+	indexIgnorePath := filepath.Join(util.DataDir, ".siyuan", "indexignore")
+	err := os.MkdirAll(filepath.Dir(indexIgnorePath), 0755)
+	if nil != err {
+		return
+	}
+	if !gulu.File.IsExist(indexIgnorePath) {
+		if err = gulu.File.WriteFileSafer(indexIgnorePath, nil, 0644); nil != err {
+			logging.LogErrorf("create indexignore [%s] failed: %s", indexIgnorePath, err)
+			return
+		}
+	}
+	data, err := os.ReadFile(indexIgnorePath)
+	if nil != err {
+		logging.LogErrorf("read indexignore [%s] failed: %s", indexIgnorePath, err)
+		return
+	}
+	dataStr := string(data)
+	dataStr = strings.ReplaceAll(dataStr, "\r\n", "\n")
+	ret = strings.Split(dataStr, "\n")
+
+	ret = gulu.Str.RemoveDuplicatedElem(ret)
+	if 0 < len(ret) && "" == ret[0] {
+		ret = ret[1:]
+	}
+	indexIgnore = nil
+	for _, line := range ret {
+		indexIgnore = append(indexIgnore, line)
+	}
+	return
 }

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -37,13 +37,23 @@ type Ref struct {
 	Type             string
 }
 
-func UpsertRefs(tx *sql.Tx, tree *parse.Tree) {
-	if err := deleteRefsByPath(tx, tree.Box, tree.Path); nil != err {
+func upsertRefs(tx *sql.Tx, tree *parse.Tree) (err error) {
+	if err = deleteRefsByPath(tx, tree.Box, tree.Path); nil != err {
 		return
 	}
-	if err := deleteFileAnnotationRefsByPath(tx, tree.Box, tree.Path); nil != err {
+	if err = deleteFileAnnotationRefsByPath(tx, tree.Box, tree.Path); nil != err {
 		return
 	}
-	insertRef(tx, tree)
+	err = insertRefs(tx, tree)
+	return
+}
+
+func deleteRefs(tx *sql.Tx, tree *parse.Tree) (err error) {
+	if err = deleteRefsByPath(tx, tree.Box, tree.Path); nil != err {
+		return
+	}
+	if err = deleteFileAnnotationRefsByPath(tx, tree.Box, tree.Path); nil != err {
+		return
+	}
 	return
 }

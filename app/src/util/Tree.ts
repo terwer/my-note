@@ -1,9 +1,10 @@
 import {getIconByType} from "../editor/getIcon";
 import {hasClosestByMatchTag, hasClosestByTag} from "../protyle/util/hasClosest";
 import {isMobile} from "./functions";
-import {mathRender} from "../protyle/markdown/mathRender";
+import {mathRender} from "../protyle/render/mathRender";
 import {unicode2Emoji} from "../emoji";
 import {Constants} from "../constants";
+import {escapeAriaLabel} from "./escape";
 
 export class Tree {
     public element: HTMLElement;
@@ -63,32 +64,40 @@ export class Tree {
             } else if (item.type === "tag") {
                 iconHTML = '<svg class="b3-list-item__graphic"><use xlink:href="#iconTags"></use></svg>';
             } else if (item.type === "backlink") {
-                titleTip = ` title="${item.hPath}"`;
+                titleTip = ` aria-label="${escapeAriaLabel(item.hPath)}"`;
                 iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.nodeType, item.subType)}"></use></svg>`;
             } else if (item.type === "outline") {
-                titleTip = ` title="${Lute.EscapeHTMLStr(Lute.BlockDOM2Content(item.name))}"`;
-                iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.nodeType, item.subType)}"></use></svg>`;
+                titleTip = ` aria-label="${escapeAriaLabel(Lute.BlockDOM2Content(item.name))}"`;
+                iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}" style="height: 22px;width: 10px;"><use xlink:href="#${getIconByType(item.nodeType, item.subType)}"></use></svg>`;
             }
             let countHTML = "";
             if (item.count) {
                 countHTML = `<span class="counter">${item.count}</span>`;
             }
             const hasChild = (item.children && item.children.length > 0) || (item.blocks && item.blocks.length > 0);
-            html += `<li class="b3-list-item" 
-${(item.nodeType !== "NodeDocument" && item.type === "backlink") ? 'draggable="true" ' : ""}
+            let style = "";
+            if (isMobile()) {
+                if (item.depth > 0) {
+                    style = `padding-left: ${(item.depth - 1) * 20 + 24}px`;
+                }
+            } else {
+                style = `padding-left: ${(item.depth - 1) * 18 + 22}px;margin-right: 2px`;
+            }
+            const showArrow = hasChild || (item.type === "backlink" && !isMobile());
+            html += `<li class="b3-list-item${isMobile() ? "" : " b3-list-item--hide-action"}" 
 ${item.id ? 'data-node-id="' + item.id + '"' : ""} 
 ${item.box ? 'data-notebook-id="' + item.box + '"' : ""} 
 data-treetype="${item.type}" 
 data-type="${item.nodeType}" 
 data-subtype="${item.subType}" 
 ${item.label ? "data-label='" + item.label + "'" : ""}>
-    <span style="padding-left: ${(item.depth - 1) * 18 + 22}px;margin-right: 2px" class="b3-list-item__toggle${(item.type === "backlink" || hasChild) ? " b3-list-item__toggle--hl" : ""}${hasChild||item.type === "backlink" ? "" : " fn__hidden"}">
+    <span style="${style}" class="b3-list-item__toggle${showArrow ? " b3-list-item__toggle--hl" : ""}${showArrow ? "" : " fn__hidden"}">
         <svg data-id="${encodeURIComponent(item.name + item.depth)}" class="b3-list-item__arrow${hasChild ? " b3-list-item__arrow--open" : ""}"><use xlink:href="#iconRight"></use></svg>
     </span>
     ${iconHTML}
-    <span class="b3-list-item__text"${titleTip}>${item.name}</span>
-    ${countHTML}
+    <span class="b3-list-item__text ariaLabel" data-position="parentE"${titleTip}>${item.name}</span>
     ${this.topExtHTML || ""}
+    ${countHTML}
 </li>`;
             if (item.children && item.children.length > 0) {
                 html += this.genHTML(item.children) + "</ul>";
@@ -114,25 +123,36 @@ ${item.label ? "data-label='" + item.label + "'" : ""}>
                 countHTML = `<span class="counter">${item.count}</span>`;
             }
             let iconHTML;
-            if (item.type === "NodeDocument") {
-                iconHTML = `<span data-defids='["${item.defID}"]' class="b3-list-item__graphic popover__block" data-id="${item.id}">${unicode2Emoji(item.ial.icon || Constants.SIYUAN_IMAGE_FILE)}</span>`;
+            if (type === "outline") {
+                iconHTML = `<svg data-defids='["${item.defID}"]' class="b3-list-item__graphic popover__block" data-id="${item.id}" style="height: 22px;width: 10px;"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>`;
             } else {
-                iconHTML = `<svg data-defids='["${item.defID}"]' class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>`;
+                if (item.type === "NodeDocument") {
+                    iconHTML = `<span data-defids='["${item.defID}"]' class="b3-list-item__graphic popover__block" data-id="${item.id}">${unicode2Emoji(item.ial.icon || Constants.SIYUAN_IMAGE_FILE)}</span>`;
+                } else {
+                    iconHTML = `<svg data-defids='["${item.defID}"]' class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>`;
+                }
             }
-            html += `<li ${type === "backlink" ? 'draggable="true"' : ""} 
-class="b3-list-item ${isMobile() ? "" : "b3-list-item--hide-action"}"  
+            let style = "";
+            if (isMobile()) {
+                if (item.depth > 0) {
+                    style = `padding-left: ${(item.depth - 1) * 20 + 24}px`;
+                }
+            } else {
+                style = `padding-left: ${(item.depth - 1) * 18 + 22}px;margin-right: 2px`;
+            }
+            html += `<li class="b3-list-item${isMobile() ? "" : " b3-list-item--hide-action"}"  
 data-node-id="${item.id}" 
 data-ref-text="${encodeURIComponent(item.refText)}" 
 data-def-id="${item.defID}" 
 data-type="${item.type}" 
 data-subtype="${item.subType}" 
-data-treetype="${type}"
+data-treetype="${type}" 
 data-def-path="${item.defPath}">
-    <span style="padding-left: ${(item.depth - 1) * 18 + 22}px;margin-right: 2px" class="b3-list-item__toggle${item.children ? " b3-list-item__toggle--hl" : ""}${item.children ? "" : " fn__hidden"}">
+    <span style="${style}" class="b3-list-item__toggle${item.children ? " b3-list-item__toggle--hl" : ""}${item.children ? "" : " fn__hidden"}">
         <svg data-id="${item.id}" class="b3-list-item__arrow"><use xlink:href="#iconRight"></use></svg>
     </span>
     ${iconHTML}
-    <span class="b3-list-item__text" ${type === "outline" ? ' title="' + Lute.EscapeHTMLStr(Lute.BlockDOM2Content(item.content)) + '"' : ""}>${item.content}</span>
+    <span class="b3-list-item__text ariaLabel" data-position="parentE" ${type === "outline" ? ' aria-label="' + escapeAriaLabel(Lute.BlockDOM2Content(item.content)) + '"' : ""}>${item.content}</span>
     ${countHTML}
     ${this.blockExtHTML || ""}
 </li>`;

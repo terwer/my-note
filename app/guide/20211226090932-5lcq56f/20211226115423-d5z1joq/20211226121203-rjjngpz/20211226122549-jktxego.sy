@@ -6,7 +6,7 @@
 		"icon": "2328",
 		"id": "20211226122549-jktxego",
 		"title": "快捷鍵",
-		"updated": "20221223215519"
+		"updated": "20240113110727"
 	},
 	"Children": [
 		{
@@ -15,7 +15,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122652-0t4c1qf",
-				"updated": "20211226011912"
+				"updated": "20231030110253"
 			},
 			"Children": [
 				{
@@ -35,7 +35,7 @@
 			"Properties": {
 				"colgroup": "||",
 				"id": "20211226122652-4e9hm9i",
-				"updated": "20221223215519"
+				"updated": "20231030111812"
 			},
 			"Children": [
 				{
@@ -75,6 +75,73 @@
 											"Data": "備註"
 										}
 									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Properties": {
+								"colspan": "1"
+							},
+							"Children": [
+								{
+									"Type": "NodeKramdownSpanIAL",
+									"Data": "{: colspan=\"1\"}"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "主菜單"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Properties": {
+								"colspan": "1"
+							},
+							"Children": [
+								{
+									"Type": "NodeKramdownSpanIAL",
+									"Data": "{: colspan=\"1\"}"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Alt+\\"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥\\"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Properties": {
+								"colspan": "1"
+							},
+							"Children": [
+								{
+									"Type": "NodeKramdownSpanIAL",
+									"Data": "{: colspan=\"1\"}"
 								}
 							]
 						}
@@ -426,7 +493,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "選中下一個分頁"
+									"Data": "選取上一個編輯分頁"
 								}
 							]
 						},
@@ -450,11 +517,539 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "⌃Tab"
+									"TextMarkTextContent": "⌃⇥"
 								},
 								{
 									"Type": "NodeText",
 									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選中上一個編輯分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Shift+Tab"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌃⇧⇥"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第一個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第二個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘2"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第三個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘3"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第四個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘4"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第五個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘5"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第六個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘6"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第七個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘7"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第八個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘8"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取第九個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+1"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘9"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選取上一個分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Shift+["
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⇧⌘["
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
 								}
 							]
 						},
@@ -489,20 +1084,20 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "Ctrl+Shift+Tab"
+									"TextMarkTextContent": "Ctrl+Shift+]"
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "⌃⇧Tab"
+									"TextMarkTextContent": "⇧⌘]"
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
@@ -522,7 +1117,187 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "文檔樹分頁"
+									"Data": "向右並排顯示分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "向右移動並排顯示分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "向下並排顯示分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "向下移動並排顯示分頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "文檔樹面板"
 								}
 							]
 						},
@@ -570,7 +1345,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "關聯大綱分頁"
+									"Data": "關聯大綱面板"
 								}
 							]
 						},
@@ -618,7 +1393,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "書簽分頁"
+									"Data": "書簽面板"
 								}
 							]
 						},
@@ -666,7 +1441,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "標簽分頁"
+									"Data": "標簽面板"
 								}
 							]
 						},
@@ -810,7 +1585,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "關聯反向連結分頁"
+									"Data": "關聯反向連結面板"
 								}
 							]
 						},
@@ -858,7 +1633,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "關聯關系圖分頁"
+									"Data": "關聯關系圖面板"
 								}
 							]
 						},
@@ -906,7 +1681,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "全域關系圖分頁"
+									"Data": "全域關系圖面板"
 								}
 							]
 						},
@@ -954,7 +1729,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "閃卡"
+									"Data": "閃卡間隔重複"
 								}
 							]
 						},
@@ -1477,7 +2252,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122652-3q2xsbj",
-				"updated": "20211226011912"
+				"updated": "20231030110253"
 			},
 			"Children": [
 				{
@@ -1497,7 +2272,7 @@
 			"Properties": {
 				"colgroup": "||",
 				"id": "20211226122652-eu9085n",
-				"updated": "20221107214321"
+				"updated": "20231030110253"
 			},
 			"Children": [
 				{
@@ -1511,6 +2286,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 18,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -1521,6 +2298,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 29,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -1531,6 +2310,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 20,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -1549,6 +2330,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1559,6 +2342,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1571,13 +2356,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1588,6 +2375,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1598,6 +2387,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 29,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1610,7 +2401,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1619,7 +2410,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1628,7 +2419,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1637,13 +2428,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1654,6 +2447,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 18,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1664,6 +2459,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1676,7 +2473,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1685,13 +2482,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1702,6 +2501,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 18,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1712,6 +2513,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1724,7 +2527,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1733,13 +2536,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1750,6 +2555,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1760,6 +2567,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1772,13 +2581,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1789,6 +2600,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1799,6 +2612,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1811,13 +2626,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1828,6 +2645,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1838,6 +2657,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 17,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1850,7 +2671,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1859,7 +2680,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								},
 								{
 									"Type": "NodeBr",
@@ -1869,7 +2690,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1880,6 +2703,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1890,6 +2715,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1902,7 +2729,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1911,13 +2738,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1928,6 +2757,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1938,6 +2769,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1950,13 +2783,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -1967,6 +2802,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1977,6 +2814,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -1989,7 +2828,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -1998,13 +2837,15 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -2015,6 +2856,62 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "間隔重複"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 29,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Alt+F"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥F"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -2025,6 +2922,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 3,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -2035,6 +2934,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -2047,7 +2948,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ 中配置"
+									"Data": "​​ 中配置"
 								}
 							]
 						}
@@ -2060,6 +2961,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -2070,6 +2973,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 3,
+							"TableCellContentMaxWidth": 29,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -2080,6 +2985,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -2092,7 +2999,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ 中配置"
+									"Data": "​​ 中配置"
 								}
 							]
 						}
@@ -2106,7 +3013,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122652-htptsmh",
-				"updated": "20211226011912"
+				"updated": "20231030110251"
 			},
 			"Children": [
 				{
@@ -2121,7 +3028,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20211226122652-xp1hi60",
-				"updated": "20211226011912"
+				"updated": "20231030110250"
 			},
 			"Children": [
 				{
@@ -2131,7 +3038,7 @@
 			]
 		},
 		{
-			"ID": "20211226122652-pb50zx4",
+			"ID": "20240112151141-ggglv0f",
 			"Type": "NodeTable",
 			"TableAligns": [
 				0,
@@ -2140,8 +3047,8 @@
 			],
 			"Properties": {
 				"colgroup": "||",
-				"id": "20211226122652-pb50zx4",
-				"updated": "20221212223517"
+				"id": "20240112151141-ggglv0f",
+				"updated": "20240113110727"
 			},
 			"Children": [
 				{
@@ -2699,6 +3606,60 @@
 						},
 						{
 							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選擇內容時為設定區塊命名"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "快速制卡"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Alt+F"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥⌘F"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
 							"Data": "td"
 						}
 					]
@@ -3197,6 +4158,54 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
 									"TextMarkTextContent": "⌥G"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "間隔重複"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Alt+F"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥F"
 								},
 								{
 									"Type": "NodeText",
@@ -3867,7 +4876,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "⇧Home"
+									"TextMarkTextContent": "⇧⌃A"
 								},
 								{
 									"Type": "NodeText",
@@ -3897,7 +4906,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "選中游標至塊末內容"
+									"Data": "選中游標至頁末內容"
 								}
 							]
 						},
@@ -3912,7 +4921,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "⇧End"
+									"TextMarkTextContent": "⇧⌃E"
 								},
 								{
 									"Type": "NodeText",
@@ -3929,6 +4938,102 @@
 									"Data": "僅 macOS"
 								}
 							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選中頁首至游標內容"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Shift+Home"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⇧Home"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "選中塊首至游標內容"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Shift+End"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⇧End"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td"
 						}
 					]
 				},
@@ -4069,7 +5174,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "Home"
+									"TextMarkTextContent": "⌃A"
 								},
 								{
 									"Type": "NodeText",
@@ -4114,7 +5219,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "End"
+									"TextMarkTextContent": "⌃E"
 								},
 								{
 									"Type": "NodeText",
@@ -5011,7 +6116,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ 需選中文本內容"
+									"Data": "​ 需選中文字內容"
 								}
 							]
 						}
@@ -5161,7 +6266,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "光標在行級元素中喚起對應的功能菜單，否則喚起塊菜單"
+									"Data": "游標在行級元素中喚起對應的功能菜單，否則喚起塊菜單"
 								},
 								{
 									"Type": "NodeBr",
@@ -5227,7 +6332,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "光標需停留在引用元素內"
+									"Data": "游標需停留在引用元素內"
 								}
 							]
 						}
@@ -5243,7 +6348,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "在後台頁簽中打開"
+									"Data": "在後台分頁中打開"
 								},
 								{
 									"Type": "NodeBr",
@@ -5262,7 +6367,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "Ctrl+Shift+\u0026gt;"
+									"TextMarkTextContent": "Ctrl+Shift+."
 								},
 								{
 									"Type": "NodeText",
@@ -5271,7 +6376,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "⇧⌘\u0026gt;"
+									"TextMarkTextContent": "⇧⌘."
 								},
 								{
 									"Type": "NodeText",
@@ -5285,7 +6390,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "光標需停留在引用元素內"
+									"Data": "游標需停留在引用元素內"
 								}
 							]
 						}
@@ -5343,7 +6448,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "光標需停留在引用元素內"
+									"Data": "游標需停留在引用元素內"
 								}
 							]
 						}
@@ -5397,7 +6502,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "光標需停留在引用元素內"
+									"Data": "游標需停留在引用元素內"
 								}
 							]
 						}
@@ -5442,7 +6547,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ 中配置，光標需停留在引用元素內"
+									"Data": "​ 中配置，游標需停留在引用元素內"
 								}
 							]
 						}
@@ -5548,7 +6653,66 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "複製純文本"
+									"Data": "複製純文字"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "複製 文本 "
+								},
+								{
+									"Type": "NodeBackslash",
+									"Data": "span",
+									"Children": [
+										{
+											"Type": "NodeText",
+											"Data": "*"
+										}
+									]
+								},
+								{
+									"Type": "NodeBr",
+									"Data": "br"
 								}
 							]
 						},
@@ -5638,6 +6802,51 @@
 							"Children": [
 								{
 									"Type": "NodeText",
+									"Data": "複製塊超連結（Markdown）"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
 									"Data": "網絡圖片轉換為本地圖片"
 								}
 							]
@@ -5668,6 +6877,186 @@
 								{
 									"Type": "NodeText",
 									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "網路資源檔案轉換本地"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "最佳化排版"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "退出聚焦"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中配置"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "切換唯讀模式"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "-"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "可前往 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "設置-\u0026gt;快捷鍵"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ 中配置"
 								}
 							]
 						}
@@ -5715,6 +7104,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 20,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -5725,6 +7116,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 16,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -5735,6 +7128,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 20,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -5753,6 +7148,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5763,6 +7160,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5781,7 +7180,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -5792,6 +7193,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5802,6 +7205,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5830,6 +7235,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5846,6 +7253,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5856,6 +7265,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5883,7 +7294,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -5894,6 +7307,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5904,6 +7319,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5931,7 +7348,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -5942,6 +7361,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5952,6 +7373,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -5979,7 +7402,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -5990,6 +7415,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6000,6 +7427,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6027,7 +7456,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6038,6 +7469,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6048,6 +7481,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6075,7 +7510,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6086,6 +7523,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6096,6 +7535,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6123,7 +7564,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6134,6 +7577,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6144,6 +7589,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6171,7 +7618,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6182,6 +7631,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6192,6 +7643,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6219,7 +7672,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6230,6 +7685,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6240,6 +7697,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6267,7 +7726,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6278,6 +7739,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6288,6 +7751,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6315,7 +7780,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6326,6 +7793,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 20,
 							"Properties": {
 								"colspan": "1"
 							},
@@ -6338,11 +7807,15 @@
 						},
 						{
 							"Type": "NodeKramdownSpanIAL",
-							"Data": "{: colspan=\"1\"}"
+							"Data": "{: colspan=\"1\"}",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 16
 						},
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 20,
 							"Properties": {
 								"colspan": "1"
 							},
@@ -6395,6 +7868,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6409,6 +7884,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6437,6 +7914,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 4,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeBr",
@@ -6453,16 +7932,20 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "分割線"
+									"Data": "分隔線"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6481,7 +7964,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6492,6 +7977,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6502,6 +7989,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6529,7 +8018,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6540,6 +8031,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6550,6 +8043,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6568,7 +8063,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6579,6 +8076,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6589,6 +8088,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6616,7 +8117,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -6627,6 +8130,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6637,6 +8142,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6674,6 +8181,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 4,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeBr",
@@ -6690,6 +8199,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6700,6 +8211,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6719,6 +8232,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6735,6 +8250,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6745,6 +8262,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6764,6 +8283,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6780,6 +8301,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6790,6 +8313,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6827,6 +8352,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6843,6 +8370,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6853,6 +8382,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 16,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6881,6 +8412,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -6931,6 +8464,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 12,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -6941,6 +8476,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 15,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -6959,6 +8496,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 12,
 							"Properties": {
 								"colspan": "1"
 							},
@@ -6971,7 +8510,9 @@
 						},
 						{
 							"Type": "NodeKramdownSpanIAL",
-							"Data": "{: colspan=\"1\"}"
+							"Data": "{: colspan=\"1\"}",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 15
 						},
 						{
 							"Type": "NodeTableCell",
@@ -7009,6 +8550,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7019,6 +8562,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7045,6 +8590,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7055,6 +8602,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7081,6 +8630,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7091,6 +8642,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7117,6 +8670,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7127,6 +8682,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7153,6 +8710,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7163,6 +8722,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7189,6 +8750,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7199,6 +8762,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7259,6 +8824,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 20,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -7269,6 +8836,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 8,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -7279,6 +8848,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 10,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -7297,6 +8868,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7307,6 +8880,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7317,7 +8892,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 10
 						}
 					]
 				},
@@ -7328,6 +8905,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7338,6 +8917,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7351,13 +8932,15 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "⇧Tab"
+									"TextMarkTextContent": "⇧⇥"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 10
 						}
 					]
 				},
@@ -7368,6 +8951,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7378,6 +8963,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7389,6 +8976,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 10,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7405,6 +8994,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7415,6 +9006,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7444,6 +9037,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 10,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7508,6 +9103,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 24,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -7518,6 +9115,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 8,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -7536,6 +9135,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7546,6 +9147,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7572,6 +9175,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7582,6 +9187,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7608,6 +9215,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7618,6 +9227,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7644,6 +9255,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7654,6 +9267,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7680,6 +9295,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7690,6 +9307,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7716,6 +9335,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7726,6 +9347,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7752,6 +9375,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7762,6 +9387,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7788,6 +9415,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7798,6 +9427,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7824,6 +9455,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7834,6 +9467,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7860,6 +9495,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7870,11 +9507,13 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "Ctrl+Shift+_"
+									"TextMarkTextContent": "Ctrl+Shift+-"
 								},
 								{
 									"Type": "NodeText",
@@ -7883,7 +9522,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "⇧⌘_"
+									"TextMarkTextContent": "⇧⌘-"
 								}
 							]
 						}
@@ -7896,6 +9535,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 24,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7906,6 +9547,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7932,6 +9575,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 24,
+							"TableCellContentMaxWidth": 24,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -7942,6 +9587,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 8,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -7956,6 +9603,998 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
 									"TextMarkTextContent": "⇥"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230316183455-9nz17tt",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230316183455-9nz17tt",
+				"updated": "20230316183459"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "PDF"
+				}
+			]
+		},
+		{
+			"ID": "20230316183459-wukct4o",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230316183459-wukct4o",
+				"updated": "20230316183522"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "注意"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​：使用快捷键时，焦点需在 PDF 上，否则请点击 PDF。"
+				}
+			]
+		},
+		{
+			"ID": "20230317224906-sryj6j3",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230317224906-sryj6j3"
+			}
+		},
+		{
+			"ID": "20230316183920-tlv3jvd",
+			"Type": "NodeTable",
+			"TableAligns": [
+				0,
+				0
+			],
+			"Properties": {
+				"colgroup": "|",
+				"id": "20230316183920-tlv3jvd",
+				"updated": "20230424101620"
+			},
+			"Children": [
+				{
+					"Type": "NodeTableHead",
+					"Data": "thead",
+					"Children": [
+						{
+							"Type": "NodeTableRow",
+							"Data": "tr",
+							"Children": [
+								{
+									"Type": "NodeTableCell",
+									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 18,
+									"Children": [
+										{
+											"Type": "NodeText",
+											"Data": "名稱"
+										}
+									]
+								},
+								{
+									"Type": "NodeTableCell",
+									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 39,
+									"Children": [
+										{
+											"Type": "NodeText",
+											"Data": "操作"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "矩形框"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "標註"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+D"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘D"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "矩形"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "標註"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Alt+D"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥D"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "劃選標註"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 39,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "0"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 最近一次使用的顏色 / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "1-7"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 對應顏色"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "搜索"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+F"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘F"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "搜索下一項"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+G"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘G"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "放大"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+="
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘="
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "縮小"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+-"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌘-"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "向上滾動"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "↑"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "向下滾動"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "↓"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "全螢幕預覽"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Alt+P"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥⌘P"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 18,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "聚焦到頁碼輸入框"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Alt+G"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥⌘G"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "上一頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "P"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "K"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "下一頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "J"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "N"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "第一頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Home"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "最後一頁"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "End"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "文字選則工具"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "S"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "手形工具"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "H"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "順時針旋轉"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "R"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "逆時針旋轉"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Shift+R"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⇧R"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 18,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "側欄切換"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 39,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "F4"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
 								}
 							]
 						}
@@ -7984,12 +10623,12 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20211226122652-jhdz9s3",
-				"updated": "20211228131756"
+				"updated": "20230503141733"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "塊圖示"
+					"Data": "塊標"
 				}
 			]
 		},
@@ -8003,7 +10642,7 @@
 			"Properties": {
 				"colgroup": "|",
 				"id": "20211226122652-ykdt6pc",
-				"updated": "20221123220121"
+				"updated": "20230503141751"
 			},
 			"Children": [
 				{
@@ -8017,6 +10656,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 12,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -8027,6 +10668,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 15,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -8045,6 +10688,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8055,6 +10700,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8067,7 +10714,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8080,6 +10727,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8090,6 +10739,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8102,7 +10753,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -8111,7 +10762,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8124,6 +10775,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8134,6 +10787,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8146,7 +10801,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -8155,7 +10810,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8168,6 +10823,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8182,6 +10839,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8194,7 +10853,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -8203,7 +10862,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8216,6 +10875,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8226,6 +10887,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8238,7 +10901,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8251,16 +10914,20 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "複製並移動"
+									"Data": "重複"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8273,7 +10940,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -8282,7 +10949,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8295,16 +10962,24 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "生成塊引用"
+									"Data": "生成塊"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "引用"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8317,7 +10992,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -8326,7 +11001,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8339,6 +11014,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8349,6 +11026,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 15,
+							"TableCellContentMaxWidth": 15,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8361,7 +11040,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -8370,7 +11049,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -8418,6 +11097,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 21,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -8428,6 +11109,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 11,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -8438,6 +11121,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 14,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -8456,6 +11141,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 21,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8466,6 +11153,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8485,10 +11174,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "列表項圖標"
+									"Data": "列表項感測器"
 								}
 							]
 						}
@@ -8501,6 +11192,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 21,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8511,6 +11204,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8530,10 +11225,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "列表項圖標"
+									"Data": "列表項感測器"
 								}
 							]
 						}
@@ -8546,6 +11243,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 21,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8556,6 +11255,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8584,10 +11285,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "列表項圖標"
+									"Data": "列表項感測器"
 								}
 							]
 						}
@@ -8600,6 +11303,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 21,
+							"TableCellContentMaxWidth": 21,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8614,6 +11319,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8642,10 +11349,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "列表項圖標"
+									"Data": "列表項感測器"
 								}
 							]
 						}
@@ -8658,6 +11367,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 21,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8672,6 +11383,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8700,10 +11413,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "列表項圖標"
+									"Data": "列表項感測器"
 								}
 							]
 						}
@@ -8716,6 +11431,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 19,
+							"TableCellContentMaxWidth": 21,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8726,6 +11443,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8745,10 +11464,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "折疊圖標"
+									"Data": "折疊感測器"
 								}
 							]
 						}
@@ -8761,6 +11482,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 19,
+							"TableCellContentMaxWidth": 21,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8771,6 +11494,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8799,10 +11524,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "折疊圖標"
+									"Data": "折疊感測器"
 								}
 							]
 						}
@@ -8830,12 +11557,13 @@
 			"Type": "NodeTable",
 			"TableAligns": [
 				0,
+				0,
 				0
 			],
 			"Properties": {
-				"colgroup": "|",
+				"colgroup": "||",
 				"id": "20220619002223-k6apxvm",
-				"updated": "20220904093825"
+				"updated": "20230517155553"
 			},
 			"Children": [
 				{
@@ -8849,6 +11577,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 22,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -8863,10 +11593,24 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 11,
 									"Children": [
 										{
 											"Type": "NodeText",
 											"Data": "操作"
+										}
+									]
+								},
+								{
+									"Type": "NodeTableCell",
+									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 20,
+									"Children": [
+										{
+											"Type": "NodeText",
+											"Data": "備註"
 										}
 									]
 								}
@@ -8881,10 +11625,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "打開頁簽"
+									"Data": "打開分頁"
 								},
 								{
 									"Type": "NodeBr",
@@ -8895,13 +11641,29 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
 									"TextMarkTextContent": "Click"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -8912,6 +11674,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8926,7 +11690,13 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
@@ -8934,14 +11704,24 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": " / "
+									"Data": "​ / "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
 									"TextMarkTextContent": "⌘Click"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -8952,6 +11732,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -8966,7 +11748,13 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
@@ -8974,14 +11762,24 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": " / "
+									"Data": "​ / "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
 									"TextMarkTextContent": "⌥Click"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
 						}
 					]
 				},
@@ -8992,6 +11790,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9002,7 +11802,13 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 11,
 							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
@@ -9010,12 +11816,73 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": " / "
+									"Data": "​ / "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
 									"TextMarkTextContent": "⇧Click"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 20
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 22,
+							"TableCellContentMaxWidth": 22,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "查看定義塊的所有引用"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 11,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Shift+懸浮"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"TableCellContentWidth": 20,
+							"TableCellContentMaxWidth": 20,
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "僅在引用元素上支持"
 								}
 							]
 						}
@@ -9063,6 +11930,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 18,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9077,6 +11946,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 22,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9087,6 +11958,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 26,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9105,10 +11978,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "打開頁簽"
+									"Data": "打開分頁"
 								},
 								{
 									"Type": "NodeBr",
@@ -9119,6 +11994,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9137,7 +12014,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 26
 						}
 					]
 				},
@@ -9148,6 +12027,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 6,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9158,6 +12039,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9185,7 +12068,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 26
 						}
 					]
 				},
@@ -9196,6 +12081,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9210,6 +12097,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 13,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9241,7 +12130,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 26
 						}
 					]
 				},
@@ -9252,6 +12143,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9262,6 +12155,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 11,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9289,7 +12184,9 @@
 						},
 						{
 							"Type": "NodeTableCell",
-							"Data": "td"
+							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 26
 						}
 					]
 				},
@@ -9300,6 +12197,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 18,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9314,6 +12213,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 22,
+							"TableCellContentMaxWidth": 22,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9342,10 +12243,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 26,
+							"TableCellContentMaxWidth": 26,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "需設置為在當前頁簽中打開"
+									"Data": "需設置為在當前分頁中打開"
 								}
 							]
 						}
@@ -9378,7 +12281,7 @@
 			"Properties": {
 				"colgroup": "|",
 				"id": "20221107214851-ue0nqo6",
-				"updated": "20221107214851"
+				"updated": "20230719124740"
 			},
 			"Children": [
 				{
@@ -9427,7 +12330,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "打開頁簽"
+									"Data": "打開分頁"
 								},
 								{
 									"Type": "NodeBr",
@@ -9450,7 +12353,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								}
 							]
 						}
@@ -9489,7 +12392,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ / "
+									"Data": "​​ / "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -9498,11 +12401,55 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​​"
 								},
 								{
 									"Type": "NodeBr",
 									"Data": "br"
+								}
+							]
+						}
+					]
+				},
+				{
+					"Type": "NodeTableRow",
+					"Data": "tr",
+					"Children": [
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "展現關鍵字/替換歷史列表"
+								}
+							]
+						},
+						{
+							"Type": "NodeTableCell",
+							"Data": "td",
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Alt+↓"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ / "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "⌥↓"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -9549,6 +12496,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 18,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9563,6 +12512,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 6,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9581,10 +12532,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "打開頁簽"
+									"Data": "打開分頁"
 								},
 								{
 									"Type": "NodeBr",
@@ -9595,6 +12548,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9612,6 +12567,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 16,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9622,6 +12579,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9648,6 +12607,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 18,
+							"TableCellContentMaxWidth": 18,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9658,6 +12619,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9718,6 +12681,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 8,
+									"TableCellContentMaxWidth": 14,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9732,6 +12697,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 6,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9750,6 +12717,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9760,6 +12729,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9777,6 +12748,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9791,6 +12764,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9817,6 +12792,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9831,6 +12808,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9857,6 +12836,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 14,
+							"TableCellContentMaxWidth": 14,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9871,6 +12852,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9903,7 +12886,7 @@
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "反向鏈接圖標"
+					"Data": "反向連結感測器"
 				}
 			]
 		},
@@ -9931,6 +12914,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 12,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9941,6 +12926,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 6,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -9959,6 +12946,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 8,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -9969,6 +12958,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -9986,16 +12977,20 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "插入塊鏈接"
+									"Data": "插入塊連結"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -10013,6 +13008,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 12,
+							"TableCellContentMaxWidth": 12,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -10023,6 +13020,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -10074,6 +13073,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 31,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -10084,6 +13085,8 @@
 								{
 									"Type": "NodeTableCell",
 									"Data": "th",
+									"TableCellContentWidth": 6,
+									"TableCellContentMaxWidth": 6,
 									"Children": [
 										{
 											"Type": "NodeText",
@@ -10102,16 +13105,20 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 10,
+							"TableCellContentMaxWidth": 31,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "複製粘貼"
+									"Data": "複製貼上"
 								}
 							]
 						},
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 5,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -10138,6 +13145,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 24,
+							"TableCellContentMaxWidth": 31,
 							"Children": [
 								{
 									"Type": "NodeText",
@@ -10152,6 +13161,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",
@@ -10169,10 +13180,12 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 31,
+							"TableCellContentMaxWidth": 31,
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "使用 file:// 絕對路徑並鏈接"
+									"Data": "使用 file:// 絕對路徑並連結"
 								},
 								{
 									"Type": "NodeBr",
@@ -10183,6 +13196,8 @@
 						{
 							"Type": "NodeTableCell",
 							"Data": "td",
+							"TableCellContentWidth": 2,
+							"TableCellContentMaxWidth": 6,
 							"Children": [
 								{
 									"Type": "NodeTextMark",

@@ -1,86 +1,87 @@
 package model
 
 import (
-	"github.com/dustin/go-humanize"
-	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/88250/gulu"
-	"github.com/panjf2000/ants/v2"
+	"github.com/dustin/go-humanize"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/cache"
+	"github.com/siyuan-note/siyuan/kernel/sql"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func AutoOCRAssets() {
+func OCRAssetsJob() {
+	util.WaitForTesseractInit()
+
 	if !util.TesseractEnabled {
 		return
 	}
 
-	for {
-		autoOCRAssets()
-		time.Sleep(7 * time.Second)
-	}
+	task.AppendTaskWithTimeout(task.OCRImage, 30*time.Second, autoOCRAssets)
 }
 
 func autoOCRAssets() {
+	if !util.TesseractEnabled {
+		return
+	}
+
 	defer logging.Recover()
 
 	assetsPath := util.GetDataAssetsAbsPath()
 	assets := getUnOCRAssetsAbsPaths()
-
-	poolSize := runtime.NumCPU()
-	if 4 < poolSize {
-		poolSize = 4
+	if 0 < len(assets) {
+		for i, assetAbsPath := range assets {
+			text := util.Tesseract(assetAbsPath)
+			p := strings.TrimPrefix(assetAbsPath, assetsPath)
+			p = "assets" + filepath.ToSlash(p)
+			util.AssetsTextsLock.Lock()
+			util.AssetsTexts[p] = text
+			util.AssetsTextsLock.Unlock()
+			if "" != text {
+				util.AssetsTextsChanged.Store(true)
+			}
+			if 7 <= i { // 一次任务中最多处理 7 张图片，防止长时间占用系统资源
+				break
+			}
+		}
 	}
-	waitGroup := &sync.WaitGroup{}
-	p, _ := ants.NewPoolWithFunc(poolSize, func(arg interface{}) {
-		defer waitGroup.Done()
 
-		assetAbsPath := arg.(string)
-		text := util.Tesseract(assetAbsPath)
-		p := strings.TrimPrefix(assetAbsPath, assetsPath)
-		p = "assets" + filepath.ToSlash(p)
-		util.AssetsTextsLock.Lock()
-		util.AssetsTexts[p] = text
-		util.AssetsTextsLock.Unlock()
-		util.AssetsTextsChanged = true
-	})
-	for _, assetAbsPath := range assets {
-		waitGroup.Add(1)
-		p.Invoke(assetAbsPath)
+	cleanNotExistAssetsTexts()
+
+	// 刷新 OCR 结果到数据库
+	util.NodeOCRQueueLock.Lock()
+	defer util.NodeOCRQueueLock.Unlock()
+	for _, id := range util.NodeOCRQueue {
+		sql.IndexNodeQueue(id)
 	}
-	waitGroup.Wait()
-	p.Release()
-
-	cleanNotFoundAssetsTexts()
+	util.NodeOCRQueue = nil
 }
 
-func cleanNotFoundAssetsTexts() {
-	tmp := util.AssetsTexts
+func cleanNotExistAssetsTexts() {
+	util.AssetsTextsLock.Lock()
+	defer util.AssetsTextsLock.Unlock()
 
 	assetsPath := util.GetDataAssetsAbsPath()
 	var toRemoves []string
-	for asset, _ := range tmp {
+	for asset, _ := range util.AssetsTexts {
 		assetAbsPath := strings.TrimPrefix(asset, "assets")
 		assetAbsPath = filepath.Join(assetsPath, assetAbsPath)
-		if !gulu.File.IsExist(assetAbsPath) {
+		if !filelock.IsExist(assetAbsPath) {
 			toRemoves = append(toRemoves, asset)
 		}
 	}
 
-	util.AssetsTextsLock.Lock()
 	for _, asset := range toRemoves {
 		delete(util.AssetsTexts, asset)
-		util.AssetsTextsChanged = true
+		util.AssetsTextsChanged.Store(true)
 	}
-	util.AssetsTextsLock.Unlock()
 	return
 }
 
@@ -88,8 +89,7 @@ func getUnOCRAssetsAbsPaths() (ret []string) {
 	var assetsPaths []string
 	assets := cache.GetAssets()
 	for _, asset := range assets {
-		lowerName := strings.ToLower(asset.Path)
-		if !strings.HasSuffix(lowerName, ".png") && !strings.HasSuffix(lowerName, ".jpg") && !strings.HasSuffix(lowerName, ".jpeg") {
+		if !util.IsTesseractExtractable(asset.Path) {
 			continue
 		}
 		assetsPaths = append(assetsPaths, asset.Path)
@@ -107,30 +107,19 @@ func getUnOCRAssetsAbsPaths() (ret []string) {
 	return
 }
 
-func AutoFlushAssetsTexts() {
-	for {
-		SaveAssetsTexts()
-		time.Sleep(7 * time.Second)
-	}
+func FlushAssetsTextsJob() {
+	SaveAssetsTexts()
 }
 
 func LoadAssetsTexts() {
 	assetsPath := util.GetDataAssetsAbsPath()
 	assetsTextsPath := filepath.Join(assetsPath, "ocr-texts.json")
-	if !gulu.File.IsExist(assetsTextsPath) {
+	if !filelock.IsExist(assetsTextsPath) {
 		return
 	}
 
 	start := time.Now()
-	var err error
-	fh, err := os.OpenFile(assetsTextsPath, os.O_RDWR, 0644)
-	if nil != err {
-		logging.LogErrorf("open assets texts failed: %s", err)
-		return
-	}
-	defer fh.Close()
-
-	data, err := io.ReadAll(fh)
+	data, err := filelock.ReadFile(assetsTextsPath)
 	if nil != err {
 		logging.LogErrorf("read assets texts failed: %s", err)
 		return
@@ -154,7 +143,7 @@ func LoadAssetsTexts() {
 }
 
 func SaveAssetsTexts() {
-	if !util.AssetsTextsChanged {
+	if !util.AssetsTextsChanged.Load() {
 		return
 	}
 
@@ -170,7 +159,7 @@ func SaveAssetsTexts() {
 
 	assetsPath := util.GetDataAssetsAbsPath()
 	assetsTextsPath := filepath.Join(assetsPath, "ocr-texts.json")
-	if err = gulu.File.WriteFileSafer(assetsTextsPath, data, 0644); nil != err {
+	if err = filelock.WriteFile(assetsTextsPath, data); nil != err {
 		logging.LogErrorf("write assets texts failed: %s", err)
 		return
 	}
@@ -180,5 +169,5 @@ func SaveAssetsTexts() {
 		logging.LogWarnf("save assets texts [size=%s] to [%s], elapsed [%.2fs]", humanize.Bytes(uint64(len(data))), assetsTextsPath, elapsed)
 	}
 
-	util.AssetsTextsChanged = false
+	util.AssetsTextsChanged.Store(false)
 }

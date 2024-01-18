@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,10 +17,13 @@
 package search
 
 import (
+	"fmt"
+	"github.com/88250/gulu"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/88250/lute/lex"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -30,7 +33,7 @@ func MarkText(text string, keyword string, beforeLen int, caseSensitive bool) (p
 	}
 	text = util.EscapeHTML(text)
 	keywords := SplitKeyword(keyword)
-	marked = EncloseHighlighting(text, keywords, "<mark>", "</mark>", caseSensitive)
+	marked = EncloseHighlighting(text, keywords, "<mark>", "</mark>", caseSensitive, false)
 
 	pos = strings.Index(marked, "<mark>")
 	if 0 > pos {
@@ -78,15 +81,31 @@ func SplitKeyword(keyword string) (keywords []string) {
 	return
 }
 
-func EncloseHighlighting(text string, keywords []string, openMark, closeMark string, caseSensitive bool) (ret string) {
+func EncloseHighlighting(text string, keywords []string, openMark, closeMark string, caseSensitive, splitWords bool) (ret string) {
 	ic := "(?i)"
 	if caseSensitive {
 		ic = "(?)"
 	}
 	re := ic + "("
 	for i, k := range keywords {
+		if "" == k {
+			continue
+		}
+
+		wordBoundary := false
+		if splitWords {
+			wordBoundary = lex.IsASCIILetterNums(gulu.Str.ToBytes(k)) // Improve virtual reference split words https://github.com/siyuan-note/siyuan/issues/7833
+		}
 		k = regexp.QuoteMeta(k)
-		re += "(" + k + ")"
+		re += "("
+		if wordBoundary {
+			re += "\\b"
+		}
+		re += k
+		if wordBoundary {
+			re += "\\b"
+		}
+		re += ")"
 		if i < len(keywords)-1 {
 			re += "|"
 		}
@@ -97,5 +116,21 @@ func EncloseHighlighting(text string, keywords []string, openMark, closeMark str
 	if reg, err := regexp.Compile(re); nil == err {
 		ret = reg.ReplaceAllStringFunc(text, func(s string) string { return openMark + s + closeMark })
 	}
+
+	// 搜索结果预览包含转义符问题 Search results preview contains escape character issue https://github.com/siyuan-note/siyuan/issues/9790
+	ret = strings.ReplaceAll(ret, "\\<span", "\\\\<span ")
 	return
+}
+
+const (
+	MarkDataType            = "search-mark"
+	VirtualBlockRefDataType = "virtual-block-ref"
+)
+
+func GetMarkSpanStart(dataType string) string {
+	return fmt.Sprintf("<span data-type=\"%s\">", dataType)
+}
+
+func GetMarkSpanEnd() string {
+	return "</span>"
 }

@@ -21,6 +21,13 @@
 
 合并请求到 main ， 或者直接提交
 
+## 发布 docker 镜像
+
+```
+docker login
+docker buildx build --push -t terwer/my-note:latest -t terwer/my-note:v2.12.3 .
+```
+
 ## 构建
 
 ### macOS
@@ -64,9 +71,6 @@ cd ../app/kernel
 cd app
 npm install -g pnpm
 pnpm config set registry https://registry.npmmirror.com/
-
-pnpm config set electron_mirror=https://cdn.npmmirror.com/binaries/electron/
-pnpm config set electron_custom_dir=22.0.0
 
 pnpm install
 pnpm run dev

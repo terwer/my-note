@@ -8,7 +8,7 @@
 		"title": "请从这里开始",
 		"title-img": "background-color:#556;background-image: linear-gradient(30deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(150deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(30deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(150deg, #445 12%, transparent 12.5%, transparent 87%, #445 87.5%, #445),linear-gradient(60deg, #99a 25%, transparent 25.5%, transparent 75%, #99a 75%, #99a),linear-gradient(60deg, #99a 25%, transparent 25.5%, transparent 75%, #99a 75%, #99a);background-size:80px 140px;background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;",
 		"type": "doc",
-		"updated": "20221114173007"
+		"updated": "20230816170413"
 	},
 	"Children": [
 		{
@@ -33,19 +33,44 @@
 			"Properties": {
 				"id": "20210428212840-8rqwn5o",
 				"style": "color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);",
-				"updated": "20210622232119"
+				"updated": "20230415112508"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "在思源中，唯一重要的核心概念是"
+					"Data": "在"
 				},
 				{
 					"Type": "NodeTextMark",
+					"Properties": {
+						"parent-style": "color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);"
+					},
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20230415111858-vgohvf3",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "思源"
+				},
+				{
+					"Type": "NodeKramdownSpanIAL",
+					"Data": "{: parent-style=\"color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);\"}"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "中，唯一重要的核心概念是"
+				},
+				{
+					"Type": "NodeTextMark",
+					"Properties": {
+						"parent-style": "color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);"
+					},
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20200813004931-q4cu8na",
 					"TextMarkBlockRefSubtype": "s",
 					"TextMarkTextContent": "内容块"
+				},
+				{
+					"Type": "NodeKramdownSpanIAL",
+					"Data": "{: parent-style=\"color: var(--b3-card-info-color); background-color: var(--b3-card-info-background);\"}"
 				},
 				{
 					"Type": "NodeText",
@@ -58,7 +83,7 @@
 			"Type": "NodeSuperBlock",
 			"Properties": {
 				"id": "20210528115012-vst5lwt",
-				"updated": "20210528115049"
+				"updated": "20210501192542"
 			},
 			"Children": [
 				{
@@ -73,8 +98,7 @@
 					"Type": "NodeSuperBlock",
 					"Properties": {
 						"id": "20210528115021-oj6gzg7",
-						"style": "width: 70%; flex: 0 0 auto;",
-						"updated": "20210502233951"
+						"updated": "20230728103645"
 					},
 					"Children": [
 						{
@@ -105,7 +129,7 @@
 							"ListData": {},
 							"Properties": {
 								"id": "20201225220955-l154bn4",
-								"updated": "20210502233951"
+								"updated": "20230728103645"
 							},
 							"Children": [
 								{
@@ -116,7 +140,8 @@
 										"Marker": "Kg=="
 									},
 									"Properties": {
-										"id": "20201225220955-2nn1mns"
+										"id": "20201225220955-2nn1mns",
+										"updated": "20230728103645"
 									},
 									"Children": [
 										{
@@ -124,12 +149,12 @@
 											"Type": "NodeParagraph",
 											"Properties": {
 												"id": "20210131155408-3t627wc",
-												"updated": "20210428212416"
+												"updated": "20230728103645"
 											},
 											"Children": [
 												{
 													"Type": "NodeText",
-													"Data": "新建笔记本，在笔记本下新建文档"
+													"Data": "在文档树面板中新建笔记本，在笔记本下新建文档"
 												}
 											]
 										}
@@ -144,7 +169,7 @@
 									},
 									"Properties": {
 										"id": "20201225220955-uwhqnug",
-										"updated": "20211205193639"
+										"updated": "20230428165309"
 									},
 									"Children": [
 										{
@@ -152,7 +177,7 @@
 											"Type": "NodeParagraph",
 											"Properties": {
 												"id": "20210131155408-btnfw88",
-												"updated": "20211205193639"
+												"updated": "20230428165309"
 											},
 											"Children": [
 												{
@@ -166,7 +191,7 @@
 												},
 												{
 													"Type": "NodeText",
-													"Data": " 触发功能菜单"
+													"Data": "​ 触发功能菜单"
 												}
 											]
 										}
@@ -226,7 +251,7 @@
 					"Type": "NodeSuperBlock",
 					"Properties": {
 						"id": "20210528115016-kgyy5mm",
-						"updated": "20210528115049"
+						"updated": "20210501192542"
 					},
 					"Children": [
 						{
@@ -257,7 +282,7 @@
 							"ListData": {},
 							"Properties": {
 								"id": "20201225220955-5tzog8p",
-								"updated": "20210528115049"
+								"updated": "20210501192542"
 							},
 							"Children": [
 								{
@@ -299,7 +324,8 @@
 										"Marker": "Kg=="
 									},
 									"Properties": {
-										"id": "20201225220955-uxl2u8n"
+										"id": "20201225220955-uxl2u8n",
+										"updated": "20210501192542"
 									},
 									"Children": [
 										{
@@ -315,36 +341,6 @@
 													"TextMarkType": "a",
 													"TextMarkAHref": "https://ld246.com/article/1619868273581",
 													"TextMarkTextContent": "缘起"
-												}
-											]
-										}
-									]
-								},
-								{
-									"ID": "20210528115047-mf8zy3i",
-									"Type": "NodeListItem",
-									"ListData": {
-										"BulletChar": 42,
-										"Marker": "Kg=="
-									},
-									"Properties": {
-										"id": "20210528115047-mf8zy3i",
-										"updated": "20210528115049"
-									},
-									"Children": [
-										{
-											"ID": "20210528115047-78736rc",
-											"Type": "NodeParagraph",
-											"Properties": {
-												"id": "20210528115047-78736rc",
-												"updated": "20210528115049"
-											},
-											"Children": [
-												{
-													"Type": "NodeTextMark",
-													"TextMarkType": "a",
-													"TextMarkAHref": "https://github.com/orgs/siyuan-note/projects/1",
-													"TextMarkTextContent": "路线图"
 												}
 											]
 										}
@@ -367,7 +363,7 @@
 			"Type": "NodeSuperBlock",
 			"Properties": {
 				"id": "20210528115259-ifi35e9",
-				"updated": "20221114173007"
+				"updated": "20230816170413"
 			},
 			"Children": [
 				{
@@ -382,7 +378,6 @@
 					"Type": "NodeSuperBlock",
 					"Properties": {
 						"id": "20210528115306-kftajae",
-						"style": "width: 70%; flex: 0 0 auto;",
 						"updated": "20210601234211"
 					},
 					"Children": [
@@ -490,7 +485,7 @@
 					"Type": "NodeSuperBlock",
 					"Properties": {
 						"id": "20210528115302-oa09t9p",
-						"updated": "20221114173007"
+						"updated": "20230816170413"
 					},
 					"Children": [
 						{
@@ -521,7 +516,7 @@
 							"ListData": {},
 							"Properties": {
 								"id": "20210131160231-t1cr21p",
-								"updated": "20221114173007"
+								"updated": "20230816170413"
 							},
 							"Children": [
 								{
@@ -556,30 +551,30 @@
 									]
 								},
 								{
-									"ID": "20221114172803-v3e5sfh",
+									"ID": "20230816170212-hv7dtb0",
 									"Type": "NodeListItem",
 									"ListData": {
 										"BulletChar": 42,
 										"Marker": "Kg=="
 									},
 									"Properties": {
-										"id": "20221114172803-v3e5sfh",
-										"updated": "20221114173007"
+										"id": "20230816170212-hv7dtb0",
+										"updated": "20230816170413"
 									},
 									"Children": [
 										{
-											"ID": "20221114172803-vqryeav",
+											"ID": "20230816170212-3leiyax",
 											"Type": "NodeParagraph",
 											"Properties": {
-												"id": "20221114172803-vqryeav",
-												"updated": "20221114173007"
+												"id": "20230816170212-3leiyax",
+												"updated": "20230816170413"
 											},
 											"Children": [
 												{
 													"Type": "NodeTextMark",
 													"TextMarkType": "a",
-													"TextMarkAHref": "https://github.com/siyuan-note/bazaar",
-													"TextMarkTextContent": "社区集市"
+													"TextMarkAHref": "https://b3log.org/siyuan/pricing.html",
+													"TextMarkTextContent": "付费支持开发"
 												}
 											]
 										}
@@ -601,8 +596,40 @@
 			"ID": "20221114172820-dvkx6pq",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20221114172820-dvkx6pq"
-			}
+				"id": "20221114172820-dvkx6pq",
+				"updated": "20230428155245"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "如果你感到官方用户指南过于硬核，请尝试从"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20230428153709-hioyy5l",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "社区资源"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "开始。"
+				}
+			]
+		},
+		{
+			"ID": "20230428155440-s8hzxrz",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230428155440-s8hzxrz",
+				"updated": "20230428162620"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "我们希望在接下来的时间里，思源能够成为你生活和学习的效率工具，帮助你实现更多的目标和计划🙏"
+				}
+			]
 		}
 	]
 }

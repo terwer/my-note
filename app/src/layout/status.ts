@@ -1,70 +1,59 @@
 /// #if !MOBILE
-import {getAllDocks} from "./getAll";
-import {updateHotkeyTip} from "../protyle/util/compatibility";
-import {getDockByType, resizeTabs} from "./util";
+import {getDockByType} from "./tabUtil";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {fetchPost} from "../util/fetch";
 import {mountHelp} from "../util/mount";
 /// #if !BROWSER
-import {getCurrentWindow} from "@electron/remote";
+import { ipcRenderer } from "electron";
 /// #endif
 /// #endif
 import {MenuItem} from "../menus/Menu";
+import {Constants} from "../constants";
+import {toggleDockBar} from "./dock/util";
+import {updateHotkeyTip} from "../protyle/util/compatibility";
 
-export const initStatus = () => {
+export const initStatus = (isWindow = false) => {
     /// #if !MOBILE
-    const allDocks = getAllDocks();
-    let menuHTML = "";
-    allDocks.forEach(item => {
-        menuHTML += `<button class="b3-menu__item" data-type="${item.type}"><svg class="b3-menu__icon""><use xlink:href="#${item.icon}"></use></svg><span class="b3-menu__label">${window.siyuan.languages[item.hotkeyLangId]}</span><span class="b3-menu__accelerator">${updateHotkeyTip(window.siyuan.config.keymap.general[item.hotkeyLangId].custom)}</span></button>`;
-    });
-    document.getElementById("status").innerHTML = `<div id="barDock" class="toolbar__item b3-tooltips b3-tooltips__e${window.siyuan.config.readonly ? " fn__none" : ""}" aria-label="${window.siyuan.config.uiLayout.hideDock ? window.siyuan.languages.showDock : window.siyuan.languages.hideDock}">
+    let barDockHTML = "";
+    if (!isWindow) {
+        barDockHTML = `<div id="barDock" class="toolbar__item ariaLabel${window.siyuan.config.readonly || isWindow ? " fn__none" : ""}" aria-label="${window.siyuan.languages.toggleDock} ${updateHotkeyTip(window.siyuan.config.keymap.general.toggleDock.custom)}">
     <svg>
         <use xlink:href="#${window.siyuan.config.uiLayout.hideDock ? "iconDock" : "iconHideDock"}"></use>
     </svg>
-    <div class="b3-menu fn__none" style="bottom: 32px;left: 5px">
-        ${menuHTML}
-    </div>
-</div>
+</div>`;
+    }
+    document.getElementById("status").innerHTML = `${barDockHTML}
 <div class="status__msg"></div>
 <div class="fn__flex-1"></div>
+<div class="status__backgroundtask fn__none"></div>
 <div class="status__counter"></div>
-<div id="statusHelp" class="toolbar__item b3-tooltips b3-tooltips__w" aria-label="${window.siyuan.languages.help}">
+<div id="statusHelp" class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages.help}">
     <svg><use xlink:href="#iconHelp"></use></svg>
 </div>`;
-    const dockElement = document.getElementById("barDock");
-    dockElement.addEventListener("mousemove", () => {
-        dockElement.querySelector(".b3-menu").classList.remove("fn__none");
-    });
-    dockElement.addEventListener("mouseleave", () => {
-        dockElement.querySelector(".b3-menu").classList.add("fn__none");
-    });
     document.querySelector("#status").addEventListener("click", (event) => {
         let target = event.target as HTMLElement;
         while (target.id !== "status") {
             if (target.id === "barDock") {
-                const useElement = target.firstElementChild.firstElementChild;
-                const dockIsShow = useElement.getAttribute("xlink:href") === "#iconHideDock";
-                if (dockIsShow) {
-                    useElement.setAttribute("xlink:href", "#iconDock");
-                    target.setAttribute("aria-label", window.siyuan.languages.showDock);
-                } else {
-                    useElement.setAttribute("xlink:href", "#iconHideDock");
-                    target.setAttribute("aria-label", window.siyuan.languages.hideDock);
+                toggleDockBar(target.firstElementChild.firstElementChild);
+                event.stopPropagation();
+                break;
+            } else if (target.classList.contains("status__backgroundtask")) {
+                if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
+                    window.siyuan.menus.menu.element.getAttribute("data-name") === "statusBackgroundTask") {
+                    window.siyuan.menus.menu.remove();
+                    return;
                 }
-                document.querySelectorAll(".dock").forEach(item => {
-                    if (dockIsShow) {
-                        if (item.querySelector(".dock__item")) {
-                            item.classList.add("fn__none");
-                        }
-                    } else {
-                        if (item.querySelector(".dock__item")) {
-                            item.classList.remove("fn__none");
-                        }
-                    }
+                window.siyuan.menus.menu.remove();
+                window.siyuan.menus.menu.element.setAttribute("data-name", "statusBackgroundTask");
+                JSON.parse(target.getAttribute("data-tasks")).forEach((item: { action: string }) => {
+                    window.siyuan.menus.menu.append(new MenuItem({
+                        type: "readonly",
+                        iconHTML: Constants.ZWSP,
+                        label: item.action
+                    }).element);
                 });
-                resizeTabs();
-                target.querySelector(".b3-menu").classList.add("fn__none");
+                const rect = target.getBoundingClientRect();
+                window.siyuan.menus.menu.popup({x: rect.right, y: rect.top, isLeft: true});
                 event.stopPropagation();
                 break;
             } else if (target.id === "statusHelp") {
@@ -84,12 +73,12 @@ export const initStatus = () => {
                 }).element);
                 window.siyuan.menus.menu.append(new MenuItem({
                     label: window.siyuan.languages.feedback,
-                    icon: "iconHeart",
+                    icon: "iconFeedback",
                     click: () => {
-                        if ("zh_CN" === window.siyuan.config.lang) {
+                        if ("zh_CN" === window.siyuan.config.lang || "zh_CHT" === window.siyuan.config.lang) {
                             window.open("https://ld246.com/article/1649901726096");
                         } else {
-                            window.open("https://github.com/siyuan-note/siyuan/issues");
+                            window.open("https://liuyun.io/article/1686530886208");
                         }
                     }
                 }).element);
@@ -98,7 +87,7 @@ export const initStatus = () => {
                     label: window.siyuan.languages.debug,
                     icon: "iconBug",
                     click: () => {
-                        getCurrentWindow().webContents.openDevTools({mode: "bottom"});
+                        ipcRenderer.send(Constants.SIYUAN_CMD, "openDevTools");
                     }
                 }).element);
                 /// #endif
@@ -117,11 +106,11 @@ export const initStatus = () => {
                     }
                 }).element);
                 const rect = target.getBoundingClientRect();
-                window.siyuan.menus.menu.popup({x: rect.right, y: rect.bottom, h: rect.height}, true);
+                window.siyuan.menus.menu.popup({x: rect.right, y: rect.top, isLeft: true});
                 event.stopPropagation();
                 break;
             } else if (target.classList.contains("b3-menu__item")) {
-                const type = target.getAttribute("data-type") as TDockType;
+                const type = target.getAttribute("data-type");
                 getDockByType(type).toggleModel(type);
                 if (type === "file" && getSelection().rangeCount > 0) {
                     const range = getSelection().getRangeAt(0);
@@ -144,23 +133,27 @@ export const initStatus = () => {
 };
 
 let countRootId: string;
+let countTimeout: number;
 export const countSelectWord = (range: Range, rootID?: string) => {
     /// #if !MOBILE
     if (document.getElementById("status").classList.contains("fn__none")) {
         return;
     }
-    const selectText = range.toString();
-    if (selectText) {
-        fetchPost("/api/block/getContentWordCount", {"content": range.toString()}, (response) => {
-            renderStatusbarCounter(response.data);
-        });
-        countRootId = "";
-    } else if (rootID && rootID !== countRootId) {
-        countRootId = rootID;
-        fetchPost("/api/block/getTreeStat", {id: rootID}, (response) => {
-            renderStatusbarCounter(response.data);
-        });
-    }
+    clearTimeout(countTimeout);
+    countTimeout = window.setTimeout(() => {
+        const selectText = range.toString();
+        if (selectText) {
+            fetchPost("/api/block/getContentWordCount", {"content": range.toString()}, (response) => {
+                renderStatusbarCounter(response.data);
+            });
+            countRootId = "";
+        } else if (rootID && rootID !== countRootId) {
+            countRootId = rootID;
+            fetchPost("/api/block/getTreeStat", {id: rootID}, (response) => {
+                renderStatusbarCounter(response.data);
+            });
+        }
+    }, Constants.TIMEOUT_COUNT);
     /// #endif
 };
 
@@ -169,39 +162,52 @@ export const countBlockWord = (ids: string[], rootID?: string, clearCache = fals
     if (document.getElementById("status").classList.contains("fn__none")) {
         return;
     }
-    if (clearCache) {
-        countRootId = "";
-    }
-    if (ids.length > 0) {
-        fetchPost("/api/block/getBlocksWordCount", {ids}, (response) => {
-            renderStatusbarCounter(response.data);
-        });
-        countRootId = "";
-    } else if (rootID && rootID !== countRootId) {
-        countRootId = rootID;
-        fetchPost("/api/block/getTreeStat", {id: rootID}, (response) => {
-            renderStatusbarCounter(response.data);
-        });
-    }
+    clearTimeout(countTimeout);
+    countTimeout = window.setTimeout(() => {
+        if (clearCache) {
+            countRootId = "";
+        }
+        if (ids.length > 0) {
+            fetchPost("/api/block/getBlocksWordCount", {ids}, (response) => {
+                renderStatusbarCounter(response.data);
+            });
+            countRootId = "";
+        } else if (rootID && rootID !== countRootId) {
+            countRootId = rootID;
+            fetchPost("/api/block/getTreeStat", {id: rootID}, (response) => {
+                renderStatusbarCounter(response.data);
+            });
+        }
+    }, Constants.TIMEOUT_COUNT);
     /// #endif
 };
 
 export const clearCounter = () => {
     countRootId = "";
     document.querySelector("#status .status__counter").innerHTML = "";
+    clearTimeout(countTimeout);
 };
 
-export const renderStatusbarCounter = (stat: { runeCount: number, wordCount: number, linkCount: number, imageCount: number, refCount: number }) => {
+export const renderStatusbarCounter = (stat: {
+    runeCount: number,
+    wordCount: number,
+    linkCount: number,
+    imageCount: number,
+    refCount: number
+}) => {
+    if(!stat) {
+        return;
+    }
     let html = `<span class="ft__on-surface">${window.siyuan.languages.runeCount}</span>&nbsp;${stat.runeCount}<span class="fn__space"></span>
 <span class="ft__on-surface">${window.siyuan.languages.wordCount}</span>&nbsp;${stat.wordCount}<span class="fn__space"></span>`;
     if (0 < stat.linkCount) {
-        html += `<span class="ft__on-surface">${window.siyuan.languages.link}</span>&nbsp;${stat.linkCount}<span class="fn__space"></span>`;
+        html += `<span class="ft__on-surface">${window.siyuan.languages.linkCount}</span>&nbsp;${stat.linkCount}<span class="fn__space"></span>`;
     }
     if (0 < stat.imageCount) {
-        html += `<span class="ft__on-surface">${window.siyuan.languages.image}</span>&nbsp;${stat.imageCount}<span class="fn__space"></span>`;
+        html += `<span class="ft__on-surface">${window.siyuan.languages.imgCount}</span>&nbsp;${stat.imageCount}<span class="fn__space"></span>`;
     }
     if (0 < stat.refCount) {
-        html += `<span class="ft__on-surface">${window.siyuan.languages.ref}</span>&nbsp;${stat.refCount}<span class="fn__space"></span>`;
+        html += `<span class="ft__on-surface">${window.siyuan.languages.refCount}</span>&nbsp;${stat.refCount}<span class="fn__space"></span>`;
     }
     document.querySelector("#status .status__counter").innerHTML = html;
 };

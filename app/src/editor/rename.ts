@@ -44,7 +44,7 @@ export const rename = (options: {
     type: "notebook" | "file"
     range?: Range,
 }) => {
-    if (window.siyuan.config.editor.readOnly || window.siyuan.config.readonly) {
+    if (window.siyuan.config.readonly) {
         return;
     }
     const dialog = new Dialog({
@@ -54,13 +54,14 @@ export const rename = (options: {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-        width: isMobile() ? "80vw" : "520px",
+        width: isMobile() ? "92vw" : "520px",
         destroyCallback() {
             if (options.range) {
                 focusByRange(options.range);
             }
         }
     });
+    dialog.element.setAttribute("data-key", Constants.DIALOG_RENAME);
     const inputElement = dialog.element.querySelector("input") as HTMLInputElement;
     const btnsElement = dialog.element.querySelectorAll(".b3-button");
     dialog.bindInput(inputElement, () => {
@@ -111,8 +112,9 @@ export const renameAsset = (assetPath: string) => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-        width: isMobile() ? "80vw" : "520px",
+        width: isMobile() ? "92vw" : "520px",
     });
+    dialog.element.setAttribute("data-key", Constants.DIALOG_RENAMEASSETS);
     const inputElement = dialog.element.querySelector("input") as HTMLInputElement;
     const btnsElement = dialog.element.querySelectorAll(".b3-button");
     dialog.bindInput(inputElement, () => {

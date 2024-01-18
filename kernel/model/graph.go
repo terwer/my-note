@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@ package model
 
 import (
 	"bytes"
-	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/siyuan/kernel/util"
 	"math"
 	"strings"
@@ -27,38 +26,29 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/html"
+	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 )
 
 type GraphNode struct {
-	ID    string          `json:"id"`
-	Box   string          `json:"box"`
-	Path  string          `json:"path"`
-	Size  float64         `json:"size"`
-	Title string          `json:"title,omitempty"`
-	Label string          `json:"label"`
-	Type  string          `json:"type"`
-	Refs  int             `json:"refs"`
-	Defs  int             `json:"defs"`
-	Color *GraphNodeColor `json:"color"`
-}
-
-type GraphNodeColor struct {
-	Background string `json:"background"`
+	ID    string  `json:"id"`
+	Box   string  `json:"box"`
+	Path  string  `json:"path"`
+	Size  float64 `json:"size"`
+	Title string  `json:"title,omitempty"`
+	Label string  `json:"label"`
+	Type  string  `json:"type"`
+	Refs  int     `json:"refs"`
+	Defs  int     `json:"defs"`
 }
 
 type GraphLink struct {
-	From   string          `json:"from"`
-	To     string          `json:"to"`
-	Ref    bool            `json:"-"`
-	Color  *GraphLinkColor `json:"color"`
-	Arrows *GraphArrows    `json:"arrows"`
-}
-
-type GraphLinkColor struct {
-	Color string `json:"color"`
+	From   string       `json:"from"`
+	To     string       `json:"to"`
+	Ref    bool         `json:"ref"`
+	Arrows *GraphArrows `json:"arrows"`
 }
 
 type GraphArrows struct {
@@ -93,8 +83,8 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 
 	var sqlBlocks []*sql.Block
 	var rootID string
-	if "NodeDocument" == block.Type {
-		sqlBlocks = sql.GetAllChildBlocks(block.ID, stmt)
+	if ast.NodeDocument == node.Type {
+		sqlBlocks = sql.GetAllChildBlocks([]string{block.ID}, stmt)
 		rootID = block.ID
 	} else {
 		sqlBlocks = sql.GetChildBlocks(block.ID, stmt)
@@ -106,34 +96,67 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 		if nil != rootBlock {
 			// 按引用处理
 			sqlRootDefs := sql.QueryDefRootBlocksByRefRootID(rootID)
-			for _, sqlRootDef := range sqlRootDefs {
-				rootDef := fromSQLBlock(sqlRootDef, "", 0)
+			rootDefBlocks := fromSQLBlocks(&sqlRootDefs, "", 0)
+			var rootIDs []string
+			for _, rootDef := range rootDefBlocks {
 				blocks = append(blocks, rootDef)
+				rootIDs = append(rootIDs, rootDef.ID)
+			}
 
-				sqlRootRefs := sql.QueryRefRootBlocksByDefRootID(sqlRootDef.ID)
-				rootRefs := fromSQLBlocks(&sqlRootRefs, "", 0)
-				rootDef.Refs = append(rootDef.Refs, rootRefs...)
+			sqlRefBlocks := sql.QueryRefRootBlocksByDefRootIDs(rootIDs)
+			for defRootID, sqlRefBs := range sqlRefBlocks {
+				rootB := getBlockIn(rootDefBlocks, defRootID)
+				if nil == rootB {
+					continue
+				}
+
+				blocks = append(blocks, rootB)
+				refBlocks := fromSQLBlocks(&sqlRefBs, "", 0)
+				rootB.Refs = append(rootB.Refs, refBlocks...)
+				blocks = append(blocks, refBlocks...)
 			}
 
 			// 按定义处理
-			sqlRootRefs := sql.QueryRefRootBlocksByDefRootID(rootID)
-			for _, sqlRootRef := range sqlRootRefs {
-				rootRef := fromSQLBlock(sqlRootRef, "", 0)
-				blocks = append(blocks, rootRef)
+			blocks = append(blocks, rootBlock)
+			sqlRefBlocks = sql.QueryRefRootBlocksByDefRootIDs([]string{rootID})
 
-				rootBlock.Refs = append(rootBlock.Refs, rootRef)
+			// 关系图日记过滤失效 https://github.com/siyuan-note/siyuan/issues/7547
+			dailyNotesPaths := dailyNotePaths(true)
+			for _, sqlRefBs := range sqlRefBlocks {
+				refBlocks := fromSQLBlocks(&sqlRefBs, "", 0)
+
+				if 0 < len(dailyNotesPaths) {
+					filterDailyNote := false
+					var tmp []*Block
+					for _, refBlock := range refBlocks {
+						for _, dailyNotePath := range dailyNotesPaths {
+							if strings.HasPrefix(refBlock.HPath, dailyNotePath) {
+								filterDailyNote = true
+								break
+							}
+						}
+
+						if !filterDailyNote {
+							tmp = append(tmp, refBlock)
+						}
+					}
+					refBlocks = tmp
+				}
+
+				rootBlock.Refs = append(rootBlock.Refs, refBlocks...)
+				blocks = append(blocks, refBlocks...)
 			}
 		}
 	}
-	style := graphStyle(true)
-	genTreeNodes(blocks, &nodes, &links, true, style)
+
+	genTreeNodes(blocks, &nodes, &links, true)
 	growTreeGraph(&forwardlinks, &backlinks, &nodes)
 	blocks = append(blocks, forwardlinks...)
 	blocks = append(blocks, backlinks...)
-	buildLinks(&blocks, &links, style, true)
+	buildLinks(&blocks, &links, true)
 	if Conf.Graph.Local.Tag {
 		p := sqlBlock.Path
-		linkTagBlocks(&blocks, &nodes, &links, p, style)
+		linkTagBlocks(&blocks, &nodes, &links, p)
 	}
 	markLinkedNodes(&nodes, &links, true)
 	nodes = removeDuplicatedUnescape(nodes)
@@ -153,32 +176,38 @@ func BuildGraph(query string) (boxID string, nodes []*GraphNode, links []*GraphL
 
 	var blocks []*Block
 	roots := sql.GetAllRootBlocks()
-	style := graphStyle(false)
 	if 0 < len(roots) {
 		boxID = roots[0].Box
 	}
+	var rootIDs []string
 	for _, root := range roots {
-		sqlBlocks := sql.GetAllChildBlocks(root.ID, stmt)
-		treeBlocks := fromSQLBlocks(&sqlBlocks, "", 0)
-		genTreeNodes(treeBlocks, &nodes, &links, false, style)
-		blocks = append(blocks, treeBlocks...)
+		rootIDs = append(rootIDs, root.ID)
+	}
+	rootIDs = gulu.Str.RemoveDuplicatedElem(rootIDs)
 
-		// 文档块关联
-		rootBlock := getBlockIn(treeBlocks, root.ID)
+	sqlBlocks := sql.GetAllChildBlocks(rootIDs, stmt)
+	treeBlocks := fromSQLBlocks(&sqlBlocks, "", 0)
+	genTreeNodes(treeBlocks, &nodes, &links, false)
+	blocks = append(blocks, treeBlocks...)
+
+	// 文档块关联
+	sqlRootRefBlocks := sql.QueryRefRootBlocksByDefRootIDs(rootIDs)
+	for defRootID, sqlRefBlocks := range sqlRootRefBlocks {
+		rootBlock := getBlockIn(treeBlocks, defRootID)
 		if nil == rootBlock {
 			continue
 		}
 
-		sqlRootRefs := sql.QueryRefRootBlocksByDefRootID(root.ID)
-		rootRefs := fromSQLBlocks(&sqlRootRefs, "", 0)
-		rootBlock.Refs = append(rootBlock.Refs, rootRefs...)
+		refBlocks := fromSQLBlocks(&sqlRefBlocks, "", 0)
+		rootBlock.Refs = append(rootBlock.Refs, refBlocks...)
 	}
+
 	growTreeGraph(&forwardlinks, &backlinks, &nodes)
 	blocks = append(blocks, forwardlinks...)
 	blocks = append(blocks, backlinks...)
-	buildLinks(&blocks, &links, style, false)
+	buildLinks(&blocks, &links, false)
 	if Conf.Graph.Global.Tag {
-		linkTagBlocks(&blocks, &nodes, &links, "", style)
+		linkTagBlocks(&blocks, &nodes, &links, "")
 	}
 	markLinkedNodes(&nodes, &links, false)
 	pruneUnref(&nodes, &links)
@@ -186,8 +215,8 @@ func BuildGraph(query string) (boxID string, nodes []*GraphNode, links []*GraphL
 	return
 }
 
-func linkTagBlocks(blocks *[]*Block, nodes *[]*GraphNode, links *[]*GraphLink, p string, style map[string]string) {
-	tagSpans := sql.QueryTagSpans(p, 1024)
+func linkTagBlocks(blocks *[]*Block, nodes *[]*GraphNode, links *[]*GraphLink, p string) {
+	tagSpans := sql.QueryTagSpans(p)
 	if 1 > len(tagSpans) {
 		return
 	}
@@ -207,7 +236,6 @@ func linkTagBlocks(blocks *[]*Block, nodes *[]*GraphNode, links *[]*GraphLink, p
 				Label: tagSpan.Content,
 				Size:  nodeSize,
 				Type:  tagSpan.Type,
-				Color: &GraphNodeColor{Background: style["--b3-graph-tag-point"]},
 			}
 			*nodes = append(*nodes, node)
 			tagNodes = append(tagNodes, node)
@@ -220,17 +248,15 @@ func linkTagBlocks(blocks *[]*Block, nodes *[]*GraphNode, links *[]*GraphLink, p
 			if isGlobal { // 全局关系图将标签链接到文档块上
 				if block.RootID == tagSpan.RootID { // 局部关系图将标签链接到子块上
 					*links = append(*links, &GraphLink{
-						From:  tagSpan.Content,
-						To:    block.RootID,
-						Color: &GraphLinkColor{Color: style["--b3-graph-tag-line"]},
+						From: tagSpan.Content,
+						To:   block.RootID,
 					})
 				}
 			} else {
 				if block.ID == tagSpan.BlockID { // 局部关系图将标签链接到子块上
 					*links = append(*links, &GraphLink{
-						From:  tagSpan.Content,
-						To:    block.ID,
-						Color: &GraphLinkColor{Color: style["--b3-graph-tag-line"]},
+						From: tagSpan.Content,
+						To:   block.ID,
 					})
 				}
 			}
@@ -248,9 +274,8 @@ func linkTagBlocks(blocks *[]*Block, nodes *[]*GraphNode, links *[]*GraphLink, p
 			if targetTag := tagNodeIn(tagNodes, targetID); nil != targetTag {
 
 				*links = append(*links, &GraphLink{
-					From:  tagNode.ID,
-					To:    targetID,
-					Color: &GraphLinkColor{Color: style["--b3-graph-tag-tag-line"]},
+					From: tagNode.ID,
+					To:   targetID,
 				})
 			}
 		}
@@ -348,14 +373,13 @@ func existNodes(nodes *[]*GraphNode, id string) bool {
 	return false
 }
 
-func buildLinks(defs *[]*Block, links *[]*GraphLink, style map[string]string, local bool) {
+func buildLinks(defs *[]*Block, links *[]*GraphLink, local bool) {
 	for _, def := range *defs {
 		for _, ref := range def.Refs {
 			link := &GraphLink{
-				From:  ref.ID,
-				To:    def.ID,
-				Ref:   true,
-				Color: linkColor(true, style),
+				From: ref.ID,
+				To:   def.ID,
+				Ref:  true,
 			}
 			if local {
 				if Conf.Graph.Local.Arrow {
@@ -371,7 +395,7 @@ func buildLinks(defs *[]*Block, links *[]*GraphLink, style map[string]string, lo
 	}
 }
 
-func genTreeNodes(blocks []*Block, nodes *[]*GraphNode, links *[]*GraphLink, local bool, style map[string]string) {
+func genTreeNodes(blocks []*Block, nodes *[]*GraphNode, links *[]*GraphLink, local bool) {
 	nodeSize := Conf.Graph.Local.NodeSize
 	if !local {
 		nodeSize = Conf.Graph.Global.NodeSize
@@ -379,21 +403,19 @@ func genTreeNodes(blocks []*Block, nodes *[]*GraphNode, links *[]*GraphLink, loc
 
 	for _, block := range blocks {
 		node := &GraphNode{
-			ID:    block.ID,
-			Box:   block.Box,
-			Path:  block.Path,
-			Type:  block.Type,
-			Size:  nodeSize,
-			Color: &GraphNodeColor{Background: nodeColor(block.Type, style)},
+			ID:   block.ID,
+			Box:  block.Box,
+			Path: block.Path,
+			Type: block.Type,
+			Size: nodeSize,
 		}
 		nodeTitleLabel(node, nodeContentByBlock(block))
 		*nodes = append(*nodes, node)
 
 		*links = append(*links, &GraphLink{
-			From:  block.ParentID,
-			To:    block.ID,
-			Ref:   false,
-			Color: linkColor(false, style),
+			From: block.ParentID,
+			To:   block.ID,
+			Ref:  false,
 		})
 	}
 }
@@ -500,56 +522,6 @@ func nodeContentByBlock(block *Block) (ret string) {
 	return
 }
 
-func nodeContentByNode(node *ast.Node, text string) (ret string) {
-	if ret = node.IALAttr("name"); "" != ret {
-		return
-	}
-	if ret = node.IALAttr("memo"); "" != ret {
-		return
-	}
-	if maxLen := 48; maxLen < utf8.RuneCountInString(text) {
-		text = gulu.Str.SubStr(text, maxLen) + "..."
-	}
-	ret = html.EscapeString(text)
-	return
-}
-
-func linkColor(ref bool, style map[string]string) (ret *GraphLinkColor) {
-	ret = &GraphLinkColor{}
-	if ref {
-		ret.Color = style["--b3-graph-ref-line"]
-		return
-	}
-	ret.Color = style["--b3-graph-line"]
-	return
-}
-
-func nodeColor(typ string, style map[string]string) string {
-	switch typ {
-	case "NodeDocument":
-		return style["--b3-graph-doc-point"]
-	case "NodeParagraph":
-		return style["--b3-graph-p-point"]
-	case "NodeHeading":
-		return style["--b3-graph-heading-point"]
-	case "NodeMathBlock":
-		return style["--b3-graph-math-point"]
-	case "NodeCodeBlock":
-		return style["--b3-graph-code-point"]
-	case "NodeTable":
-		return style["--b3-graph-table-point"]
-	case "NodeList":
-		return style["--b3-graph-list-point"]
-	case "NodeListItem":
-		return style["--b3-graph-listitem-point"]
-	case "NodeBlockquote":
-		return style["--b3-graph-bq-point"]
-	case "NodeSuperBlock":
-		return style["--b3-graph-super-point"]
-	}
-	return style["--b3-graph-p-point"]
-}
-
 func graphTypeFilter(local bool) string {
 	var inList []string
 
@@ -630,23 +602,7 @@ func graphTypeFilter(local bool) string {
 }
 
 func graphDailyNoteFilter(local bool) string {
-	dailyNote := Conf.Graph.Local.DailyNote
-	if !local {
-		dailyNote = Conf.Graph.Global.DailyNote
-	}
-
-	if dailyNote {
-		return ""
-	}
-
-	var dailyNotesPaths []string
-	for _, box := range Conf.GetOpenedBoxes() {
-		boxConf := box.GetConf()
-		if 1 < strings.Count(boxConf.DailyNoteSavePath, "/") {
-			dailyNoteSaveDir := strings.Split(boxConf.DailyNoteSavePath, "/")[1]
-			dailyNotesPaths = append(dailyNotesPaths, "/"+dailyNoteSaveDir)
-		}
-	}
+	dailyNotesPaths := dailyNotePaths(local)
 	if 1 > len(dailyNotesPaths) {
 		return ""
 	}
@@ -658,25 +614,24 @@ func graphDailyNoteFilter(local bool) string {
 	return buf.String()
 }
 
-func graphStyle(local bool) (ret map[string]string) {
-	ret = map[string]string{}
-	ret["--b3-graph-doc-point"] = currentCSSValue("--b3-graph-doc-point")
-	ret["--b3-graph-p-point"] = currentCSSValue("--b3-graph-p-point")
-	ret["--b3-graph-heading-point"] = currentCSSValue("--b3-graph-heading-point")
-	ret["--b3-graph-math-point"] = currentCSSValue("--b3-graph-math-point")
-	ret["--b3-graph-code-point"] = currentCSSValue("--b3-graph-code-point")
-	ret["--b3-graph-table-point"] = currentCSSValue("--b3-graph-table-point")
-	ret["--b3-graph-list-point"] = currentCSSValue("--b3-graph-list-point")
-	ret["--b3-graph-listitem-point"] = currentCSSValue("--b3-graph-listitem-point")
-	ret["--b3-graph-bq-point"] = currentCSSValue("--b3-graph-bq-point")
-	ret["--b3-graph-super-point"] = currentCSSValue("--b3-graph-super-point")
+func dailyNotePaths(local bool) (ret []string) {
+	dailyNote := Conf.Graph.Local.DailyNote
+	if !local {
+		dailyNote = Conf.Graph.Global.DailyNote
+	}
 
-	ret["--b3-graph-line"] = currentCSSValue("--b3-graph-line")
-	ret["--b3-graph-ref-line"] = currentCSSValue("--b3-graph-ref-line")
-	ret["--b3-graph-tag-line"] = currentCSSValue("--b3-graph-tag-line")
-	ret["--b3-graph-tag-tag-line"] = currentCSSValue("--b3-graph-tag-tag-line")
-	ret["--b3-graph-asset-line"] = currentCSSValue("--b3-graph-asset-line")
+	if dailyNote {
+		return
+	}
 
+	for _, box := range Conf.GetOpenedBoxes() {
+		boxConf := box.GetConf()
+		if 1 < strings.Count(boxConf.DailyNoteSavePath, "/") {
+			dailyNoteSaveDir := strings.Split(boxConf.DailyNoteSavePath, "/")[1]
+			ret = append(ret, "/"+dailyNoteSaveDir)
+		}
+	}
+	ret = gulu.Str.RemoveDuplicatedElem(ret)
 	return
 }
 
@@ -690,11 +645,11 @@ func nodeTitleLabel(node *GraphNode, blockContent string) {
 
 func query2Stmt(queryStr string) (ret string) {
 	buf := bytes.Buffer{}
-	if util.IsIDPattern(queryStr) {
+	if ast.IsNodeIDPattern(queryStr) {
 		buf.WriteString("id = '" + queryStr + "'")
 	} else {
 		var tags []string
-		luteEngine := NewLute()
+		luteEngine := util.NewLute()
 		t := parse.Inline("", []byte(queryStr), luteEngine.ParseOptions)
 		ast.Walk(t.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 			if !entering {

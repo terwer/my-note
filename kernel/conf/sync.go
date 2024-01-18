@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,8 @@ package conf
 type Sync struct {
 	CloudName           string  `json:"cloudName"`           // 云端同步目录名称
 	Enabled             bool    `json:"enabled"`             // 是否开启同步
-	Mode                int     `json:"mode"`                // 同步模式，0：未设置（为兼容已有配置，initConf 函数中会转换为 1），1：自动，2：手动 https://github.com/siyuan-note/siyuan/issues/5089
+	Perception          bool    `json:"perception"`          // 是否开启感知
+	Mode                int     `json:"mode"`                // 同步模式，0：未设置（为兼容已有配置，initConf 函数中会转换为 1），1：自动，2：手动 https://github.com/siyuan-note/siyuan/issues/5089，3：完全手动 https://github.com/siyuan-note/siyuan/issues/7295
 	Synced              int64   `json:"synced"`              // 最近同步时间
 	Stat                string  `json:"stat"`                // 最近同步统计信息
 	GenerateConflictDoc bool    `json:"generateConflictDoc"` // 云端同步冲突时是否生成冲突文档
@@ -32,6 +33,7 @@ func NewSync() *Sync {
 	return &Sync{
 		CloudName:           "main",
 		Enabled:             false,
+		Perception:          false,
 		Mode:                1,
 		GenerateConflictDoc: false,
 		Provider:            ProviderSiYuan,
@@ -62,3 +64,15 @@ const (
 	ProviderS3     = 2 // ProviderS3 为 S3 协议对象存储提供的云端存储服务
 	ProviderWebDAV = 3 // ProviderWebDAV 为 WebDAV 协议提供的云端存储服务
 )
+
+func ProviderToStr(provider int) string {
+	switch provider {
+	case ProviderSiYuan:
+		return "SiYuan"
+	case ProviderS3:
+		return "S3"
+	case ProviderWebDAV:
+		return "WebDAV"
+	}
+	return "Unknown"
+}

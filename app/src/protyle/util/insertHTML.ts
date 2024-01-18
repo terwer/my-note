@@ -1,22 +1,46 @@
-import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName} from "./hasClosest";
+import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName, hasClosestByMatchTag} from "./hasClosest";
 import * as dayjs from "dayjs";
-import {removeEmbed} from "../wysiwyg/removeEmbed";
 import {transaction, updateTransaction} from "../wysiwyg/transaction";
 import {getContenteditableElement} from "../wysiwyg/getBlock";
-import {focusBlock, getEditorRange, focusByWbr, fixTableRange} from "./selection";
-import {mathRender} from "../markdown/mathRender";
+import {fixTableRange, focusBlock, focusByWbr, getEditorRange} from "./selection";
 import {Constants} from "../../constants";
-import {highlightRender} from "../markdown/highlightRender";
+import {highlightRender} from "../render/highlightRender";
 import {scrollCenter} from "../../util/highlightById";
+import {updateAVName} from "../render/av/action";
+import {updateCellsValue} from "../render/av/cell";
+import {input} from "../wysiwyg/input";
 
-export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => {
+const processAV = (range: Range, html: string, protyle: IProtyle, blockElement: Element) => {
+    const text = protyle.lute.BlockDOM2EscapeMarkerContent(html);
+    const cellsElement: HTMLElement[] = Array.from(blockElement.querySelectorAll(".av__cell--select"));
+    const rowsElement = blockElement.querySelector(".av__row--select");
+    if (rowsElement) {
+        updateCellsValue(protyle, blockElement as HTMLElement, text);
+    } else if (cellsElement.length > 0) {
+        updateCellsValue(protyle, blockElement as HTMLElement, text, cellsElement);
+    } else {
+        range.insertNode(document.createTextNode(text));
+        range.collapse(false);
+        updateAVName(protyle, blockElement);
+    }
+};
+
+export const insertHTML = (html: string, protyle: IProtyle, isBlock = false,
+                           // 移动端插入嵌入块时，获取到的 range 为旧值
+                           useProtyleRange = false) => {
     if (html === "") {
         return;
     }
-    const range = getEditorRange(protyle.wysiwyg.element);
+    const range = useProtyleRange ? protyle.toolbar.range : getEditorRange(protyle.wysiwyg.element);
     fixTableRange(range);
+    let tableInlineHTML;
     if (hasClosestByAttribute(range.startContainer, "data-type", "NodeTable") && !isBlock) {
-        html = protyle.lute.BlockDOM2InlineBlockDOM(html);
+        if (hasClosestByMatchTag(range.startContainer, "TABLE")) {
+            tableInlineHTML = protyle.lute.BlockDOM2InlineBlockDOM(html);
+        } else {
+            // https://github.com/siyuan-note/siyuan/issues/9411
+            isBlock = true;
+        }
     }
     let blockElement = hasClosestBlock(range.startContainer) as Element;
     if (!blockElement) {
@@ -30,21 +54,32 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
     if (!blockElement) {
         return;
     }
+    if (blockElement.classList.contains("av")) {
+        range.deleteContents();
+        processAV(range, html, protyle, blockElement);
+        return;
+    }
     let id = blockElement.getAttribute("data-node-id");
     range.insertNode(document.createElement("wbr"));
     let oldHTML = blockElement.outerHTML;
-    if (!isBlock && blockElement.getAttribute("data-type") === "NodeCodeBlock") {
+    const isNodeCodeBlock = blockElement.getAttribute("data-type") === "NodeCodeBlock";
+    if (!isBlock &&
+        (isNodeCodeBlock || protyle.toolbar.getCurrentType(range).includes("code"))) {
         range.deleteContents();
         range.insertNode(document.createTextNode(html.replace(/\r\n|\r|\u2028|\u2029/g, "\n")));
         range.collapse(false);
         range.insertNode(document.createElement("wbr"));
-        getContenteditableElement(blockElement).removeAttribute("data-render");
-        highlightRender(blockElement);
+        if (isNodeCodeBlock) {
+            getContenteditableElement(blockElement).removeAttribute("data-render");
+            highlightRender(blockElement);
+        } else {
+            focusByWbr(blockElement, range);
+        }
         blockElement.setAttribute("updated", dayjs().format("YYYYMMDDHHmmss"));
         updateTransaction(protyle, id, blockElement.outerHTML, oldHTML);
         setTimeout(() => {
-            scrollCenter(protyle, blockElement);
-        }, Constants.TIMEOUT_BLOCKLOAD);
+            scrollCenter(protyle, blockElement, false, "smooth");
+        }, Constants.TIMEOUT_LOAD);
         return;
     }
 
@@ -76,9 +111,11 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
         });
     }
     const tempElement = document.createElement("template");
-    tempElement.innerHTML = html;
+    // 需要再 spin 一次 https://github.com/siyuan-note/siyuan/issues/7118
+    tempElement.innerHTML = tableInlineHTML // 在 table 中插入需要使用转换好的行内元素 https://github.com/siyuan-note/siyuan/issues/9358
+        || protyle.lute.SpinBlockDOM(html) ||
+        html;   // 空格会被 Spin 不再，需要使用原文
     const editableElement = getContenteditableElement(blockElement);
-    let render = false;
     // 使用 lute 方法会添加 p 元素，只有一个 p 元素或者只有一个字符串或者为 <u>b</u> 时的时候只拷贝内部
     if (!isBlock) {
         if (tempElement.content.firstChild.nodeType === 3 ||
@@ -91,7 +128,9 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
             // 粘贴带样式的行内元素到另一个行内元素中需进行切割
             const spanElement = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer as HTMLElement;
             if (spanElement.tagName === "SPAN" && spanElement.isSameNode(range.endContainer.nodeType === 3 ? range.endContainer.parentElement : range.endContainer) &&
-                tempElement.content.querySelector("span") // 粘贴纯文本不需切割 https://ld246.com/article/1665556907936
+                // 粘贴纯文本不需切割 https://ld246.com/article/1665556907936
+                // emoji 图片需要切割 https://github.com/siyuan-note/siyuan/issues/9370
+                tempElement.content.querySelector("span, img")
             ) {
                 const afterElement = document.createElement("span");
                 const attributes = spanElement.attributes;
@@ -106,51 +145,9 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
             }
             range.insertNode(tempElement.content.cloneNode(true));
             range.collapse(false);
-            blockElement.setAttribute("updated", dayjs().format("YYYYMMDDHHmmss"));
-            // 使用 innerHTML,避免行内元素为代码块
-            const trimStartText = editableElement ? editableElement.innerHTML.trimStart() : "";
-            if (editableElement && (trimStartText.startsWith("```") || trimStartText.startsWith("~~~") || trimStartText.startsWith("···") ||
-                trimStartText.indexOf("\n```") > -1 || trimStartText.indexOf("\n~~~") > -1 || trimStartText.indexOf("\n···") > -1)) {
-                if (trimStartText.indexOf("\n") === -1 && trimStartText.replace(/·|~/g, "`").replace(/^`{3,}/g, "").indexOf("`") > -1) {
-                    // ```test` 不处理
-                } else {
-                    let replaceInnerHTML = editableElement.innerHTML.replace(/^(~|·|`){3,}/g, "```").replace(/\n(~|·|`){3,}/g, "\n```").trim();
-                    if (!replaceInnerHTML.endsWith("\n```")) {
-                        replaceInnerHTML += "\n```";
-                    }
-                    const languageIndex = replaceInnerHTML.indexOf("```") + 3;
-                    replaceInnerHTML = replaceInnerHTML.substring(0, languageIndex) + (localStorage["local-codelang"] || "") + replaceInnerHTML.substring(languageIndex);
-
-                    editableElement.innerHTML = replaceInnerHTML;
-                }
-            }
-            const spinHTML = protyle.lute.SpinBlockDOM(removeEmbed(blockElement));
-            const scrollLeft = blockElement.firstElementChild.scrollLeft;
-            const blockPreviousElement = blockElement.previousElementSibling;
-            blockElement.outerHTML = spinHTML;
-            render = true;
-            // spin 后变成多个块需后续处理 https://github.com/siyuan-note/insider/issues/451
-            tempElement.innerHTML = spinHTML;
-            if (protyle.options.backlinkData) {
-                // 反链面板
-                blockElement = blockPreviousElement.nextElementSibling;
-            } else {
-                Array.from(protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${id}"]`)).find((item) => {
-                    if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed")) {
-                        blockElement = item;
-                        return true;
-                    }
-                });
-            }
-            if (tempElement.content.childElementCount === 1) {
-                if (blockElement.classList.contains("table") && scrollLeft > 0) {
-                    blockElement.firstElementChild.scrollLeft = scrollLeft;
-                }
-                mathRender(blockElement);
-                updateTransaction(protyle, id, blockElement.outerHTML, oldHTML);
-                focusByWbr(protyle.wysiwyg.element, range);
-                return;
-            }
+            blockElement.querySelector("wbr")?.remove();
+            input(protyle, blockElement as HTMLElement, range);
+            return;
         }
     }
     const cursorLiElement = hasClosestByClassName(blockElement, "li");
@@ -204,14 +201,12 @@ export const insertHTML = (html: string, protyle: IProtyle, isBlock = false) => 
                 id: addId,
             });
         }
-        if (!render) {
-            blockElement.after(item);
-        }
+        blockElement.after(item);
         if (!lastElement) {
             lastElement = item;
         }
     });
-    if (editableElement && editableElement.textContent === "") {
+    if (editableElement && editableElement.textContent === "" && blockElement.classList.contains("p")) {
         // 选中当前块所有内容粘贴再撤销会导致异常 https://ld246.com/article/1662542137636
         doOperation.find((item, index) => {
             if (item.id === id) {

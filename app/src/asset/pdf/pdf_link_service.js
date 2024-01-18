@@ -173,6 +173,13 @@ class PDFLinkService {
     this.pdfViewer.pagesRotation = value;
   }
 
+  /**
+   * @type {boolean}
+   */
+  get isInPresentationMode() {
+    return this.pdfViewer.isInPresentationMode;
+  }
+
   #goToDestinationHelper(rawDest, namedDest = null, explicitDest) {
     // Dest array looks like that: <page-ref> </XYZ|/FitXXX> <args..>
     const destRef = explicitDest[0];
@@ -329,7 +336,7 @@ class PDFLinkService {
    * @returns {string} The hyperlink to the PDF object.
    */
   getAnchorUrl(anchor) {
-    return (this.baseUrl || "") + anchor;
+    return this.baseUrl ? this.baseUrl + anchor : anchor;
   }
 
   /**
@@ -345,7 +352,7 @@ class PDFLinkService {
       if (params.has("search")) {
         this.eventBus.dispatch("findfromurlhash", {
           source: this,
-          query: params.get("search").replace(/"/g, ""),
+          query: params.get("search").replaceAll('"', ""),
           phraseSearch: params.get("phrase") === "true",
         });
       }
@@ -672,6 +679,13 @@ class SimpleLinkService {
    * @param {number} value
    */
   set rotation(value) {}
+
+  /**
+   * @type {boolean}
+   */
+  get isInPresentationMode() {
+    return false;
+  }
 
   /**
    * @param {string|Array} dest - The named, or explicit, PDF destination.

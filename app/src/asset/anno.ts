@@ -2,16 +2,12 @@ import {fetchPost} from "../util/fetch";
 import {setPosition} from "../util/setPosition";
 import {hasClosestByAttribute, hasClosestByClassName} from "../protyle/util/hasClosest";
 import * as dayjs from "dayjs";
-import {writeText} from "../protyle/util/compatibility";
+import {setStorageVal, writeText} from "../protyle/util/compatibility";
 import {getAllModels} from "../layout/getAll";
-/// #if !BROWSER
-import {NativeImage} from "electron";
-import {getCurrentWindow} from "@electron/remote";
-/// #endif
 import {focusByRange} from "../protyle/util/selection";
 import {Constants} from "../constants";
 
-export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf: any, pdfConfig: any) => {
+export const initAnno = (element: HTMLElement, pdf: any, pdfConfig: any) => {
     getConfig(pdf);
     const rectAnnoElement = pdfConfig.toolbar.rectAnno;
     rectAnnoElement.addEventListener("click", () => {
@@ -34,7 +30,10 @@ export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf
             // 右键
             return;
         }
-        const canvasRect = pdf.pdfViewer._getVisiblePages().first.view.canvas.getBoundingClientRect();
+        let canvasRect = pdf.pdfViewer._getVisiblePages().first.view.canvas.getBoundingClientRect();
+        if (event.clientX > canvasRect.right) {
+            canvasRect = pdf.pdfViewer._getVisiblePages().last.view.canvas.getBoundingClientRect();
+        }
         const containerRet = pdfConfig.mainContainer.getBoundingClientRect();
         const mostLeft = canvasRect.left;
         const mostRight = canvasRect.right;
@@ -96,7 +95,7 @@ export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf
                 newHeight = y - newTop;
             }
             rectResizeElement.setAttribute("style",
-                `top:${newTop}px;height:${newHeight}px;left:${newLeft}px;width:${newWidth}px;`);
+                `top:${newTop}px;height:${newHeight}px;left:${newLeft}px;width:${newWidth}px;background-color:${moveEvent.altKey ? "var(--b3-pdf-background1)" : ""}`);
         };
         documentSelf.onmouseup = () => {
             documentSelf.onmousemove = null;
@@ -106,24 +105,53 @@ export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf
             documentSelf.onselect = null;
             rectAnnoElement.classList.remove("toggled");
             pdfConfig.mainContainer.classList.remove("rect-to-annotation");
-            rectResizeElement.setAttribute("data-render", "true");
-            const utilElement = element.querySelector(".pdf__util") as HTMLElement;
-            utilElement.classList.remove("pdf__util--hide", "fn__none");
-            const targetRect = rectResizeElement.getBoundingClientRect();
-            setPosition(utilElement, targetRect.left,
-                targetRect.top + targetRect.height + 4);
-            rectElement = null;
-            utilElement.classList.add("pdf__util--hide");
+
+            const coords = getHightlightCoordsByRect(pdf, window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor || "var(--b3-pdf-background1)", rectResizeElement,
+                rectResizeElement.style.backgroundColor ? "text" : "border");
+            rectResizeElement.classList.add("fn__none");
+            if (coords) {
+                coords.forEach((item, index) => {
+                    const newElement = showHighlight(item, pdf);
+                    if (index === 0) {
+                        rectElement = newElement;
+                        copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
+                            pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
+                    }
+                });
+            } else {
+                rectElement = null;
+            }
         };
     });
 
     element.addEventListener("click", (event) => {
         let processed = false;
         let target = event.target as HTMLElement;
+        if (typeof event.detail === "string") {
+            window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor = event.detail === "0" ?
+                (window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor || "var(--b3-pdf-background1)")
+                : `var(--b3-pdf-background${event.detail})`;
+            setStorageVal(Constants.LOCAL_PDFTHEME, window.siyuan.storage[Constants.LOCAL_PDFTHEME]);
+            const coords = getHightlightCoordsByRange(pdf, window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor);
+            if (coords) {
+                coords.forEach((item, index) => {
+                    const newElement = showHighlight(item, pdf);
+                    if (index === 0) {
+                        rectElement = newElement;
+                        copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
+                            pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
+                    }
+                });
+            }
+            hideToolbar(element);
+            return;
+        }
         while (target && !target.classList.contains("pdf__outer")) {
             const type = target.getAttribute("data-type");
-            if (target.classList.contains("b3-color__square")) {
+            if (target.classList.contains("color__square")) {
                 const color = target.style.backgroundColor;
+                window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor = color;
+                setStorageVal(Constants.LOCAL_PDFTHEME, window.siyuan.storage[Constants.LOCAL_PDFTHEME]);
                 if (rectElement) {
                     const config = getConfig(pdf);
                     const annoItem = config[rectElement.getAttribute("data-node-id")];
@@ -141,20 +169,14 @@ export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf
                         data: JSON.stringify(config),
                     });
                 } else {
-                    let coords;
-                    if (pdfConfig.mainContainer.lastElementChild.classList.contains("fn__none")) {
-                        coords = getHightlightCoordsByRange(pdf, color);
-                    } else {
-                        coords = getHightlightCoordsByRect(pdf, color, pdfConfig.mainContainer.lastElementChild);
-                        pdfConfig.mainContainer.lastElementChild.classList.add("fn__none");
-                    }
+                    const coords = getHightlightCoordsByRange(pdf, color);
                     if (coords) {
                         coords.forEach((item, index) => {
                             const newElement = showHighlight(item, pdf);
                             if (index === 0) {
                                 rectElement = newElement;
                                 copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
-                                    pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""));
+                                    pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
                             }
                         });
                     }
@@ -166,7 +188,6 @@ export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf
                 break;
             } else if (target.classList.contains("pdf__rect")) {
                 showToolbar(element, undefined, target);
-                pdfConfig.mainContainer.lastElementChild.classList.add("fn__none");
                 event.preventDefault();
                 event.stopPropagation();
                 processed = true;
@@ -188,7 +209,7 @@ export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf
             } else if (type === "copy") {
                 hideToolbar(element);
                 copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
-                    pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""));
+                    pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
                 event.preventDefault();
                 event.stopPropagation();
                 processed = true;
@@ -226,36 +247,18 @@ export const initAnno = (file: string, element: HTMLElement, annoId: string, pdf
         }
 
         setTimeout(() => {
-            const rectIsResize = !pdfConfig.mainContainer.lastElementChild.classList.contains(
-                "fn__none");
             let isShow = false;
             const selection = window.getSelection();
             if (selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 if (range.toString() !== "" &&
                     hasClosestByClassName(range.commonAncestorContainer, "pdfViewer")) {
-                    if (rectIsResize) {
-                        range.collapse(true);
-                    } else {
-                        showToolbar(element, range);
-                        isShow = true;
-                    }
+                    showToolbar(element, range);
+                    isShow = true;
                 }
             }
-
             if (!isShow) {
-                if (rectIsResize) {
-                    if (!hasClosestByClassName(event.target as HTMLElement, "pdf__util") &&
-                        !hasClosestByClassName(event.target as HTMLElement, "pdf__resize") &&
-                        pdfConfig.mainContainer.lastElementChild.getAttribute(
-                            "data-render") !== "true") {
-                        hideToolbar(element);
-                        pdfConfig.mainContainer.lastElementChild.classList.add("fn__none");
-                    }
-                    pdfConfig.mainContainer.lastElementChild.removeAttribute("data-render");
-                } else {
-                    hideToolbar(element);
-                }
+                hideToolbar(element);
             }
         });
     });
@@ -310,19 +313,22 @@ const getHightlightCoordsByRange = (pdf: any, color: string) => {
     // https://github.com/siyuan-note/siyuan/issues/5213
     const rangeContents = range.cloneContents();
     Array.from(rangeContents.children).forEach(item => {
-        if (item.tagName === "BR") {
+        if (item.tagName === "BR" && item.previousElementSibling && item.nextElementSibling) {
             const previousText = item.previousElementSibling.textContent;
             const nextText = item.nextElementSibling.textContent;
-            if (previousText.endsWith("-") && /^[A-Za-z]$/.test(previousText.substring(previousText.length - 2, previousText.length - 1)) &&
+            if (/^[A-Za-z]$/.test(previousText.substring(previousText.length - 2, previousText.length - 1)) &&
                 /^[A-Za-z]$/.test(nextText.substring(0, 1))) {
-                item.previousElementSibling.textContent = previousText.substring(0, previousText.length - 1);
-            } else {
-                item.insertAdjacentText("afterend", " ");
+                if (previousText.endsWith("-")) {
+                    item.previousElementSibling.textContent = previousText.substring(0, previousText.length - 1);
+                } else {
+                    // 中文情况不能添加 https://github.com/siyuan-note/siyuan/issues/8152
+                    item.insertAdjacentText("afterend", " ");
+                }
             }
         }
     });
-    const content = Lute.EscapeHTMLStr(rangeContents.textContent);
-
+    // eslint-disable-next-line no-control-regex
+    const content = Lute.EscapeHTMLStr(rangeContents.textContent.replace(/[\x00]|\n/g, ""));
     const startPage = pdf.pdfViewer.getPageView(startIndex);
     const startPageRect = startPage.canvas.getClientRects()[0];
     const startViewport = startPage.viewport;
@@ -400,7 +406,7 @@ const getHightlightCoordsByRange = (pdf: any, color: string) => {
     return results;
 };
 
-const getHightlightCoordsByRect = (pdf: any, color: string, rectResizeElement: HTMLElement) => {
+const getHightlightCoordsByRect = (pdf: any, color: string, rectResizeElement: HTMLElement, type: string) => {
     const rect = rectResizeElement.getBoundingClientRect();
 
     const startPageElement = hasClosestByClassName(document.elementFromPoint(rect.left, rect.top - 1), "page");
@@ -437,7 +443,7 @@ const getHightlightCoordsByRect = (pdf: any, color: string, rectResizeElement: H
         id,
         color,
         content,
-        type: "border",
+        type,
         mode: "rect",
     }];
 
@@ -465,7 +471,7 @@ const getHightlightCoordsByRect = (pdf: any, color: string, rectResizeElement: H
                 id,
                 color,
                 content,
-                type: "border",
+                type,
                 mode: "rect",
             });
         }
@@ -475,7 +481,7 @@ const getHightlightCoordsByRect = (pdf: any, color: string, rectResizeElement: H
         pages,
         content,
         color,
-        type: "border",
+        type,
         mode: "rect",
     });
     return result;
@@ -543,16 +549,16 @@ export const getHighlight = (element: HTMLElement) => {
 const showHighlight = (selected: IPdfAnno, pdf: any, hl?: boolean) => {
     const pageIndex = selected.index;
     const page = pdf.pdfViewer.getPageView(pageIndex);
-    let textLayerElement = page.textLayer.textLayerDiv;
+    let textLayerElement = page.textLayer.div;
     if (!textLayerElement.lastElementChild) {
         return;
     }
-    const viewport = page.viewport;
+
+    const viewport = page.viewport.clone({rotation: 0}); // rotation https://github.com/siyuan-note/siyuan/issues/9831
     if (textLayerElement.lastElementChild.classList.contains("endOfContent")) {
         textLayerElement.insertAdjacentHTML("beforeend", "<div></div>");
     }
     textLayerElement = textLayerElement.lastElementChild;
-
     let html = `<div class="pdf__rect popover__block" data-node-id="${selected.id}" data-mode="${selected.mode}">`;
     selected.coords.forEach((rect) => {
         const bounds = viewport.convertToViewportRectangle(rect);
@@ -604,22 +610,15 @@ export const hlPDFRect = (element: HTMLElement, id: string) => {
     }
 };
 
-const copyAnno = (idPath: string, fileName: string) => {
+const copyAnno = (idPath: string, fileName: string, pdf: any) => {
     const mode = rectElement.getAttribute("data-mode");
     const content = rectElement.getAttribute("data-content");
     setTimeout(() => {
-        /// #if !BROWSER
         if (mode === "rect" ||
             (mode === "" && rectElement.childElementCount === 1 && content.startsWith(fileName)) // 兼容历史，以前没有 mode
         ) {
-            const rect = rectElement.firstElementChild.getBoundingClientRect();
-            getCurrentWindow().webContents.capturePage({
-                x: Math.floor(rect.x),
-                y: Math.floor(rect.y),
-                width: Math.floor(rect.width),
-                height: Math.floor(rect.height)
-            }).then((image: NativeImage) => {
-                fetch(image.toDataURL()).then((response) => {
+            getRectImgData(pdf).then((imageDataURL: string) => {
+                fetch(imageDataURL).then((response) => {
                     return response.blob();
                 }).then((blob) => {
                     const formData = new FormData();
@@ -634,11 +633,47 @@ const copyAnno = (idPath: string, fileName: string) => {
         } else {
             writeText(`<<${idPath} "${content}">>`);
         }
-        /// #else
-        writeText(`<<${idPath} "${content}">>`);
-        /// #endif
     }, Constants.TIMEOUT_DBLCLICK);
 };
+
+const getCaptureCanvas = async (pdfObj: any, pageNumber: number) => {
+    const pdfPage = await pdfObj.pdfDocument.getPage(pageNumber);
+    const viewport = pdfPage.getViewport({scale: 1.5 * pdfObj.pdfViewer.currentScale * window.pdfjsLib.PixelsPerInch.PDF_TO_CSS_UNITS});
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+
+    await pdfPage.render({
+        canvasContext: canvas.getContext("2d"),
+        viewport: viewport
+    }).promise;
+
+    return canvas;
+};
+
+async function getRectImgData(pdfObj: any) {
+    const pageElement = hasClosestByClassName(rectElement, "page");
+    if (!pageElement) {
+        return;
+    }
+
+    const captureCanvas = await getCaptureCanvas(pdfObj, parseInt(pageElement.getAttribute("data-page-number")));
+
+    const rectStyle = (rectElement.firstElementChild as HTMLElement).style;
+    const scale = 1.5;
+    const captureImageData = captureCanvas.getContext("2d").getImageData(
+        scale * parseFloat(rectStyle.left),
+        scale * parseFloat(rectStyle.top),
+        scale * parseFloat(rectStyle.width),
+        scale * parseFloat(rectStyle.height));
+
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = captureImageData.width;
+    tempCanvas.height = captureImageData.height;
+    const ctx = tempCanvas.getContext("2d");
+    ctx.putImageData(captureImageData, 0, 0);
+    return tempCanvas.toDataURL();
+}
 
 const setConfig = (pdf: any, id: string, data: IPdfAnno) => {
     const urlPath = pdf.appConfig.file.replace(location.origin, "").substr(1);

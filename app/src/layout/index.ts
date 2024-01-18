@@ -1,9 +1,10 @@
 import {Wnd} from "./Wnd";
 import {genUUID} from "../util/genID";
-import {addResize, resizeTabs} from "./util";
+import {addResize} from "./util";
+import {resizeTabs} from "./tabUtil";
 /// #if MOBILE
 // 检测移动端是否引入了桌面端的代码
-alert("Need remove unused code");
+console.error("Need remove unused code");
 /// #endif
 
 export class Layout {
@@ -81,10 +82,12 @@ export class Layout {
                     item.element.classList.add("fn__flex-1");
                     if (this.direction === "lr") {
                         // 向右分屏，左侧文档抖动，移除动画和边距
-                        item.element.querySelectorAll(".protyle-wysiwyg").forEach((element: HTMLElement) => {
-                            element.style.transition = "none";
-                            element.style.paddingRight = "16px";
-                            element.style.paddingLeft = "24px";
+                        item.element.querySelectorAll(".protyle-content").forEach((element: HTMLElement) => {
+                            if (!element.parentElement.classList.contains("fn__none")) {
+                                element.classList.remove("protyle-content--transition");
+                                (element.querySelector(".protyle-wysiwyg") as HTMLElement).style.padding = "";
+                                element.classList.add("protyle-content--transition");
+                            }
                         });
                     }
                     item.element.after(child.element);
@@ -93,7 +96,7 @@ export class Layout {
             });
         }
         addResize(child);
-        resizeTabs();
+        resizeTabs(false);
         // https://ld246.com/article/1669858316295
         if (this.direction === "tb") {
             child.element.style.minHeight = "64px";

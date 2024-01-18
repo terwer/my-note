@@ -1,81 +1,146 @@
 import {Constants} from "../../constants";
-import {closePanel} from "./closePanel";
+import {closeModel, closePanel} from "./closePanel";
 import {openMobileFileById} from "../editor";
 import {validateName} from "../../editor/rename";
 import {getEventName} from "../../protyle/util/compatibility";
-import {mountHelp} from "../../util/mount";
 import {fetchPost} from "../../util/fetch";
 import {setInlineStyle} from "../../util/assets";
 import {renderSnippet} from "../../config/util/snippets";
 import {setEmpty} from "./setEmpty";
-import {disabledProtyle, enableProtyle} from "../../protyle/util/onGet";
-import {getOpenNotebookCount} from "../../util/pathName";
-import {popMenu} from "./menu";
-import {MobileFiles} from "./MobileFiles";
-import {MobileOutline} from "./MobileOutline";
+import {getIdZoomInByPath, getOpenNotebookCount} from "../../util/pathName";
+import {popMenu} from "../menu";
+import {MobileFiles} from "../dock/MobileFiles";
+import {MobileOutline} from "../dock/MobileOutline";
 import {hasTopClosestByTag} from "../../protyle/util/hasClosest";
-import {MobileBacklinks} from "./MobileBacklinks";
-import {MobileBookmarks} from "./MobileBookmarks";
-import {MobileTags} from "./MobileTags";
-import {hideKeyboardToolbar, initKeyboardToolbar} from "./showKeyboardToolbar";
-import {getSearch} from "../../util/functions";
+import {MobileBacklinks} from "../dock/MobileBacklinks";
+import {MobileBookmarks} from "../dock/MobileBookmarks";
+import {MobileTags} from "../dock/MobileTags";
+import {activeBlur, hideKeyboardToolbar, initKeyboardToolbar} from "./keyboardToolbar";
+import {syncGuide} from "../../sync/syncGuide";
+import {Inbox} from "../../layout/dock/Inbox";
+import {App} from "../../index";
+import {setTitle} from "../../dialog/processSystem";
+import {checkFold} from "../../util/noRelyPCFunction";
+import {MobileCustom} from "../dock/MobileCustom";
+import {Menu} from "../../plugin/Menu";
+import {showMessage} from "../../dialog/message";
 
-export const initFramework = () => {
+let custom: MobileCustom;
+const openDockMenu = (app: App) => {
+    const menu = new Menu("dockMobileMenu");
+    if (menu.isOpen) {
+        return;
+    }
+    app.plugins.forEach((plugin) => {
+        Object.keys(plugin.docks).forEach((dockId) => {
+            menu.addItem({
+                label: plugin.docks[dockId].config.title,
+                icon: plugin.docks[dockId].config.icon,
+                click() {
+                    if (custom?.type === dockId) {
+                        return;
+                    } else {
+                        if (custom) {
+                            if (custom.destroy) {
+                                custom.destroy();
+                            }
+                        }
+                        custom = plugin.docks[dockId].mobileModel(document.querySelector('#sidebar [data-type="sidebar-plugin"]'));
+                    }
+                }
+            });
+        });
+    });
+    menu.fullscreen("bottom");
+    if (menu.element.lastElementChild.innerHTML === "") {
+        showMessage(window.siyuan.languages._kernel[122]);
+    }
+};
+
+export const initFramework = (app: App, isStart: boolean) => {
     setInlineStyle();
     renderSnippet();
     initKeyboardToolbar();
-    const scrimElement = document.querySelector(".scrim");
     const sidebarElement = document.getElementById("sidebar");
     let outline: MobileOutline;
     let backlink: MobileBacklinks;
     let bookmark: MobileBookmarks;
+    let inbox: Inbox;
     let tag: MobileTags;
-    sidebarElement.querySelector(".toolbar--border").addEventListener(getEventName(), (event: Event & { target: Element }) => {
+    // 不能使用 getEventName，否则点击返回会展开右侧栏
+    const firstToolbarElement = sidebarElement.querySelector(".toolbar--border");
+    firstToolbarElement.addEventListener("click", (event: Event & {
+        target: Element
+    }) => {
         const svgElement = hasTopClosestByTag(event.target, "svg");
-        if (!svgElement || svgElement.classList.contains("toolbar__icon--active")) {
+        if (!svgElement) {
             return;
         }
         const type = svgElement.getAttribute("data-type");
-        sidebarElement.querySelectorAll(".toolbar--border svg").forEach(item => {
+        if (svgElement.classList.contains("toolbar__icon--active")) {
+            if (type === "sidebar-plugin-tab") {
+                openDockMenu(app);
+            }
+            return;
+        }
+        if (!type) {
+            closePanel();
+            return;
+        }
+        firstToolbarElement.querySelectorAll(".toolbar__icon").forEach(item => {
             const itemType = item.getAttribute("data-type");
+            if (!itemType) {
+                return;
+            }
+            const tabPanelElement = sidebarElement.lastElementChild.querySelector(`[data-type="${itemType.replace("-tab", "")}"]`);
             if (itemType === type) {
                 if (type === "sidebar-outline-tab") {
                     if (!outline) {
-                        outline = new MobileOutline();
+                        outline = new MobileOutline(app);
                     } else {
                         outline.update();
                     }
                 } else if (type === "sidebar-backlink-tab") {
                     if (!backlink) {
-                        backlink = new MobileBacklinks();
+                        backlink = new MobileBacklinks(app);
                     } else {
                         backlink.update();
                     }
                 } else if (type === "sidebar-bookmark-tab") {
-                    if (!backlink) {
-                        bookmark = new MobileBookmarks();
+                    if (!bookmark) {
+                        bookmark = new MobileBookmarks(app);
                     } else {
-                        backlink.update();
+                        bookmark.update();
                     }
                 } else if (type === "sidebar-tag-tab") {
-                    if (!backlink) {
-                        tag = new MobileTags();
+                    if (!tag) {
+                        tag = new MobileTags(app);
                     } else {
                         tag.update();
                     }
+                } else if (type === "sidebar-inbox-tab" && !inbox) {
+                    inbox = new Inbox(app, document.querySelector('#sidebar [data-type="sidebar-inbox"]'));
+                } else if (type === "sidebar-plugin-tab") {
+                    if (!custom) {
+                        tabPanelElement.innerHTML = `<div class="b3-list--empty">${window.siyuan.languages.emptyContent}</div>`;
+                        openDockMenu(app);
+                    } else if (custom.update) {
+                        custom.update();
+                    }
                 }
                 svgElement.classList.add("toolbar__icon--active");
-                sidebarElement.lastElementChild.querySelector(`[data-type="${itemType.replace("-tab", "")}"]`).classList.remove("fn__none");
+                tabPanelElement.classList.remove("fn__none");
             } else {
                 item.classList.remove("toolbar__icon--active");
-                sidebarElement.lastElementChild.querySelector(`[data-type="${itemType.replace("-tab", "")}"]`).classList.add("fn__none");
+                tabPanelElement.classList.add("fn__none");
             }
         });
     });
-    new MobileFiles();
+    window.siyuan.mobile.files = new MobileFiles(app);
     document.getElementById("toolbarFile").addEventListener("click", () => {
-        sidebarElement.style.left = "0";
-        document.querySelector(".scrim").classList.remove("fn__none");
+        hideKeyboardToolbar();
+        activeBlur();
+        sidebarElement.style.transform = "translateX(0px)";
         const type = sidebarElement.querySelector(".toolbar--border .toolbar__icon--active").getAttribute("data-type");
         if (type === "sidebar-outline-tab") {
             outline.update();
@@ -91,79 +156,53 @@ export const initFramework = () => {
     document.getElementById("toolbarMore").addEventListener("click", () => {
         popMenu();
     });
-    const editElement = document.getElementById("toolbarEdit");
-    if (window.siyuan.config.readonly) {
-        editElement.classList.add("fn__none");
-    }
-    const inputElement = document.getElementById("toolbarName") as HTMLInputElement;
-    const editIconElement = editElement.querySelector("use");
-    if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly) {
-        inputElement.readOnly = true;
-        editIconElement.setAttribute("xlink:href", "#iconPreview");
-    } else {
-        inputElement.readOnly = false;
-        editIconElement.setAttribute("xlink:href", "#iconEdit");
-    }
-    editElement.addEventListener(getEventName(), () => {
-        const isReadonly = editIconElement.getAttribute("xlink:href") === "#iconEdit";
-        window.siyuan.config.editor.readOnly = isReadonly;
-        fetchPost("/api/setting/setEditor", window.siyuan.config.editor, () => {
-            if (!isReadonly) {
-                enableProtyle(window.siyuan.mobileEditor.protyle);
-                inputElement.readOnly = false;
-                editIconElement.setAttribute("xlink:href", "#iconEdit");
-            } else {
-                disabledProtyle(window.siyuan.mobileEditor.protyle);
-                inputElement.readOnly = true;
-                editIconElement.setAttribute("xlink:href", "#iconPreview");
-            }
-        });
+    document.getElementById("toolbarSync").addEventListener(getEventName(), () => {
+        syncGuide(app);
     });
-
-    scrimElement.addEventListener(getEventName(), () => {
-        closePanel();
-    });
-    document.getElementById("modelClose").addEventListener(getEventName(), () => {
-        closePanel();
+    document.getElementById("modelClose").addEventListener("click", () => {
+        closeModel();
     });
     initEditorName();
     if (getOpenNotebookCount() > 0) {
-        const openId = getSearch("id");
-        if (openId) {
-            openMobileFileById(openId,
-                getSearch("focus") === "1" ? [Constants.CB_GET_ALL, Constants.CB_GET_FOCUS] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]);
-        } else {
-            const localDoc = window.siyuan.storage[Constants.LOCAL_DOCINFO];
-            fetchPost("/api/block/checkBlockExist", {id: localDoc.id}, existResponse => {
-                if (existResponse.data) {
-                    openMobileFileById(localDoc.id, localDoc.action);
-                } else {
-                    fetchPost("/api/block/getRecentUpdatedBlocks", {}, (response) => {
-                        if (response.data.length !== 0) {
-                            openMobileFileById(response.data[0].id, [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
-                        } else {
-                            setEmpty();
-                        }
-                    });
-                }
-            });
+        if (window.JSAndroid && window.openFileByURL(window.JSAndroid.getBlockURL())) {
+            return;
         }
-    } else {
-        setEmpty();
+        const idZoomIn = getIdZoomInByPath();
+        if (idZoomIn.id) {
+            openMobileFileById(app, idZoomIn.id,
+                idZoomIn.isZoomIn ? [Constants.CB_GET_ALL, Constants.CB_GET_HL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]);
+            return;
+        }
+        if (window.siyuan.config.fileTree.closeTabsOnStart && isStart) {
+            setEmpty(app);
+            return;
+        }
+        const localDoc = window.siyuan.storage[Constants.LOCAL_DOCINFO];
+        fetchPost("/api/block/checkBlockExist", {id: localDoc.id}, existResponse => {
+            if (existResponse.data) {
+                openMobileFileById(app, localDoc.id, [Constants.CB_GET_SCROLL, Constants.CB_GET_HL]);
+            } else {
+                fetchPost("/api/block/getRecentUpdatedBlocks", {}, (response) => {
+                    if (response.data.length !== 0) {
+                        checkFold(response.data[0].id, (zoomIn) => {
+                            openMobileFileById(app, response.data[0].id, zoomIn ? [Constants.CB_GET_ALL, Constants.CB_GET_HL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]);
+                        });
+                    } else {
+                        setEmpty(app);
+                    }
+                });
+            }
+        });
+        return;
     }
-    if (window.siyuan.config.newbie) {
-        mountHelp();
-    }
+    setEmpty(app);
 };
 
 const initEditorName = () => {
     const inputElement = document.getElementById("toolbarName") as HTMLInputElement;
     inputElement.setAttribute("placeholder", window.siyuan.languages._kernel[16]);
-    inputElement.addEventListener("focus", () => {
-        hideKeyboardToolbar();
-    });
     inputElement.addEventListener("blur", () => {
-        if (window.siyuan.config.readonly || window.siyuan.config.editor.readOnly || window.siyuan.mobileEditor.protyle.disabled) {
+        if (inputElement.getAttribute("readonly") === "readonly") {
             return;
         }
         if (!validateName(inputElement.value)) {
@@ -172,9 +211,10 @@ const initEditorName = () => {
         }
 
         fetchPost("/api/filetree/renameDoc", {
-            notebook: window.siyuan.mobileEditor.protyle.notebookId,
-            path: window.siyuan.mobileEditor.protyle.path,
+            notebook: window.siyuan.mobile.editor.protyle.notebookId,
+            path: window.siyuan.mobile.editor.protyle.path,
             title: inputElement.value,
         });
+        setTitle(inputElement.value);
     });
 };

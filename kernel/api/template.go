@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -25,6 +25,25 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func renderSprig(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	template := arg["template"].(string)
+	content, err := model.RenderGoTemplate(template)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = util.EscapeHTML(err.Error())
+		return
+	}
+	ret.Data = content
+}
+
 func docSaveAsTemplate(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -35,8 +54,9 @@ func docSaveAsTemplate(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
+	name := arg["name"].(string)
 	overwrite := arg["overwrite"].(bool)
-	code, err := model.DocSaveAsTemplate(id, overwrite)
+	code, err := model.DocSaveAsTemplate(id, name, overwrite)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = util.EscapeHTML(err.Error())
@@ -56,7 +76,16 @@ func renderTemplate(c *gin.Context) {
 
 	p := arg["path"].(string)
 	id := arg["id"].(string)
-	content, err := model.RenderTemplate(p, id)
+	if util.InvalidIDPattern(id, ret) {
+		return
+	}
+
+	preview := false
+	if previewArg := arg["preview"]; nil != previewArg {
+		preview = previewArg.(bool)
+	}
+
+	content, err := model.RenderTemplate(p, id, preview)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = util.EscapeHTML(err.Error())

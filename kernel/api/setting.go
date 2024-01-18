@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -28,6 +28,193 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func setConfSnippet(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	param, err := gulu.JSON.MarshalJSON(arg)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	snippet := &conf.Snpt{}
+	if err = gulu.JSON.UnmarshalJSON(param, snippet); nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	model.Conf.Snippet = snippet
+	model.Conf.Save()
+
+	ret.Data = snippet
+}
+
+func addVirtualBlockRefExclude(c *gin.Context) {
+	// Add internal kernel API `/api/setting/addVirtualBlockRefExclude` https://github.com/siyuan-note/siyuan/issues/9909
+
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	keywordsArg := arg["keywords"]
+	var keywords []string
+	for _, k := range keywordsArg.([]interface{}) {
+		keywords = append(keywords, k.(string))
+	}
+
+	model.AddVirtualBlockRefExclude(keywords)
+	util.BroadcastByType("main", "setConf", 0, "", model.Conf)
+}
+
+func addVirtualBlockRefInclude(c *gin.Context) {
+	// Add internal kernel API `/api/setting/addVirtualBlockRefInclude` https://github.com/siyuan-note/siyuan/issues/9909
+
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	keywordsArg := arg["keywords"]
+	var keywords []string
+	for _, k := range keywordsArg.([]interface{}) {
+		keywords = append(keywords, k.(string))
+	}
+
+	model.AddVirtualBlockRefInclude(keywords)
+	util.BroadcastByType("main", "setConf", 0, "", model.Conf)
+}
+
+func refreshVirtualBlockRef(c *gin.Context) {
+	// Add internal kernel API `/api/setting/refreshVirtualBlockRef` https://github.com/siyuan-note/siyuan/issues/9829
+
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	model.ResetVirtualBlockRefCache()
+	util.BroadcastByType("main", "setConf", 0, "", model.Conf)
+}
+
+func setBazaar(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	param, err := gulu.JSON.MarshalJSON(arg)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	bazaar := &conf.Bazaar{}
+	if err = gulu.JSON.UnmarshalJSON(param, bazaar); nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	model.Conf.Bazaar = bazaar
+	model.Conf.Save()
+
+	ret.Data = bazaar
+}
+
+func setAI(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	param, err := gulu.JSON.MarshalJSON(arg)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	ai := &conf.AI{}
+	if err = gulu.JSON.UnmarshalJSON(param, ai); nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	if 5 > ai.OpenAI.APITimeout {
+		ai.OpenAI.APITimeout = 5
+	}
+	if 600 < ai.OpenAI.APITimeout {
+		ai.OpenAI.APITimeout = 600
+	}
+
+	if 0 > ai.OpenAI.APIMaxTokens {
+		ai.OpenAI.APIMaxTokens = 0
+	}
+
+	model.Conf.AI = ai
+	model.Conf.Save()
+
+	ret.Data = ai
+}
+
+func setFlashcard(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	param, err := gulu.JSON.MarshalJSON(arg)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	flashcard := &conf.Flashcard{}
+	if err = gulu.JSON.UnmarshalJSON(param, flashcard); nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	if 0 > flashcard.NewCardLimit {
+		flashcard.NewCardLimit = 20
+	}
+
+	if 0 > flashcard.ReviewCardLimit {
+		flashcard.ReviewCardLimit = 200
+	}
+
+	model.Conf.Flashcard = flashcard
+	model.Conf.Save()
+
+	ret.Data = flashcard
+}
 
 func setAccount(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
@@ -91,11 +278,27 @@ func setEditor(c *gin.Context) {
 		editor.KaTexMacros = "{}"
 	}
 
+	oldVirtualBlockRef := model.Conf.Editor.VirtualBlockRef
+	oldVirtualBlockRefInclude := model.Conf.Editor.VirtualBlockRefInclude
+	oldVirtualBlockRefExclude := model.Conf.Editor.VirtualBlockRefExclude
+	oldReadOnly := model.Conf.Editor.ReadOnly
+
 	model.Conf.Editor = editor
 	model.Conf.Save()
 
 	if oldGenerateHistoryInterval != model.Conf.Editor.GenerateHistoryInterval {
 		model.ChangeHistoryTick(editor.GenerateHistoryInterval)
+	}
+
+	if oldVirtualBlockRef != model.Conf.Editor.VirtualBlockRef ||
+		oldVirtualBlockRefInclude != model.Conf.Editor.VirtualBlockRefInclude ||
+		oldVirtualBlockRefExclude != model.Conf.Editor.VirtualBlockRefExclude {
+		model.ResetVirtualBlockRefCache()
+	}
+
+	if oldReadOnly != model.Conf.Editor.ReadOnly {
+		util.BroadcastByType("protyle", "readonly", 0, "", model.Conf.Editor.ReadOnly)
+		util.BroadcastByType("main", "readonly", 0, "", model.Conf.Editor.ReadOnly)
 	}
 
 	ret.Data = model.Conf.Editor
@@ -129,6 +332,8 @@ func setExport(c *gin.Context) {
 		if !util.IsValidPandocBin(export.PandocBin) {
 			util.PushErrMsg(fmt.Sprintf(model.Conf.Language(117), export.PandocBin), 5000)
 			export.PandocBin = util.PandocBinPath
+		} else {
+			util.PandocBinPath = export.PandocBin
 		}
 	}
 
@@ -168,6 +373,11 @@ func setFiletree(c *gin.Context) {
 		}
 	}
 
+	fileTree.DocCreateSavePath = strings.TrimSpace(fileTree.DocCreateSavePath)
+	if "../" == fileTree.DocCreateSavePath {
+		fileTree.DocCreateSavePath = "../Untitled"
+	}
+
 	if 1 > fileTree.MaxOpenTabCount {
 		fileTree.MaxOpenTabCount = 8
 	}
@@ -176,6 +386,8 @@ func setFiletree(c *gin.Context) {
 	}
 	model.Conf.FileTree = fileTree
 	model.Conf.Save()
+
+	util.UseSingleLineSave = model.Conf.FileTree.UseSingleLineSave
 
 	ret.Data = model.Conf.FileTree
 }
@@ -203,19 +415,34 @@ func setSearch(c *gin.Context) {
 		return
 	}
 
-	if 1 > s.Limit {
-		s.Limit = 64
+	if 32 > s.Limit {
+		s.Limit = 32
 	}
 
 	oldCaseSensitive := model.Conf.Search.CaseSensitive
+	oldIndexAssetPath := model.Conf.Search.IndexAssetPath
+
+	oldVirtualRefName := model.Conf.Search.VirtualRefName
+	oldVirtualRefAlias := model.Conf.Search.VirtualRefAlias
+	oldVirtualRefAnchor := model.Conf.Search.VirtualRefAnchor
+	oldVirtualRefDoc := model.Conf.Search.VirtualRefDoc
 
 	model.Conf.Search = s
 	model.Conf.Save()
+
 	sql.SetCaseSensitive(s.CaseSensitive)
-	if s.CaseSensitive != oldCaseSensitive {
+	sql.SetIndexAssetPath(s.IndexAssetPath)
+
+	if needFullReindex := s.CaseSensitive != oldCaseSensitive || s.IndexAssetPath != oldIndexAssetPath; needFullReindex {
 		model.FullReindex()
 	}
-	sql.ClearVirtualRefKeywords()
+
+	if oldVirtualRefName != s.VirtualRefName ||
+		oldVirtualRefAlias != s.VirtualRefAlias ||
+		oldVirtualRefAnchor != s.VirtualRefAnchor ||
+		oldVirtualRefDoc != s.VirtualRefDoc {
+		model.ResetVirtualBlockRefCache()
+	}
 	ret.Data = s
 }
 
@@ -271,6 +498,7 @@ func setAppearance(c *gin.Context) {
 
 	model.Conf.Appearance = appearance
 	model.Conf.Lang = appearance.Lang
+	util.Lang = model.Conf.Lang
 	model.Conf.Save()
 	model.InitAppearance()
 
@@ -291,12 +519,8 @@ func getCloudUser(c *gin.Context) {
 	if nil != t {
 		token = t.(string)
 	}
-	if err := model.RefreshUser(token); nil != err {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		return
-	}
-	ret.Data = model.Conf.User
+	model.RefreshUser(token)
+	ret.Data = model.Conf.GetUser()
 }
 
 func logoutCloudUser(c *gin.Context) {
@@ -324,43 +548,6 @@ func login2faCloudUser(c *gin.Context) {
 		return
 	}
 	ret.Data = data
-}
-
-func getCustomCSS(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	themeName := arg["theme"].(string)
-	customCSS, err := model.ReadCustomCSS(themeName)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-	ret.Data = customCSS
-}
-
-func setCustomCSS(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	themeName := arg["theme"].(string)
-	css := arg["css"].(map[string]interface{})
-	if err := model.WriteCustomCSS(themeName, css); nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
 }
 
 func setEmoji(c *gin.Context) {

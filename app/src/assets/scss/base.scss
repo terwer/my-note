@@ -1,92 +1,67 @@
-@import "keyframes";
-@import "mixin";
-@import "function";
-@import "chip";
-@import "slider";
-@import "switch";
-@import "scroll";
-@import "tooltips";
-@import "dialog";
-@import "button";
-@import "snackbar";
-@import "form";
-@import "node_modules/@simonwep/pickr/src/scss/themes/nano.scss";
-@import "text-field";
-@import "select";
-@import "list";
-@import "tab";
-@import "graph";
-@import "layout";
-@import "block";
-@import "reset";
-@import "card";
-@import "menu";
-@import "color";
-// un refactor
-@import "protyle";
-@import "typography";
+@import "util/keyframes";
+@import "util/mixin";
+@import "util/function";
+@import "business/history";
+@import "component/chip";
+@import "component/slider";
+@import "component/switch";
+@import "util/scroll";
+@import "component/tooltips";
+@import "component/dialog";
+@import "component/button";
+@import "component/snackbar";
+@import "component/form";
+@import "component/text-field";
+@import "component/select";
+@import "component/list";
+@import "business/graph";
+@import "business/layout";
+@import "business/block";
+@import "business/drag";
+@import "util/reset";
+@import "component/card";
+@import "component/menu";
+@import "business/color";
+@import "protyle/protyle";
+@import "component/typography";
 @import "pdf/pdf";
-@import "viewer";
+@import "business/config";
+@import "business/search";
+@import "pickr/pcr";
+@import "viewerjs/viewer";
+@import "business/export";
+@import "business/card";
+@import "business/custom";
+@import "business/resize";
+@import "business/av";
 
 /*
 .status: 2
 
-// 需小于 .block__popover https://github.com/siyuan-note/siyuan/issues/3515
-ctrl+p 搜索: 199
+.protyle-util: 4
 
-// 需小于 .block__popover
-.protyle-util: 200
+.protyle-hint: 5
 
-// 引用提示需小于 .block__popover
-.protyle-hint: 201
+.side-mask: 6
 
-// 需小于 .b3-menu 悬浮窗点击更多
-// 需小于 .b3-dialog https://ld246.com/article/1637204682648
-.block__popover: 205
-.block__popover--top: 206
+Mobile #menu & .side-panel: 7
 
-// 需大于 .block__popover
-.b3-menu: 210
+.fullscreen: 8
 
-// 需小于 .b3-dialog 关于中的锁屏密码设置
-.side-panel: 220
+ window.siyuan.zIndex: 10
 
-// 需小于 #windowControls
-// 需大于 .protyle-util https://github.com/siyuan-note/siyuan/issues/5069
-.b3-dialog: 305
+#windowControls: 999998
 
-// 历史中切换笔记本需临时大于 .b3-dialog https://github.com/siyuan-note/siyuan/issues/5107
-// 移动端排序和菜单需临时大于 .side-panel https://github.com/siyuan-note/siyuan/issues/5254
-.b3-menu: 310
+.b3-snackbar: 999999
 
-// 需大于 .b3-dialog
-progressLoading: 400
-
-#windowControls: 502
-
-.b3-snackbar: 503
+.b3-tooltips: 1000000
 */
 
-.inbox {
-  &__details {
-    position: absolute;
-    background: var(--b3-theme-surface);
-    left: 0;
-    top: 30px;
-    bottom: 0;
-    overflow: auto;
-    z-index: 1;
-    right: 0;
-    padding: 4px 8px;
-    word-break: break-all;
-    user-select: text;
-  }
-
-  &__list {
-    label {
-      height: 28px;
-    }
-  }
+html {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
 }
 
 .fullscreen {
@@ -95,58 +70,27 @@ progressLoading: 400
   width: 100% !important;
   left: 0;
   height: 100vh !important;
-  z-index: 90;
+  z-index: 8;
   border-radius: 0;
 
   & > .protyle-breadcrumb,
-  & > .block__icons { // 关系图
-    padding-left: 69px;
+  & > .block__icons { // 关系图、card
+    padding-left: var(--b3-toolbar-left-mac);
     height: 32px;
+    min-height: 32px;
   }
 
-  .protyle-breadcrumb > .protyle-breadcrumb__space {
+  .protyle-breadcrumb > .protyle-breadcrumb__space,
+  & > .block__icons > .fn__flex-1 {
     -webkit-app-region: drag;
     min-width: 32px;
+    height: 100%;
+    box-sizing: border-box;
 
     &:hover {
-      border-radius: 16px;
+      border-radius: var(--b3-border-radius-b);
       background-color: var(--b3-theme-surface-light);
     }
-  }
-}
-
-.custom-attr {
-  .b3-text-field {
-    border: 0;
-  }
-
-  &__add {
-    overflow: auto;
-    height: 30vh;
-    padding: 4px 0 4px 4px;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
-}
-
-.pcr-app {
-  box-shadow: var(--b3-dialog-shadow);
-  border-radius: 4px;
-
-  .pcr-interaction .pcr-result {
-    @extend .b3-text-field;
-    background: transparent;
-    font-size: 12px;
-  }
-
-  .pcr-selection .pcr-picker {
-    height: 16px;
-    width: 16px;
-    border: 0;
-    box-shadow: var(--b3-point-shadow);
-    transition: transform 100ms ease-out;
   }
 }
 
@@ -174,34 +118,20 @@ progressLoading: 400
   box-sizing: border-box;
   height: 32px;
   line-height: 32px;
-  padding: 0 5px 0 69px;
+  padding: 0 5px 0 var(--b3-toolbar-left-mac);
+  overflow: hidden; // 最小化后右上角显示不全
   border-bottom: .5px solid var(--b3-border-color);
 
   &--browser {
     padding-left: 0;
   }
 
-  #windowAppIcon {
-    -webkit-app-region: drag;
-    width: 42px;
-    margin-left: 1px;
-    justify-content: center;
-    color: #fff;
-
-    &:hover {
-      color: var(--b3-theme-on-background);
-    }
-  }
-
   #windowControls {
     top: 0;
-    z-index: 502;
+    z-index: 999998;
     right: 0;
     position: relative;
-
-    .toolbar__item svg {
-      width: 13px;
-    }
+    margin-left: 2px;
   }
 
   #drag {
@@ -212,13 +142,17 @@ progressLoading: 400
     white-space: nowrap;
     align-self: center;
     font-size: 12px;
+    min-width: 148px;
+    box-sizing: border-box;
   }
 
   &__item {
     flex-shrink: 0;
     cursor: pointer;
     color: var(--b3-toolbar-color);
-    padding: 9px;
+    padding: 5px;
+    margin: 2px;
+    border-radius: var(--b3-border-radius);
     box-sizing: border-box;
     transition: var(--b3-transition);
     display: flex;
@@ -226,11 +160,12 @@ progressLoading: 400
     background-color: transparent;
     border: 0;
     line-height: 13.5px;
+    height: 23.5px;
 
     &:not(.toolbar__item--disabled):not(.toolbar__item--close):hover,
     &--active {
+      background-color: var(--b3-toolbar-hover);
       color: var(--b3-theme-on-background);
-      background-color: var(--b3-theme-background-light);
     }
 
     svg {
@@ -242,6 +177,7 @@ progressLoading: 400
       width: 8px;
       height: 13.5px;
       margin-left: 4px;
+      opacity: .54;
     }
 
     &--disabled {
@@ -249,8 +185,18 @@ progressLoading: 400
       cursor: not-allowed;
     }
 
+    &--win {
+      padding: 9px;
+      margin: 0;
+      height: 31.5px;
+      border-radius: 0;
+    }
+
     &--close {
       padding: 9px 16px;
+      margin: 0;
+      height: 31.5px;
+      border-radius: 0;
 
       svg {
         width: 10px !important;
@@ -259,6 +205,26 @@ progressLoading: 400
       &:hover {
         color: var(--b3-theme-on-error);
         background-color: var(--b3-theme-error)
+      }
+    }
+  }
+
+  &__window {
+    position: fixed;
+    top: 0;
+    right: 0;
+    display: flex;
+    z-index: 502;
+
+    .toolbar__item {
+      padding: 14.25px;
+      height: auto;
+      margin: 0;
+      border-radius: 0;
+
+      &:not(.toolbar__item--disabled):not(.toolbar__item--close):hover,
+      &--active {
+        background-color: var(--b3-theme-background-light);
       }
     }
   }
@@ -284,6 +250,11 @@ progressLoading: 400
 
   .toolbar__item {
     color: var(--b3-theme-on-surface);
+
+    &:hover {
+      color: var(--b3-theme-on-background);
+      background-color: var(--b3-theme-background-light) !important;
+    }
   }
 
   &__msg {
@@ -301,219 +272,34 @@ progressLoading: 400
     font-size: 12px;
   }
 
-  #barDock .b3-menu__item:hover {
-    background-color: var(--b3-list-hover);
+  &__backgroundtask {
+    display: flex;
+    color: var(--b3-theme-on-surface);
+    font-size: 12px;
+
+    & > div {
+      height: 4px;
+      border-radius: var(--b3-border-radius);
+      overflow: hidden;
+      background-color: #fff;
+      width: 64px;
+      align-self: center;
+      margin: 0 8px 0 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+
+      & > div {
+        background-color: var(--b3-theme-primary-light);
+        height: 4px;
+        background-image: linear-gradient(-45deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.2) 75%, transparent 75%, transparent);
+        animation: stripMove 450ms linear infinite;
+        background-size: 50px 50px;
+      }
+    }
   }
 
   .fn__space:last-child {
     width: 5px;
-  }
-}
-
-.config {
-  &__panel {
-    & > .b3-tab-bar {
-      user-select: none;
-      width: 180px;
-      overflow: auto;
-      padding: 8px 0;
-      box-sizing: border-box
-    }
-  }
-
-  &-query {
-    display: flex;
-    flex-wrap: wrap;
-
-    label {
-      width: 16%;
-      margin-right: 17%;
-    }
-  }
-
-  &-repos__sync {
-    margin: 0 0 -16px 16px;
-    overflow: hidden;
-    max-height: 180px;
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 16px;
-  }
-
-  &-account {
-    height: 100%;
-
-    &__center {
-      flex-direction: column;
-      justify-content: center;
-      flex: 1;
-      display: flex;
-      min-width: 1px;
-      align-items: center;
-
-      &--text {
-        background-color: var(--b3-theme-surface);
-        padding: 16px 24px;
-
-        .b3-button--outline {
-          white-space: normal;
-        }
-      }
-    }
-
-    &__form {
-      max-width: 298px;
-      width: 100%;
-    }
-
-    &__bg {
-      position: relative;
-      margin-bottom: 82px;
-      width: 100%;
-      flex: 1;
-      min-height: 128px;
-    }
-
-    &__info {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 16px 24px;
-    }
-
-    &__cover {
-      position: absolute;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-size: cover;
-      background-position: center center;
-    }
-
-    &__avatar {
-      position: absolute;
-      bottom: 24px;
-      width: 128px;
-      height: 128px;
-      left: 50%;
-      margin-left: -64px;
-      background-repeat: no-repeat;
-      background-position: 50%;
-      background-size: cover;
-      border-radius: 90px;
-      background-color: rgba(255, 255, 255, 0.8);
-      box-shadow: var(--b3-point-shadow);
-    }
-
-    &__name {
-      bottom: -58px;
-      position: absolute;
-      width: 100%;
-      text-align: center;
-    }
-  }
-
-  &-about__logo {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-
-    img {
-      height: 24px;
-      width: 24px;
-      margin-right: 8px;
-    }
-  }
-
-  &-assets {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    box-sizing: border-box;
-
-    #assetsList {
-      overflow: auto;
-      flex: 1;
-    }
-
-    &__preview {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      overflow: auto;
-      flex: 1;
-      margin-top: 8px;
-    }
-  }
-
-  &-keymap li .b3-text-field {
-    width: 124px;
-    text-align: center;
-  }
-
-  &-bazaar__readme {
-    position: absolute;
-    transition: var(--b3-transition);
-    right: -100%;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--b3-theme-background);
-    display: flex;
-    padding: 16px;
-    box-sizing: border-box;
-
-    .item {
-      &__side {
-        text-align: center;
-        width: 260px;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-      }
-
-      &__main {
-        flex: 1;
-        margin-left: 16px;
-        overflow: auto;
-      }
-
-      &__title {
-        font-size: 30px;
-        word-break: break-all;
-        color: var(--b3-theme-on-background);
-      }
-
-      &__nav {
-        text-align: center;
-        flex: 1;
-        line-height: 26px;
-        font-size: 16px;
-        color: var(--b3-theme-on-surface);
-      }
-
-      &__preview {
-        width: 100%;
-        height: 50%;
-        background-position: center center;
-        background-repeat: no-repeat;
-        background-size: cover;
-        border-radius: 4px;
-        margin-bottom: 16px;
-        cursor: pointer;
-        left: 0;
-        top: 0;
-        transition: var(--b3-transition);
-
-        &--fullscreen {
-          position: absolute;
-          z-index: 1;
-          height: 100%;
-          background-size: contain;
-          background-color: var(--b3-mask-background);
-        }
-      }
-    }
   }
 }
 
@@ -533,30 +319,30 @@ progressLoading: 400
 }
 
 .file-tree {
-  .dragover {
-    background-color: var(--b3-theme-primary-lightest);
-
-    &__top {
-      background-color: var(--b3-theme-primary-lightest);
-      box-shadow: 0 -2px 0 var(--b3-theme-primary-lighter), inset 0 2px 0 var(--b3-theme-primary-lighter);
-    }
-
-    &__bottom {
-      background-color: var(--b3-theme-primary-lightest);
-      box-shadow: 0 2px 0 var(--b3-theme-primary-lighter), inset 0px -2px 0 var(--b3-theme-primary-lighter);
-    }
-  }
-
-  &:hover .block__icons .block__icon:not([disabled]) {
+  &:hover .block__icons .block__icon:not([disabled]),
+  &.fullscreen .block__icons .block__icon:not([disabled]) {
     opacity: 1;
   }
 
   &:hover .block__icons .block__icon[disabled] {
-    opacity: .68;
+    opacity: .38;
   }
 
-  .block__icons .block__icon[disabled] {
-    opacity: 0;
+  .dragover__top:after,
+  .dragover__bottom:after {
+    content: "";
+    width: var(--file-toggle-width);
+    height: 4px;
+    background-color: var(--b3-theme-surface);
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    z-index: 1;
+  }
+
+  .dragover__top:after {
+    top: -3px;
+    bottom: auto;
   }
 
   &__close {
@@ -575,11 +361,16 @@ progressLoading: 400
   margin-left: 4px;
   line-height: 22px;
   padding: 0 8px;
-  color: var(--b3-theme-on-surface);
-  border-radius: 2px;
+  color: var(--b3-theme-on-surface-light);
+  border-radius: var(--b3-border-radius);
   font-size: 12px;
   user-select: none;
   height: 22px;
+
+  &--right {
+    width: 32px;
+    text-align: right;
+  }
 }
 
 .reveal {
@@ -597,5 +388,31 @@ progressLoading: 400
   }
 }
 
+.switch-doc {
+  max-height: 70vh;
+  max-width: 100%;
+  min-width: 426px;
+
+  .b3-list {
+    padding: 8px 0;
+  }
+
+  .b3-list:last-child {
+    border-left: 1px solid var(--b3-theme-surface-lighter);
+  }
+
+  &__path {
+    padding: 4px 8px;
+    border-top: 1px solid var(--b3-theme-surface-lighter);
+    color: var(--b3-theme-on-surface);
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 18px;
+    min-height: 18px;
+  }
+}
+
 // 需放置最后，否则 https://github.com/siyuan-note/siyuan/issues/7056
-@import "responsive";
+@import "util/responsive";

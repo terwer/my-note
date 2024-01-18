@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -73,6 +73,12 @@ func watchAssets() {
 
 				lastEvent = event
 				timer.Reset(time.Millisecond * 100)
+
+				if lastEvent.Op&fsnotify.Rename == fsnotify.Rename || lastEvent.Op&fsnotify.Write == fsnotify.Write {
+					IndexAssetContent(lastEvent.Name)
+				} else if lastEvent.Op&fsnotify.Remove == fsnotify.Remove {
+					RemoveIndexAssetContent(lastEvent.Name)
+				}
 			case err, ok := <-assetsWatcher.Errors:
 				if !ok {
 					return
@@ -81,12 +87,17 @@ func watchAssets() {
 			case <-timer.C:
 				//logging.LogInfof("assets changed: %s", lastEvent)
 				if lastEvent.Op&fsnotify.Write == fsnotify.Write {
-					// 外部修改已有资源文件后纳入云端同步 https://github.com/siyuan-note/siyuan/issues/4694
 					IncSync()
 				}
 
 				// 重新缓存资源文件，以便使用 /资源 搜索
 				go cache.LoadAssets()
+
+				if lastEvent.Op&fsnotify.Remove == fsnotify.Remove {
+					RemoveIndexAssetContent(lastEvent.Name)
+				} else {
+					IndexAssetContent(lastEvent.Name)
+				}
 			}
 		}
 	}()

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@ package model
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
+	"github.com/88250/lute/editor"
 	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
@@ -35,6 +35,7 @@ import (
 
 type BlockInfo struct {
 	ID           string            `json:"id"`
+	RootID       string            `json:"rootID"`
 	Name         string            `json:"name"`
 	RefCount     int               `json:"refCount"`
 	SubFileCount int               `json:"subFileCount"`
@@ -43,19 +44,44 @@ type BlockInfo struct {
 	Icon         string            `json:"icon"`
 }
 
-func GetDocInfo(rootID string) (ret *BlockInfo) {
+func GetDocInfo(blockID string) (ret *BlockInfo) {
 	WaitForWritingFiles()
 
-	tree, err := loadTreeByBlockID(rootID)
+	tree, err := loadTreeByBlockID(blockID)
 	if nil != err {
-		logging.LogErrorf("load tree by root id [%s] failed: %s", rootID, err)
+		logging.LogErrorf("load tree by root id [%s] failed: %s", blockID, err)
 		return
 	}
 
 	title := tree.Root.IALAttr("title")
-	ret = &BlockInfo{ID: rootID, Name: title}
+	ret = &BlockInfo{ID: blockID, RootID: tree.Root.ID, Name: title}
 	ret.IAL = parse.IAL2Map(tree.Root.KramdownIAL)
-	ret.RefIDs, _ = sql.QueryRefIDsByDefID(rootID, false)
+	scrollData := ret.IAL["scroll"]
+	if 0 < len(scrollData) {
+		scroll := map[string]interface{}{}
+		if parseErr := gulu.JSON.UnmarshalJSON([]byte(scrollData), &scroll); nil != parseErr {
+			logging.LogWarnf("parse scroll data [%s] failed: %s", scrollData, parseErr)
+			delete(ret.IAL, "scroll")
+		} else {
+			if zoomInId := scroll["zoomInId"]; nil != zoomInId {
+				if nil == treenode.GetBlockTree(zoomInId.(string)) {
+					delete(ret.IAL, "scroll")
+				}
+			} else {
+				if startId := scroll["startId"]; nil != startId {
+					if nil == treenode.GetBlockTree(startId.(string)) {
+						delete(ret.IAL, "scroll")
+					}
+				}
+				if endId := scroll["endId"]; nil != endId {
+					if nil == treenode.GetBlockTree(endId.(string)) {
+						delete(ret.IAL, "scroll")
+					}
+				}
+			}
+		}
+	}
+	ret.RefIDs, _ = sql.QueryRefIDsByDefID(blockID, false)
 	ret.RefCount = len(ret.RefIDs)
 
 	var subFileCount int
@@ -74,8 +100,6 @@ func GetDocInfo(rootID string) (ret *BlockInfo) {
 }
 
 func GetBlockRefText(id string) string {
-	WaitForWritingFiles()
-
 	bt := treenode.GetBlockTree(id)
 	if nil == bt {
 		return ErrBlockNotFound.Error()
@@ -90,14 +114,54 @@ func GetBlockRefText(id string) string {
 	if nil == node {
 		return ErrBlockNotFound.Error()
 	}
+
+	ast.Walk(node, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		if n.IsTextMarkType("inline-memo") {
+			// Block ref anchor text no longer contains contents of inline-level memos https://github.com/siyuan-note/siyuan/issues/9363
+			n.TextMarkInlineMemoContent = ""
+			return ast.WalkContinue
+		}
+		return ast.WalkContinue
+	})
 	return getNodeRefText(node)
 }
 
-func getNodeRefText(node *ast.Node) string {
-	if name := node.IALAttr("name"); "" != name {
-		return name
+func GetDOMText(dom string) (ret string) {
+	luteEngine := NewLute()
+	tree := luteEngine.BlockDOM2Tree(dom)
+	ret = renderBlockText(tree.Root.FirstChild, nil)
+	return
+}
+
+func getBlockRefText(id string, tree *parse.Tree) (ret string) {
+	node := treenode.GetNodeInTree(tree, id)
+	if nil == node {
+		return
 	}
 
+	ret = getNodeRefText(node)
+	ret = maxContent(ret, Conf.Editor.BlockRefDynamicAnchorTextMaxLen)
+	return
+}
+
+func getNodeRefText(node *ast.Node) string {
+	if nil == node {
+		return ""
+	}
+
+	if ret := node.IALAttr("name"); "" != ret {
+		ret = strings.TrimSpace(ret)
+		ret = util.EscapeHTML(ret)
+		return ret
+	}
+	return getNodeRefText0(node)
+}
+
+func getNodeRefText0(node *ast.Node) string {
 	switch node.Type {
 	case ast.NodeBlockQueryEmbed:
 		return "Query Embed Block..."
@@ -222,7 +286,6 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 
 	headingLevel := 16
 	maxNameLen := 1024
-	boxName := box.Name
 	var hPath string
 	baseBlock := treenode.GetBlockTreeRootByPath(node.Box, node.Path)
 	if nil != baseBlock {
@@ -240,7 +303,9 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 
 		name := util.EscapeHTML(parent.IALAttr("name"))
 		if ast.NodeDocument == parent.Type {
-			name = util.EscapeHTML(path.Join(boxName, hPath))
+			name = util.EscapeHTML(box.Name) + util.EscapeHTML(hPath)
+		} else if ast.NodeAttributeView == parent.Type {
+			name = treenode.GetAttributeViewName(parent.AttributeViewID)
 		} else {
 			if "" == name {
 				if ast.NodeListItem == parent.Type {
@@ -267,10 +332,11 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 			}
 		}
 
+		name = strings.ReplaceAll(name, editor.Caret, "")
 		if add {
 			ret = append([]*BlockPath{{
 				ID:      id,
-				Name:    name,
+				Name:    util.EscapeHTML(name),
 				Type:    parent.Type.String(),
 				SubType: treenode.SubTypeAbbr(parent),
 			}}, ret...)
@@ -291,7 +357,7 @@ func buildBlockBreadcrumb(node *ast.Node, excludeTypes []string) (ret []*BlockPa
 				name = gulu.Str.SubStr(renderBlockText(b, excludeTypes), maxNameLen)
 				ret = append([]*BlockPath{{
 					ID:      b.ID,
-					Name:    name,
+					Name:    util.EscapeHTML(name),
 					Type:    b.Type.String(),
 					SubType: treenode.SubTypeAbbr(b),
 				}}, ret...)

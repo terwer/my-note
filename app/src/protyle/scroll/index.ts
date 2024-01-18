@@ -11,7 +11,7 @@ export class Scroll {
     private parentElement: HTMLElement;
     private inputElement: HTMLInputElement;
     public lastScrollTop: number;
-    public keepLazyLoad: boolean;
+    public keepLazyLoad: boolean;   // 保持加载内容
 
     constructor(protyle: IProtyle) {
         this.parentElement = document.createElement("div");
@@ -19,13 +19,13 @@ export class Scroll {
         if (!isMobile()) {
             this.parentElement.style.right = "10px";
         }
-        this.parentElement.innerHTML = `<div class="b3-tooltips b3-tooltips__nw protyle-scroll__up" aria-label="${updateHotkeyTip("⌘Home")}">
+        this.parentElement.innerHTML = `<div class="b3-tooltips b3-tooltips__w protyle-scroll__up" aria-label="${updateHotkeyTip("⌘Home")}">
     <svg><use xlink:href="#iconUp"></use></svg>
 </div>
 <div class="fn__none protyle-scroll__bar b3-tooltips b3-tooltips__s" aria-label="Blocks 1/1">
     <input class="b3-slider" type="range" max="1" min="1" step="1" value="1" />
 </div>
-<div class="b3-tooltips b3-tooltips__sw protyle-scroll__down" aria-label="${updateHotkeyTip("⌘End")}">
+<div class="b3-tooltips b3-tooltips__w protyle-scroll__down" aria-label="${updateHotkeyTip("⌘End")}">
     <svg><use xlink:href="#iconDown"></use></svg>
 </div>`;
 
@@ -70,7 +70,22 @@ export class Scroll {
             mode: 0,
             size: window.siyuan.config.editor.dynamicLoadBlocks,
         }, getResponse => {
-            onGet(getResponse, protyle, [Constants.CB_GET_FOCUSFIRST, Constants.CB_GET_UNCHANGEID]);
+            onGet({
+                data: getResponse,
+                protyle,
+                action: [Constants.CB_GET_FOCUSFIRST, Constants.CB_GET_UNCHANGEID],
+            });
+        });
+    }
+
+    public updateIndex(protyle: IProtyle, id: string) {
+        fetchPost("/api/block/getBlockIndex", {id}, (response) => {
+            if (!response.data) {
+                return;
+            }
+            const inputElement = protyle.scroll.element.querySelector(".b3-slider") as HTMLInputElement;
+            inputElement.value = response.data;
+            protyle.scroll.element.setAttribute("aria-label", `Blocks ${response.data}/${protyle.block.blockCount}`);
         });
     }
 
@@ -82,7 +97,7 @@ export class Scroll {
         if (protyle.block.showAll) {
             this.element.classList.add("fn__none");
         } else {
-            if (protyle.block.childBlockCount > window.siyuan.config.editor.dynamicLoadBlocks) {
+            if (protyle.block.scroll && !protyle.contentElement.classList.contains("fn__none")) {
                 this.element.classList.remove("fn__none");
             } else {
                 this.element.classList.add("fn__none");

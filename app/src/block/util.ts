@@ -6,6 +6,9 @@ import {transaction, updateTransaction} from "../protyle/wysiwyg/transaction";
 import {scrollCenter} from "../util/highlightById";
 import {Constants} from "../constants";
 import {hideElements} from "../protyle/ui/hideElements";
+import {blockRender} from "../protyle/render/blockRender";
+import {fetchPost} from "../util/fetch";
+import {zoomOut} from "../menus/protyle";
 
 export const cancelSB = (protyle: IProtyle, nodeElement: Element) => {
     const doOperations: IOperation[] = [];
@@ -15,7 +18,8 @@ export const cancelSB = (protyle: IProtyle, nodeElement: Element) => {
     nodeElement.removeAttribute("select-start");
     nodeElement.removeAttribute("select-end");
     const id = nodeElement.getAttribute("data-node-id");
-    const sbElement = genSBElement(nodeElement.getAttribute("data-sb-layout"), id, nodeElement.lastElementChild.outerHTML);
+    const sbElement = nodeElement.cloneNode() as HTMLElement;
+    sbElement.innerHTML = nodeElement.lastElementChild.outerHTML;
     undoOperations.push({
         action: "insert",
         id,
@@ -47,7 +51,14 @@ export const cancelSB = (protyle: IProtyle, nodeElement: Element) => {
         });
         previousId = item.getAttribute("data-node-id");
     });
-
+    // 超级块内嵌入块无面包屑，需重新渲染 https://github.com/siyuan-note/siyuan/issues/7574
+    doOperations.forEach(item => {
+        const element = protyle.wysiwyg.element.querySelector(`[data-node-id="${item.id}"]`);
+        if (element && element.getAttribute("data-type") === "NodeBlockQueryEmbed") {
+            element.removeAttribute("data-render");
+            blockRender(protyle, element);
+        }
+    });
     return {
         doOperations, undoOperations, previousId
     };
@@ -71,6 +82,15 @@ export const jumpToParentNext = (protyle: IProtyle, nodeElement: Element) => {
         if (nextElement) {
             focusBlock(nextElement);
             scrollCenter(protyle, nextElement);
+        } else {
+            fetchPost("/api/block/getParentNextChildID", {id: nodeElement.getAttribute("data-node-id")}, (response) => {
+                if (response.data.id) {
+                    zoomOut({
+                        protyle,
+                        id: response.data.id,
+                    });
+                }
+            });
         }
     }
 };

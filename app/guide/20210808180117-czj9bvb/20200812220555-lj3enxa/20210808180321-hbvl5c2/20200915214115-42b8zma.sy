@@ -6,7 +6,7 @@
 		"id": "20200915214115-42b8zma",
 		"title": "资源文件",
 		"type": "doc",
-		"updated": "20230117003750"
+		"updated": "20231110112936"
 	},
 	"Children": [
 		{
@@ -199,7 +199,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20210512171633-u3iy2xx",
-				"updated": "20220824172745"
+				"updated": "20230505083901"
 			},
 			"Children": [
 				{
@@ -245,10 +245,29 @@
 				{
 					"Type": "NodeKramdownSpanIAL",
 					"Data": "{: style=\"display: block;\" parent-style=\"display: block;\"}"
+				}
+			]
+		},
+		{
+			"ID": "20230505083902-s5e711d",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230505083902-s5e711d",
+				"updated": "20230505083923"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "注意"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "\n"
+					"Data": "​：插入图片不会进行压缩处理，所有图片和文件都以原始数据进行保存。"
 				}
 			]
 		},
@@ -481,13 +500,123 @@
 			},
 			"Children": [
 				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "tag",
 					"TextMarkTextContent": "注意"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "：使用绝对路径（本地路径或者是网络路径）不会纳入清理计算。"
+					"Data": "​：使用绝对路径（本地路径或者是网络路径）不会纳入清理计算。"
+				}
+			]
+		},
+		{
+			"ID": "20230604115545-plxx5iu",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230604115545-plxx5iu",
+				"updated": "20230604115551"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "查看丢失资源"
+				}
+			]
+		},
+		{
+			"ID": "20230604115552-qqg9s4j",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230604115552-qqg9s4j",
+				"updated": "20230604115947"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "设置"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "资源"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 中可以查看丢失的资源，复制路径后可以在全局搜索中找到引用处。"
+				}
+			]
+		},
+		{
+			"ID": "20230604115950-hru51yy",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230604115950-hru51yy",
+				"updated": "20230604120815"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "注意"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​：搜索资源文件路径需要先启用 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "设置"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "搜索"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "索引"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "资源文件路径"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​。"
 				}
 			]
 		},
@@ -702,7 +831,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20230117002059-ssmlejt",
-				"updated": "20230117003750"
+				"updated": "20230820185522"
 			},
 			"Children": [
 				{
@@ -711,13 +840,26 @@
 				},
 				{
 					"Type": "NodeTextMark",
-					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/tesseract-ocr/tesseract",
+					"TextMarkType": "em",
 					"TextMarkTextContent": "Tesseract OCR"
 				},
 				{
 					"Type": "NodeText",
 					"Data": " 程序。"
+				}
+			]
+		},
+		{
+			"ID": "20230202231304-22lvszc",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230202231304-22lvszc",
+				"updated": "20230202231309"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
 				},
 				{
 					"Type": "NodeTextMark",
@@ -726,25 +868,265 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​在安装 Tesseract OCR 时需要勾选中文语言包，并将安装后的 Tesseract-OCR 目录路径添加到环境变量 PATH 中，这样思源才能直接调用 "
+					"Data": "​："
+				}
+			]
+		},
+		{
+			"ID": "20230202231309-pcjl7c2",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230202231309-pcjl7c2",
+				"updated": "20231110112936"
+			},
+			"Children": [
+				{
+					"ID": "20230202231311-7qdk1za",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230202231311-7qdk1za",
+						"updated": "20231110112936"
+					},
+					"Children": [
+						{
+							"ID": "20230202231311-n1pf7in",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230202231311-n1pf7in",
+								"updated": "20231110112936"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "在安装 Tesseract OCR 时需要勾选你需要的语言包，并将安装后的 Tesseract-OCR 目录路径添加到环境变量 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "PATH"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 中，这样思源才能直接调用 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "tesseract"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 命令进行图片 OCR 提取文本。如果安装正常的话，在内核启动日志中可以搜索到 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "tesseract-ocr enabled"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​；如果要禁用 OCR，请设置环境变量 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_ENABLED=false"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
 				},
 				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "code",
-					"TextMarkTextContent": "tesseract"
+					"ID": "20230202231321-q1b1tza",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230202231321-q1b1tza",
+						"updated": "20230211103207"
+					},
+					"Children": [
+						{
+							"ID": "20230202231321-5ugmgf0",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230202231321-5ugmgf0",
+								"updated": "20230211103207"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "思源并不会启用所有已安装的语言包，因为语言包太多的话会导致 OCR 缓慢甚至超时返回空结果，并且占用过多的系统资源，所以默认最多只会启用 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "eng"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​、"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "chi*"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​、"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "fra"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​、"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "spa"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​、"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "deu"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​、"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "rus"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 和 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "osd"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​，如果你需要更准确的语言支持，可以通过配置环境变量 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_LANGS"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 来指定语言包，比如 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_LANGS=chi_sim+eng"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
 				},
 				{
-					"Type": "NodeText",
-					"Data": "​ 命令进行图片 OCR 提取文本。如果安装正常的话，在内核启动日志中可以搜索到 "
+					"ID": "20230211102440-0qik4dd",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230211102440-0qik4dd",
+						"updated": "20230211102642"
+					},
+					"Children": [
+						{
+							"ID": "20230211102440-09cmf75",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230211102440-09cmf75",
+								"updated": "20230211102642"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "仅支持 png 和 jpg 格式的图片"
+								}
+							]
+						}
+					]
 				},
 				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "code",
-					"TextMarkTextContent": "tesseract-ocr enabled"
-				},
-				{
-					"Type": "NodeText",
-					"Data": "​。"
+					"ID": "20230211102601-ifl3ojm",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230211102601-ifl3ojm",
+						"updated": "20230211102744"
+					},
+					"Children": [
+						{
+							"ID": "20230211102601-npe6hvh",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230211102601-npe6hvh",
+								"updated": "20230211102744"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "默认只对 2MB 以下的图片进行处理，如果需要调整，可以通过环境变量 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_MAX_SIZE"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 设置，值的单位是字节，比如："
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_MAX_SIZE=4000000"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ 将上限调整为 4MB"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -763,11 +1145,26 @@
 			]
 		},
 		{
+			"ID": "20230414202710-a51lo76",
+			"Type": "NodeHeading",
+			"HeadingLevel": 3,
+			"Properties": {
+				"id": "20230414202710-a51lo76",
+				"updated": "20230414202726"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "手动调整 OCR 结果"
+				}
+			]
+		},
+		{
 			"ID": "20230117003118-da7wjvx",
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20230117003118-da7wjvx",
-				"updated": "20230117003434"
+				"updated": "20230414202825"
 			},
 			"Children": [
 				{
@@ -781,7 +1178,97 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ 中，如果需要重新 OCR 或者调整提取结果，可以在关闭思源的情况下删除或修改该文件，启动思源以后手动重建索引。"
+					"Data": "​ 中，可通过下面的方式调整 OCR 结果："
+				}
+			]
+		},
+		{
+			"ID": "20230414202215-wv6v759",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230414202215-wv6v759",
+				"updated": "20230414203014"
+			},
+			"Children": [
+				{
+					"ID": "20230414202216-6ib46sp",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230414202216-6ib46sp",
+						"updated": "20230414203014"
+					},
+					"Children": [
+						{
+							"ID": "20230414202216-7lh8lft",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230414202216-7lh8lft",
+								"updated": "20230414203014"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "退出思源后下在文件系统上修改该文件（请注意 JSON 格式的正确性）"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230414202222-wbxjz0f",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230414202222-wbxjz0f",
+						"updated": "20230414202849"
+					},
+					"Children": [
+						{
+							"ID": "20230414202222-oelakfd",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230414202222-oelakfd",
+								"updated": "20230414202849"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "或者在编辑器中的图片元素菜单中选择 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "OCR"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230414202749-qbcnypq",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230414202749-qbcnypq",
+				"updated": "20230414202900"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "调整完以后需要手动重建索引。"
 				}
 			]
 		}

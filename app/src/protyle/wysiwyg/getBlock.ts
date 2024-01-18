@@ -1,18 +1,6 @@
 import {hasClosestBlock, hasClosestByAttribute} from "../util/hasClosest";
 import {Constants} from "../../constants";
 
-export const getPreviousHeading = (element: Element) => {
-    let previous = getPreviousBlock(element);
-    while (previous) {
-        if (previous.getAttribute("data-type") === "NodeHeading") {
-            break;
-        } else {
-            previous = getPreviousBlock(previous);
-        }
-    }
-    return previous;
-};
-
 export const getPreviousBlock = (element: Element) => {
     let parentElement = element;
     while (parentElement) {
@@ -42,7 +30,8 @@ export const getLastBlock = (element: Element) => {
 export const getFirstBlock = (element: Element) => {
     let firstElement;
     Array.from(element.querySelectorAll("[data-node-id]")).find(item => {
-        if (!hasClosestByAttribute(item.parentElement, "data-type", "NodeBlockQueryEmbed") && !item.classList.contains("li")) {
+        if (!hasClosestByAttribute(item.parentElement, "data-type", "NodeBlockQueryEmbed") &&
+            !item.classList.contains("li") && !item.classList.contains("sb")) {
             firstElement = item;
             return true;
         }
@@ -199,7 +188,7 @@ export const getNextFileLi = (current: Element) => {
             nextElement = nextElement.parentElement;
         } else if (nextElement.nextElementSibling.tagName === "LI") {
             return nextElement.nextElementSibling;
-        } else  if (nextElement.nextElementSibling.tagName === "UL") {
+        } else if (nextElement.nextElementSibling.tagName === "UL") {
             return nextElement.nextElementSibling.firstElementChild;
         }
     }

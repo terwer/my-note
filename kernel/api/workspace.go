@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -34,6 +34,57 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func checkWorkspaceDir(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	path := arg["path"].(string)
+	if isInvalidWorkspacePath(path) {
+		ret.Code = -1
+		ret.Msg = "This workspace name is not allowed, please use another name"
+		return
+	}
+
+	if !gulu.File.IsExist(path) {
+		ret.Code = -1
+		ret.Msg = "This workspace does not exist"
+		return
+	}
+
+	entries, err := os.ReadDir(path)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = fmt.Sprintf("read workspace dir [%s] failed: %s", path, err)
+	}
+
+	var existsConf, existsData bool
+	for _, entry := range entries {
+		if !existsConf {
+			existsConf = "conf" == entry.Name() && entry.IsDir()
+		}
+		if !existsData {
+			existsData = "data" == entry.Name() && entry.IsDir()
+		}
+
+		if existsConf && existsData {
+			break
+		}
+	}
+
+	if existsConf {
+		existsConf = gulu.File.IsExist(filepath.Join(path, "conf", "conf.json"))
+	}
+
+	ret.Data = map[string]interface{}{
+		"isWorkspace": existsConf && existsData,
+	}
+}
+
 func createWorkspaceDir(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -52,16 +103,12 @@ func createWorkspaceDir(c *gin.Context) {
 		return
 	}
 
-	if gulu.File.IsExist(absPath) {
-		ret.Code = -1
-		ret.Msg = model.Conf.Language(78)
-		return
-	}
-
-	if err := os.MkdirAll(absPath, 0755); nil != err {
-		ret.Code = -1
-		ret.Msg = fmt.Sprintf("create workspace dir [%s] failed: %s", absPath, err)
-		return
+	if !gulu.File.IsExist(absPath) {
+		if err := os.MkdirAll(absPath, 0755); nil != err {
+			ret.Code = -1
+			ret.Msg = fmt.Sprintf("create workspace dir [%s] failed: %s", absPath, err)
+			return
+		}
 	}
 
 	workspacePaths, err := util.ReadWorkspacePaths()
@@ -91,8 +138,11 @@ func removeWorkspaceDir(c *gin.Context) {
 
 	path := arg["path"].(string)
 
-	if util.IsWorkspaceLocked(path) {
-		logging.LogWarnf("skip remove workspace [%s] because it is locked", path)
+	if util.IsWorkspaceLocked(path) || util.WorkspaceDir == path {
+		msg := "Cannot remove current workspace"
+		ret.Code = -1
+		ret.Msg = msg
+		ret.Data = map[string]interface{}{"closeTimeout": 3000}
 		return
 	}
 
@@ -110,15 +160,68 @@ func removeWorkspaceDir(c *gin.Context) {
 		ret.Msg = err.Error()
 		return
 	}
+}
 
-	if util.WorkspaceDir == path && (util.ContainerIOS == util.Container || util.ContainerAndroid == util.Container) {
-		os.Exit(util.ExitCodeOk)
+func removeWorkspaceDirPhysically(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	path := arg["path"].(string)
+	if gulu.File.IsDir(path) {
+		err := os.RemoveAll(path)
+		if nil != err {
+			ret.Code = -1
+			ret.Msg = err.Error()
+			return
+		}
+	}
+
+	logging.LogInfof("removed workspace [%s] physically", path)
+	if util.WorkspaceDir == path {
+		os.Exit(logging.ExitCodeOk)
 	}
 }
 
 type Workspace struct {
 	Path   string `json:"path"`
 	Closed bool   `json:"closed"`
+}
+
+func getMobileWorkspaces(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	if util.ContainerIOS != util.Container && util.ContainerAndroid != util.Container {
+		return
+	}
+
+	root := filepath.Dir(util.WorkspaceDir)
+	dirs, err := os.ReadDir(root)
+	if nil != err {
+		logging.LogErrorf("read dir [%s] failed: %s", root, err)
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	ret.Data = []string{}
+	var paths []string
+	for _, dir := range dirs {
+		if dir.IsDir() {
+			absPath := filepath.Join(root, dir.Name())
+			if isInvalidWorkspacePath(absPath) {
+				continue
+			}
+
+			paths = append(paths, absPath)
+		}
+	}
+	ret.Data = paths
 }
 
 func getWorkspaces(c *gin.Context) {
@@ -142,10 +245,10 @@ func getWorkspaces(c *gin.Context) {
 		}
 	}
 	sort.Slice(openedWorkspaces, func(i, j int) bool {
-		return natsort.Compare(util.RemoveEmoji(filepath.Base(openedWorkspaces[i].Path)), util.RemoveEmoji(filepath.Base(openedWorkspaces[j].Path)))
+		return natsort.Compare(util.RemoveEmojiInvisible(filepath.Base(openedWorkspaces[i].Path)), util.RemoveEmojiInvisible(filepath.Base(openedWorkspaces[j].Path)))
 	})
 	sort.Slice(closedWorkspaces, func(i, j int) bool {
-		return natsort.Compare(util.RemoveEmoji(filepath.Base(closedWorkspaces[i].Path)), util.RemoveEmoji(filepath.Base(closedWorkspaces[j].Path)))
+		return natsort.Compare(util.RemoveEmojiInvisible(filepath.Base(closedWorkspaces[i].Path)), util.RemoveEmojiInvisible(filepath.Base(closedWorkspaces[j].Path)))
 	})
 	workspaces = append(workspaces, openedWorkspaces...)
 	workspaces = append(workspaces, closedWorkspaces...)
@@ -169,9 +272,18 @@ func setWorkspaceDir(c *gin.Context) {
 		return
 	}
 
+	if util.IsCloudDrivePath(path) {
+		ret.Code = -1
+		ret.Msg = model.Conf.Language(196)
+		ret.Data = map[string]interface{}{"closeTimeout": 7000}
+		return
+	}
+
 	if gulu.OS.IsWindows() {
-		installDir := filepath.Dir(util.WorkingDir)
-		if strings.HasPrefix(path, installDir) {
+		// 改进判断工作空间路径实现 https://github.com/siyuan-note/siyuan/issues/7569
+		installDirLower := strings.ToLower(filepath.Dir(util.WorkingDir))
+		pathLower := strings.ToLower(path)
+		if strings.HasPrefix(pathLower, installDirLower) && util.IsSubPath(installDirLower, pathLower) {
 			ret.Code = -1
 			ret.Msg = model.Conf.Language(98)
 			ret.Data = map[string]interface{}{"closeTimeout": 5000}
@@ -218,8 +330,10 @@ func isInvalidWorkspacePath(absPath string) bool {
 	if !gulu.File.IsValidFilename(name) {
 		return true
 	}
-	if 16 < utf8.RuneCountInString(name) {
+	if 32 < utf8.RuneCountInString(name) {
+		// Adjust workspace name length limit to 32 runes https://github.com/siyuan-note/siyuan/issues/9440
 		return true
 	}
-	return "siyuan" == name || "conf" == name || "home" == name || "data" == name || "temp" == name
+	toLower := strings.ToLower(name)
+	return gulu.Str.Contains(toLower, []string{"conf", "home", "data", "temp"})
 }

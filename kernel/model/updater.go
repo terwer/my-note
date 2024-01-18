@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -45,12 +45,9 @@ func execNewVerInstallPkg(newVerInstallPkgPath string) {
 	} else if gulu.OS.IsDarwin() {
 		exec.Command("chmod", "+x", newVerInstallPkgPath).CombinedOutput()
 		cmd = exec.Command("open", newVerInstallPkgPath)
-	} else if gulu.OS.IsLinux() {
-		exec.Command("chmod", "+x", newVerInstallPkgPath).CombinedOutput()
-		cmd = exec.Command("sh", "-c", newVerInstallPkgPath)
 	}
 	gulu.CmdAttr(cmd)
-	cmdErr := cmd.Start()
+	cmdErr := cmd.Run()
 	if nil != cmdErr {
 		logging.LogErrorf("exec install new version failed: %s", cmdErr)
 		return
@@ -85,11 +82,9 @@ func checkDownloadInstallPkg() {
 		return
 	}
 
-	if util.IsMutexLocked(&checkDownloadInstallPkgLock) {
+	if !checkDownloadInstallPkgLock.TryLock() {
 		return
 	}
-
-	checkDownloadInstallPkgLock.Lock()
 	defer checkDownloadInstallPkgLock.Unlock()
 
 	downloadPkgURLs, checksum, err := getUpdatePkg()
@@ -133,15 +128,13 @@ func getUpdatePkg() (downloadPkgURLs []string, checksum string, err error) {
 		} else {
 			suffix = "mac.dmg"
 		}
-	} else if gulu.OS.IsLinux() {
-		suffix = "linux.AppImage"
 	}
 	pkg := "siyuan-" + ver + "-" + suffix
 
 	b3logURL := "https://release.b3log.org/siyuan/" + pkg
 	downloadPkgURLs = append(downloadPkgURLs, b3logURL)
 	githubURL := "https://github.com/siyuan-note/siyuan/releases/download/v" + ver + "/" + pkg
-	ghproxyURL := "https://ghproxy.com/" + githubURL
+	ghproxyURL := "https://mirror.ghproxy.com/" + githubURL
 	downloadPkgURLs = append(downloadPkgURLs, ghproxyURL)
 	downloadPkgURLs = append(downloadPkgURLs, githubURL)
 
@@ -216,9 +209,10 @@ func sha256Hash(filename string) (ret string, err error) {
 }
 
 type Announcement struct {
-	Id    string `json:"id"`
-	Title string `json:"title"`
-	URL   string `json:"url"`
+	Id     string `json:"id"`
+	Title  string `json:"title"`
+	URL    string `json:"url"`
+	Region int    `json:"region"`
 }
 
 func GetAnnouncements() (ret []*Announcement) {
@@ -236,9 +230,10 @@ func GetAnnouncements() (ret []*Announcement) {
 	for _, announcement := range announcements {
 		ann := announcement.(map[string]interface{})
 		ret = append(ret, &Announcement{
-			Id:    ann["id"].(string),
-			Title: ann["title"].(string),
-			URL:   ann["url"].(string),
+			Id:     ann["id"].(string),
+			Title:  ann["title"].(string),
+			URL:    ann["url"].(string),
+			Region: int(ann["region"].(float64)),
 		})
 	}
 	return
@@ -255,14 +250,18 @@ func CheckUpdate(showMsg bool) {
 	}
 
 	ver := result["ver"].(string)
-	release := result["release"].(string)
+	releaseLang := result["release"].(string)
+	if releaseLangArg := result["release_"+Conf.Lang]; nil != releaseLangArg {
+		releaseLang = releaseLangArg.(string)
+	}
+
 	var msg string
 	var timeout int
 	if isVersionUpToDate(ver) {
 		msg = Conf.Language(10)
 		timeout = 3000
 	} else {
-		msg = fmt.Sprintf(Conf.Language(9), "<a href=\""+release+"\">"+release+"</a>")
+		msg = fmt.Sprintf(Conf.Language(9), "<a href=\""+releaseLang+"\">"+releaseLang+"</a>")
 		showMsg = true
 		timeout = 15000
 	}
@@ -283,14 +282,21 @@ func isVersionUpToDate(releaseVer string) bool {
 }
 
 func skipNewVerInstallPkg() bool {
-	if !gulu.OS.IsWindows() && !gulu.OS.IsDarwin() && !gulu.OS.IsLinux() {
+	if !gulu.OS.IsWindows() && !gulu.OS.IsDarwin() {
 		return true
 	}
-	if util.ISMicrosoftStore {
+	if util.ISMicrosoftStore || util.ContainerStd != util.Container {
 		return true
 	}
 	if !Conf.System.DownloadInstallPkg {
 		return true
+	}
+	if gulu.OS.IsWindows() {
+		plat := strings.ToLower(Conf.System.OSPlatform)
+		// Windows 7, 8 and Server 2012 are no longer supported https://github.com/siyuan-note/siyuan/issues/7347
+		if strings.Contains(plat, " 7 ") || strings.Contains(plat, " 8 ") || strings.Contains(plat, "2012") {
+			return true
+		}
 	}
 	return false
 }

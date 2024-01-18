@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,17 +17,27 @@
 package util
 
 import (
+	"bytes"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/siyuan-note/logging"
 )
+
+func IsSymlinkPath(absPath string) bool {
+	fi, err := os.Lstat(absPath)
+	if nil != err {
+		return false
+	}
+	return 0 != fi.Mode()&os.ModeSymlink
+}
 
 func IsEmptyDir(p string) bool {
 	if !gulu.File.IsDir(p) {
@@ -41,11 +51,34 @@ func IsEmptyDir(p string) bool {
 	return 1 > len(files)
 }
 
+func IsSymlink(dir fs.DirEntry) bool {
+	return dir.Type() == fs.ModeSymlink
+}
+
+func IsDirRegularOrSymlink(dir fs.DirEntry) bool {
+	return dir.IsDir() || IsSymlink(dir)
+}
+
+func IsPathRegularDirOrSymlinkDir(path string) bool {
+	fio, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	if nil != err {
+		return false
+	}
+
+	return fio.IsDir()
+}
+
 func RemoveID(name string) string {
 	ext := path.Ext(name)
 	name = strings.TrimSuffix(name, ext)
 	if 23 < len(name) {
-		name = name[:len(name)-23]
+		if id := name[len(name)-22:]; ast.IsNodeIDPattern(id) {
+			name = name[:len(name)-23]
+		}
 	}
 	return name + ext
 }
@@ -54,11 +87,11 @@ func AssetName(name string) string {
 	_, id := LastID(name)
 	ext := path.Ext(name)
 	name = name[0 : len(name)-len(ext)]
-	if !IsIDPattern(id) {
+	if !ast.IsNodeIDPattern(id) {
 		id = ast.NewNodeID()
 		name = name + "-" + id + ext
 	} else {
-		if !IsIDPattern(name) {
+		if !ast.IsNodeIDPattern(name) {
 			name = name[:len(name)-len(id)-1] + "-" + id + ext
 		} else {
 			name = name + ext
@@ -75,44 +108,6 @@ func LastID(p string) (name, id string) {
 		id = id[len(id)-22:]
 	}
 	return
-}
-
-func LatestTmpFile(p string) string {
-	dir, base := filepath.Split(p)
-	files, err := os.ReadDir(dir)
-	if nil != err {
-		logging.LogErrorf("read dir [%s] failed: %s", dir, err)
-		return ""
-	}
-
-	var tmps []os.DirEntry
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		if strings.HasSuffix(f.Name(), ".tmp") && strings.HasPrefix(f.Name(), base) && len(base)+7+len(".tmp") == len(f.Name()) {
-			tmps = append(tmps, f)
-		}
-	}
-
-	if 1 > len(tmps) {
-		return ""
-	}
-
-	sort.Slice(tmps, func(i, j int) bool {
-		info1, err := tmps[i].Info()
-		if nil != err {
-			logging.LogErrorf("read file info [%s] failed: %s", tmps[i].Name(), err)
-			return false
-		}
-		info2, err := tmps[j].Info()
-		if nil != err {
-			logging.LogErrorf("read file info [%s] failed: %s", tmps[j].Name(), err)
-			return false
-		}
-		return info1.ModTime().After(info2.ModTime())
-	})
-	return filepath.Join(dir, tmps[0].Name())
 }
 
 func IsCorruptedSYData(data []byte) bool {
@@ -141,7 +136,29 @@ func FilterUploadFileName(name string) string {
 	ret = strings.ReplaceAll(ret, "#", "")
 	ret = strings.ReplaceAll(ret, "%", "")
 	ret = strings.ReplaceAll(ret, "$", "")
+	ret = TruncateLenFileName(ret)
 	return ret
+}
+
+func TruncateLenFileName(name string) (ret string) {
+	// 插入资源文件时文件名长度最大限制 189 字节 https://github.com/siyuan-note/siyuan/issues/7099
+	ext := filepath.Ext(name)
+	var byteCount int
+	truncated := false
+	buf := bytes.Buffer{}
+	for _, r := range name {
+		byteCount += utf8.RuneLen(r)
+		if 189-len(ext) < byteCount {
+			truncated = true
+			break
+		}
+		buf.WriteRune(r)
+	}
+	if truncated {
+		buf.WriteString(ext)
+	}
+	ret = buf.String()
+	return
 }
 
 func FilterFilePath(p string) (ret string) {
@@ -169,13 +186,17 @@ func FilterFileName(name string) string {
 	return name
 }
 
-func IsSubFolder(parent, sub string) bool {
-	if 1 > len(parent) || 1 > len(sub) {
+func IsSubPath(absPath, toCheckPath string) bool {
+	if 1 > len(absPath) || 1 > len(toCheckPath) {
 		return false
 	}
+	if absPath == toCheckPath { // 相同路径时不认为是子路径
+		return false
+	}
+
 	if gulu.OS.IsWindows() {
-		if filepath.IsAbs(parent) && filepath.IsAbs(sub) {
-			if strings.ToLower(parent)[0] != strings.ToLower(sub)[0] {
+		if filepath.IsAbs(absPath) && filepath.IsAbs(toCheckPath) {
+			if strings.ToLower(absPath)[0] != strings.ToLower(toCheckPath)[0] {
 				// 不在一个盘
 				return false
 			}
@@ -183,7 +204,7 @@ func IsSubFolder(parent, sub string) bool {
 	}
 
 	up := ".." + string(os.PathSeparator)
-	rel, err := filepath.Rel(parent, sub)
+	rel, err := filepath.Rel(absPath, toCheckPath)
 	if err != nil {
 		return false
 	}
@@ -215,6 +236,9 @@ func SizeOfDirectory(path string) (size int64, err error) {
 func DataSize() (dataSize, assetsSize int64) {
 	filepath.Walk(DataDir, func(path string, info os.FileInfo, err error) error {
 		if nil != err {
+			if os.IsNotExist(err) {
+				return nil
+			}
 			logging.LogErrorf("size of data failed: %s", err)
 			return io.EOF
 		}
@@ -248,4 +272,56 @@ func CeilSize(size int64) int64 {
 
 func IsReservedFilename(baseName string) bool {
 	return "assets" == baseName || "templates" == baseName || "widgets" == baseName || "emojis" == baseName || ".siyuan" == baseName || strings.HasPrefix(baseName, ".")
+}
+
+func WalkWithSymlinks(root string, fn filepath.WalkFunc) error {
+	// 感谢 https://github.com/edwardrf/symwalk/blob/main/symwalk.go
+
+	rr, err := filepath.EvalSymlinks(root) // Find real base if there is any symlinks in the path
+	if err != nil {
+		return err
+	}
+
+	visitedDirs := make(map[string]struct{})
+	return filepath.Walk(rr, getWalkFn(visitedDirs, fn))
+}
+
+func getWalkFn(visitedDirs map[string]struct{}, fn filepath.WalkFunc) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fn(path, info, err)
+		}
+
+		if info.IsDir() {
+			if _, ok := visitedDirs[path]; ok {
+				return filepath.SkipDir
+			}
+			visitedDirs[path] = struct{}{}
+		}
+
+		if err := fn(path, info, err); err != nil {
+			return err
+		}
+
+		if info.Mode()&os.ModeSymlink == 0 {
+			return nil
+		}
+
+		// path is a symlink
+		rp, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return err
+		}
+
+		ri, err := os.Stat(rp)
+		if err != nil {
+			return err
+		}
+
+		if ri.IsDir() {
+			return filepath.Walk(rp, getWalkFn(visitedDirs, fn))
+		}
+
+		return nil
+	}
 }

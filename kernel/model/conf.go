@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -30,15 +30,20 @@ import (
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute"
+	"github.com/88250/lute/ast"
 	"github.com/Xuanwo/go-locale"
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 	"github.com/getsentry/sentry-go"
+	"github.com/sashabaranov/go-openai"
+	"github.com/siyuan-note/eventbus"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/conf"
 	"github.com/siyuan-note/siyuan/kernel/sql"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
+	"golang.org/x/mod/semver"
 	"golang.org/x/text/language"
 )
 
@@ -55,9 +60,9 @@ type AppConf struct {
 	Editor         *conf.Editor     `json:"editor"`         // 编辑器配置
 	Export         *conf.Export     `json:"export"`         // 导出配置
 	Graph          *conf.Graph      `json:"graph"`          // 关系图配置
-	UILayout       *conf.UILayout   `json:"uiLayout"`       // 界面布局
+	UILayout       *conf.UILayout   `json:"uiLayout"`       // 界面布局。不要直接使用，使用 GetUILayout() 和 SetUILayout() 方法
 	UserData       string           `json:"userData"`       // 社区用户信息，对 User 加密存储
-	User           *conf.User       `json:"-"`              // 社区用户内存结构，不持久化
+	User           *conf.User       `json:"-"`              // 社区用户内存结构，不持久化。不要直接使用，使用 GetUser() 和 SetUser() 方法
 	Account        *conf.Account    `json:"account"`        // 帐号配置
 	ReadOnly       bool             `json:"readonly"`       // 是否是以只读模式运行
 	LocalIPs       []string         `json:"localIPs"`       // 本地 IP 列表
@@ -66,10 +71,42 @@ type AppConf struct {
 	Keymap         *conf.Keymap     `json:"keymap"`         // 快捷键配置
 	Sync           *conf.Sync       `json:"sync"`           // 同步配置
 	Search         *conf.Search     `json:"search"`         // 搜索配置
+	Flashcard      *conf.Flashcard  `json:"flashcard"`      // 闪卡配置
+	AI             *conf.AI         `json:"ai"`             // 人工智能配置
+	Bazaar         *conf.Bazaar     `json:"bazaar"`         // 集市配置
 	Stat           *conf.Stat       `json:"stat"`           // 统计
 	Api            *conf.API        `json:"api"`            // API
 	Repo           *conf.Repo       `json:"repo"`           // 数据仓库
-	Newbie         bool             `json:"newbie"`         // 是否是安装后第一次启动
+	OpenHelp       bool             `json:"openHelp"`       // 启动后是否需要打开用户指南
+	ShowChangelog  bool             `json:"showChangelog"`  // 是否显示版本更新日志
+	CloudRegion    int              `json:"cloudRegion"`    // 云端区域，0：中国大陆，1：北美
+	Snippet        *conf.Snpt       `json:"snippet"`        // 代码片段
+
+	m *sync.Mutex
+}
+
+func (conf *AppConf) GetUILayout() *conf.UILayout {
+	conf.m.Lock()
+	defer conf.m.Unlock()
+	return conf.UILayout
+}
+
+func (conf *AppConf) SetUILayout(uiLayout *conf.UILayout) {
+	conf.m.Lock()
+	defer conf.m.Unlock()
+	conf.UILayout = uiLayout
+}
+
+func (conf *AppConf) GetUser() *conf.User {
+	conf.m.Lock()
+	defer conf.m.Unlock()
+	return conf.User
+}
+
+func (conf *AppConf) SetUser(user *conf.User) {
+	conf.m.Lock()
+	defer conf.m.Unlock()
+	conf.User = user
 }
 
 func InitConf() {
@@ -82,7 +119,7 @@ func InitConf() {
 		}
 	}
 
-	Conf = &AppConf{LogLevel: "debug"}
+	Conf = &AppConf{LogLevel: "debug", m: &sync.Mutex{}}
 	confPath := filepath.Join(util.ConfDir, "conf.json")
 	if gulu.File.IsExist(confPath) {
 		data, err := os.ReadFile(confPath)
@@ -104,7 +141,7 @@ func InitConf() {
 
 			if userLang, err := locale.Detect(); nil == err {
 				var supportLangs []language.Tag
-				for lang := range langs {
+				for lang := range util.Langs {
 					if tag, err := language.Parse(lang); nil == err {
 						supportLangs = append(supportLangs, tag)
 					} else {
@@ -124,6 +161,7 @@ func InitConf() {
 				Conf.Lang = util.Lang
 			}
 		}
+		util.Lang = Conf.Lang
 	}
 
 	Conf.Langs = loadLangs()
@@ -139,6 +177,7 @@ func InitConf() {
 	}
 	if !langOK {
 		Conf.Lang = "en_US"
+		util.Lang = Conf.Lang
 	}
 	Conf.Appearance.Lang = Conf.Lang
 	if nil == Conf.UILayout {
@@ -165,14 +204,29 @@ func InitConf() {
 	if 32 < Conf.FileTree.MaxOpenTabCount {
 		Conf.FileTree.MaxOpenTabCount = 32
 	}
+	Conf.FileTree.DocCreateSavePath = strings.TrimSpace(Conf.FileTree.DocCreateSavePath)
+	if "../" == Conf.FileTree.DocCreateSavePath {
+		Conf.FileTree.DocCreateSavePath = "../Untitled"
+	}
+	util.UseSingleLineSave = Conf.FileTree.UseSingleLineSave
+
+	util.CurrentCloudRegion = Conf.CloudRegion
+
 	if nil == Conf.Tag {
 		Conf.Tag = conf.NewTag()
 	}
+
 	if nil == Conf.Editor {
 		Conf.Editor = conf.NewEditor()
 	}
 	if 1 > len(Conf.Editor.Emoji) {
 		Conf.Editor.Emoji = []string{}
+	}
+	if 9 > Conf.Editor.FontSize || 72 < Conf.Editor.FontSize {
+		Conf.Editor.FontSize = 16
+	}
+	if "" == Conf.Editor.PlantUMLServePath {
+		Conf.Editor.PlantUMLServePath = "https://www.plantuml.com/plantuml/svg/~1"
 	}
 	if 1 > Conf.Editor.BlockRefDynamicAnchorTextMaxLen {
 		Conf.Editor.BlockRefDynamicAnchorTextMaxLen = 64
@@ -180,6 +234,25 @@ func InitConf() {
 	if 5120 < Conf.Editor.BlockRefDynamicAnchorTextMaxLen {
 		Conf.Editor.BlockRefDynamicAnchorTextMaxLen = 5120
 	}
+	if 1440 < Conf.Editor.GenerateHistoryInterval {
+		Conf.Editor.GenerateHistoryInterval = 1440
+	}
+	if 1 > Conf.Editor.HistoryRetentionDays {
+		Conf.Editor.HistoryRetentionDays = 30
+	}
+	if 48 > Conf.Editor.DynamicLoadBlocks {
+		Conf.Editor.DynamicLoadBlocks = 48
+	}
+	if 1024 < Conf.Editor.DynamicLoadBlocks {
+		Conf.Editor.DynamicLoadBlocks = 1024
+	}
+	if 0 > Conf.Editor.BacklinkExpandCount {
+		Conf.Editor.BacklinkExpandCount = 0
+	}
+	if 0 > Conf.Editor.BackmentionExpandCount {
+		Conf.Editor.BackmentionExpandCount = 0
+	}
+
 	if nil == Conf.Export {
 		Conf.Export = conf.NewExport()
 	}
@@ -190,21 +263,25 @@ func InitConf() {
 	if "" == Conf.Export.PandocBin {
 		Conf.Export.PandocBin = util.PandocBinPath
 	}
-	if 9 > Conf.Editor.FontSize || 72 < Conf.Editor.FontSize {
-		Conf.Editor.FontSize = 16
-	}
-	if "" == Conf.Editor.PlantUMLServePath {
-		Conf.Editor.PlantUMLServePath = "https://www.plantuml.com/plantuml/svg/~1"
-	}
 
 	if nil == Conf.Graph || nil == Conf.Graph.Local || nil == Conf.Graph.Global {
 		Conf.Graph = conf.NewGraph()
 	}
+
 	if nil == Conf.System {
 		Conf.System = conf.NewSystem()
+		Conf.OpenHelp = true
 	} else {
+		if 0 < semver.Compare("v"+util.Ver, "v"+Conf.System.KernelVersion) {
+			logging.LogInfof("upgraded from version [%s] to [%s]", Conf.System.KernelVersion, util.Ver)
+			Conf.ShowChangelog = true
+		} else if 0 > semver.Compare("v"+util.Ver, "v"+Conf.System.KernelVersion) {
+			logging.LogInfof("downgraded from version [%s] to [%s]", Conf.System.KernelVersion, util.Ver)
+		}
+
 		Conf.System.KernelVersion = util.Ver
 		Conf.System.IsInsider = util.IsInsider
+		task.AppendTask(task.UpgradeUserGuide, upgradeUserGuide)
 	}
 	if nil == Conf.System.NetworkProxy {
 		Conf.System.NetworkProxy = &conf.NetworkProxy{}
@@ -212,8 +289,16 @@ func InitConf() {
 	if "" == Conf.System.ID {
 		Conf.System.ID = util.GetDeviceID()
 	}
-	if "std" == util.Container {
+	if "" == Conf.System.Name {
+		Conf.System.Name = util.GetDeviceName()
+	}
+	if util.ContainerStd == util.Container {
 		Conf.System.ID = util.GetDeviceID()
+		Conf.System.Name = util.GetDeviceName()
+	}
+
+	if nil == Conf.Snippet {
+		Conf.Snippet = conf.NewSnpt()
 	}
 
 	Conf.System.AppDir = util.WorkingDir
@@ -227,10 +312,10 @@ func InitConf() {
 		logging.LogInfof("using Microsoft Store edition")
 	}
 	Conf.System.OS = runtime.GOOS
-	Conf.Newbie = util.IsNewbie
+	Conf.System.OSPlatform = util.GetOSPlatform()
 
 	if "" != Conf.UserData {
-		Conf.User = loadUserFromConf()
+		Conf.SetUser(loadUserFromConf())
 	}
 	if nil == Conf.Account {
 		Conf.Account = conf.NewAccount()
@@ -252,29 +337,29 @@ func InitConf() {
 	}
 	Conf.Sync.WebDAV.Endpoint = util.NormalizeEndpoint(Conf.Sync.WebDAV.Endpoint)
 	Conf.Sync.WebDAV.Timeout = util.NormalizeTimeout(Conf.Sync.WebDAV.Timeout)
+	if util.ContainerDocker == util.Container {
+		Conf.Sync.Perception = false
+	}
 
 	if nil == Conf.Api {
 		Conf.Api = conf.NewAPI()
 	}
 
+	if nil == Conf.Bazaar {
+		Conf.Bazaar = conf.NewBazaar()
+	}
+
 	if nil == Conf.Repo {
 		Conf.Repo = conf.NewRepo()
 	}
-
-	if 1440 < Conf.Editor.GenerateHistoryInterval {
-		Conf.Editor.GenerateHistoryInterval = 1440
+	if timingEnv := os.Getenv("SIYUAN_SYNC_INDEX_TIMING"); "" != timingEnv {
+		val, err := strconv.Atoi(timingEnv)
+		if nil == err {
+			Conf.Repo.SyncIndexTiming = int64(val)
+		}
 	}
-	if 1 > Conf.Editor.HistoryRetentionDays {
-		Conf.Editor.HistoryRetentionDays = 7
-	}
-	if 48 > Conf.Editor.DynamicLoadBlocks {
-		Conf.Editor.DynamicLoadBlocks = 48
-	}
-	if 1024 < Conf.Editor.DynamicLoadBlocks {
-		Conf.Editor.DynamicLoadBlocks = 1024
-	}
-	if 0 > Conf.Editor.BacklinkExpandCount {
-		Conf.Editor.BacklinkExpandCount = 0
+	if 12000 > Conf.Repo.SyncIndexTiming {
+		Conf.Repo.SyncIndexTiming = 12 * 1000
 	}
 
 	if nil == Conf.Search {
@@ -283,18 +368,55 @@ func InitConf() {
 	if 1 > Conf.Search.Limit {
 		Conf.Search.Limit = 64
 	}
+	if 32 > Conf.Search.Limit {
+		Conf.Search.Limit = 32
+	}
 	if 1 > Conf.Search.BacklinkMentionKeywordsLimit {
 		Conf.Search.BacklinkMentionKeywordsLimit = 512
-	}
-	if 1 > Conf.Search.VirtualRefKeywordsLimit {
-		Conf.Search.VirtualRefKeywordsLimit = 512
 	}
 
 	if nil == Conf.Stat {
 		Conf.Stat = conf.NewStat()
 	}
 
+	if nil == Conf.Flashcard {
+		Conf.Flashcard = conf.NewFlashcard()
+	}
+	if 0 > Conf.Flashcard.NewCardLimit {
+		Conf.Flashcard.NewCardLimit = 20
+	}
+	if 0 > Conf.Flashcard.ReviewCardLimit {
+		Conf.Flashcard.ReviewCardLimit = 200
+	}
+	if 0 >= Conf.Flashcard.RequestRetention || 1 <= Conf.Flashcard.RequestRetention {
+		Conf.Flashcard.RequestRetention = conf.NewFlashcard().RequestRetention
+	}
+	if 0 >= Conf.Flashcard.MaximumInterval || 36500 <= Conf.Flashcard.MaximumInterval {
+		Conf.Flashcard.MaximumInterval = conf.NewFlashcard().MaximumInterval
+	}
+	if "" == Conf.Flashcard.Weights || 17 != len(strings.Split(Conf.Flashcard.Weights, ",")) {
+		Conf.Flashcard.Weights = conf.NewFlashcard().Weights
+	}
+
+	if nil == Conf.AI {
+		Conf.AI = conf.NewAI()
+	}
+	if "" == Conf.AI.OpenAI.APIModel {
+		Conf.AI.OpenAI.APIModel = openai.GPT3Dot5Turbo
+	}
+
+	if "" != Conf.AI.OpenAI.APIKey {
+		logging.LogInfof("OpenAI API enabled\n"+
+			"    baseURL=%s\n"+
+			"    timeout=%ds\n"+
+			"    proxy=%s\n"+
+			"    model=%s\n"+
+			"    maxTokens=%d",
+			Conf.AI.OpenAI.APIBaseURL, Conf.AI.OpenAI.APITimeout, Conf.AI.OpenAI.APIProxy, Conf.AI.OpenAI.APIModel, Conf.AI.OpenAI.APIMaxTokens)
+	}
+
 	Conf.ReadOnly = util.ReadOnly
+
 	if "" != util.AccessAuthCode {
 		Conf.AccessAuthCode = util.AccessAuthCode
 	}
@@ -318,22 +440,26 @@ func InitConf() {
 	}
 
 	util.SetNetworkProxy(Conf.System.NetworkProxy.String())
-}
 
-var langs = map[string]map[int]string{}
-var timeLangs = map[string]map[string]interface{}{}
+	go util.InitPandoc()
+	go util.InitTesseract()
+}
 
 func initLang() {
 	p := filepath.Join(util.WorkingDir, "appearance", "langs")
 	dir, err := os.Open(p)
 	if nil != err {
-		logging.LogFatalf("open language configuration folder [%s] failed: %s", p, err)
+		logging.LogErrorf("open language configuration folder [%s] failed: %s", p, err)
+		util.ReportFileSysFatalError(err)
+		return
 	}
 	defer dir.Close()
 
 	langNames, err := dir.Readdirnames(-1)
 	if nil != err {
-		logging.LogFatalf("list language configuration folder [%s] failed: %s", p, err)
+		logging.LogErrorf("list language configuration folder [%s] failed: %s", p, err)
+		util.ReportFileSysFatalError(err)
+		return
 	}
 
 	for _, langName := range langNames {
@@ -353,23 +479,26 @@ func initLang() {
 		label := langMap["_label"].(string)
 		kernelLangs := langMap["_kernel"].(map[string]interface{})
 		for k, v := range kernelLangs {
-			num, err := strconv.Atoi(k)
-			if nil != err {
-				logging.LogErrorf("parse language configuration [%s] item [%d] failed [%s] failed: %s", p, num, err)
+			num, convErr := strconv.Atoi(k)
+			if nil != convErr {
+				logging.LogErrorf("parse language configuration [%s] item [%d] failed: %s", p, num, convErr)
 				continue
 			}
 			kernelMap[num] = v.(string)
 		}
 		kernelMap[-1] = label
 		name := langName[:strings.LastIndex(langName, ".")]
-		langs[name] = kernelMap
+		util.Langs[name] = kernelMap
 
-		timeLangs[name] = langMap["_time"].(map[string]interface{})
+		util.TimeLangs[name] = langMap["_time"].(map[string]interface{})
+		util.TaskActionLangs[name] = langMap["_taskAction"].(map[string]interface{})
+		util.TrayMenuLangs[name] = langMap["_trayMenu"].(map[string]interface{})
+		util.AttrViewLangs[name] = langMap["_attrView"].(map[string]interface{})
 	}
 }
 
 func loadLangs() (ret []*conf.Lang) {
-	for name, langMap := range langs {
+	for name, langMap := range util.Langs {
 		lang := &conf.Lang{Label: langMap[-1], Name: name}
 		ret = append(ret, lang)
 	}
@@ -391,24 +520,22 @@ var exitLock = sync.Mutex{}
 func Close(force bool, execInstallPkg int) (exitCode int) {
 	exitLock.Lock()
 	defer exitLock.Unlock()
+	util.IsExiting.Store(true)
 
 	logging.LogInfof("exiting kernel [force=%v, execInstallPkg=%d]", force, execInstallPkg)
 	util.PushMsg(Conf.Language(95), 10000*60)
 	WaitForWritingFiles()
 
 	if !force {
-		SyncData(false, true, false)
-		if 0 != ExitSyncSucc {
-			exitCode = 1
-			return
+		if Conf.Sync.Enabled && 3 != Conf.Sync.Mode &&
+			((IsSubscriber() && conf.ProviderSiYuan == Conf.Sync.Provider) || conf.ProviderSiYuan != Conf.Sync.Provider) {
+			syncData(true, false)
+			if 0 != ExitSyncSucc {
+				exitCode = 1
+				return
+			}
 		}
 	}
-
-	//util.UIProcessIDs.Range(func(key, _ interface{}) bool {
-	//	pid := key.(string)
-	//	util.Kill(pid)
-	//	return true
-	//})
 
 	waitSecondForExecInstallPkg := false
 	if !skipNewVerInstallPkg() {
@@ -420,6 +547,9 @@ func Close(force bool, execInstallPkg int) (exitCode int) {
 				return
 			} else if 2 == execInstallPkg { // 执行新版本安装
 				waitSecondForExecInstallPkg = true
+				if gulu.OS.IsWindows() {
+					util.PushMsg(Conf.Language(130), 1000*30)
+				}
 				go execNewVerInstallPkg(newVerInstallPkgPath)
 			}
 		}
@@ -430,20 +560,24 @@ func Close(force bool, execInstallPkg int) (exitCode int) {
 	treenode.SaveBlockTree(false)
 	SaveAssetsTexts()
 	clearWorkspaceTemp()
+	clearCorruptedNotebooks()
 	clearPortJSON()
 	util.UnlockWorkspace()
 
+	time.Sleep(500 * time.Millisecond)
+	if waitSecondForExecInstallPkg {
+		// 桌面端退出拉起更新安装时有时需要重启两次 https://github.com/siyuan-note/siyuan/issues/6544
+		// 这里多等待一段时间，等待安装程序启动
+		if gulu.OS.IsWindows() {
+			time.Sleep(30 * time.Second)
+		}
+	}
+	closeSyncWebSocket()
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		if waitSecondForExecInstallPkg {
-			util.PushMsg(Conf.Language(130), 1000*5)
-			// 桌面端退出拉起更新安装时有时需要重启两次 https://github.com/siyuan-note/siyuan/issues/6544
-			// 这里多等待一段时间，等待安装程序启动
-			time.Sleep(4 * time.Second)
-		}
 		logging.LogInfof("exited kernel")
 		util.WebSocketServer.Close()
-		os.Exit(util.ExitCodeOk)
+		os.Exit(logging.ExitCodeOk)
 	}()
 	return
 }
@@ -466,11 +600,13 @@ func NewLute() (ret *lute.Lute) {
 	return
 }
 
-var confSaveLock = sync.Mutex{}
-
 func (conf *AppConf) Save() {
-	confSaveLock.Lock()
-	confSaveLock.Unlock()
+	if util.ReadOnly {
+		return
+	}
+
+	Conf.m.Lock()
+	defer Conf.m.Unlock()
 
 	newData, _ := gulu.JSON.MarshalIndentJSON(Conf, "", "  ")
 	confPath := filepath.Join(util.ConfDir, "conf.json")
@@ -490,7 +626,9 @@ func (conf *AppConf) Save() {
 func (conf *AppConf) save0(data []byte) {
 	confPath := filepath.Join(util.ConfDir, "conf.json")
 	if err := filelock.WriteFile(confPath, data); nil != err {
-		logging.LogFatalf("write conf [%s] failed: %s", confPath, err)
+		logging.LogErrorf("write conf [%s] failed: %s", confPath, err)
+		util.ReportFileSysFatalError(err)
+		return
 	}
 }
 
@@ -500,6 +638,15 @@ func (conf *AppConf) Close() {
 
 func (conf *AppConf) Box(boxID string) *Box {
 	for _, box := range conf.GetOpenedBoxes() {
+		if box.ID == boxID {
+			return box
+		}
+	}
+	return nil
+}
+
+func (conf *AppConf) GetBox(boxID string) *Box {
+	for _, box := range conf.GetBoxes() {
 		if box.ID == boxID {
 			return box
 		}
@@ -570,11 +717,18 @@ func (conf *AppConf) GetClosedBoxes() (ret []*Box) {
 }
 
 func (conf *AppConf) Language(num int) (ret string) {
-	ret = langs[conf.Lang][num]
+	ret = conf.language(num)
+	subscribeURL := util.GetCloudAccountServer() + "/subscribe/siyuan"
+	ret = strings.ReplaceAll(ret, "${url}", subscribeURL)
+	return
+}
+
+func (conf *AppConf) language(num int) (ret string) {
+	ret = util.Langs[conf.Lang][num]
 	if "" != ret {
 		return
 	}
-	ret = langs["en_US"][num]
+	ret = util.Langs["en_US"][num]
 	return
 }
 
@@ -601,7 +755,7 @@ func InitBoxes() {
 		box.UpdateHistoryGenerated() // 初始化历史生成时间为当前时间
 
 		if !initialized {
-			box.Index(true)
+			index(box.ID)
 		}
 	}
 
@@ -617,7 +771,22 @@ func InitBoxes() {
 }
 
 func IsSubscriber() bool {
-	return nil != Conf.User && (-1 == Conf.User.UserSiYuanProExpireTime || 0 < Conf.User.UserSiYuanProExpireTime) && 0 == Conf.User.UserSiYuanSubscriptionStatus
+	u := Conf.GetUser()
+	return nil != u && (-1 == u.UserSiYuanProExpireTime || 0 < u.UserSiYuanProExpireTime) && 0 == u.UserSiYuanSubscriptionStatus
+}
+
+func IsPaidUser() bool {
+	// S3/WebDAV data sync and backup are available for a fee https://github.com/siyuan-note/siyuan/issues/8780
+
+	if IsSubscriber() {
+		return true
+	}
+
+	u := Conf.GetUser()
+	if nil == u {
+		return false
+	}
+	return 1 == u.UserSiYuanOneTimePayStatus
 }
 
 const (
@@ -673,12 +842,44 @@ func clearPortJSON() {
 	}
 }
 
+func clearCorruptedNotebooks() {
+	// 数据同步时展开文档树操作可能导致数据丢失 https://github.com/siyuan-note/siyuan/issues/7129
+
+	dirs, err := os.ReadDir(util.DataDir)
+	if nil != err {
+		logging.LogErrorf("read dir [%s] failed: %s", util.DataDir, err)
+		return
+	}
+	for _, dir := range dirs {
+		if util.IsReservedFilename(dir.Name()) {
+			continue
+		}
+
+		if !dir.IsDir() {
+			continue
+		}
+
+		if !ast.IsNodeIDPattern(dir.Name()) {
+			continue
+		}
+
+		boxDirPath := filepath.Join(util.DataDir, dir.Name())
+		boxConfPath := filepath.Join(boxDirPath, ".siyuan", "conf.json")
+		if !filelock.IsExist(boxConfPath) {
+			logging.LogWarnf("found a corrupted box [%s]", boxDirPath)
+			continue
+		}
+	}
+}
+
 func clearWorkspaceTemp() {
 	os.RemoveAll(filepath.Join(util.TempDir, "bazaar"))
 	os.RemoveAll(filepath.Join(util.TempDir, "export"))
+	os.RemoveAll(filepath.Join(util.TempDir, "convert"))
 	os.RemoveAll(filepath.Join(util.TempDir, "import"))
 	os.RemoveAll(filepath.Join(util.TempDir, "repo"))
 	os.RemoveAll(filepath.Join(util.TempDir, "os"))
+	os.RemoveAll(filepath.Join(util.TempDir, "blocktree.msgpack")) // v2.7.2 前旧版的块数数据
 
 	// 退出时自动删除超过 7 天的安装包 https://github.com/siyuan-note/siyuan/issues/6128
 	install := filepath.Join(util.TempDir, "install")
@@ -725,8 +926,79 @@ func clearWorkspaceTemp() {
 
 	// 老版本遗留文件清理
 	os.RemoveAll(filepath.Join(util.DataDir, "assets", ".siyuan", "assets.json"))
+	os.RemoveAll(filepath.Join(util.DataDir, ".siyuan", "history"))
 	os.RemoveAll(filepath.Join(util.WorkspaceDir, "backup"))
 	os.RemoveAll(filepath.Join(util.WorkspaceDir, "sync"))
 
 	logging.LogInfof("cleared workspace temp")
+}
+
+func upgradeUserGuide() {
+	defer logging.Recover()
+
+	dirs, err := os.ReadDir(util.DataDir)
+	if nil != err {
+		logging.LogErrorf("read dir [%s] failed: %s", util.DataDir, err)
+		return
+	}
+
+	for _, dir := range dirs {
+		if !IsUserGuide(dir.Name()) {
+			continue
+		}
+
+		boxID := dir.Name()
+		boxDirPath := filepath.Join(util.DataDir, boxID)
+		boxConf := conf.NewBoxConf()
+		boxConfPath := filepath.Join(boxDirPath, ".siyuan", "conf.json")
+		if !filelock.IsExist(boxConfPath) {
+			logging.LogWarnf("found a corrupted user guide box [%s]", boxDirPath)
+			if removeErr := filelock.Remove(boxDirPath); nil != removeErr {
+				logging.LogErrorf("remove corrupted user guide box [%s] failed: %s", boxDirPath, removeErr)
+			} else {
+				logging.LogInfof("removed corrupted user guide box [%s]", boxDirPath)
+			}
+			continue
+		}
+
+		data, readErr := filelock.ReadFile(boxConfPath)
+		if nil != readErr {
+			logging.LogErrorf("read box conf [%s] failed: %s", boxConfPath, readErr)
+			continue
+		}
+		if readErr = gulu.JSON.UnmarshalJSON(data, boxConf); nil != readErr {
+			logging.LogErrorf("parse box conf [%s] failed: %s", boxConfPath, readErr)
+			continue
+		}
+
+		if boxConf.Closed {
+			continue
+		}
+
+		logging.LogInfof("upgrading user guide box [%s]", boxID)
+		unindex(boxID)
+
+		if err = filelock.Remove(boxDirPath); nil != err {
+			return
+		}
+		p := filepath.Join(util.WorkingDir, "guide", boxID)
+		if err = filelock.Copy(p, boxDirPath); nil != err {
+			return
+		}
+
+		index(boxID)
+		logging.LogInfof("upgraded user guide box [%s]", boxID)
+	}
+}
+
+func init() {
+	subscribeConfEvents()
+}
+
+func subscribeConfEvents() {
+	eventbus.Subscribe(util.EvtConfPandocInitialized, func() {
+		logging.LogInfof("pandoc initialized, set pandoc bin to [%s]", util.PandocBinPath)
+		Conf.Export.PandocBin = util.PandocBinPath
+		Conf.Save()
+	})
 }

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -120,9 +120,12 @@ func ClosePushChan(id string) {
 	})
 }
 
+func ReloadUIResetScroll() {
+	BroadcastByType("main", "reloadui", 0, "", map[string]interface{}{"resetScroll": true})
+}
+
 func ReloadUI() {
-	evt := NewCmdResult("reloadui", 0, PushModeBroadcast)
-	PushEvent(evt)
+	BroadcastByType("main", "reloadui", 0, "", nil)
 }
 
 func PushTxErr(msg string, code int, data interface{}) {
@@ -151,6 +154,10 @@ func PushStatusBar(msg string) {
 	BroadcastByType("main", "statusbar", 0, msg, nil)
 }
 
+func PushBackgroundTask(data map[string]interface{}) {
+	BroadcastByType("main", "backgroundtask", 0, "", data)
+}
+
 type BlockStatResult struct {
 	RuneCount  int `json:"runeCount"`
 	WordCount  int `json:"wordCount"`
@@ -161,6 +168,8 @@ type BlockStatResult struct {
 
 func ContextPushMsg(context map[string]interface{}, msg string) {
 	switch context[eventbus.CtxPushMsg].(int) {
+	case eventbus.CtxPushMsgToNone:
+		break
 	case eventbus.CtxPushMsgToProgress:
 		PushEndlessProgress(msg)
 	case eventbus.CtxPushMsgToStatusBar:
@@ -205,6 +214,14 @@ func PushClearMsg(msgId string) {
 // PushClearProgress 取消进度遮罩。
 func PushClearProgress() {
 	BroadcastByType("main", "cprogress", 0, "", nil)
+}
+
+func PushProtyleReload(rootID string) {
+	BroadcastByType("protyle", "reload", 0, "", rootID)
+}
+
+func PushProtyleLoading(rootID, msg string) {
+	BroadcastByType("protyle", "addLoading", 0, msg, rootID)
 }
 
 func PushDownloadProgress(id string, percent float32) {

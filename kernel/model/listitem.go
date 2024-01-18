@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -27,8 +27,6 @@ import (
 )
 
 func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID, newTargetPath string, err error) {
-	WaitForWritingFiles()
-
 	srcTree, _ := loadTreeByBlockID(srcListItemID)
 	if nil == srcTree {
 		err = ErrBlockNotFound
@@ -72,11 +70,11 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID
 		children = append(children, c)
 	}
 	if 1 > len(children) {
-		newNode := parse.NewParagraph()
+		newNode := treenode.NewParagraph()
 		children = append(children, newNode)
 	}
 
-	luteEngine := NewLute()
+	luteEngine := util.NewLute()
 	newTree := &parse.Tree{Root: &ast.Node{Type: ast.NodeDocument, ID: srcListItemID}, Context: &parse.Context{ParseOption: luteEngine.ParseOptions}}
 	for _, c := range children {
 		newTree.Root.AppendChild(c)
@@ -96,8 +94,9 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID
 	}
 	srcTree.Root.SetIALAttr("updated", util.CurrentTimeSecondsStr())
 	if nil == srcTree.Root.FirstChild {
-		srcTree.Root.AppendChild(parse.NewParagraph())
+		srcTree.Root.AppendChild(treenode.NewParagraph())
 	}
+	treenode.RemoveBlockTreesByRootID(srcTree.ID)
 	if err = indexWriteJSONQueue(srcTree); nil != err {
 		return "", "", err
 	}
@@ -105,6 +104,7 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID
 	newTree.Box, newTree.Path = targetBoxID, newTargetPath
 	newTree.Root.SetIALAttr("updated", util.CurrentTimeSecondsStr())
 	newTree.Root.Spec = "1"
+	box.addMinSort(path.Dir(newTargetPath), newTree.ID)
 	if err = indexWriteJSONQueue(newTree); nil != err {
 		return "", "", err
 	}

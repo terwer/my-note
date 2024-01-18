@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -27,6 +27,67 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func resetRiffCards(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	typ := arg["type"].(string)      // notebook, tree, deck
+	id := arg["id"].(string)         // notebook ID, root ID, deck ID
+	deckID := arg["deckID"].(string) // deck ID
+	blockIDsArg := arg["blockIDs"]   // 如果不传入 blockIDs （或者传入实参为空数组），则重置所有卡片
+	var blockIDs []string
+	if nil != blockIDsArg {
+		for _, blockID := range blockIDsArg.([]interface{}) {
+			blockIDs = append(blockIDs, blockID.(string))
+		}
+	}
+
+	model.ResetFlashcards(typ, id, deckID, blockIDs)
+}
+
+func getNotebookRiffCards(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	notebookID := arg["id"].(string)
+	page := int(arg["page"].(float64))
+	blockIDs, total, pageCount := model.GetNotebookFlashcards(notebookID, page)
+	ret.Data = map[string]interface{}{
+		"blocks":    blockIDs,
+		"total":     total,
+		"pageCount": pageCount,
+	}
+}
+
+func getTreeRiffCards(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	rootID := arg["id"].(string)
+	page := int(arg["page"].(float64))
+	blockIDs, total, pageCount := model.GetTreeFlashcards(rootID, page)
+	ret.Data = map[string]interface{}{
+		"blocks":    blockIDs,
+		"total":     total,
+		"pageCount": pageCount,
+	}
+}
+
 func getRiffCards(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -36,11 +97,11 @@ func getRiffCards(c *gin.Context) {
 		return
 	}
 
-	deckID := arg["deckID"].(string)
+	deckID := arg["id"].(string)
 	page := int(arg["page"].(float64))
-	blockIDs, total, pageCount := model.GetFlashcards(deckID, page)
+	blocks, total, pageCount := model.GetDeckFlashcards(deckID, page)
 	ret.Data = map[string]interface{}{
-		"blocks":    blockIDs,
+		"blocks":    blocks,
 		"total":     total,
 		"pageCount": pageCount,
 	}
@@ -56,13 +117,85 @@ func reviewRiffCard(c *gin.Context) {
 	}
 
 	deckID := arg["deckID"].(string)
-	blockID := arg["blockID"].(string)
+	cardID := arg["cardID"].(string)
 	rating := int(arg["rating"].(float64))
-	err := model.ReviewFlashcard(deckID, blockID, riff.Rating(rating))
+	reviewedCardIDs := getReviewedCards(arg)
+	err := model.ReviewFlashcard(deckID, cardID, riff.Rating(rating), reviewedCardIDs)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
+	}
+}
+
+func skipReviewRiffCard(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	deckID := arg["deckID"].(string)
+	cardID := arg["cardID"].(string)
+	err := model.SkipReviewFlashcard(deckID, cardID)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func getNotebookRiffDueCards(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	notebookID := arg["notebook"].(string)
+	reviewedCardIDs := getReviewedCards(arg)
+	cards, unreviewedCount, unreviewedNewCardCount, unreviewedOldCardCount, err := model.GetNotebookDueFlashcards(notebookID, reviewedCardIDs)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	ret.Data = map[string]interface{}{
+		"cards":                  cards,
+		"unreviewedCount":        unreviewedCount,
+		"unreviewedNewCardCount": unreviewedNewCardCount,
+		"unreviewedOldCardCount": unreviewedOldCardCount,
+	}
+}
+
+func getTreeRiffDueCards(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	rootID := arg["rootID"].(string)
+	reviewedCardIDs := getReviewedCards(arg)
+	cards, unreviewedCount, unreviewedNewCardCount, unreviewedOldCardCount, err := model.GetTreeDueFlashcards(rootID, reviewedCardIDs)
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+
+	ret.Data = map[string]interface{}{
+		"cards":                  cards,
+		"unreviewedCount":        unreviewedCount,
+		"unreviewedNewCardCount": unreviewedNewCardCount,
+		"unreviewedOldCardCount": unreviewedOldCardCount,
 	}
 }
 
@@ -76,14 +209,34 @@ func getRiffDueCards(c *gin.Context) {
 	}
 
 	deckID := arg["deckID"].(string)
-	cards, err := model.GetDueFlashcards(deckID)
+	reviewedCardIDs := getReviewedCards(arg)
+	cards, unreviewedCount, unreviewedNewCardCount, unreviewedOldCardCount, err := model.GetDueFlashcards(deckID, reviewedCardIDs)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
-	ret.Data = cards
+	ret.Data = map[string]interface{}{
+		"cards":                  cards,
+		"unreviewedCount":        unreviewedCount,
+		"unreviewedNewCardCount": unreviewedNewCardCount,
+		"unreviewedOldCardCount": unreviewedOldCardCount,
+	}
+}
+
+func getReviewedCards(arg map[string]interface{}) (ret []string) {
+	if nil == arg["reviewedCards"] {
+		return
+	}
+
+	reviewedCardsArg := arg["reviewedCards"].([]interface{})
+	for _, card := range reviewedCardsArg {
+		c := card.(map[string]interface{})
+		cardID := c["cardID"].(string)
+		ret = append(ret, cardID)
+	}
+	return
 }
 
 func removeRiffCards(c *gin.Context) {
@@ -101,15 +254,27 @@ func removeRiffCards(c *gin.Context) {
 	for _, blockID := range blockIDsArg {
 		blockIDs = append(blockIDs, blockID.(string))
 	}
-	err := model.RemoveFlashcards(deckID, blockIDs)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
+
+	transactions := []*model.Transaction{
+		{
+			DoOperations: []*model.Operation{
+				{
+					Action:   "removeFlashcards",
+					DeckID:   deckID,
+					BlockIDs: blockIDs,
+				},
+			},
+		},
 	}
 
-	deck := model.Decks[deckID]
-	ret.Data = deckData(deck)
+	model.PerformTransactions(&transactions)
+	model.WaitForWritingFiles()
+
+	if "" != deckID {
+		deck := model.Decks[deckID]
+		ret.Data = deckData(deck)
+	}
+	// All 卡包不返回数据
 }
 
 func addRiffCards(c *gin.Context) {
@@ -127,12 +292,21 @@ func addRiffCards(c *gin.Context) {
 	for _, blockID := range blockIDsArg {
 		blockIDs = append(blockIDs, blockID.(string))
 	}
-	err := model.AddFlashcards(deckID, blockIDs)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
+
+	transactions := []*model.Transaction{
+		{
+			DoOperations: []*model.Operation{
+				{
+					Action:   "addFlashcards",
+					DeckID:   deckID,
+					BlockIDs: blockIDs,
+				},
+			},
+		},
 	}
+
+	model.PerformTransactions(&transactions)
+	model.WaitForWritingFiles()
 
 	deck := model.Decks[deckID]
 	ret.Data = deckData(deck)
@@ -213,7 +387,7 @@ func deckData(deck *riff.Deck) map[string]interface{} {
 	return map[string]interface{}{
 		"id":      deck.ID,
 		"name":    deck.Name,
-		"size":    len(deck.BlockCard),
+		"size":    deck.CountCards(),
 		"created": time.UnixMilli(deck.Created).Format("2006-01-02 15:04:05"),
 		"updated": time.UnixMilli(deck.Updated).Format("2006-01-02 15:04:05"),
 	}

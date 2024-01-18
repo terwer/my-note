@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,6 +18,8 @@ package model
 
 import (
 	"bytes"
+	"github.com/88250/lute/editor"
+	"regexp"
 	"strings"
 
 	"github.com/88250/gulu"
@@ -31,22 +33,44 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func renderOutline(node *ast.Node, luteEngine *lute.Lute) (ret string) {
-	if nil == node {
+func renderOutline(heading *ast.Node, luteEngine *lute.Lute) (ret string) {
+	if nil == heading {
 		return ""
 	}
 
-	if ast.NodeDocument == node.Type {
-		return node.IALAttr("title")
+	if ast.NodeDocument == heading.Type {
+		return heading.IALAttr("title")
 	}
 
 	buf := bytes.Buffer{}
 	buf.Grow(4096)
-	ast.Walk(node, func(n *ast.Node, entering bool) ast.WalkStatus {
+	ast.Walk(heading, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if !entering {
+			switch n.Type {
+			case ast.NodeHeading:
+				// Show heading block appearance style in the Outline Panel https://github.com/siyuan-note/siyuan/issues/7872
+				if style := n.IALAttr("style"); "" != style {
+					buf.WriteString("</span>")
+				}
+			}
 			return ast.WalkContinue
 		}
+
+		if style := n.IALAttr("style"); "" != style {
+			if strings.Contains(style, "font-size") { // 大纲字号不应该跟随字体设置 https://github.com/siyuan-note/siyuan/issues/7202
+				style = regexp.MustCompile("font-size:.*?;").ReplaceAllString(style, "font-size: inherit;")
+				n.SetIALAttr("style", style)
+			}
+		}
+
 		switch n.Type {
+		case ast.NodeHeading:
+			// Show heading block appearance style in the Outline Panel https://github.com/siyuan-note/siyuan/issues/7872
+			if style := n.IALAttr("style"); "" != style {
+				buf.WriteString("<span style=\"")
+				buf.WriteString(style)
+				buf.WriteString("\">")
+			}
 		case ast.NodeText, ast.NodeLinkText, ast.NodeCodeBlockCode, ast.NodeMathBlockContent:
 			tokens := html.EscapeHTML(n.Tokens)
 			tokens = bytes.ReplaceAll(tokens, []byte(" "), []byte("&nbsp;")) // 大纲面板条目中无法显示多个空格 https://github.com/siyuan-note/siyuan/issues/4370
@@ -54,7 +78,7 @@ func renderOutline(node *ast.Node, luteEngine *lute.Lute) (ret string) {
 		case ast.NodeBackslashContent:
 			buf.Write(n.Tokens)
 		case ast.NodeTextMark:
-			dom := lute.RenderNodeBlockDOM(n, luteEngine.ParseOptions, luteEngine.RenderOptions)
+			dom := luteEngine.RenderNodeBlockDOM(n)
 			buf.WriteString(dom)
 			return ast.WalkSkipChildren
 		case ast.NodeImage:
@@ -69,7 +93,7 @@ func renderOutline(node *ast.Node, luteEngine *lute.Lute) (ret string) {
 }
 
 func renderBlockText(node *ast.Node, excludeTypes []string) (ret string) {
-	ret = treenode.NodeStaticContent(node, excludeTypes)
+	ret = treenode.NodeStaticContent(node, excludeTypes, false, false, false)
 	ret = strings.TrimSpace(ret)
 	ret = strings.ReplaceAll(ret, "\n", "")
 	ret = util.EscapeHTML(ret)
@@ -116,6 +140,25 @@ func renderBlockDOMByNodes(nodes []*ast.Node, luteEngine *lute.Lute) string {
 		h = "<ul>" + h + "</ul>"
 	}
 	return h
+}
+
+func renderBlockContentByNodes(nodes []*ast.Node) string {
+	var subNodes []*ast.Node
+	for _, n := range nodes {
+		if ast.NodeDocument == n.Type {
+			for c := n.FirstChild; nil != c; c = c.Next {
+				subNodes = append(subNodes, c)
+			}
+		} else {
+			subNodes = append(subNodes, n)
+		}
+	}
+
+	buf := bytes.Buffer{}
+	for _, n := range subNodes {
+		buf.WriteString(treenode.NodeStaticContent(n, nil, false, false, false))
+	}
+	return buf.String()
 }
 
 func renderBlockMarkdownR(id string) string {
@@ -175,7 +218,8 @@ func renderBlockMarkdownR0(id string, rendered *[]string) (ret []*ast.Node) {
 			if ast.NodeBlockQueryEmbed == n.Type {
 				stmt := n.ChildByType(ast.NodeBlockQueryEmbedScript).TokensStr()
 				stmt = html.UnescapeString(stmt)
-				sqlBlocks := sql.SelectBlocksRawStmt(stmt, Conf.Search.Limit)
+				stmt = strings.ReplaceAll(stmt, editor.IALValEscNewLine, "\n")
+				sqlBlocks := sql.SelectBlocksRawStmt(stmt, 1, Conf.Search.Limit)
 				for _, sqlBlock := range sqlBlocks {
 					subNodes := renderBlockMarkdownR0(sqlBlock.ID, rendered)
 					for _, subNode := range subNodes {

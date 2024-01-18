@@ -1,39 +1,45 @@
-import {escapeHtml} from "../util/escape";
 import {getNotebookName, pathPosix} from "../util/pathName";
 import {Constants} from "../constants";
 import {Dialog} from "../dialog";
 import {fetchSyncPost} from "../util/fetch";
 import {focusByRange} from "../protyle/util/selection";
 import {genSearch} from "./util";
+import {App} from "../index";
 
-export const openSearch = async (hotkey: string, key?: string, notebookId?: string, searchPath?: string) => {
+export const openSearch = async (options: {
+    app: App,
+    hotkey: string,
+    key?: string,
+    notebookId?: string,
+    searchPath?: string
+}) => {
     const exitDialog = window.siyuan.dialogs.find((item) => {
         if (item.element.querySelector("#searchList")) {
             const lastKey = item.element.getAttribute("data-key");
             const replaceHeaderElement = item.element.querySelectorAll(".search__header")[1];
-            if (lastKey !== hotkey && hotkey === window.siyuan.config.keymap.general.replace.custom && replaceHeaderElement.classList.contains("fn__none")) {
+            if (lastKey !== options.hotkey && options.hotkey === Constants.DIALOG_REPLACE && replaceHeaderElement.classList.contains("fn__none")) {
                 replaceHeaderElement.classList.remove("fn__none");
-                item.element.setAttribute("data-key", hotkey);
+                item.element.setAttribute("data-key", options.hotkey);
                 return true;
             }
             const searchPathElement = item.element.querySelector("#searchPathInput");
-            if (lastKey !== hotkey && hotkey === window.siyuan.config.keymap.general.globalSearch.custom) {
+            if (lastKey !== options.hotkey && options.hotkey === Constants.DIALOG_GLOBALSEARCH) {
                 if (searchPathElement.textContent !== "") {
                     item.destroy();
                     return false;
                 } else if (!replaceHeaderElement.classList.contains("fn__none")) {
                     replaceHeaderElement.classList.add("fn__none");
-                    item.element.setAttribute("data-key", hotkey);
+                    item.element.setAttribute("data-key", options.hotkey);
                     return true;
                 }
             }
-            if (lastKey !== hotkey && hotkey === window.siyuan.config.keymap.general.search.custom) {
+            if (lastKey !== options.hotkey && options.hotkey === Constants.DIALOG_SEARCH) {
                 if (searchPathElement.textContent === "") {
                     item.destroy();
                     return false;
                 } else if (!replaceHeaderElement.classList.contains("fn__none")) {
                     replaceHeaderElement.classList.add("fn__none");
-                    item.element.setAttribute("data-key", hotkey);
+                    item.element.setAttribute("data-key", options.hotkey);
                     return true;
                 }
             }
@@ -45,26 +51,27 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
     if (exitDialog) {
         return;
     }
-    const localData = window.siyuan.storage[Constants.LOCAL_SEARCHEDATA];
+    const localData = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
     let hPath = "";
     let idPath: string[] = [];
-    if (notebookId) {
-        hPath = escapeHtml(getNotebookName(notebookId));
-        idPath.push(notebookId);
-        if (searchPath && searchPath !== "/") {
+    if (options.notebookId) {
+        hPath = getNotebookName(options.notebookId);
+        idPath.push(options.notebookId);
+        if (options.searchPath && options.searchPath !== "/") {
             const response = await fetchSyncPost("/api/filetree/getHPathByPath", {
-                notebook: notebookId,
-                path: searchPath.endsWith(".sy") ? searchPath : searchPath + ".sy"
+                notebook: options.notebookId,
+                path: options.searchPath.endsWith(".sy") ? options.searchPath : options.searchPath + ".sy"
             });
-            hPath = pathPosix().join(hPath, escapeHtml(response.data));
-            idPath[0] = pathPosix().join(idPath[0], searchPath);
+            hPath = pathPosix().join(hPath, response.data);
+            idPath[0] = pathPosix().join(idPath[0], options.searchPath);
         }
-    } else if (window.siyuan.config.keymap.general.globalSearch.custom === hotkey) {
-        hPath = localData.hPath;
-        idPath = localData.idPath;
-        // 历史原因，2.5.2 之前为 string https://github.com/siyuan-note/siyuan/issues/6902
-        if (typeof idPath === "string") {
-            idPath = [idPath];
+    } else if (Constants.DIALOG_GLOBALSEARCH === options.hotkey) {
+        if (localData.removed) {
+            hPath = "";
+            idPath = [];
+        } else {
+            hPath = localData.hPath;
+            idPath = localData.idPath;
         }
     }
 
@@ -73,31 +80,42 @@ export const openSearch = async (hotkey: string, key?: string, notebookId?: stri
         range = getSelection().getRangeAt(0);
     }
     const dialog = new Dialog({
+        positionId: options.hotkey,
         content: "",
         width: "80vw",
-        height: "80vh",
-        destroyCallback: () => {
-            if (range) {
+        height: "90vh",
+        destroyCallback(options: IObject) {
+            if (range && !options) {
                 focusByRange(range);
             }
             if (edit) {
                 edit.destroy();
             }
+        },
+        resizeCallback(type: string) {
+            if (type !== "d" && type !== "t" && edit) {
+                edit.resize();
+            }
         }
     });
-    dialog.element.setAttribute("data-key", hotkey);
-    const edit = genSearch({
-        k: key || localData.k,
+    dialog.element.setAttribute("data-key", options.hotkey);
+    const config = {
+        removed: localData.removed,
+        k: options.key || localData.k,
         r: localData.r,
-        hasReplace: hotkey === window.siyuan.config.keymap.general.replace.custom,
+        hasReplace: options.hotkey === Constants.DIALOG_REPLACE,
         method: localData.method,
         hPath,
         idPath,
         group: localData.group,
         sort: localData.sort,
-        types: localData.types
-    }, dialog.element.querySelector(".b3-dialog__container").lastElementChild, () => {
-        dialog.destroy();
+        types: Object.assign({}, localData.types),
+        replaceTypes: Object.assign({}, localData.replaceTypes),
+        page: options.key ? 1 : localData.page
+    };
+    const edit = genSearch(options.app, config, dialog.element.querySelector(".b3-dialog__body"), () => {
+        dialog.destroy({focus: "false"});
     });
-    dialog.element.firstElementChild.setAttribute("style", "z-index:199"); // https://github.com/siyuan-note/siyuan/issues/3515
+    dialog.editor = edit;
+    dialog.data = config;
 };

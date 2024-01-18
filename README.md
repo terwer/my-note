@@ -21,6 +21,13 @@ A fork of SiYuan, a local-first personal knowledge management system
 
 merge pull request to main or push to main
 
+## Publish docker image
+
+```
+docker login
+docker buildx build --push -t terwer/my-note:latest -t terwer/my-note:v2.12.3 .
+```
+
 ## Build
 
 ### macOS
@@ -64,9 +71,6 @@ cd ../app/kernel
 cd app
 npm install -g pnpm
 pnpm config set registry https://registry.npmmirror.com/
-
-pnpm config set electron_mirror=https://cdn.npmmirror.com/binaries/electron/
-pnpm config set electron_custom_dir=22.0.0
 
 pnpm install
 pnpm run dev

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,8 +17,8 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -28,6 +28,47 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func fullReindexAssetContent(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	model.ReindexAssetContent()
+}
+
+func getImageOCRText(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	path := arg["path"].(string)
+	force := false
+	if forceArg := arg["force"]; nil != forceArg {
+		force = forceArg.(bool)
+	}
+
+	ret.Data = map[string]interface{}{
+		"text": util.GetAssetText(path, force),
+	}
+}
+
+func setImageOCRText(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	path := arg["path"].(string)
+	text := arg["text"].(string)
+	util.SetAssetText(path, text)
+}
 
 func renameAsset(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
@@ -112,12 +153,12 @@ func getFileAnnotation(c *gin.Context) {
 		ret.Data = map[string]interface{}{"closeTimeout": 5000}
 		return
 	}
-	if !gulu.File.IsExist(readPath) {
+	if !filelock.IsExist(readPath) {
 		ret.Code = 1
 		return
 	}
 
-	data, err := os.ReadFile(readPath)
+	data, err := filelock.ReadFile(readPath)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
@@ -176,6 +217,16 @@ func getUnusedAssets(c *gin.Context) {
 	}
 }
 
+func getMissingAssets(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	missingAssets := model.MissingAssets()
+	ret.Data = map[string]interface{}{
+		"missingAssets": missingAssets,
+	}
+}
+
 func resolveAssetPath(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -207,14 +258,15 @@ func uploadCloud(c *gin.Context) {
 	}
 
 	rootID := arg["id"].(string)
-	err := model.UploadAssets2Cloud(rootID)
+	count, err := model.UploadAssets2Cloud(rootID)
 	if nil != err {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		ret.Data = map[string]interface{}{"closeTimeout": 3000}
-	} else {
-		util.PushMsg(model.Conf.Language(41), 3000)
+		return
 	}
+
+	util.PushMsg(fmt.Sprintf(model.Conf.Language(41), count), 3000)
 }
 
 func insertLocalAssets(c *gin.Context) {

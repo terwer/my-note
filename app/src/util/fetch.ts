@@ -1,7 +1,6 @@
 import {Constants} from "../constants";
 /// #if !BROWSER
 import {ipcRenderer} from "electron";
-import {getCurrentWindow} from "@electron/remote";
 /// #endif
 import {processMessage} from "./processMessage";
 import {kernelError} from "../dialog/processSystem";
@@ -19,6 +18,10 @@ export const fetchPost = (url: string, data?: any, cb?: (response: IWebSocketDat
                 data.reqId = window.siyuan.reqIds[url];
             }
         }
+        // 并发导出后端接受顺序不一致
+        if (url === "/api/transactions") {
+            data.reqId = new Date().getTime();
+        }
         if (data instanceof FormData) {
             init.body = data;
         } else {
@@ -29,14 +32,36 @@ export const fetchPost = (url: string, data?: any, cb?: (response: IWebSocketDat
         init.headers = headers;
     }
     fetch(url, init).then((response) => {
-        return response.json();
+        if (response.status === 404) {
+            return {
+                data: null,
+                msg: response.statusText,
+                code: response.status,
+            };
+        } else {
+            if (response.headers.get("content-type")?.indexOf("application/json") > -1) {
+                return response.json();
+            } else {
+                return response.text();
+            }
+        }
     }).then((response: IWebSocketData) => {
+        if (typeof response === "string") {
+            if (cb) {
+                cb(response);
+            }
+            return;
+        }
         if (["/api/search/searchRefBlock", "/api/graph/getGraph", "/api/graph/getLocalGraph"].includes(url)) {
             if (response.data.reqId && window.siyuan.reqIds[url] && window.siyuan.reqIds[url] > response.data.reqId) {
                 return;
             }
         }
-        if (processMessage(response) && cb) {
+        if (typeof response === "object" && typeof response.msg === "string" && typeof response.code === "number") {
+            if (processMessage(response) && cb) {
+                cb(response);
+            }
+        } else if (cb) {
             cb(response);
         }
     }).catch((e) => {
@@ -47,9 +72,9 @@ export const fetchPost = (url: string, data?: any, cb?: (response: IWebSocketDat
         }
         /// #if !BROWSER
         if (url === "/api/system/exit" || url === "/api/system/setWorkspaceDir" || (
-            ["/api/system/setUILayout"].includes(url) && data.exit // 内核中断，点关闭处理
+            ["/api/system/setUILayout"].includes(url) && data.errorExit // 内核中断，点关闭处理
         )) {
-            ipcRenderer.send(Constants.SIYUAN_QUIT, getCurrentWindow().id);
+            ipcRenderer.send(Constants.SIYUAN_QUIT, location.port);
         }
         /// #endif
     });
@@ -68,11 +93,14 @@ export const fetchSyncPost = async (url: string, data?: any) => {
     return res2;
 };
 
-export const fetchGet = (url: string, cb: (response: IWebSocketData | IEmoji[]) => void) => {
+export const fetchGet = (url: string, cb: (response: IWebSocketData | IObject | string) => void) => {
     fetch(url).then((response) => {
-        return response.json();
-    }).then((response: IWebSocketData) => {
+        if (response.headers.get("content-type")?.indexOf("application/json") > -1) {
+            return response.json();
+        } else {
+            return response.text();
+        }
+    }).then((response) => {
         cb(response);
     });
 };
-

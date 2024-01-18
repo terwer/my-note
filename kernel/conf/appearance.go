@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -27,11 +27,9 @@ type Appearance struct {
 	Icons               []string `json:"icons"`               // 图标列表
 	Icon                string   `json:"icon"`                // 选择的图标
 	IconVer             string   `json:"iconVer"`             // 选择的图标版本
-	NativeEmoji         bool     `json:"nativeEmoji"`         // 文档图标是否使用系统原生 Emoji
 	CodeBlockThemeLight string   `json:"codeBlockThemeLight"` // 明亮模式下代码块主题
 	CodeBlockThemeDark  string   `json:"codeBlockThemeDark"`  // 暗黑模式下代码块主题
 	Lang                string   `json:"lang"`                // 选择的界面语言，同 AppConf.Lang
-	CustomCSS           bool     `json:"customCSS"`           // 是否启用自定义主题
 	ThemeJS             bool     `json:"themeJS"`             // 是否启用了主题 JavaScript
 	CloseButtonBehavior int      `json:"closeButtonBehavior"` // 关闭按钮行为，0：退出，1：最小化到托盘
 	HideStatusBar       bool     `json:"hideStatusBar"`       // 是否隐藏底部状态栏
@@ -44,11 +42,9 @@ func NewAppearance() *Appearance {
 		ThemeDark:           "midnight",
 		ThemeLight:          "daylight",
 		Icon:                "material",
-		NativeEmoji:         true,
 		CodeBlockThemeLight: "github",
 		CodeBlockThemeDark:  "base16/dracula",
 		Lang:                "en_US",
-		CustomCSS:           false,
 		CloseButtonBehavior: 0,
 		HideStatusBar:       false,
 	}

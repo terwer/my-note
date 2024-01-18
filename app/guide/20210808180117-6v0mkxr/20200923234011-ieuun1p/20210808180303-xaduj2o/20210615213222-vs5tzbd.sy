@@ -5,7 +5,7 @@
 	"Properties": {
 		"id": "20210615213222-vs5tzbd",
 		"title": "Data history",
-		"updated": "20220831210614"
+		"updated": "20230422102255"
 	},
 	"Children": [
 		{
@@ -183,7 +183,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20220501135308-30uwxvd",
-				"updated": "20220831210614"
+				"updated": "20230403114455"
 			},
 			"Children": [
 				{
@@ -217,7 +217,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": " - "
+									"Data": "​ - "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -226,7 +226,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": " - "
+									"Data": "​ - "
 								},
 								{
 									"Type": "NodeTextMark",
@@ -235,12 +235,16 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": " make adjustments), and the suffix of the history folder is "
+									"Data": "​ make adjustments), and the suffix of the history folder is "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
 									"TextMarkTextContent": "-update"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -274,6 +278,10 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
 									"TextMarkTextContent": "-sync"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -307,6 +315,10 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
 									"TextMarkTextContent": "-delete"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -351,6 +363,10 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
 									"TextMarkTextContent": "-clean"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -365,7 +381,7 @@
 					},
 					"Properties": {
 						"id": "20220501135308-wzazz01",
-						"updated": "20220628203717"
+						"updated": "20230403114455"
 					},
 					"Children": [
 						{
@@ -373,7 +389,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20220501135308-xldpw4q",
-								"updated": "20220628203717"
+								"updated": "20230403114455"
 							},
 							"Children": [
 								{
@@ -382,17 +398,69 @@
 								},
 								{
 									"Type": "NodeTextMark",
-									"TextMarkType": "kbd",
+									"TextMarkType": "block-ref",
+									"TextMarkBlockRefID": "20220628204454-hhxohv5",
+									"TextMarkBlockRefSubtype": "s",
 									"TextMarkTextContent": "Optimize typography"
 								},
 								{
 									"Type": "NodeText",
-									"Data": " function, a history will be generated, and the suffix of the history folder is "
+									"Data": ", a history will be generated, and the suffix of the history folder is "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
 									"TextMarkTextContent": "-format"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230403114321-4rwhj6j",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230403114321-4rwhj6j",
+						"updated": "20230403114424"
+					},
+					"Children": [
+						{
+							"ID": "20230403114321-tou7etc",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230403114321-tou7etc",
+								"updated": "20230403114424"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "When using "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Search replace"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​, a history will be generated, and the suffix of the history folder "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "-replace"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -1359,12 +1427,12 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20220615120602-nzrp6gt",
-				"updated": "20220615120602"
+				"updated": "20230422102109"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "Browse data snapshots"
+					"Data": "Browse data snapshot"
 				}
 			]
 		},
@@ -1417,35 +1485,200 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20220615120602-nhnnujh",
-				"updated": "20220615120602"
+				"updated": "20230422102056"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "Clean data snapshot"
+					"Data": "Cleanup data snapshot"
 				}
 			]
 		},
 		{
-			"ID": "20220615120602-f90cll0",
-			"Type": "NodeParagraph",
+			"ID": "20230422101614-mdijztr",
+			"Type": "NodeList",
+			"ListData": {},
 			"Properties": {
-				"id": "20220615120602-f90cll0",
-				"updated": "20220615120602"
+				"id": "20230422101614-mdijztr",
+				"updated": "20230422102255"
 			},
 			"Children": [
 				{
-					"Type": "NodeText",
-					"Data": "Manually deleting the "
+					"ID": "20230422101614-5lwp8u3",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230422101614-5lwp8u3",
+						"updated": "20230422102255"
+					},
+					"Children": [
+						{
+							"ID": "20230422101614-5kvwhn7",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230422101614-5kvwhn7",
+								"updated": "20230422102255"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Settings"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ - "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "About"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ - "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Data repo purge"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ will delete all unreferenced snapshots and related data objects. \"Referenced snapshots\" refer to snapshots pointed to under repo/refs/:"
+								}
+							]
+						},
+						{
+							"ID": "20230422101614-ibwplih",
+							"Type": "NodeList",
+							"ListData": {},
+							"Properties": {
+								"id": "20230422101614-ibwplih",
+								"updated": "20230422102025"
+							},
+							"Children": [
+								{
+									"ID": "20230422101614-wqxklla",
+									"Type": "NodeListItem",
+									"ListData": {
+										"BulletChar": 42,
+										"Marker": "Kg=="
+									},
+									"Properties": {
+										"id": "20230422101614-wqxklla",
+										"updated": "20230422102025"
+									},
+									"Children": [
+										{
+											"ID": "20230422101614-uwv2229",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20230422101614-uwv2229",
+												"updated": "20230422102025"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "​"
+												},
+												{
+													"Type": "NodeTextMark",
+													"TextMarkType": "code",
+													"TextMarkTextContent": "latest"
+												},
+												{
+													"Type": "NodeText",
+													"Data": "​ points to the latest snapshot"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20230422101614-tgrdynv",
+									"Type": "NodeListItem",
+									"ListData": {
+										"BulletChar": 42,
+										"Marker": "Kg=="
+									},
+									"Properties": {
+										"id": "20230422101614-tgrdynv",
+										"updated": "20230422102023"
+									},
+									"Children": [
+										{
+											"ID": "20230422101614-tf542fs",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20230422101614-tf542fs",
+												"updated": "20230422102023"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "​"
+												},
+												{
+													"Type": "NodeTextMark",
+													"TextMarkType": "code",
+													"TextMarkTextContent": "tags/*"
+												},
+												{
+													"Type": "NodeText",
+													"Data": "​ point to manually tagged snapshots"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
 				},
 				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "code",
-					"TextMarkTextContent": "workspace/repo/"
-				},
-				{
-					"Type": "NodeText",
-					"Data": " folder will clear all data snapshots."
+					"ID": "20230422101614-ht2yhm0",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230422101614-ht2yhm0",
+						"updated": "20230422101614"
+					},
+					"Children": [
+						{
+							"ID": "20230422101614-lxjcg2j",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230422101614-lxjcg2j",
+								"updated": "20230422101614"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "Manually delete the "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "workspace/repo/"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ folder to clear all data snapshots"
+								}
+							]
+						}
+					]
 				}
 			]
 		},

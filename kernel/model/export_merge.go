@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -19,24 +19,35 @@ package model
 import (
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
+	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/siyuan/kernel/treenode"
+	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
 	ret = rootTree
-	rootBlock := &Block{Box: rootTree.Box, ID: rootTree.ID, Path: rootTree.Path}
+	rootBlock := &Block{Box: rootTree.Box, ID: rootTree.ID, Path: rootTree.Path, HPath: rootTree.HPath}
 	if err = buildBlockChildren(rootBlock); nil != err {
 		return
 	}
 
 	insertPoint := rootTree.Root.LastChild
-	if nil == insertPoint {
-		insertPoint = rootTree.Root
-	}
 
 	// 跳过空段落插入点，向上寻找非空段落
 	for ; nil != insertPoint && ast.NodeParagraph == insertPoint.Type; insertPoint = insertPoint.Previous {
 		if nil != insertPoint.FirstChild {
 			break
+		}
+	}
+
+	// 导出空文档 Word 和 PDF 时合并子文档失败 https://github.com/siyuan-note/siyuan/issues/7429
+	if nil == insertPoint {
+		// 如果找不到非空段落，则使用第一个段落作为插入点
+		insertPoint = rootTree.Root.FirstChild
+		if nil == insertPoint {
+			// 如果文档为空，则创建一个空段落作为插入点
+			insertPoint = treenode.NewParagraph()
+			rootTree.Root.AppendChild(insertPoint)
 		}
 	}
 
@@ -74,7 +85,8 @@ func walkBlock(insertPoint *ast.Node, block *Block, level int) (err error) {
 }
 
 func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error) {
-	tree, err := LoadTree(box, p)
+	luteEngine := NewLute()
+	tree, err := filesys.LoadTree(box, p, luteEngine)
 	if nil != err {
 		return
 	}
@@ -99,7 +111,7 @@ func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error)
 }
 
 func buildBlockChildren(block *Block) (err error) {
-	files, _, err := ListDocTree(block.Box, block.Path, Conf.FileTree.Sort)
+	files, _, err := ListDocTree(block.Box, block.Path, util.SortModeUnassigned, false, false, Conf.FileTree.MaxListCount)
 	if nil != err {
 		return
 	}

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ package model
 import (
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 
@@ -128,7 +129,7 @@ func setRecentDocs(recentDocs []*RecentDoc) (err error) {
 func getRecentDocs() (ret []*RecentDoc, err error) {
 	tmp := []*RecentDoc{}
 	dataPath := filepath.Join(util.DataDir, "storage/recent-doc.json")
-	if !gulu.File.IsExist(dataPath) {
+	if !filelock.IsExist(dataPath) {
 		return
 	}
 
@@ -145,7 +146,8 @@ func getRecentDocs() (ret []*RecentDoc, err error) {
 
 	var notExists []string
 	for _, doc := range tmp {
-		if nil != treenode.GetBlockTree(doc.RootID) {
+		if bt := treenode.GetBlockTree(doc.RootID); nil != bt {
+			doc.Title = path.Base(bt.HPath) // Recent docs not updated after renaming https://github.com/siyuan-note/siyuan/issues/7827
 			ret = append(ret, doc)
 		} else {
 			notExists = append(notExists, doc.RootID)
@@ -158,16 +160,17 @@ func getRecentDocs() (ret []*RecentDoc, err error) {
 }
 
 type Criterion struct {
-	Name       string          `json:"name"`
-	Sort       int             `json:"sort"`       //  0：按块类型（默认），1：按创建时间升序，2：按创建时间降序，3：按更新时间升序，4：按更新时间降序，5：按内容顺序（仅在按文档分组时）
-	Group      int             `json:"group"`      // 0：不分组，1：按文档分组
-	HasReplace bool            `json:"hasReplace"` // 是否有替换
-	Method     int             `json:"method"`     //  0：文本，1：查询语法，2：SQL，3：正则表达式
-	HPath      string          `json:"hPath"`
-	IDPath     []string        `json:"idPath"`
-	K          string          `json:"k"`     // 搜索关键字
-	R          string          `json:"r"`     // 替换关键字
-	Types      *CriterionTypes `json:"types"` // 类型过滤选项
+	Name         string                 `json:"name"`
+	Sort         int                    `json:"sort"`       //  0：按块类型（默认），1：按创建时间升序，2：按创建时间降序，3：按更新时间升序，4：按更新时间降序，5：按内容顺序（仅在按文档分组时）
+	Group        int                    `json:"group"`      // 0：不分组，1：按文档分组
+	HasReplace   bool                   `json:"hasReplace"` // 是否有替换
+	Method       int                    `json:"method"`     //  0：文本，1：查询语法，2：SQL，3：正则表达式
+	HPath        string                 `json:"hPath"`
+	IDPath       []string               `json:"idPath"`
+	K            string                 `json:"k"`            // 搜索关键字
+	R            string                 `json:"r"`            // 替换关键字
+	Types        *CriterionTypes        `json:"types"`        // 类型过滤选项
+	ReplaceTypes *CriterionReplaceTypes `json:"replaceTypes"` // 替换类型过滤选项
 }
 
 type CriterionTypes struct {
@@ -181,6 +184,33 @@ type CriterionTypes struct {
 	List       bool `json:"list"`
 	ListItem   bool `json:"listItem"`
 	CodeBlock  bool `json:"codeBlock"`
+	HtmlBlock  bool `json:"htmlBlock"`
+	EmbedBlock bool `json:"embedBlock"`
+}
+
+type CriterionReplaceTypes struct {
+	Text       bool `json:"text"`
+	ImgText    bool `json:"imgText"`
+	ImgTitle   bool `json:"imgTitle"`
+	ImgSrc     bool `json:"imgSrc"`
+	AText      bool `json:"aText"`
+	ATitle     bool `json:"aTitle"`
+	AHref      bool `json:"aHref"`
+	Code       bool `json:"code"`
+	Em         bool `json:"em"`
+	Strong     bool `json:"strong"`
+	InlineMath bool `json:"inlineMath"`
+	InlineMemo bool `json:"inlineMemo"`
+	Kbd        bool `json:"kbd"`
+	Mark       bool `json:"mark"`
+	S          bool `json:"s"`
+	Sub        bool `json:"sub"`
+	Sup        bool `json:"sup"`
+	Tag        bool `json:"tag"`
+	U          bool `json:"u"`
+	DocTitle   bool `json:"docTitle"`
+	CodeBlock  bool `json:"codeBlock"`
+	MathBlock  bool `json:"mathBlock"`
 	HtmlBlock  bool `json:"htmlBlock"`
 }
 
@@ -267,7 +297,7 @@ func setCriteria(criteria []*Criterion) (err error) {
 func getCriteria() (ret []*Criterion, err error) {
 	ret = []*Criterion{}
 	dataPath := filepath.Join(util.DataDir, "storage/criteria.json")
-	if !gulu.File.IsExist(dataPath) {
+	if !filelock.IsExist(dataPath) {
 		return
 	}
 
@@ -286,16 +316,14 @@ func getCriteria() (ret []*Criterion, err error) {
 
 var localStorageLock = sync.Mutex{}
 
-func RemoveLocalStorageVal(key string) (err error) {
+func RemoveLocalStorageVals(keys []string) (err error) {
 	localStorageLock.Lock()
 	defer localStorageLock.Unlock()
 
-	localStorage, err := getLocalStorage()
-	if nil != err {
-		return
+	localStorage := getLocalStorage()
+	for _, key := range keys {
+		delete(localStorage, key)
 	}
-
-	delete(localStorage, key)
 	return setLocalStorage(localStorage)
 }
 
@@ -303,11 +331,7 @@ func SetLocalStorageVal(key string, val interface{}) (err error) {
 	localStorageLock.Lock()
 	defer localStorageLock.Unlock()
 
-	localStorage, err := getLocalStorage()
-	if nil != err {
-		return
-	}
-
+	localStorage := getLocalStorage()
 	localStorage[key] = val
 	return setLocalStorage(localStorage)
 }
@@ -318,13 +342,17 @@ func SetLocalStorage(val interface{}) (err error) {
 	return setLocalStorage(val)
 }
 
-func GetLocalStorage() (ret map[string]interface{}, err error) {
+func GetLocalStorage() (ret map[string]interface{}) {
 	localStorageLock.Lock()
 	defer localStorageLock.Unlock()
 	return getLocalStorage()
 }
 
 func setLocalStorage(val interface{}) (err error) {
+	if util.ReadOnly {
+		return
+	}
+
 	dirPath := filepath.Join(util.DataDir, "storage")
 	if err = os.MkdirAll(dirPath, 0755); nil != err {
 		logging.LogErrorf("create storage [local] dir failed: %s", err)
@@ -346,10 +374,11 @@ func setLocalStorage(val interface{}) (err error) {
 	return
 }
 
-func getLocalStorage() (ret map[string]interface{}, err error) {
+func getLocalStorage() (ret map[string]interface{}) {
+	// When local.json is corrupted, clear the file to avoid being unable to enter the main interface https://github.com/siyuan-note/siyuan/issues/7911
 	ret = map[string]interface{}{}
 	lsPath := filepath.Join(util.DataDir, "storage/local.json")
-	if !gulu.File.IsExist(lsPath) {
+	if !filelock.IsExist(lsPath) {
 		return
 	}
 

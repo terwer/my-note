@@ -2,63 +2,16 @@ import {getAllModels} from "../layout/getAll";
 import {setInlineStyle} from "../util/assets";
 import {fetchPost} from "../util/fetch";
 import {confirmDialog} from "../dialog/confirmDialog";
-import {setPadding} from "../protyle/ui/initUI";
 import {reloadProtyle} from "../protyle/util/reload";
-import {disabledProtyle, enableProtyle} from "../protyle/util/onGet";
 import {updateHotkeyTip} from "../protyle/util/compatibility";
+import {Constants} from "../constants";
+import {resize} from "../protyle/util/resize";
 
 export const editor = {
     element: undefined as Element,
-    setMode: (readOnly?: boolean) => {
-        const target = document.querySelector("#barReadonly");
-        if (typeof readOnly === "undefined") {
-            readOnly = target.getAttribute("aria-label") === `${window.siyuan.languages.use} ${window.siyuan.languages.editReadonly} ${updateHotkeyTip(window.siyuan.config.keymap.general.editMode.custom)}`;
-        }
+    setReadonly: (readOnly: boolean) => {
         window.siyuan.config.editor.readOnly = readOnly;
-        if (readOnly) {
-            target.classList.add("toolbar__item--active");
-            target.setAttribute("aria-label", `${window.siyuan.languages.use} ${window.siyuan.languages.editMode} ${updateHotkeyTip(window.siyuan.config.keymap.general.editMode.custom)}`);
-            target.querySelector("use").setAttribute("xlink:href", "#iconPreview");
-        } else {
-            target.classList.remove("toolbar__item--active");
-            target.setAttribute("aria-label", `${window.siyuan.languages.use} ${window.siyuan.languages.editReadonly} ${updateHotkeyTip(window.siyuan.config.keymap.general.editMode.custom)}`);
-            target.querySelector("use").setAttribute("xlink:href", "#iconEdit");
-        }
-        fetchPost("/api/setting/setEditor", window.siyuan.config.editor, () => {
-            const allModels = getAllModels();
-            allModels.editor.forEach(editor => {
-                if (readOnly) {
-                    disabledProtyle(editor.editor.protyle);
-                } else {
-                    enableProtyle(editor.editor.protyle);
-                }
-            });
-            allModels.backlink.forEach(backlink => {
-                backlink.editors.forEach(editor => {
-                    if (readOnly) {
-                        disabledProtyle(editor.protyle);
-                    } else {
-                        enableProtyle(editor.protyle);
-                    }
-                });
-            });
-            allModels.search.forEach(search => {
-                if (readOnly) {
-                    disabledProtyle(search.edit.protyle);
-                } else {
-                    enableProtyle(search.edit.protyle);
-                }
-            });
-            window.siyuan.blockPanels.forEach(item => {
-                item.editors.forEach(editor => {
-                    if (readOnly) {
-                        disabledProtyle(editor.protyle);
-                    } else {
-                        enableProtyle(editor.protyle);
-                    }
-                });
-            });
-        });
+        fetchPost("/api/setting/setEditor", window.siyuan.config.editor);
     },
     genHTML: () => {
         let fontFamilyHTML = "";
@@ -89,7 +42,8 @@ export const editor = {
 </label>
 <label class="fn__flex b3-label">
     <div class="fn__flex-1">
-        ${window.siyuan.languages.editReadonly}
+        ${window.siyuan.languages.editReadonly} 
+        <code class="fn__code">${updateHotkeyTip(window.siyuan.config.keymap.general.editReadonly.custom)}</code>
         <div class="b3-label__text">${window.siyuan.languages.editReadonlyTip}</div>
     </div>
     <span class="fn__space"></span>
@@ -145,6 +99,14 @@ export const editor = {
 </label>
 <label class="fn__flex b3-label">
     <div class="fn__flex-1">
+        ${window.siyuan.languages.onlySearchForDoc}
+        <div class="b3-label__text">${window.siyuan.languages.onlySearchForDocTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" id="onlySearchForDoc" type="checkbox"${window.siyuan.config.editor.onlySearchForDoc ? " checked" : ""}/>
+</label>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
         ${window.siyuan.languages.md31}
         <div class="b3-label__text">${window.siyuan.languages.md32}</div>
     </div>
@@ -175,15 +137,15 @@ export const editor = {
     <span class="fn__space"></span>
     <input class="b3-switch fn__flex-center" id="virtualBlockRef" type="checkbox"${window.siyuan.config.editor.virtualBlockRef ? " checked" : ""}/>
 </label>
-<label class="fn__flex b3-label config__item">
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.md9}
         <div class="b3-label__text">${window.siyuan.languages.md36}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="virtualBlockRefInclude" value="${window.siyuan.config.editor.virtualBlockRefInclude}" />
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.md35}
         <div class="b3-label__text">${window.siyuan.languages.md36}</div>
@@ -191,65 +153,81 @@ export const editor = {
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="virtualBlockRefExclude" value="${window.siyuan.config.editor.virtualBlockRefExclude}" />
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.md39}
         <div class="b3-label__text">${window.siyuan.languages.md40}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="plantUMLServePath" value="${window.siyuan.config.editor.plantUMLServePath}"/>
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.dynamicLoadBlocks}
         <div class="b3-label__text">${window.siyuan.languages.dynamicLoadBlocksTip}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="dynamicLoadBlocks" type="number" min="48" max="1024" value="${window.siyuan.config.editor.dynamicLoadBlocks}"/>
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.md37}
         <div class="b3-label__text">${window.siyuan.languages.md38}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="blockRefDynamicAnchorTextMaxLen" type="number" min="1" max="5120" value="${window.siyuan.config.editor.blockRefDynamicAnchorTextMaxLen}"/>
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.backlinkExpand}
         <div class="b3-label__text">${window.siyuan.languages.backlinkExpandTip}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="backlinkExpandCount" type="number" min="0" max="512" value="${window.siyuan.config.editor.backlinkExpandCount}"/>
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.backmentionExpand}
+        <div class="b3-label__text">${window.siyuan.languages.backmentionExpandTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-text-field fn__flex-center fn__size200" id="backmentionExpandCount" type="number" min="0" max="512" value="${window.siyuan.config.editor.backmentionExpandCount}"/>
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.generateHistory}
         <div class="b3-label__text">${window.siyuan.languages.generateHistoryInterval}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="generateHistoryInterval" type="number" min="0" max="120" value="${window.siyuan.config.editor.generateHistoryInterval}"/>
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.historyRetentionDays} 
         <a href="javascript:void(0)" id="clearHistory">${window.siyuan.languages.clearHistory}</a>
         <div class="b3-label__text">${window.siyuan.languages.historyRetentionDaysTip}</div>
     </div>
     <span class="fn__space"></span>
-    <input class="b3-text-field fn__flex-center fn__size200" id="historyRetentionDays" type="number" min="0" max="120" value="${window.siyuan.config.editor.historyRetentionDays}"/>
-</label>
-<label class="fn__flex b3-label config__item">
+    <input class="b3-text-field fn__flex-center fn__size200" id="historyRetentionDays" type="number" min="0" value="${window.siyuan.config.editor.historyRetentionDays}"/>
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.font}
         <div class="b3-label__text">${window.siyuan.languages.font1}</div>
     </div>
     <span class="fn__space"></span>
     ${fontFamilyHTML}
+</div>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.fontSizeScrollZoom}
+        <div class="b3-label__text">${window.siyuan.languages.fontSizeScrollZoomTip.replace("Ctrl", updateHotkeyTip("⌘"))}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" id="fontSizeScrollZoom" type="checkbox"${window.siyuan.config.editor.fontSizeScrollZoom ? " checked" : ""}/>
 </label>
-<label class="fn__flex b3-label config__item">
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.fontSize}
         <div class="b3-label__text">${window.siyuan.languages.fontSizeTip}</div>
@@ -258,8 +236,8 @@ export const editor = {
     <div class="b3-tooltips b3-tooltips__n fn__flex-center" aria-label="${window.siyuan.config.editor.fontSize}">   
         <input class="b3-slider fn__size200" id="fontSize" max="72" min="9" step="1" type="range" value="${window.siyuan.config.editor.fontSize}">
     </div>
-</label>
-<label class="fn__flex b3-label config__item">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.md29}
         <div class="b3-label__text">${window.siyuan.languages.md30}</div>
@@ -268,15 +246,15 @@ export const editor = {
     <div class="b3-tooltips b3-tooltips__n fn__flex-center" aria-label="${window.siyuan.config.editor.codeTabSpaces}">   
         <input class="b3-slider fn__size200" id="codeTabSpaces" max="8" min="0" step="2" type="range" value="${window.siyuan.config.editor.codeTabSpaces}">
     </div>
-</label>
-<label class="b3-label fn__flex">
-    <div class="fn__flex-1">
+</div>
+<div class="b3-label">
+    <div class="fn__block">
         ${window.siyuan.languages.katexMacros}
         <div class="b3-label__text">${window.siyuan.languages.katexMacrosTip}</div>
         <div class="fn__hr"></div>
-        <textarea class="b3-text-field fn__block" id="katexMacros">${window.siyuan.config.editor.katexMacros}</textarea>
+        <textarea class="b3-text-field fn__block" id="katexMacros" spellcheck="false">${window.siyuan.config.editor.katexMacros}</textarea>
     </div>
-</label>`;
+</div>`;
     },
     bindEvent: () => {
         const fontFamilyElement = editor.element.querySelector("#fontFamily") as HTMLSelectElement;
@@ -317,6 +295,7 @@ export const editor = {
                 embedBlockBreadcrumb: (editor.element.querySelector("#embedBlockBreadcrumb") as HTMLInputElement).checked,
                 listLogicalOutdent: (editor.element.querySelector("#listLogicalOutdent") as HTMLInputElement).checked,
                 spellcheck: (editor.element.querySelector("#spellcheck") as HTMLInputElement).checked,
+                onlySearchForDoc: (editor.element.querySelector("#onlySearchForDoc") as HTMLInputElement).checked,
                 floatWindowMode: (editor.element.querySelector("#floatWindowMode") as HTMLInputElement).checked ? 0 : 1,
                 plantUMLServePath: (editor.element.querySelector("#plantUMLServePath") as HTMLInputElement).value,
                 katexMacros: (editor.element.querySelector("#katexMacros") as HTMLTextAreaElement).value,
@@ -326,16 +305,18 @@ export const editor = {
                 virtualBlockRefExclude: (editor.element.querySelector("#virtualBlockRefExclude") as HTMLInputElement).value,
                 blockRefDynamicAnchorTextMaxLen: parseInt((editor.element.querySelector("#blockRefDynamicAnchorTextMaxLen") as HTMLInputElement).value),
                 backlinkExpandCount: parseInt((editor.element.querySelector("#backlinkExpandCount") as HTMLInputElement).value),
+                backmentionExpandCount: parseInt((editor.element.querySelector("#backmentionExpandCount") as HTMLInputElement).value),
                 dynamicLoadBlocks: dynamicLoadBlocks,
                 codeLigatures: (editor.element.querySelector("#codeLigatures") as HTMLInputElement).checked,
                 codeTabSpaces: parseInt((editor.element.querySelector("#codeTabSpaces") as HTMLInputElement).value),
                 fontSize: parseInt((editor.element.querySelector("#fontSize") as HTMLInputElement).value),
+                fontSizeScrollZoom: (editor.element.querySelector("#fontSizeScrollZoom") as HTMLInputElement).checked,
                 generateHistoryInterval: parseInt((editor.element.querySelector("#generateHistoryInterval") as HTMLInputElement).value),
                 historyRetentionDays: parseInt((editor.element.querySelector("#historyRetentionDays") as HTMLInputElement).value),
                 fontFamily: fontFamilyElement.value,
                 emoji: window.siyuan.config.editor.emoji
             }, response => {
-                editor.onSetEditor(response.data);
+                editor._onSetEditor(response.data);
             });
         };
         editor.element.querySelectorAll("input.b3-switch, select.b3-select, input.b3-slider").forEach((item) => {
@@ -355,15 +336,23 @@ export const editor = {
             });
         });
     },
-    onSetEditor: (editorData: IEditor) => {
-        if (editorData.readOnly !== window.siyuan.config.editor.readOnly) {
-            editor.setMode(editorData.readOnly);
+    _onSetEditor: (editorData: IEditor) => {
+        const changeReadonly = editorData.readOnly !== window.siyuan.config.editor.readOnly;
+        if (changeReadonly) {
+            editor.setReadonly(editorData.readOnly);
         }
         window.siyuan.config.editor = editorData;
         getAllModels().editor.forEach((item) => {
-            reloadProtyle(item.editor.protyle);
-            setPadding(item.editor.protyle);
-            if (window.siyuan.config.editor.fullWidth) {
+            reloadProtyle(item.editor.protyle, false);
+            let isFullWidth = item.editor.protyle.wysiwyg.element.getAttribute(Constants.CUSTOM_SY_FULLWIDTH);
+            if (!isFullWidth) {
+                isFullWidth = window.siyuan.config.editor.fullWidth ? "true" : "false";
+            }
+            if (isFullWidth === "true" && item.editor.protyle.contentElement.getAttribute("data-fullwidth") === "true") {
+                return;
+            }
+            resize(item.editor.protyle);
+            if (isFullWidth === "true") {
                 item.editor.protyle.contentElement.setAttribute("data-fullwidth", "true");
             } else {
                 item.editor.protyle.contentElement.removeAttribute("data-fullwidth");
