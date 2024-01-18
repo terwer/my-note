@@ -19,13 +19,20 @@
 
 ## 🚀 发布
 
-合并请求到 main ， 或者直接提交
+1、新建 tag
+
+```bash
+git tag v0.0.0
+git push origin dev v0.0.0
+```
+
+2、合并请求到 main ， 或者直接提交
 
 ## 发布 docker 镜像
 
 ```
 docker login
-docker buildx build --push -t terwer/my-note:latest -t terwer/my-note:v2.12.3 .
+docker buildx build --push -t terwer/my-note:latest -t terwer/my-note:v0.0.0 .
 ```
 
 ## 构建

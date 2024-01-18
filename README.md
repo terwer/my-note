@@ -19,13 +19,20 @@ A fork of SiYuan, a local-first personal knowledge management system
 
 ## 🚀 Release
 
-merge pull request to main or push to main
+first, create a tag from a branch, then push the tag to trigger ci build and docker image build.tag example:v0.0.0
+
+```bash
+git tag v0.0.0
+git push origin dev v0.0.0
+```
+
+then, merge dev to main or push to main
 
 ## Publish docker image
 
 ```
 docker login
-docker buildx build --push -t terwer/my-note:latest -t terwer/my-note:v2.12.3 .
+docker buildx build --push -t terwer/my-note:latest -t terwer/my-note:v0.0.0 .
 ```
 
 ## Build
