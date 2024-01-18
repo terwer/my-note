@@ -6,7 +6,7 @@
 		"id": "20200924100744-br924ar",
 		"title": "Assets",
 		"type": "doc",
-		"updated": "20220920003954"
+		"updated": "20231110112758"
 	},
 	"Children": [
 		{
@@ -245,10 +245,29 @@
 				{
 					"Type": "NodeKramdownSpanIAL",
 					"Data": "{: style=\"display: block;\" parent-style=\"display: block;\"}"
+				}
+			]
+		},
+		{
+			"ID": "20230505084028-ztfxqzm",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230505084028-ztfxqzm",
+				"updated": "20230505084035"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "Note"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "\n"
+					"Data": "​: Inserting pictures will not be compressed, and all pictures and files will be saved as original data.\n"
 				}
 			]
 		},
@@ -359,33 +378,11 @@
 									"Data": "Reference to a specific asset file, such as a picture or a file. If the asset file is a PDF and is "
 								},
 								{
-									"Type": "NodeBlockRef",
-									"Data": "span",
-									"Children": [
-										{
-											"Type": "NodeOpenParen"
-										},
-										{
-											"Type": "NodeOpenParen"
-										},
-										{
-											"Type": "NodeBlockRefID",
-											"Data": "20210923104413-csbeop3"
-										},
-										{
-											"Type": "NodeBlockRefSpace"
-										},
-										{
-											"Type": "NodeBlockRefText",
-											"Data": "annotated"
-										},
-										{
-											"Type": "NodeCloseParen"
-										},
-										{
-											"Type": "NodeCloseParen"
-										}
-									]
+									"Type": "NodeTextMark",
+									"TextMarkType": "block-ref",
+									"TextMarkBlockRefID": "20210923104413-csbeop3",
+									"TextMarkBlockRefSubtype": "s",
+									"TextMarkTextContent": "annotated"
 								},
 								{
 									"Type": "NodeText",
@@ -480,32 +477,11 @@
 					"Data": ", you can clean up unreferenced assets by one-click. If you need to retrieve files that have been deleted by mistake, please via "
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20210104091559-kgrtuyh"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "Rollback"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20210104091559-kgrtuyh",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "Rollback"
 				},
 				{
 					"Type": "NodeText",
@@ -522,13 +498,123 @@
 			},
 			"Children": [
 				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "tag",
 					"TextMarkTextContent": "Note"
 				},
 				{
 					"Type": "NodeText",
-					"Data": ": Using absolute paths (local or network paths) will not be included Clean up calculations."
+					"Data": "​: Using absolute paths (local or network paths) will not be included Clean up calculations."
+				}
+			]
+		},
+		{
+			"ID": "20230604120616-qjigoyt",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230604120616-qjigoyt",
+				"updated": "20230604120623"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "List missing assets"
+				}
+			]
+		},
+		{
+			"ID": "20230604120616-95dv931",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230604120616-95dv931",
+				"updated": "20230604120637"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "You can view the missing resources in "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Settings"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Assets"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​, and you can find the references in the global search after copying the path."
+				}
+			]
+		},
+		{
+			"ID": "20230604120616-tjs4mx0",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230604120616-tjs4mx0",
+				"updated": "20230604120806"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "Note"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​: To search asset paths, you need to enable "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Settings"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Search"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Index"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Asset Path"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​."
 				}
 			]
 		},
@@ -700,6 +786,470 @@
 							]
 						}
 					]
+				}
+			]
+		},
+		{
+			"ID": "20230117003636-epvk98g",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230117003636-epvk98g",
+				"updated": "20230117003636"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Image OCR to extract text"
+				}
+			]
+		},
+		{
+			"ID": "20230117003636-0buf00n",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230117003636-0buf00n",
+				"updated": "20230820185510"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "This feature is only supported on the desktop, and the "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "em",
+					"TextMarkTextContent": "Tesseract OCR"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " program needs to be manually installed first. "
+				}
+			]
+		},
+		{
+			"ID": "20230202231728-0z5bs0m",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230202231728-0z5bs0m",
+				"updated": "20230801231949"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "Note"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​:"
+				}
+			]
+		},
+		{
+			"ID": "20230202231731-bdh7lab",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230202231731-bdh7lab",
+				"updated": "20231110112758"
+			},
+			"Children": [
+				{
+					"ID": "20230202231732-n7z8jth",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230202231732-n7z8jth",
+						"updated": "20231110112758"
+					},
+					"Children": [
+						{
+							"ID": "20230202231732-f3jkj7p",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230202231732-f3jkj7p",
+								"updated": "20231110112758"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "When installing Tesseract OCR, you need to check the language pack you need, and add the installed Tesseract-OCR directory path to the environment variable "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "PATH"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​, so that SiYuan can directly call the "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "tesseract"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ command to extract text from image OCR. If the installation is normal, you can search for "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "tesseract-ocr enabled"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ in the kernel boot log; If you want to disable OCR, set the environment variable "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN\\_TESSERACT\\_ENABLED=false"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230202231800-z8hswmk",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230202231800-z8hswmk",
+						"updated": "20230211103154"
+					},
+					"Children": [
+						{
+							"ID": "20230202231800-c3x45ky",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230202231800-c3x45ky",
+								"updated": "20230211103154"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "SiYuan"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " does not enable all installed language packs, because too many language packs will cause OCR to be slow or even timeout and return empty results, and take up too many system resources, so by default only "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "eng"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​, "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "chi*"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​, "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "fra"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​, "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "spa"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​, "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "deu"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​, "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "rus"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ and "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "osd"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ will be enabled at most, if you need more accurate language support, you can specify the language pack by configuring the environment variable "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_LANGS"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​, such as "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_LANGS=chi_sim+eng"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230211102830-9azqf9m",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230211102830-9azqf9m"
+					},
+					"Children": [
+						{
+							"ID": "20230211102830-sbchex4",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230211102830-sbchex4",
+								"updated": "20230211102832"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "Only images in png and jpg formats are supported"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230211102834-fx3o5su",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230211102834-fx3o5su",
+						"updated": "20230211102928"
+					},
+					"Children": [
+						{
+							"ID": "20230211102834-3jzjdrv",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230211102834-3jzjdrv",
+								"updated": "20230211102928"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "By default, only images below 2MB are processed. If you need to adjust, you can set the environment variable "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_MAX_SIZE"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​, the unit of value is bytes, for example: "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "SIYUAN_TESSERACT_MAX_SIZE=4000000"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ adjust the upper limit to 4MB"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230117003636-ouxlaen",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230117003636-ouxlaen",
+				"updated": "20230117003636"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Image OCR extracts text automatically in the background, currently only supports PNG and JPG images. The extracted text is used in the search function, so that images can be located by text keywords."
+				}
+			]
+		},
+		{
+			"ID": "20230414202934-1h96or8",
+			"Type": "NodeHeading",
+			"HeadingLevel": 3,
+			"Properties": {
+				"id": "20230414202934-1h96or8",
+				"updated": "20230414202934"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Manually adjust OCR results"
+				}
+			]
+		},
+		{
+			"ID": "20230414203027-6py4l9z",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230414203027-6py4l9z",
+				"updated": "20230414203027"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "The OCR results are saved in "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "workspace/data/assets/ocr-texts.json"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​, and the OCR results can be adjusted in the following ways:"
+				}
+			]
+		},
+		{
+			"ID": "20230414203027-ga8zni5",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230414203027-ga8zni5",
+				"updated": "20230414203046"
+			},
+			"Children": [
+				{
+					"ID": "20230414203027-n8cc4ra",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230414203027-n8cc4ra",
+						"updated": "20230414203036"
+					},
+					"Children": [
+						{
+							"ID": "20230414203027-epcrauz",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230414203027-epcrauz",
+								"updated": "20230414203036"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "After exiting SiYuan, modify the file on the file system (please pay attention to the correctness of the JSON format)"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230414203027-zdq3yuf",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230414203027-zdq3yuf",
+						"updated": "20230414203046"
+					},
+					"Children": [
+						{
+							"ID": "20230414203027-ouvsa2g",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230414203027-ouvsa2g",
+								"updated": "20230414203046"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "Or select "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "OCR"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ from the image element menu in the editor"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230414203027-chylp3d",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230414203027-chylp3d",
+				"updated": "20230414203027"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "After the adjustment, you need to manually rebuild the index."
 				}
 			]
 		}

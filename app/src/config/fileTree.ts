@@ -45,36 +45,44 @@ export const fileTree = {
 </label>
 <label class="fn__flex b3-label">
     <div class="fn__flex-1">
+        ${window.siyuan.languages.fileTree20}
+        <div class="b3-label__text">${window.siyuan.languages.fileTree21}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" id="useSingleLineSave" type="checkbox"${window.siyuan.config.fileTree.useSingleLineSave ? " checked" : ""}/>
+</label>
+<div class="fn__flex b3-label config__item">
+    <div class="fn__flex-1">
         ${window.siyuan.languages.fileTree12}
         <div class="b3-label__text">${window.siyuan.languages.fileTree13}</div>
     </div>
     <span class="fn__space"></span>
-    <input class="b3-text-field fn__flex-center fn__size200" id="createDocNameTemplate" value="">
-</label>
-<label class="b3-label fn__flex">
+    <input class="b3-text-field fn__flex-center fn__size200" id="docCreateSavePath" value="">
+</div>
+<div class="b3-label fn__flex config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.fileTree5}
         <div class="b3-label__text">${window.siyuan.languages.fileTree6}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="refCreateSavePath" value="${window.siyuan.config.fileTree.refCreateSavePath}">
-</label>
-<label class="fn__flex b3-label">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.fileTree16}
         <div class="b3-label__text">${window.siyuan.languages.fileTree17}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="maxListCount" type="number" min="1" max="10240" value="${window.siyuan.config.fileTree.maxListCount}">
-</label>
-<label class="fn__flex b3-label">
+</div>
+<div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
         ${window.siyuan.languages.tabLimit}
         <div class="b3-label__text">${window.siyuan.languages.tabLimit1}</div>
     </div>
     <span class="fn__space"></span>
     <input class="b3-text-field fn__flex-center fn__size200" id="maxOpenTabCount" type="number" min="1" max="32" value="${window.siyuan.config.fileTree.maxOpenTabCount}">
-</label>`;
+</div>`;
     },
     _send() {
         // 限制页签最大打开数量为 `32` https://github.com/siyuan-note/siyuan/issues/6303
@@ -92,11 +100,12 @@ export const fileTree = {
             sort: window.siyuan.config.fileTree.sort,
             alwaysSelectOpenedFile: (fileTree.element.querySelector("#alwaysSelectOpenedFile") as HTMLInputElement).checked,
             refCreateSavePath: (fileTree.element.querySelector("#refCreateSavePath") as HTMLInputElement).value,
-            createDocNameTemplate: (fileTree.element.querySelector("#createDocNameTemplate") as HTMLInputElement).value,
+            docCreateSavePath: (fileTree.element.querySelector("#docCreateSavePath") as HTMLInputElement).value,
             openFilesUseCurrentTab: (fileTree.element.querySelector("#openFilesUseCurrentTab") as HTMLInputElement).checked,
             closeTabsOnStart: (fileTree.element.querySelector("#closeTabsOnStart") as HTMLInputElement).checked,
             allowCreateDeeper: (fileTree.element.querySelector("#allowCreateDeeper") as HTMLInputElement).checked,
             removeDocWithoutConfirm: (fileTree.element.querySelector("#removeDocWithoutConfirm") as HTMLInputElement).checked,
+            useSingleLineSave: (fileTree.element.querySelector("#useSingleLineSave") as HTMLInputElement).checked,
             maxListCount: parseInt((fileTree.element.querySelector("#maxListCount") as HTMLInputElement).value),
             maxOpenTabCount: inputMaxOpenTabCount,
         }, response => {
@@ -104,7 +113,7 @@ export const fileTree = {
         });
     },
     bindEvent: () => {
-        (fileTree.element.querySelector("#createDocNameTemplate") as HTMLInputElement).value = window.siyuan.config.fileTree.createDocNameTemplate;
+        (fileTree.element.querySelector("#docCreateSavePath") as HTMLInputElement).value = window.siyuan.config.fileTree.docCreateSavePath;
         (fileTree.element.querySelector("#refCreateSavePath") as HTMLInputElement).value = window.siyuan.config.fileTree.refCreateSavePath;
         fileTree.element.querySelectorAll("input").forEach((item) => {
             item.addEventListener("change", () => {

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -27,13 +27,20 @@ type Export struct {
 	TagCloseMarker          string `json:"tagCloseMarker"`          // 标签结束标记符，默认是 #
 	FileAnnotationRefMode   int    `json:"fileAnnotationRefMode"`   // 文件标注引用导出模式，0：文件名 - 页码 - 锚文本，1：仅锚文本
 	PandocBin               string `json:"pandocBin"`               // Pandoc 可执行文件路径
+	MarkdownYFM             bool   `json:"markdownYFM"`             // Markdown 导出时是否添加 YAML Front Matter https://github.com/siyuan-note/siyuan/issues/7727
+	PDFFooter               string `json:"pdfFooter"`               // PDF 导出时页脚内容
+	DocxTemplate            string `json:"docxTemplate"`            // Docx 导出时模板文件路径
+	PDFWatermarkStr         string `json:"pdfWatermarkStr"`         // PDF 导出时水印文本或水印文件路径
+	PDFWatermarkDesc        string `json:"pdfWatermarkDesc"`        // PDF 导出时水印位置、大小和样式等
+	ImageWatermarkStr       string `json:"imageWatermarkStr"`       // 图片导出时水印文本或水印文件路径
+	ImageWatermarkDesc      string `json:"imageWatermarkDesc"`      // 图片导出时水印位置、大小和样式等
 }
 
 func NewExport() *Export {
 	return &Export{
 		ParagraphBeginningSpace: false,
 		AddTitle:                true,
-		BlockRefMode:            4,
+		BlockRefMode:            3,
 		BlockEmbedMode:          1,
 		BlockRefTextLeft:        "",
 		BlockRefTextRight:       "",
@@ -41,5 +48,7 @@ func NewExport() *Export {
 		TagCloseMarker:          "#",
 		FileAnnotationRefMode:   0,
 		PandocBin:               "",
+		MarkdownYFM:             false,
+		PDFFooter:               "%page / %pages",
 	}
 }

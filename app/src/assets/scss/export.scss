@@ -1,16 +1,15 @@
-@import "mixin";
-@import "tooltips";
-@import "typography";
-@import "wysiwyg";
-@import "function";
-@import "button";
-@import "select";
-@import "switch";
-@import "slider";
-
-.protyle-wysiwyg {
-  font-family: var(--b3-font-family);
-}
+@import "util/mixin";
+@import "component/tooltips";
+@import "component/typography";
+@import "protyle/wysiwyg";
+@import "protyle/attr";
+@import "util/function";
+@import "business/history";
+@import "component/button";
+@import "component/select";
+@import "component/switch";
+@import "component/slider";
+@import "component/text-field";
 
 .protyle-wysiwyg a,
 .b3-typography a {
@@ -28,38 +27,27 @@ svg {
   display: none;
 }
 
-.b3-typography table, .protyle-wysiwyg table {
-  display: table;
+.b3-typography,
+.protyle-wysiwyg .table[data-node-id] {
+  table {
+    display: table;
+  }
 }
 
-.protyle-attr {
-  position: absolute;
-  right: 0;
-  top: -9px;
-  display: flex;
-  opacity: 0;
-  font-size: 12px;
-
-  & > div {
-    margin: 0 4px;
-    display: flex;
-    align-items: center;
-    line-height: 16px;
-    color: var(--b3-theme-on-surface);
-
-    &:hover {
-      color: var(--b3-theme-on-background);
+@media print {
+  // 尽量避免块内分页
+  .protyle-wysiwyg [data-node-id] {
+    &[data-type=NodeAudio],
+    &.render-node[data-type=NodeCodeBlock],
+    &[data-type=NodeHeading],
+    &[data-type=NodeIFrame],
+    &[data-type=NodeMathBlock],
+    &[data-type=NodeParagraph],
+    &[data-type=NodeThematicBreak],
+    &[data-type=NodeVideo],
+    &[data-type=NodeWidget],
+    .img {
+      break-inside: avoid;
     }
-
-    svg {
-      height: 12px;
-      width: 12px;
-      margin-right: 2px;
-      flex-shrink: 0;
-    }
-  }
-
-  &:empty {
-    display: none;
   }
 }

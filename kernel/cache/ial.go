@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -24,8 +24,8 @@ import (
 )
 
 var docIALCache, _ = ristretto.NewCache(&ristretto.Config{
-	NumCounters: 200000,
-	MaxCost:     1000 * 1000 * 32,
+	NumCounters: 102400,
+	MaxCost:     10240,
 	BufferItems: 64,
 })
 
@@ -55,8 +55,8 @@ func ClearDocsIAL() {
 }
 
 var blockIALCache, _ = ristretto.NewCache(&ristretto.Config{
-	NumCounters: 800000,
-	MaxCost:     1000 * 1000 * 64,
+	NumCounters: 102400,
+	MaxCost:     10240,
 	BufferItems: 64,
 })
 

@@ -1,14 +1,17 @@
 import {Tab} from "../Tab";
-import {getDockByType, setPanelFocus} from "../util";
+import {setPanelFocus} from "../util";
+import {getDockByType} from "../tabUtil";
 import {Model} from "../Model";
 import {Constants} from "../../constants";
-import {getDisplayName} from "../../util/pathName";
 import {addScript} from "../../protyle/util/addScript";
 import {BlockPanel} from "../../block/Panel";
 import {fullscreen} from "../../protyle/breadcrumb/action";
 import {fetchPost} from "../../util/fetch";
 import {isCurrentEditor, openFileById} from "../../editor/util";
 import {updateHotkeyTip} from "../../protyle/util/compatibility";
+import {openGlobalSearch} from "../../search/util";
+import {App} from "../../index";
+import {checkFold} from "../../util/noRelyPCFunction";
 
 declare const vis: any;
 
@@ -22,19 +25,21 @@ export class Graph extends Model {
     public rootId: string; // "local" 必填
     private timeout: number;
     public graphData: {
-        nodes: { box: string, id: string, path: string }[],
+        nodes: { box: string, id: string, path: string, type: string, color: IObject }[],
         links: Record<string, unknown>[],
         box: string
     };
     public type: "local" | "pin" | "global";
 
     constructor(options: {
+        app: App
         tab: Tab
         blockId?: string
         rootId?: string
         type: "local" | "pin" | "global"
     }) {
         super({
+            app: options.app,
             id: options.tab.id,
             callback() {
                 if (this.type === "local") {
@@ -54,7 +59,7 @@ export class Graph extends Model {
                             }
                             break;
                         case "rename":
-                            if (this.graphData && data.data.box === this.graphData.box && this.path === data.data.path) {
+                            if (this.graphData && data.data.box === this.graphData.box && this.rootId === data.data.id) {
                                 this.searchGraph(false);
                                 if (this.type === "local") {
                                     this.parent.updateTitle(data.data.title);
@@ -64,22 +69,13 @@ export class Graph extends Model {
                                 this.searchGraph(false);
                             }
                             break;
-                        case "moveDoc":
-                            if (this.type === "global") {
-                                this.searchGraph(false);
-                            } else if (this.graphData && (data.data.fromNotebook === this.graphData.box || data.data.toNotebook === this.graphData.box) &&
-                                this.path === data.data.fromPath) {
-                                this.path = data.data.newPath;
-                                this.graphData.box = data.data.toNotebook;
-                                this.searchGraph(false);
+                        case "unmount":
+                            if (this.type === "local" && this.graphData && this.graphData.box === data.data.box) {
+                                this.parent.parent.removeTab(this.parent.id);
                             }
                             break;
-                        case "unmount":
-                        case "remove":
-                            if (this.type === "global") {
-                                this.searchGraph(false);
-                            } else if (this.graphData && this.graphData.box === data.data.box &&
-                                (!data.data.path || this.path.indexOf(getDisplayName(data.data.path, false, true)) === 0)) {
+                        case "removeDoc":
+                            if (this.type === "local" && data.data.ids.includes(this.rootId)) {
                                 this.parent.parent.removeTab(this.parent.id);
                             }
                             break;
@@ -265,10 +261,10 @@ export class Graph extends Model {
         <svg><use xlink:href="#icon${this.type === "global" ? "GlobalGraph" : "Graph"}"></use></svg>
         ${this.type === "global" ? window.siyuan.languages.globalGraph : window.siyuan.languages.graphView}
     </div>
-    <label class="b3-form__icon b3-form__icon--small search__label">
-        <svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg>
-        <input class="b3-form__icon-input b3-text-field b3-text-field--small" placeholder="${window.siyuan.languages.search}" />
-    </label>
+    <span class="fn__flex-1"></span>
+    <span class="fn__space"></span>
+    <input class="b3-text-field search__label fn__size200 fn__none" placeholder="${window.siyuan.languages.search}" />
+    <span data-type="search" class="block__icon b3-tooltips b3-tooltips__sw" aria-label="${window.siyuan.languages.search}"><svg><use xlink:href='#iconFilter'></use></svg></span>
     <span class="fn__space"></span>
     <span data-type="refresh" class="block__icon b3-tooltips b3-tooltips__sw" aria-label="${window.siyuan.languages.refresh}"><svg><use xlink:href='#iconRefresh'></use></svg></span>
     <div class="fn__space"></div>
@@ -320,6 +316,9 @@ export class Graph extends Model {
                             target.classList.add("ft__primary");
                             this.panelElement.style.right = "0";
                         }
+                    } else if (dataType === "search") {
+                        target.previousElementSibling.classList.remove("fn__none");
+                        (target.previousElementSibling as HTMLInputElement).select();
                     } else if (dataType === "refresh") {
                         this.searchGraph(false);
                     } else if (dataType === "fullscreen") {
@@ -339,6 +338,10 @@ export class Graph extends Model {
         this.inputElement.addEventListener("compositionend", () => {
             this.searchGraph(false);
             this.inputElement.classList.add("search__input--block");
+        });
+        this.inputElement.addEventListener("blur", (event: InputEvent) => {
+            const inputElement = event.target as HTMLInputElement;
+            inputElement.classList.add("fn__none");
         });
         this.inputElement.addEventListener("input", (event: InputEvent) => {
             if (event.isComposing) {
@@ -363,9 +366,6 @@ export class Graph extends Model {
             });
         });
         this.searchGraph(options.type !== "global");
-        if (this.type !== "local") {
-            setPanelFocus(this.element);
-        }
     }
 
     private reset(conf: IGraphCommon & ({ dailyNote: boolean } | { minRefs: number, dailyNote: boolean })) {
@@ -453,6 +453,7 @@ export class Graph extends Model {
             });
         } else {
             fetchPost("/api/graph/getLocalGraph", {
+                type: this.type, // 用于如下场景：当打开文档A的关系图、关系图、文档A后刷新，由于防止请求重复处理，文档A关系图无法渲染。
                 k: this.inputElement.value,
                 id: id || this.blockId,
                 conf: {
@@ -465,7 +466,9 @@ export class Graph extends Model {
                 if (id) {
                     this.blockId = id;
                 }
-                if (!isCurrentEditor(this.blockId)) {
+                if (!isCurrentEditor(this.blockId) &&
+                    this.graphElement.firstElementChild.classList.contains("fn__none") // 引用右键打开关系图
+                ) {
                     return;
                 }
                 this.graphData = response.data;
@@ -500,8 +503,54 @@ export class Graph extends Model {
             this.graphElement.firstElementChild.classList.add("fn__none");
             return;
         }
+        // 使用颜色
+        const rootStyle = getComputedStyle(document.body);
+        this.graphData.nodes.forEach(item => {
+            switch (item.type) {
+                case "NodeDocument":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-doc-point").trim()};
+                    break;
+                case "NodeParagraph":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-p-point").trim()};
+                    break;
+                case "NodeHeading":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-heading-point").trim()};
+                    break;
+                case "NodeMathBlock":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-math-point").trim()};
+                    break;
+                case "NodeCodeBlock":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-code-point").trim()};
+                    break;
+                case "NodeTable":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-table-point").trim()};
+                    break;
+                case "NodeList":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-list-point").trim()};
+                    break;
+                case "NodeListItem":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-listitem-point").trim()};
+                    break;
+                case "NodeBlockquote":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-bq-point").trim()};
+                    break;
+                case "NodeSuperBlock":
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-super-point").trim()};
+                    break;
+                default:
+                    item.color = {background: rootStyle.getPropertyValue("--b3-graph-p-point").trim()};
+                    break;
+            }
+        });
+        this.graphData.links.forEach(item => {
+            if (item.ref) {
+                item.color = {color: rootStyle.getPropertyValue("--b3-graph-ref-line").trim()};
+            } else {
+                item.color = {color: rootStyle.getPropertyValue("--b3-graph-line").trim()};
+            }
+        });
         clearTimeout(this.timeout);
-        addScript(`${Constants.PROTYLE_CDN}/js/vis/vis-network.min.js?v=9.0.4`, "protyleVisScript").then(() => {
+        addScript(`${Constants.PROTYLE_CDN}/js/vis/vis-network.min.js?v=9.1.2`, "protyleVisScript").then(() => {
             this.timeout = window.setTimeout(() => {
                 this.graphElement.firstElementChild.classList.remove("fn__none");
                 this.graphElement.firstElementChild.firstElementChild.setAttribute("style", "width:3%");
@@ -510,7 +559,6 @@ export class Graph extends Model {
                     nodes: this.graphData.nodes,
                     edges: this.graphData.links,
                 };
-                const rootStyle = getComputedStyle(document.body);
                 const options = {
                     autoResize: true,
                     interaction: {
@@ -600,25 +648,47 @@ export class Graph extends Model {
                     if (!node) {
                         return;
                     }
+                    if (node.type === "textmark tag") {
+                        openGlobalSearch(this.app, `#${node.id}#`, !window.siyuan.ctrlIsPressed);
+                        return;
+                    }
                     if (window.siyuan.shiftIsPressed) {
-                        openFileById({
-                            id: node.id,
-                            position: "bottom",
-                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]
+                        checkFold(node.id, (zoomIn, action: string[]) => {
+                            openFileById({
+                                app: this.app,
+                                id: node.id,
+                                position: "bottom",
+                                action,
+                                zoomIn
+                            });
                         });
                     } else if (window.siyuan.altIsPressed) {
-                        openFileById({
-                            id: node.id,
-                            position: "right",
-                            action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]
+                        checkFold(node.id, (zoomIn, action: string[]) => {
+                            openFileById({
+                                app: this.app,
+                                id: node.id,
+                                position: "right",
+                                action,
+                                zoomIn
+                            });
                         });
                     } else if (window.siyuan.ctrlIsPressed) {
                         window.siyuan.blockPanels.push(new BlockPanel({
-                            targetElement: this.inputElement,
+                            app: this.app,
+                            isBacklink: false,
+                            x: params.event.center.x,
+                            y: params.event.center.y,
                             nodeIds: [node.id],
                         }));
                     } else {
-                        openFileById({id: node.id, action: [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT]});
+                        checkFold(node.id, (zoomIn, action: string[]) => {
+                            openFileById({
+                                app: this.app,
+                                id: node.id,
+                                action,
+                                zoomIn
+                            });
+                        });
                     }
                 });
             }, 1000);

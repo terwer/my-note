@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -68,7 +68,7 @@ func LoadSnippets() (ret []*conf.Snippet, err error) {
 func loadSnippets() (ret []*conf.Snippet, err error) {
 	ret = []*conf.Snippet{}
 	confPath := filepath.Join(util.SnippetsPath, "conf.json")
-	if !gulu.File.IsExist(confPath) {
+	if !filelock.IsExist(confPath) {
 		return
 	}
 

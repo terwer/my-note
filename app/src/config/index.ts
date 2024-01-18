@@ -11,10 +11,82 @@ import {keymap} from "./keymap";
 import {bazaar} from "./bazaar";
 import {query} from "./query";
 import {Dialog} from "../dialog";
+import {ai} from "./ai";
+import {flashcard} from "./flashcard";
+import {App} from "../index";
+import {isHuawei} from "../protyle/util/compatibility";
+import {Constants} from "../constants";
 
-export const openSetting = () => {
+export const genItemPanel = (type: string, containerElement: Element, app: App) => {
+    switch (type) {
+        case "filetree":
+            containerElement.innerHTML = fileTree.genHTML();
+            fileTree.element = containerElement;
+            fileTree.bindEvent();
+            break;
+        case "AI":
+            containerElement.innerHTML = ai.genHTML();
+            ai.element = containerElement;
+            ai.bindEvent();
+            break;
+        case "card":
+            containerElement.innerHTML = flashcard.genHTML();
+            flashcard.element = containerElement;
+            flashcard.bindEvent();
+            break;
+        case "image":
+            containerElement.innerHTML = image.genHTML();
+            image.element = containerElement;
+            image.bindEvent();
+            break;
+        case "export":
+            containerElement.innerHTML = exportConfig.genHTML();
+            exportConfig.element = containerElement;
+            exportConfig.bindEvent();
+            break;
+        case "appearance":
+            containerElement.innerHTML = appearance.genHTML();
+            appearance.element = containerElement;
+            appearance.bindEvent();
+            break;
+        case "keymap":
+            containerElement.innerHTML = keymap.genHTML(app);
+            keymap.element = containerElement;
+            keymap.bindEvent(app);
+            break;
+        case "bazaar":
+            bazaar.element = containerElement;
+            containerElement.innerHTML = bazaar.genHTML();
+            bazaar.bindEvent(app);
+            break;
+        case "account":
+            containerElement.innerHTML = account.genHTML();
+            account.element = containerElement;
+            account.bindEvent(account.element);
+            break;
+        case "repos":
+            containerElement.innerHTML = repos.genHTML();
+            repos.element = containerElement;
+            repos.bindEvent();
+            break;
+        case "about":
+            containerElement.innerHTML = about.genHTML();
+            about.element = containerElement;
+            about.bindEvent();
+            break;
+        case "search":
+            containerElement.innerHTML = query.genHTML();
+            query.element = containerElement;
+            query.bindEvent();
+            break;
+        default:
+            break;
+    }
+};
+
+export const openSetting = (app: App) => {
     const exitDialog = window.siyuan.dialogs.find((item) => {
-        if (item.element.querySelector(".b3-tab-container")) {
+        if (item.element.querySelector(".config__tab-container")) {
             item.destroy();
             return true;
         }
@@ -22,111 +94,70 @@ export const openSetting = () => {
     if (exitDialog) {
         return exitDialog;
     }
-    const height = Math.min(window.innerHeight * .9, Math.max(window.innerHeight * .7, 52 * 11));
     const dialog = new Dialog({
-        content: `<div class="fn__flex-column" style="border-radius: 4px;overflow: hidden;position: relative">
-<div class="b3-form__icon search__header"><svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg><input class="b3-text-field b3-text-field--text fn__block b3-form__icon-input"></div>
-<div class="fn__flex-1 fn__flex">
-  <ul class="b3-tab-bar b3-list b3-list--background" style="user-select:none;width: 180px;height:${height}px;overflow: auto;padding: 8px 0;box-sizing: border-box">
-    <li data-name="editor" class="b3-list-item--focus b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconEdit"></use></svg>${window.siyuan.languages.editor}</li>
-    <li data-name="filetree" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconFiles"></use></svg>${window.siyuan.languages.fileTree}</li>
-    <li data-name="image" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg>${window.siyuan.languages.assets}</li>
-    <li data-name="export" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconUpload"></use></svg>${window.siyuan.languages.export}</li>
-    <li data-name="appearance" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconTheme"></use></svg>${window.siyuan.languages.appearance}</li>
-    <li data-name="bazaar" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconBazaar"></use></svg>${window.siyuan.languages.bazaar}</li>
-    <li data-name="search" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconSearch"></use></svg>${window.siyuan.languages.search}</li>
-    <li data-name="keymap" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconKeymap"></use></svg>${window.siyuan.languages.keymap}</li>
-    <li data-name="account" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconAccount"></use></svg>${window.siyuan.languages.account}</li>
-    <li data-name="repos" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconCloud"></use></svg>${window.siyuan.languages.cloud}</li>
-    <li data-name="about" class="b3-list-item b3-list-item--big"><svg class="b3-list-item__graphic"><use xlink:href="#iconInfo"></use></svg>${window.siyuan.languages.about}</li>
+        content: `<div class="fn__flex-1 fn__flex config__panel" style="overflow: hidden;position: relative">
+  <ul class="b3-tab-bar b3-list b3-list--background">
+    <div class="config__tab-title resize__move">
+        <svg class="b3-list-item__graphic"><use xlink:href="#iconSettings"></use></svg>
+        <span class="b3-list-item__text">${window.siyuan.languages.config}</span>
+    </div>
+    <div class="b3-form__icon"><svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg><input placeholder="${window.siyuan.languages.search}" class="b3-text-field fn__block b3-form__icon-input"></div>
+    <div class="config__tab-hr"></div>
+    <li data-name="editor" class="b3-list-item--focus b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconEdit"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.editor}</span></li>
+    <li data-name="filetree" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconFiles"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.fileTree}</span></li>
+    <li data-name="card" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconRiffCard"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.riffCard}</span></li>
+    <li data-name="AI" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconSparkles"></use></svg><span class="b3-list-item__text">AI</span></li>
+    <li data-name="image" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.assets}</span></li>
+    <li data-name="export" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconUpload"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.export}</span></li>
+    <li data-name="appearance" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconTheme"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.appearance}</span></li>
+    <li data-name="bazaar" class="b3-list-item${isHuawei() ? " fn__none" : ""}"><svg class="b3-list-item__graphic"><use xlink:href="#iconBazaar"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.bazaar}</span></li>
+    <li data-name="search" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconSearch"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.search}</span></li>
+    <li data-name="keymap" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconKeymap"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.keymap}</span></li>
+    <li data-name="account" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconAccount"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.account}</span></li>
+    <li data-name="repos" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconCloud"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.cloud}</span></li>
+    <li data-name="about" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconInfo"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.about}</span></li>
   </ul>
-  <div class="b3-tab-container" style="height:${height}px" data-name="editor">${editor.genHTML()}</div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="filetree"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="image"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="export"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="appearance"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="bazaar"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="search"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="keymap"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="account"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="repos"></div>
-  <div class="b3-tab-container fn__none" style="height:${height}px" data-name="about"></div>
-</div>
+  <div class="config__tab-wrap">
+      <div class="fn__hr--b resize__move"></div>
+      <div class="config__tab-container" data-name="editor">${editor.genHTML()}</div>
+      <div class="config__tab-container fn__none" data-name="filetree"></div>
+      <div class="config__tab-container fn__none" data-name="card"></div>
+      <div class="config__tab-container config__tab-container--top fn__none" data-name="AI"></div>
+      <div class="config__tab-container config__tab-container--top fn__none" data-name="image"></div>
+      <div class="config__tab-container fn__none" data-name="export"></div>
+      <div class="config__tab-container fn__none" data-name="appearance"></div>
+      <div class="config__tab-container config__tab-container--top fn__none" data-name="bazaar"></div>
+      <div class="config__tab-container fn__none" data-name="search"></div>
+      <div class="config__tab-container fn__none" style="overflow: scroll" data-name="keymap"></div>
+      <div class="config__tab-container config__tab-container--full fn__none" data-name="account"></div>
+      <div class="config__tab-container fn__none" data-name="repos"></div>
+      <div class="config__tab-container fn__none" data-name="about"></div>
+      <div class="fn__hr--b"></div>
+  </div>
 </div>`,
-        width: "80vw",
+        width: "90vw",
+        height: "90vh",
     });
+    dialog.element.setAttribute("data-key", Constants.DIALOG_SETTING);
 
-    initConfigSearch(dialog.element);
-
+    initConfigSearch(dialog.element, app);
+    (dialog.element.querySelector(".b3-dialog__container") as HTMLElement).style.maxWidth = "1280px";
     dialog.element.querySelectorAll(".b3-tab-bar .b3-list-item").forEach(item => {
         item.addEventListener("click", () => {
             const type = item.getAttribute("data-name");
-            const containerElement = dialog.element.querySelector(`.b3-tab-container[data-name="${type}"]`);
-            dialog.element.querySelectorAll(".b3-tab-container").forEach((container) => {
+            const containerElement = dialog.element.querySelector(`.config__tab-container[data-name="${type}"]`);
+            dialog.element.querySelectorAll(".config__tab-container").forEach((container) => {
                 container.classList.add("fn__none");
             });
             dialog.element.querySelector(".b3-tab-bar .b3-list-item.b3-list-item--focus").classList.remove("b3-list-item--focus");
             item.classList.add("b3-list-item--focus");
             containerElement.classList.remove("fn__none");
             if (containerElement.innerHTML === "" || type === "repos" || type === "bazaar") {
-                switch (type) {
-                    case "filetree":
-                        containerElement.innerHTML = fileTree.genHTML();
-                        fileTree.element = dialog.element.querySelector('.b3-tab-container[data-name="filetree"]');
-                        fileTree.bindEvent();
-                        break;
-                    case "image":
-                        containerElement.innerHTML = image.genHTML();
-                        image.element = dialog.element.querySelector('.b3-tab-container[data-name="image"]');
-                        image.bindEvent();
-                        break;
-                    case "export":
-                        containerElement.innerHTML = exportConfig.genHTML();
-                        exportConfig.element = dialog.element.querySelector('.b3-tab-container[data-name="export"]');
-                        exportConfig.bindEvent();
-                        break;
-                    case "appearance":
-                        containerElement.innerHTML = appearance.genHTML();
-                        appearance.element = dialog.element.querySelector('.b3-tab-container[data-name="appearance"]');
-                        appearance.bindEvent();
-                        break;
-                    case "keymap":
-                        containerElement.innerHTML = keymap.genHTML();
-                        keymap.element = dialog.element.querySelector('.b3-tab-container[data-name="keymap"]');
-                        keymap.bindEvent();
-                        break;
-                    case "bazaar":
-                        bazaar.element = dialog.element.querySelector('.b3-tab-container[data-name="bazaar"]');
-                        containerElement.innerHTML = bazaar.genHTML();
-                        bazaar.bindEvent();
-                        break;
-                    case "account":
-                        containerElement.innerHTML = account.genHTML();
-                        account.element = dialog.element.querySelector('.b3-tab-container[data-name="account"]');
-                        account.bindEvent(account.element);
-                        break;
-                    case "repos":
-                        containerElement.innerHTML = repos.genHTML();
-                        repos.element = dialog.element.querySelector('.b3-tab-container[data-name="repos"]');
-                        repos.bindEvent();
-                        break;
-                    case "about":
-                        containerElement.innerHTML = about.genHTML();
-                        about.element = dialog.element.querySelector('.b3-tab-container[data-name="about"]');
-                        about.bindEvent();
-                        break;
-                    case "search":
-                        containerElement.innerHTML = query.genHTML();
-                        query.element = dialog.element.querySelector('.b3-tab-container[data-name="search"]');
-                        query.bindEvent();
-                        break;
-                    default:
-                        break;
-                }
+                genItemPanel(type, containerElement, app);
             }
         });
     });
-    editor.element = dialog.element.querySelector('.b3-tab-container[data-name="editor"]');
+    editor.element = dialog.element.querySelector('.config__tab-container[data-name="editor"]');
     editor.bindEvent();
     return dialog;
 };

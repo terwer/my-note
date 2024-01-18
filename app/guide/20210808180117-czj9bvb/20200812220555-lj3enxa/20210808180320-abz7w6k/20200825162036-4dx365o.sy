@@ -8,7 +8,7 @@
 		"title": "排版元素",
 		"title-img": "background-color: hsl(2, 57%, 40%);background-image: repeating-linear-gradient(transparent, transparent 50px, rgba(0,0,0,.4) 50px, rgba(0,0,0,.4) 53px, transparent 53px, transparent 63px, rgba(0,0,0,.4) 63px, rgba(0,0,0,.4) 66px, transparent 66px, transparent 116px, rgba(0,0,0,.5) 116px, rgba(0,0,0,.5) 166px, rgba(255,255,255,.2) 166px, rgba(255,255,255,.2) 169px, rgba(0,0,0,.5) 169px, rgba(0,0,0,.5) 179px, rgba(255,255,255,.2) 179px, rgba(255,255,255,.2) 182px, rgba(0,0,0,.5) 182px, rgba(0,0,0,.5) 232px, transparent 232px),repeating-linear-gradient(270deg, transparent, transparent 50px, rgba(0,0,0,.4) 50px, rgba(0,0,0,.4) 53px, transparent 53px, transparent 63px, rgba(0,0,0,.4) 63px, rgba(0,0,0,.4) 66px, transparent 66px, transparent 116px, rgba(0,0,0,.5) 116px, rgba(0,0,0,.5) 166px, rgba(255,255,255,.2) 166px, rgba(255,255,255,.2) 169px, rgba(0,0,0,.5) 169px, rgba(0,0,0,.5) 179px, rgba(255,255,255,.2) 179px, rgba(255,255,255,.2) 182px, rgba(0,0,0,.5) 182px, rgba(0,0,0,.5) 232px, transparent 232px),repeating-linear-gradient(125deg, transparent, transparent 2px, rgba(0,0,0,.2) 2px, rgba(0,0,0,.2) 3px, transparent 3px, transparent 5px, rgba(0,0,0,.2) 5px);",
 		"type": "doc",
-		"updated": "20220918174723"
+		"updated": "20230820185054"
 	},
 	"Children": [
 		{
@@ -2381,7 +2381,7 @@
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "分割线"
+					"Data": "分隔线"
 				}
 			]
 		},
@@ -2449,7 +2449,7 @@
 		{
 			"ID": "20220908200902-6rqv2wt",
 			"Type": "NodeIFrame",
-			"Data": "\u003ciframe src=\"//player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" data-src=\"//player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\"\u003e\u003c/iframe\u003e",
+			"Data": "\u003ciframe src=\"https://player.bilibili.com/player.html?bvid=BV1ov41187qM\u0026amp;page=1\u0026amp;high_quality=1\u0026amp;as_wide=1\u0026amp;allowfullscreen=true\u0026amp;aid=247401039\u0026amp;cid=319662466\u0026amp;autoplay=0\" data-src=\"//player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\" sandbox=\"allow-top-navigation-by-user-activation allow-same-origin allow-forms allow-scripts allow-popups\"\u003e\u003c/iframe\u003e",
 			"Properties": {
 				"id": "20220908200902-6rqv2wt",
 				"updated": "20220908200902"
@@ -2636,7 +2636,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2712,7 +2712,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2788,7 +2788,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2858,7 +2858,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2928,7 +2928,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2994,7 +2994,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -3064,7 +3064,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -3094,7 +3094,7 @@
 			"IsFencedCodeBlock": true,
 			"Properties": {
 				"id": "20210104091228-b6sr6sq",
-				"updated": "20220820214105"
+				"updated": "20221105164534"
 			},
 			"Children": [
 				{
@@ -3112,6 +3112,219 @@
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
 					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20221225011731-fkkxxrw",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20221225011731-fkkxxrw",
+				"updated": "20221225012400"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "可使用如下三种格式定义："
+				}
+			]
+		},
+		{
+			"ID": "20221225011757-zcfae5d",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20221225011757-zcfae5d",
+				"updated": "20221225103122"
+			},
+			"Children": [
+				{
+					"ID": "20221225011757-ojf9val",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20221225011757-ojf9val",
+						"updated": "20221225012827"
+					},
+					"Children": [
+						{
+							"ID": "20221225011757-48mzmh0",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20221225011757-48mzmh0",
+								"updated": "20221225011759"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "JSON"
+								}
+							]
+						},
+						{
+							"ID": "20221225103039-o8ap7h6",
+							"Type": "NodeCodeBlock",
+							"IsFencedCodeBlock": true,
+							"Properties": {
+								"id": "20221225103039-o8ap7h6",
+								"updated": "20221225103059"
+							},
+							"Children": [
+								{
+									"Type": "NodeCodeBlockFenceOpenMarker",
+									"Data": "```"
+								},
+								{
+									"Type": "NodeCodeBlockFenceInfoMarker",
+									"CodeBlockInfo": "anNvbg=="
+								},
+								{
+									"Type": "NodeCodeBlockCode",
+									"Data": "{\n    \"propName\": \"propValue\"\n}\n"
+								},
+								{
+									"Type": "NodeCodeBlockFenceCloseMarker",
+									"Data": "```"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20221225011800-6pbspkn",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20221225011800-6pbspkn"
+					},
+					"Children": [
+						{
+							"ID": "20221225011800-2y5560p",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20221225011800-2y5560p",
+								"updated": "20221225011804"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "JavaScript Object"
+								}
+							]
+						},
+						{
+							"ID": "20221225103111-8jioici",
+							"Type": "NodeCodeBlock",
+							"IsFencedCodeBlock": true,
+							"Properties": {
+								"id": "20221225103111-8jioici",
+								"updated": "20221225103114"
+							},
+							"Children": [
+								{
+									"Type": "NodeCodeBlockFenceOpenMarker",
+									"Data": "```"
+								},
+								{
+									"Type": "NodeCodeBlockFenceInfoMarker",
+									"CodeBlockInfo": "amF2YXNjcmlwdA=="
+								},
+								{
+									"Type": "NodeCodeBlockCode",
+									"Data": "{\n    propName: 'propValue',\n}\n"
+								},
+								{
+									"Type": "NodeCodeBlockFenceCloseMarker",
+									"Data": "```"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20221225011805-qla9i5b",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20221225011805-qla9i5b",
+						"updated": "20221225103122"
+					},
+					"Children": [
+						{
+							"ID": "20221225011805-gv1d4ep",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20221225011805-gv1d4ep",
+								"updated": "20221225012006"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "返回一个 JavaScript Object 的立即执行函数"
+								}
+							]
+						},
+						{
+							"ID": "20221225103118-uw8ui6i",
+							"Type": "NodeCodeBlock",
+							"IsFencedCodeBlock": true,
+							"Properties": {
+								"id": "20221225103118-uw8ui6i",
+								"updated": "20221225103122"
+							},
+							"Children": [
+								{
+									"Type": "NodeCodeBlockFenceOpenMarker",
+									"Data": "```"
+								},
+								{
+									"Type": "NodeCodeBlockFenceInfoMarker",
+									"CodeBlockInfo": "amF2YXNjcmlwdA=="
+								},
+								{
+									"Type": "NodeCodeBlockCode",
+									"Data": "(() =\u003e {\n    const option = {};\n    option.propName = `propValue`;\n    return option;\n})()\n"
+								},
+								{
+									"Type": "NodeCodeBlockFenceCloseMarker",
+									"Data": "```"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20221105164044-b22rtsr",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20221105164044-b22rtsr",
+				"updated": "20221225012142"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "具体语法请参考 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "a",
+					"TextMarkAHref": "https://echarts.apache.org/zh/index.html",
+					"TextMarkTextContent": "ECharts"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
 				}
 			]
 		},
@@ -3172,22 +3385,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211213122035-83prmz2",
-				"updated": "20211213122043"
+				"updated": "20230820185054"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "语法请参考 "
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/paulrosen/abcjs",
-					"TextMarkTextContent": "abcjs"
-				},
-				{
-					"Type": "NodeText",
-					"Data": "。"
+					"Data": "语法请参考 abcjs (github repo: paulrosen/abcjs)。"
 				}
 			]
 		},
@@ -3334,7 +3537,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/adrai/flowchart.js",
+					"TextMarkAHref": "https://flowchart.js.org/",
 					"TextMarkTextContent": "flowchart.js"
 				},
 				{

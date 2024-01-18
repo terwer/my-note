@@ -1,18 +1,6 @@
 import {hasClosestBlock, hasClosestByAttribute} from "../util/hasClosest";
 import {Constants} from "../../constants";
 
-export const getPreviousHeading = (element: Element) => {
-    let previous = getPreviousBlock(element);
-    while (previous) {
-        if (previous.getAttribute("data-type") === "NodeHeading") {
-            break;
-        } else {
-            previous = getPreviousBlock(previous);
-        }
-    }
-    return previous;
-};
-
 export const getPreviousBlock = (element: Element) => {
     let parentElement = element;
     while (parentElement) {
@@ -42,7 +30,8 @@ export const getLastBlock = (element: Element) => {
 export const getFirstBlock = (element: Element) => {
     let firstElement;
     Array.from(element.querySelectorAll("[data-node-id]")).find(item => {
-        if (!hasClosestByAttribute(item.parentElement, "data-type", "NodeBlockQueryEmbed") && !item.classList.contains("li")) {
+        if (!hasClosestByAttribute(item.parentElement, "data-type", "NodeBlockQueryEmbed") &&
+            !item.classList.contains("li") && !item.classList.contains("sb")) {
             firstElement = item;
             return true;
         }
@@ -184,48 +173,48 @@ export const hasPreviousSibling = (element: Node) => {
 };
 
 export const getNextFileLi = (current: Element) => {
-    let nextElement = current.nextElementSibling
+    let nextElement = current.nextElementSibling;
     if (nextElement) {
         if (nextElement.tagName === "LI") {
-            return nextElement
+            return nextElement;
         } else if (nextElement.tagName === "UL") {
-            return nextElement.firstElementChild
+            return nextElement.firstElementChild;
         }
         return false;
     }
-    nextElement = current.parentElement
+    nextElement = current.parentElement;
     while (nextElement.tagName === "UL") {
         if (!nextElement.nextElementSibling) {
-            nextElement = nextElement.parentElement
+            nextElement = nextElement.parentElement;
         } else if (nextElement.nextElementSibling.tagName === "LI") {
-            return nextElement.nextElementSibling
-        } else  if (nextElement.nextElementSibling.tagName === "UL") {
+            return nextElement.nextElementSibling;
+        } else if (nextElement.nextElementSibling.tagName === "UL") {
             return nextElement.nextElementSibling.firstElementChild;
         }
     }
     return false;
-}
+};
 
 export const getPreviousFileLi = (current: Element) => {
-    let previousElement = current.previousElementSibling
+    let previousElement = current.previousElementSibling;
     if (previousElement) {
         if (previousElement.tagName === "LI") {
-            return previousElement
+            return previousElement;
         } else if (previousElement.tagName === "UL") {
-            return previousElement.lastElementChild
+            return previousElement.lastElementChild;
         }
         return false;
     }
-    previousElement = current.parentElement
+    previousElement = current.parentElement;
     while (previousElement.tagName === "UL") {
         if (!previousElement.previousElementSibling) {
-            previousElement = previousElement.parentElement
+            previousElement = previousElement.parentElement;
         } else if (previousElement.previousElementSibling.tagName === "LI") {
             return previousElement.previousElementSibling;
         } else if (previousElement.previousElementSibling.tagName === "UL") {
-            const liElements = previousElement.previousElementSibling.querySelectorAll(".b3-list-item")
+            const liElements = previousElement.previousElementSibling.querySelectorAll(".b3-list-item");
             return liElements[liElements.length - 1];
         }
     }
     return false;
-}
+};

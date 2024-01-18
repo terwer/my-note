@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -33,8 +33,31 @@ type Asset struct {
 	Updated int64  `json:"updated"`
 }
 
-var Assets = map[string]*Asset{}
+var assetsCache = map[string]*Asset{}
 var assetsLock = sync.Mutex{}
+
+func GetAssets() (ret map[string]*Asset) {
+	assetsLock.Lock()
+	defer assetsLock.Unlock()
+
+	ret = assetsCache
+	return
+}
+
+func RemoveAsset(path string) {
+	assetsLock.Lock()
+	defer assetsLock.Unlock()
+
+	delete(assetsCache, path)
+}
+
+func ExistAsset(path string) (ret bool) {
+	assetsLock.Lock()
+	defer assetsLock.Unlock()
+
+	_, ret = assetsCache[path]
+	return
+}
 
 func LoadAssets() {
 	defer logging.Recover()
@@ -43,6 +66,7 @@ func LoadAssets() {
 	assetsLock.Lock()
 	defer assetsLock.Unlock()
 
+	assetsCache = map[string]*Asset{}
 	assets := util.GetDataAssetsAbsPath()
 	filepath.Walk(assets, func(path string, info fs.FileInfo, err error) error {
 		if nil == info {
@@ -60,10 +84,10 @@ func LoadAssets() {
 
 		hName := util.RemoveID(info.Name())
 		path = "assets" + filepath.ToSlash(strings.TrimPrefix(path, assets))
-		Assets[path] = &Asset{
+		assetsCache[path] = &Asset{
 			HName:   hName,
 			Path:    path,
-			Updated: info.ModTime().UnixMilli(),
+			Updated: info.ModTime().Unix(),
 		}
 		return nil
 	})

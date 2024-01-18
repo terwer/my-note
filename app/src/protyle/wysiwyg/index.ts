@@ -12,46 +12,59 @@ import {
     focusByWbr,
     focusSideBlock,
     getEditorRange,
-    getSelectionOffset, setLastNodeRange,
+    getSelectionOffset,
+    setLastNodeRange,
 } from "../util/selection";
 import {Constants} from "../../constants";
 import {getSearch, isMobile} from "../../util/functions";
 import {isLocalPath, pathPosix} from "../../util/pathName";
 import {genEmptyElement} from "../../block/util";
-import {previewImage} from "../preview/image";
-import {contentMenu, imgMenu, linkMenu, refMenu, setFold, zoomOut} from "../../menus/protyle";
+import {previewDocImage} from "../preview/image";
+import {
+    contentMenu,
+    enterBack,
+    fileAnnotationRefMenu,
+    imgMenu,
+    linkMenu,
+    refMenu,
+    setFold,
+    tagMenu,
+    zoomOut
+} from "../../menus/protyle";
 import * as dayjs from "dayjs";
 import {dropEvent} from "../util/editorCommonEvent";
 import {input} from "./input";
 import {
     getContenteditableElement,
-    getLastBlock, getNextBlock,
-    getPreviousHeading,
+    getLastBlock,
+    getNextBlock,
     getTopAloneElement,
-    hasNextSibling, hasPreviousSibling,
+    hasNextSibling,
+    hasPreviousSibling,
     isNotEditBlock
 } from "./getBlock";
 import {transaction, updateTransaction} from "./transaction";
 import {hideElements} from "../ui/hideElements";
 /// #if !BROWSER
-import {shell} from "electron";
-import {getCurrentWindow} from "@electron/remote";
+import {ipcRenderer, shell} from "electron";
 /// #endif
-import {removeEmbed} from "./removeEmbed";
+import {getEnableHTML, removeEmbed} from "./removeEmbed";
 import {keydown} from "./keydown";
 import {openMobileFileById} from "../../mobile/editor";
 import {removeBlock} from "./remove";
-import {highlightRender} from "../markdown/highlightRender";
+import {highlightRender} from "../render/highlightRender";
 import {openAttr} from "../../menus/commonMenuItem";
-import {blockRender} from "../markdown/blockRender";
+import {blockRender} from "../render/blockRender";
 /// #if !MOBILE
 import {getAllModels} from "../../layout/getAll";
 import {pushBack} from "../../util/backForward";
 import {openAsset, openBy, openFileById} from "../../editor/util";
 import {openGlobalSearch} from "../../search/util";
+/// #else
+import {popSearch} from "../../mobile/menu/search";
 /// #endif
 import {BlockPanel} from "../../block/Panel";
-import {isCtrl, openByMobile} from "../util/compatibility";
+import {isInIOS, isOnlyMeta, openByMobile} from "../util/compatibility";
 import {MenuItem} from "../../menus/Menu";
 import {fetchPost} from "../../util/fetch";
 import {onGet} from "../util/onGet";
@@ -59,19 +72,39 @@ import {setTableAlign} from "../util/table";
 import {countBlockWord, countSelectWord} from "../../layout/status";
 import {showMessage} from "../../dialog/message";
 import {getBacklinkHeadingMore, loadBreadcrumb} from "./renderBacklink";
+import {removeSearchMark} from "../toolbar/util";
+import {activeBlur, hideKeyboardToolbar} from "../../mobile/util/keyboardToolbar";
+import {commonClick} from "./commonClick";
+import {avClick, avContextmenu, updateAVName} from "../render/av/action";
+import {selectRow, stickyRow, updateHeader} from "../render/av/row";
+import {showColMenu} from "../render/av/col";
+import {openViewMenu} from "../render/av/view";
+import {avRender} from "../render/av/render";
+import {checkFold} from "../../util/noRelyPCFunction";
+import {
+    dragFillCellsValue,
+    genCellValueByElement,
+    getCellText,
+    getPositionByCellElement,
+    getTypeByCellElement,
+    updateCellsValue
+} from "../render/av/cell";
 
 export class WYSIWYG {
     public lastHTMLs: { [key: string]: string } = {};
-
     public element: HTMLDivElement;
     public preventKeyup: boolean;
+
+    private shiftStartElement: HTMLElement;
+    private preventClick: boolean;
 
     constructor(protyle: IProtyle) {
         this.element = document.createElement("div");
         this.element.className = "protyle-wysiwyg";
         this.element.setAttribute("spellcheck", "false");
-        if (navigator && navigator.maxTouchPoints > 1 && navigator.platform === "MacIntel") {
+        if (isMobile()) {
             // iPhone，iPad 端输入 contenteditable 为 true 时会在块中间插入 span
+            // Android 端空块输入法弹出会收起 https://ld246.com/article/1689713888289
             this.element.setAttribute("contenteditable", "false");
         } else {
             this.element.setAttribute("contenteditable", "true");
@@ -89,17 +122,26 @@ export class WYSIWYG {
     }
 
     public renderCustom(ial: IObject) {
+        let isFullWidth = ial[Constants.CUSTOM_SY_FULLWIDTH];
+        if (!isFullWidth) {
+            isFullWidth = window.siyuan.config.editor.fullWidth ? "true" : "false";
+        }
+        if (isFullWidth === "true") {
+            this.element.parentElement.setAttribute("data-fullwidth", "true");
+        } else {
+            this.element.parentElement.removeAttribute("data-fullwidth");
+        }
         const ialKeys = Object.keys(ial);
         for (let i = 0; i < this.element.attributes.length; i++) {
             const oldKey = this.element.attributes[i].nodeName;
-            if (!["type", "class", "spellcheck", "contenteditable", "data-doc-type", "style", "scroll"].includes(oldKey) &&
+            if (!["type", "class", "spellcheck", "contenteditable", "data-doc-type", "style", "data-realwidth"].includes(oldKey) &&
                 !ialKeys.includes(oldKey)) {
                 this.element.removeAttribute(oldKey);
                 i--;
             }
         }
         ialKeys.forEach((key: string) => {
-            if (!["title-img", "title", "updated", "icon", "id", "type", "class", "spellcheck", "contenteditable", "data-doc-type", "style"].includes(key)) {
+            if (!["title-img", "title", "updated", "icon", "id", "type", "class", "spellcheck", "contenteditable", "data-doc-type", "style", "data-realwidth"].includes(key)) {
                 this.element.setAttribute(key, ial[key]);
             }
         });
@@ -136,6 +178,7 @@ export class WYSIWYG {
         if (// 表格行内公式之前无法插入文字 https://github.com/siyuan-note/siyuan/issues/3908
             inlineElement.tagName === "SPAN" &&
             inlineElement.textContent !== inputData &&
+            !currentTypes.includes("search-mark") &&    // https://github.com/siyuan-note/siyuan/issues/7586
             range.toString() === "" && range.startContainer.nodeType === 3 &&
             (currentTypes.includes("inline-memo") || currentTypes.includes("text") || currentTypes.includes("block-ref") || currentTypes.includes("file-annotation-ref") || currentTypes.includes("a")) &&
             !hasNextSibling(range.startContainer) && range.startContainer.textContent.length === range.startOffset &&
@@ -156,10 +199,17 @@ export class WYSIWYG {
 
     private setEmptyOutline(protyle: IProtyle, element: HTMLElement) {
         // 图片移除选择状态应放在前面，否则 https://github.com/siyuan-note/siyuan/issues/4173
-        const selectImgElement = protyle.wysiwyg.element.querySelector(".img--select");
-        if (selectImgElement) {
-            selectImgElement.classList.remove("img--select");
-        }
+        protyle.wysiwyg.element.querySelectorAll(".img--select, .av__cell--select, .av__cell--active, .av__row--select").forEach((item: HTMLElement) => {
+            if (item.classList.contains("av__row--select") && !hasClosestByClassName(element, "av")) {
+                item.classList.remove("av__row--select");
+                item.querySelector(".av__firstcol use").setAttribute("xlink:href", "#iconUncheck");
+                updateHeader(item);
+            } else {
+                item.classList.remove("img--select", "av__cell--select", "av__cell--active");
+                item.querySelector(".av__drag-fill")?.remove();
+            }
+        });
+
         let nodeElement = element;
         if (!element.getAttribute("data-node-id")) {
             const tempElement = hasClosestBlock(element);
@@ -172,20 +222,17 @@ export class WYSIWYG {
         if (protyle.model) {
             getAllModels().outline.forEach(item => {
                 if (item.blockId === protyle.block.rootID) {
-                    if (nodeElement.getAttribute("data-type") === "NodeHeading") {
-                        item.setCurrent(nodeElement.getAttribute("data-node-id"));
-                        return;
-                    }
-                    const headingElement = getPreviousHeading(nodeElement);
-                    if (headingElement) {
-                        item.setCurrent(headingElement.getAttribute("data-node-id"));
-                        return;
-                    }
-                    item.setCurrent("");
+                    item.setCurrent(nodeElement);
                 }
             });
         }
         /// #endif
+    }
+
+    private emojiToMd(element: HTMLElement) {
+        element.querySelectorAll(".emoji").forEach((item: HTMLElement) => {
+            item.outerHTML = `:${item.getAttribute("alt")}:`;
+        });
     }
 
     private bindCommonEvent(protyle: IProtyle) {
@@ -204,9 +251,10 @@ export class WYSIWYG {
                 return;
             }
             const selectImgElement = nodeElement.querySelector(".img--select");
+            const selectAVElement = nodeElement.querySelector(".av__row--select, .av__cell--select");
             let selectElements = Array.from(protyle.wysiwyg.element.querySelectorAll(".protyle-wysiwyg--select"));
             if (selectElements.length === 0 && range.toString() === "" && !range.cloneContents().querySelector("img") &&
-                !selectImgElement) {
+                !selectImgElement && !selectAVElement) {
                 nodeElement.classList.add("protyle-wysiwyg--select");
                 countBlockWord([nodeElement.getAttribute("data-node-id")]);
                 selectElements = [nodeElement];
@@ -214,14 +262,51 @@ export class WYSIWYG {
             let html = "";
             let textPlain = "";
             if (selectElements.length > 0) {
-                if (selectElements[0].getAttribute("data-type") === "NodeListItem" && selectElements[0].parentElement.childElementCount - 1 === selectElements.length) {
-                    html = selectElements[0].parentElement.outerHTML;
+                const isRefText = selectElements[0].getAttribute("data-reftext") === "true";
+                if (selectElements[0].getAttribute("data-type") === "NodeListItem" &&
+                    selectElements[0].parentElement.classList.contains("list") &&   // 反链复制列表项 https://github.com/siyuan-note/siyuan/issues/6555
+                    selectElements[0].parentElement.childElementCount - 1 === selectElements.length) {
+                    if (isRefText) {
+                        const cloneElement = selectElements[0].parentElement.cloneNode(true) as HTMLElement;
+                        const cloneEditElement = getContenteditableElement(cloneElement);
+                        if (cloneEditElement) {
+                            cloneEditElement.insertAdjacentHTML("beforeend", ` <span data-type="block-ref" data-subtype="s" data-id="${cloneElement.getAttribute("data-node-id")}">*</span>`);
+                        }
+                        html = cloneElement.outerHTML;
+                        selectElements[0].removeAttribute("data-reftext");
+                    } else {
+                        html = selectElements[0].parentElement.outerHTML;
+                    }
                 } else {
-                    selectElements.forEach(item => {
-                        const topElement = getTopAloneElement(item);
-                        html += removeEmbed(topElement);
+                    selectElements.forEach((item, index) => {
+                        // 复制列表项中的块会变为复制列表项，因此不能使用 getTopAloneElement https://github.com/siyuan-note/siyuan/issues/8925
+                        if (isRefText && index === 0) {
+                            const cloneElement = item.cloneNode(true) as HTMLElement;
+                            const cloneEditElement = getContenteditableElement(cloneElement);
+                            if (cloneEditElement) {
+                                cloneEditElement.insertAdjacentHTML("beforeend", ` <span data-type="block-ref" data-subtype="s" data-id="${item.getAttribute("data-node-id")}">*</span>`);
+                            }
+                            html += removeEmbed(cloneElement);
+                            selectElements[0].removeAttribute("data-reftext");
+                        } else {
+                            html += removeEmbed(item);
+                        }
                     });
                 }
+            } else if (selectAVElement) {
+                const cellElements: Element[] = Array.from(nodeElement.querySelectorAll(".av__cell--select")) || [];
+                if (cellElements.length === 0) {
+                    nodeElement.querySelectorAll(".av__row--select:not(.av__row--header)").forEach(rowElement => {
+                        rowElement.querySelectorAll(".av__cell").forEach(cellElement => {
+                            cellElements.push(cellElement);
+                        });
+                    });
+                }
+                cellElements.forEach((item: HTMLElement) => {
+                    const cellText = getCellText(item);
+                    html += cellText;
+                    textPlain += cellText;
+                });
             } else {
                 const tempElement = document.createElement("div");
                 // https://github.com/siyuan-note/siyuan/issues/5540
@@ -237,9 +322,11 @@ export class WYSIWYG {
                     } else if (!["DIV", "TD", "TH", "TR"].includes(range.startContainer.parentElement.tagName)) {
                         // 复制行内元素 https://github.com/siyuan-note/insider/issues/191
                         tempElement.append(range.startContainer.parentElement.cloneNode(true));
+                        this.emojiToMd(tempElement);
                     } else {
                         // 直接复制块 https://github.com/siyuan-note/insider/issues/318
                         tempElement.append(range.cloneContents());
+                        this.emojiToMd(tempElement);
                     }
                     html = tempElement.innerHTML;
                 } else if (selectImgElement) {
@@ -261,6 +348,7 @@ export class WYSIWYG {
                     html = spanElement.outerHTML;
                 } else {
                     tempElement.append(range.cloneContents());
+                    this.emojiToMd(tempElement);
                     const inlineMathElement = hasClosestByAttribute(range.commonAncestorContainer, "data-type", "inline-math");
                     if (inlineMathElement) {
                         // 表格内复制数学公式 https://ld246.com/article/1631708573504
@@ -275,28 +363,215 @@ export class WYSIWYG {
                     }
                 }
             }
-            event.clipboardData.setData("text/plain", textPlain || protyle.lute.BlockDOM2StdMd(html).trimEnd());
-            event.clipboardData.setData("text/html", html + Constants.ZWSP);
+            if (protyle.disabled) {
+                html = getEnableHTML(html);
+            }
+            textPlain = textPlain || protyle.lute.BlockDOM2StdMd(html).trimEnd();
+            textPlain = textPlain.replace(/\u00A0/g, " "); // Replace non-breaking spaces with normal spaces when copying https://github.com/siyuan-note/siyuan/issues/9382
+            event.clipboardData.setData("text/plain", textPlain);
+            event.clipboardData.setData("text/html", protyle.lute.BlockDOM2HTML(html));
+            event.clipboardData.setData("text/siyuan", html);
         });
+
         this.element.addEventListener("mousedown", (event: MouseEvent) => {
             if (event.button === 2 || window.siyuan.ctrlIsPressed) {
                 // 右键
                 return;
+            }
+            // Electron 更新后 shift 向上点击获取的 range 不为上一个位置的 https://github.com/siyuan-note/siyuan/issues/9334
+            if (window.siyuan.shiftIsPressed && getSelection().rangeCount > 0) {
+                this.shiftStartElement = hasClosestBlock(getSelection().getRangeAt(0).startContainer) as HTMLElement;
             }
             if (!window.siyuan.shiftIsPressed) {
                 // https://github.com/siyuan-note/siyuan/issues/3026
                 hideElements(["select"], protyle);
             }
             const target = event.target as HTMLElement;
-            if (hasClosestByClassName(target, "protyle-action")) {
+            if (hasClosestByClassName(target, "protyle-action") ||
+                (hasClosestByClassName(target, "av__cell--header") && !hasClosestByClassName(target, "av__widthdrag"))) {
                 return;
             }
             const documentSelf = document;
             const rect = protyle.element.getBoundingClientRect();
-            const mostLeft = rect.left + parseInt(protyle.wysiwyg.element.style.paddingLeft) + 1;
-            const mostRight = mostLeft + protyle.wysiwyg.element.firstElementChild.clientWidth - 1;
+            const mostLeft = rect.left + (parseInt(protyle.wysiwyg.element.style.paddingLeft) || 24) + 1;
+            // 不能用 firstElement，否则 https://ld246.com/article/1668758661338
+            const mostRight = mostLeft + (protyle.wysiwyg.element.clientWidth - (parseInt(protyle.wysiwyg.element.style.paddingLeft) || 24) - (parseInt(protyle.wysiwyg.element.style.paddingRight) || 16)) - 2;
             const mostBottom = rect.bottom;
             const y = event.clientY;
+
+            // av col resize
+            if (!protyle.disabled && target.classList.contains("av__widthdrag")) {
+                const nodeElement = hasClosestBlock(target);
+                if (!nodeElement) {
+                    return;
+                }
+                const avId = nodeElement.getAttribute("data-av-id");
+                const dragElement = target.parentElement;
+                const oldWidth = dragElement.clientWidth;
+                const dragColId = dragElement.getAttribute("data-col-id");
+                let newWidth: string;
+                const scrollElement = nodeElement.querySelector(".av__scroll");
+                const contentRect = protyle.contentElement.getBoundingClientRect();
+                documentSelf.onmousemove = (moveEvent: MouseEvent) => {
+                    newWidth = Math.max(oldWidth + (moveEvent.clientX - event.clientX), 25) + "px";
+                    scrollElement.querySelectorAll(".av__row, .av__row--footer").forEach(item => {
+                        (item.querySelector(`[data-col-id="${dragColId}"]`) as HTMLElement).style.width = newWidth;
+                    });
+                    stickyRow(nodeElement, contentRect, "bottom");
+                };
+
+                documentSelf.onmouseup = () => {
+                    documentSelf.onmousemove = null;
+                    documentSelf.onmouseup = null;
+                    documentSelf.ondragstart = null;
+                    documentSelf.onselectstart = null;
+                    documentSelf.onselect = null;
+                    if (!newWidth || newWidth === oldWidth + "px") {
+                        return;
+                    }
+                    transaction(protyle, [{
+                        action: "setAttrViewColWidth",
+                        id: dragColId,
+                        avID: avId,
+                        data: newWidth
+                    }], [{
+                        action: "setAttrViewColWidth",
+                        id: dragColId,
+                        avID: avId,
+                        data: oldWidth + "px"
+                    }]);
+                };
+                this.preventClick = true;
+                event.preventDefault();
+                return;
+            }
+            // av drag fill
+            const avDragFillElement = hasClosestByClassName(target, "av__drag-fill");
+            if (!protyle.disabled && avDragFillElement) {
+                const nodeElement = hasClosestBlock(avDragFillElement);
+                if (!nodeElement) {
+                    return;
+                }
+                const originData: { [key: string]: IAVCellValue[] } = {};
+                let lastOriginCellElement;
+                const originCellIds: string[] = [];
+                nodeElement.querySelectorAll(".av__cell--active").forEach((item: HTMLElement) => {
+                    const rowElement = hasClosestByClassName(item, "av__row");
+                    if (rowElement) {
+                        if (!originData[rowElement.dataset.id]) {
+                            originData[rowElement.dataset.id] = [];
+                        }
+                        originData[rowElement.dataset.id].push(genCellValueByElement(getTypeByCellElement(item), item));
+                        lastOriginCellElement = item;
+                        originCellIds.push(item.dataset.id);
+                    }
+                });
+                const dragFillCellIndex = getPositionByCellElement(lastOriginCellElement);
+                const firstCellIndex = getPositionByCellElement(nodeElement.querySelector(".av__cell--active"));
+                let moveCellElement: HTMLElement;
+                let lastCellElement: HTMLElement;
+                documentSelf.onmousemove = (moveEvent: MouseEvent) => {
+                    const tempCellElement = hasClosestByClassName(moveEvent.target as HTMLElement, "av__cell") as HTMLElement;
+                    if (moveCellElement && tempCellElement && tempCellElement.isSameNode(moveCellElement)) {
+                        return;
+                    }
+                    moveCellElement = tempCellElement;
+                    if (moveCellElement && moveCellElement.dataset.id) {
+                        const newIndex = getPositionByCellElement(moveCellElement);
+                        nodeElement.querySelectorAll(".av__cell--active").forEach((item: HTMLElement) => {
+                            if (!originCellIds.includes(item.dataset.id)) {
+                                item.classList.remove("av__cell--active");
+                            }
+                        });
+                        if (newIndex.celIndex !== dragFillCellIndex.celIndex || dragFillCellIndex.rowIndex >= newIndex.rowIndex) {
+                            lastCellElement = undefined;
+                            return;
+                        }
+                        nodeElement.querySelectorAll(".av__row").forEach((rowElement: HTMLElement, index: number) => {
+                            if (index >= dragFillCellIndex.rowIndex && index <= newIndex.rowIndex) {
+                                rowElement.querySelectorAll(".av__cell").forEach((cellElement: HTMLElement, cellIndex: number) => {
+                                    if (cellIndex >= firstCellIndex.celIndex && cellIndex <= newIndex.celIndex) {
+                                        cellElement.classList.add("av__cell--active");
+                                        lastCellElement = cellElement;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                };
+
+                documentSelf.onmouseup = () => {
+                    documentSelf.onmousemove = null;
+                    documentSelf.onmouseup = null;
+                    documentSelf.ondragstart = null;
+                    documentSelf.onselectstart = null;
+                    documentSelf.onselect = null;
+                    if (lastCellElement) {
+                        dragFillCellsValue(protyle, nodeElement, originData, originCellIds);
+                        lastCellElement.insertAdjacentHTML("beforeend", `<div aria-label="${window.siyuan.languages.dragFill}" class="av__drag-fill ariaLabel"></div>`);
+                    }
+                    return false;
+                };
+                this.preventClick = true;
+                return false;
+            }
+            // av cell select
+            const avCellElement = hasClosestByClassName(target, "av__cell");
+            if (!protyle.disabled && avCellElement && avCellElement.dataset.id) {
+                const nodeElement = hasClosestBlock(avCellElement);
+                if (!nodeElement) {
+                    return;
+                }
+                nodeElement.querySelectorAll(".av__cell--select").forEach(item => {
+                    item.classList.remove("av__cell--select");
+                });
+                nodeElement.querySelectorAll(".av__drag-fill").forEach(item => {
+                    item.remove();
+                });
+                avCellElement.classList.add("av__cell--select");
+                const originIndex = getPositionByCellElement(avCellElement);
+                let moveCellElement: HTMLElement;
+                let lastCellElement: HTMLElement;
+                documentSelf.onmousemove = (moveEvent: MouseEvent) => {
+                    const tempCellElement = hasClosestByClassName(moveEvent.target as HTMLElement, "av__cell") as HTMLElement;
+                    if (moveCellElement && tempCellElement && tempCellElement.isSameNode(moveCellElement)) {
+                        return;
+                    }
+                    moveCellElement = tempCellElement;
+                    if (moveCellElement && moveCellElement.dataset.id) {
+                        const newIndex = getPositionByCellElement(moveCellElement);
+                        nodeElement.querySelectorAll(".av__cell--active").forEach((item: HTMLElement) => {
+                            item.classList.remove("av__cell--active");
+                        });
+                        nodeElement.querySelectorAll(".av__row").forEach((rowElement: HTMLElement, index: number) => {
+                            if (index >= Math.min(originIndex.rowIndex, newIndex.rowIndex) && index <= Math.max(originIndex.rowIndex, newIndex.rowIndex)) {
+                                rowElement.querySelectorAll(".av__cell").forEach((cellElement: HTMLElement, cellIndex: number) => {
+                                    if (cellIndex >= Math.min(originIndex.celIndex, newIndex.celIndex) && cellIndex <= Math.max(originIndex.celIndex, newIndex.celIndex)) {
+                                        cellElement.classList.add("av__cell--active");
+                                        lastCellElement = cellElement;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                };
+
+                documentSelf.onmouseup = () => {
+                    documentSelf.onmousemove = null;
+                    documentSelf.onmouseup = null;
+                    documentSelf.ondragstart = null;
+                    documentSelf.onselectstart = null;
+                    documentSelf.onselect = null;
+                    if (lastCellElement) {
+                        selectRow(nodeElement.querySelector(".av__firstcol"), "unselectAll");
+                        focusBlock(nodeElement);
+                        lastCellElement.insertAdjacentHTML("beforeend", `<div aria-label="${window.siyuan.languages.dragFill}" class="av__drag-fill ariaLabel"></div>`);
+                        this.preventClick = true;
+                    }
+                    return false;
+                };
+                return false;
+            }
             // 图片、iframe、video 缩放
             if (!protyle.disabled && target.classList.contains("protyle-action__drag")) {
                 const nodeElement = hasClosestBlock(target);
@@ -335,7 +610,7 @@ export class WYSIWYG {
                             dragElement.style.height = (dragHeight + (moveEvent.clientY - y)) + "px";
                         }
                     } else {
-                        dragElement.parentElement.parentElement.style.maxWidth = (parseInt(dragElement.style.width) + 10) + "px";
+                        dragElement.parentElement.parentElement.style.width = (parseInt(dragElement.style.width) + 10) + "px";
                     }
                 };
 
@@ -358,7 +633,6 @@ export class WYSIWYG {
             if (target.tagName === "TH" || target.tagName === "TD" || target.firstElementChild?.tagName === "TABLE" || target.classList.contains("table__resize") || target.classList.contains("table__select")) {
                 tableBlockElement = hasClosestBlock(target);
                 if (tableBlockElement) {
-                    tableBlockElement.querySelector("table").classList.remove("select");
                     tableBlockElement.querySelector(".table__select").removeAttribute("style");
                     window.siyuan.menus.menu.remove();
                     event.stopPropagation();
@@ -382,9 +656,17 @@ export class WYSIWYG {
                 target.removeAttribute("style");
                 const id = nodeElement.getAttribute("data-node-id");
                 const x = event.clientX;
-                const colElement = nodeElement.querySelectorAll("table col")[parseInt(target.getAttribute("data-col-index"))] as HTMLElement;
-                // 兼容 1.8.2
-                (nodeElement.querySelectorAll("table th")[parseInt(target.getAttribute("data-col-index"))] as HTMLElement).style.width = "";
+                const colIndex = parseInt(target.getAttribute("data-col-index"));
+                const colElement = nodeElement.querySelectorAll("table col")[colIndex] as HTMLElement;
+                // 清空初始化 table 时的最小宽度
+                if (colElement.style.minWidth) {
+                    colElement.style.width = (nodeElement.querySelectorAll("table td, table th")[colIndex] as HTMLElement).offsetWidth + "px";
+                    colElement.style.minWidth = "";
+                }
+                // 移除 cell 上的宽度限制 https://github.com/siyuan-note/siyuan/issues/7795
+                nodeElement.querySelectorAll("tr").forEach((trItem: HTMLTableRowElement) => {
+                    trItem.cells[colIndex].style.width = "";
+                });
                 const oldWidth = colElement.clientWidth;
                 const hasScroll = nodeElement.firstElementChild.clientWidth < nodeElement.firstElementChild.scrollWidth;
                 documentSelf.onmousemove = (moveEvent: MouseEvent) => {
@@ -411,6 +693,10 @@ export class WYSIWYG {
                 return;
             }
 
+            // https://ld246.com/article/1681778773806
+            if (["IMG", "VIDEO", "AUDIO"].includes(target.tagName)) {
+                return;
+            }
             // 多选节点
             let x = event.clientX;
             if (event.clientX > mostRight) {
@@ -422,6 +708,8 @@ export class WYSIWYG {
 
             let mouseElement: Element;
             let moveCellElement: HTMLElement;
+            let startFirstElement: Element;
+            let endLastElement: Element;
             documentSelf.onmousemove = (moveEvent: MouseEvent) => {
                 const moveTarget = moveEvent.target as HTMLElement;
                 // table cell select
@@ -479,7 +767,6 @@ export class WYSIWYG {
                                 width = item.offsetLeft + item.clientWidth - left;
                             }
                         });
-                        tableBlockElement.querySelector("table").classList.add("select");
                         tableBlockElement.querySelector(".table__select").setAttribute("style", `left:${left - tableBlockElement.firstElementChild.scrollLeft}px;top:${top}px;height:${height}px;width:${width + 1}px;`);
                         moveCellElement = moveTarget;
                     }
@@ -533,6 +820,9 @@ export class WYSIWYG {
                     }
                     newHeight = y - newTop;
                 }
+                if (newHeight < 4) {
+                    return;
+                }
                 protyle.selectElement.setAttribute("style", `background-color: ${protyle.selectElement.style.backgroundColor};top:${newTop}px;height:${newHeight}px;left:${newLeft + 2}px;width:${newWidth - 2}px;`);
                 const newMouseElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
                 if (mouseElement && mouseElement.isSameNode(newMouseElement) && !mouseElement.classList.contains("protyle-wysiwyg") &&
@@ -543,32 +833,46 @@ export class WYSIWYG {
                     mouseElement = newMouseElement;
                 }
                 hideElements(["select"], protyle);
-                let firstElement = document.elementFromPoint(newLeft - 1, newTop);
+                let firstElement;
+                if (moveEvent.clientY > y) {
+                    firstElement = startFirstElement || document.elementFromPoint(newLeft, newTop);
+                    endLastElement = undefined;
+                } else {
+                    firstElement = document.elementFromPoint(newLeft, newTop);
+                    startFirstElement = undefined;
+                }
                 if (!firstElement) {
                     return;
                 }
                 if (firstElement.classList.contains("protyle-wysiwyg") || firstElement.classList.contains("list") || firstElement.classList.contains("sb") || firstElement.classList.contains("bq")) {
-                    firstElement = document.elementFromPoint(newLeft - 1, newTop + 16);
+                    firstElement = document.elementFromPoint(newLeft, newTop + 16);
                 }
-                if (!firstElement || firstElement.classList.contains("protyle-wysiwyg")) {
+                if (!firstElement) {
                     return;
                 }
-                const firstBlockElement = hasClosestBlock(firstElement);
-                if (!firstBlockElement) {
-                    return;
+                let firstBlockElement = hasClosestBlock(firstElement);
+                if (moveEvent.clientY > y) {
+                    if (!startFirstElement) {
+                        startFirstElement = firstElement;
+                    }
+                } else if (!firstBlockElement &&
+                    // https://github.com/siyuan-note/siyuan/issues/7580
+                    moveEvent.clientY < protyle.wysiwyg.element.lastElementChild.getBoundingClientRect().bottom) {
+                    firstBlockElement = protyle.wysiwyg.element.firstElementChild as HTMLElement;
                 }
                 let selectElements: Element[] = [];
                 let currentElement: Element | boolean = firstBlockElement;
                 let hasJump = false;
+                const selectBottom = endLastElement ? endLastElement.getBoundingClientRect().bottom : (newTop + newHeight);
                 while (currentElement) {
                     if (currentElement && !currentElement.classList.contains("protyle-attr")) {
                         const currentRect = currentElement.getBoundingClientRect();
-                        if (currentRect.height > 0 && currentRect.top < newTop + newHeight && currentRect.left < newLeft + newWidth) {
+                        if (currentRect.height > 0 && currentRect.top < selectBottom && currentRect.left < newLeft + newWidth) {
                             if (hasJump) {
                                 // 父节点的下个节点在选中范围内才可使用父节点作为选中节点
                                 if (currentElement.nextElementSibling && !currentElement.nextElementSibling.classList.contains("protyle-attr")) {
                                     const nextRect = currentElement.nextElementSibling.getBoundingClientRect();
-                                    if (nextRect.top < newTop + newHeight && nextRect.left < newLeft + newWidth) {
+                                    if (nextRect.top < selectBottom && nextRect.left < newLeft + newWidth) {
                                         selectElements = [currentElement];
                                         currentElement = currentElement.nextElementSibling;
                                         hasJump = false;
@@ -601,6 +905,9 @@ export class WYSIWYG {
                         hasJump = true;
                     }
                 }
+                if (moveEvent.clientY <= y && !endLastElement) {
+                    endLastElement = selectElements[selectElements.length - 1];
+                }
                 if (selectElements.length === 1 && !selectElements[0].classList.contains("list") && !selectElements[0].classList.contains("bq") && !selectElements[0].classList.contains("sb")) {
                     // 只有一个 p 时不选中
                     protyle.selectElement.style.backgroundColor = "transparent";
@@ -620,6 +927,8 @@ export class WYSIWYG {
                 documentSelf.ondragstart = null;
                 documentSelf.onselectstart = null;
                 documentSelf.onselect = null;
+                startFirstElement = undefined;
+                endLastElement = undefined;
                 protyle.selectElement.classList.add("fn__none");
                 protyle.selectElement.removeAttribute("style");
                 if (!protyle.disabled && tableBlockElement) {
@@ -677,7 +986,6 @@ export class WYSIWYG {
                                             }
                                         }
                                     });
-                                    tableBlockElement.querySelector("table").classList.remove("select");
                                     tableSelectElement.removeAttribute("style");
                                     const oldHTML = tableBlockElement.outerHTML;
                                     let cellElement = selectCellElements[0];
@@ -765,7 +1073,6 @@ export class WYSIWYG {
                                             selectCellElements.push(item);
                                         }
                                     });
-                                    tableBlockElement.querySelector("table").classList.remove("select");
                                     tableSelectElement.removeAttribute("style");
                                     setTableAlign(protyle, selectCellElements, tableBlockElement, "left", getEditorRange(tableBlockElement));
                                 }
@@ -787,7 +1094,6 @@ export class WYSIWYG {
                                             selectCellElements.push(item);
                                         }
                                     });
-                                    tableBlockElement.querySelector("table").classList.remove("select");
                                     tableSelectElement.removeAttribute("style");
                                     setTableAlign(protyle, selectCellElements, tableBlockElement, "center", getEditorRange(tableBlockElement));
                                 }
@@ -809,7 +1115,6 @@ export class WYSIWYG {
                                             selectCellElements.push(item);
                                         }
                                     });
-                                    tableBlockElement.querySelector("table").classList.remove("select");
                                     tableSelectElement.removeAttribute("style");
                                     setTableAlign(protyle, selectCellElements, tableBlockElement, "right", getEditorRange(tableBlockElement));
                                 }
@@ -817,7 +1122,7 @@ export class WYSIWYG {
                         }).element);
                         window.siyuan.menus.menu.append(new MenuItem({type: "separator"}).element);
                         window.siyuan.menus.menu.append(new MenuItem({
-                            label: window.siyuan.languages.remove,
+                            label: window.siyuan.languages.clear,
                             icon: "iconTrashcan",
                             click() {
                                 if (tableBlockElement) {
@@ -830,7 +1135,6 @@ export class WYSIWYG {
                                             selectCellElements.push(item);
                                         }
                                     });
-                                    tableBlockElement.querySelector("table").classList.remove("select");
                                     tableSelectElement.removeAttribute("style");
                                     const oldHTML = tableBlockElement.outerHTML;
                                     selectCellElements.forEach(item => {
@@ -856,7 +1160,7 @@ export class WYSIWYG {
                     if (range.toString() === "" ||
                         window.siyuan.shiftIsPressed  // https://ld246.com/article/1650096678723
                     ) {
-                        if (event.detail === 3) {
+                        if (event.detail > 2) {
                             // table 前或最后一个 cell 三击状态不对
                             let cursorElement = hasClosestBlock(range.startContainer) as Element;
                             if (cursorElement) {
@@ -870,8 +1174,8 @@ export class WYSIWYG {
                                     }
                                 }
                             }
+                            return;
                         }
-                        return;
                     }
                     if (selectElement.length > 0) {
                         range.collapse(true);
@@ -879,11 +1183,12 @@ export class WYSIWYG {
                     }
                     const startBlockElement = hasClosestBlock(range.startContainer);
                     let endBlockElement: false | HTMLElement;
-                    if (mouseUpEvent.detail === 3 && range.endContainer.nodeType !== 3 && (range.endContainer as HTMLElement).tagName === "DIV" && range.endOffset === 0) {
+                    if (mouseUpEvent.detail > 2 && range.endContainer.nodeType !== 3 && (range.endContainer as HTMLElement).tagName === "DIV" && range.endOffset === 0) {
                         // 三击选中段落块时，rangeEnd 会在下一个块
-                        if ((range.endContainer as HTMLElement).classList.contains("protyle-attr")) {
+                        if ((range.endContainer as HTMLElement).classList.contains("protyle-attr") && startBlockElement) {
                             // 三击在悬浮层中会选择到 attr https://github.com/siyuan-note/siyuan/issues/4636
-                            range.setEndAfter(range.endContainer.previousSibling.lastChild);
+                            // 需要获取可编辑元素，使用 previousElementSibling 的话会 https://github.com/siyuan-note/siyuan/issues/9714
+                            setLastNodeRange(getContenteditableElement(startBlockElement), range, false);
                         }
                     } else {
                         endBlockElement = hasClosestBlock(range.endContainer);
@@ -897,27 +1202,35 @@ export class WYSIWYG {
     }
 
     private bindEvent(protyle: IProtyle) {
-        this.element.addEventListener("focusout", () => {
-            if (getSelection().rangeCount > 0 && !this.element.contains(getSelection().getRangeAt(0).startContainer)) {
-                // 对 ctrl+tab 切换后 range 已经在新页面中才会触发的 focusout 进行忽略，因为在切换之前已经 dispatchEvent 了。
-                if (!protyle.toolbar.range) {
-                    protyle.toolbar.range = this.element.ownerDocument.createRange();
-                    protyle.toolbar.range.setStart(getContenteditableElement(this.element) || this.element, 0);
-                    protyle.toolbar.range.collapse(true);
+        // 删除块时，av 头尾需重新计算位置
+        protyle.observer = new ResizeObserver(() => {
+            const contentRect = protyle.contentElement.getBoundingClientRect();
+            protyle.wysiwyg.element.querySelectorAll(".av").forEach((item: HTMLElement) => {
+                if (item.querySelector(".av__title")) {
+                    stickyRow(item, contentRect, "all");
                 }
-            } else {
-                protyle.toolbar.range = getEditorRange(this.element);
+            });
+        });
+
+        this.element.addEventListener("focusout", () => {
+            if (getSelection().rangeCount === 0) {
+                return;
+            }
+            const range = getSelection().getRangeAt(0);
+            if (this.element.isSameNode(range.startContainer) || this.element.contains(range.startContainer)) {
+                protyle.toolbar.range = range;
             }
         });
 
         this.element.addEventListener("cut", (event: ClipboardEvent & { target: HTMLElement }) => {
             window.siyuan.ctrlIsPressed = false; // https://github.com/siyuan-note/siyuan/issues/6373
+            if (protyle.disabled) {
+                return;
+            }
             if (event.target.tagName === "PROTYLE-HTML") {
                 event.stopPropagation();
                 return;
             }
-            event.stopPropagation();
-            event.preventDefault();
 
             if (protyle.options.render.breadcrumb) {
                 protyle.breadcrumb.hide();
@@ -925,18 +1238,26 @@ export class WYSIWYG {
             const range = getEditorRange(protyle.wysiwyg.element);
             let nodeElement = hasClosestBlock(range.startContainer);
             if (!nodeElement) {
+                event.stopPropagation();
+                event.preventDefault();
                 return;
             }
+
+            event.stopPropagation();
+            event.preventDefault();
             const selectImgElement = nodeElement.querySelector(".img--select");
+            const selectAVElement = nodeElement.querySelector(".av__row--select, .av__cell--select");
             let selectElements = Array.from(protyle.wysiwyg.element.querySelectorAll(".protyle-wysiwyg--select"));
             if (selectElements.length === 0 && range.toString() === "" && !range.cloneContents().querySelector("img") &&
-                !selectImgElement) {
+                !selectImgElement && !selectAVElement) {
                 nodeElement.classList.add("protyle-wysiwyg--select");
                 selectElements = [nodeElement];
             }
             let html = "";
             if (selectElements.length > 0) {
-                if (selectElements[0].getAttribute("data-type") === "NodeListItem" && selectElements[0].parentElement.childElementCount - 1 === selectElements.length) {
+                if (selectElements[0].getAttribute("data-type") === "NodeListItem" &&
+                    selectElements[0].parentElement.classList.contains("list") &&   // 反链复制列表项 https://github.com/siyuan-note/siyuan/issues/6555
+                    selectElements[0].parentElement.childElementCount - 1 === selectElements.length) {
                     html = selectElements[0].parentElement.outerHTML;
                 } else {
                     selectElements.forEach(item => {
@@ -957,6 +1278,8 @@ export class WYSIWYG {
                     // Ctrl+X 剪切后光标应跳到下一行行首 https://github.com/siyuan-note/siyuan/issues/5485
                     focusBlock(nextElement);
                 }
+            } else if (selectAVElement) {
+                html = updateCellsValue(protyle, nodeElement);
             } else {
                 const id = nodeElement.getAttribute("data-node-id");
                 const oldHTML = nodeElement.outerHTML;
@@ -1060,7 +1383,9 @@ export class WYSIWYG {
                             tempElement.append(range.extractContents());
                             let parentElement: Element | false;
                             // https://ld246.com/article/1647689760545
-                            if (nodeElement.classList.contains("table")) {
+                            if (nodeElement.classList.contains("av")) {
+                                updateAVName(protyle, nodeElement);
+                            } else if (nodeElement.classList.contains("table")) {
                                 parentElement = hasClosestByMatchTag(range.startContainer, "TD") || hasClosestByMatchTag(range.startContainer, "TH");
                             } else {
                                 parentElement = getContenteditableElement(nodeElement);
@@ -1068,8 +1393,9 @@ export class WYSIWYG {
                             if (parentElement) {
                                 // 引用文本剪切 https://ld246.com/article/1647689760545
                                 // 表格多行剪切 https://ld246.com/article/1652603836350
+                                // 自定义表情的段落剪切后表情丢失 https://ld246.com/article/1668781478724
                                 Array.from(parentElement.children).forEach(item => {
-                                    if (item.textContent === "" && (item.nodeType === 1 && item.tagName !== "BR")) {
+                                    if (item.textContent === "" && (item.nodeType === 1 && !["BR", "IMG"].includes(item.tagName))) {
                                         item.remove();
                                     }
                                 });
@@ -1077,6 +1403,7 @@ export class WYSIWYG {
                         }
                     }
                 }
+                this.emojiToMd(tempElement);
                 html = tempElement.innerHTML;
                 // https://github.com/siyuan-note/siyuan/issues/4321
                 if (!nodeElement.classList.contains("table")) {
@@ -1091,18 +1418,24 @@ export class WYSIWYG {
                     getContenteditableElement(nodeElement).removeAttribute("data-render");
                     highlightRender(nodeElement);
                 }
-                if (nodeElement.parentElement.parentElement && !isFoldHeading) {
+                if (nodeElement.parentElement.parentElement && !isFoldHeading && !nodeElement.classList.contains("av")) {
                     // 选中 heading 时，使用删除的 transaction
                     updateTransaction(protyle, id, nodeElement.outerHTML, oldHTML);
                 }
             }
             protyle.hint.render(protyle);
-            event.clipboardData.setData("text/plain", protyle.lute.BlockDOM2StdMd(html).trimEnd());  // 需要 trimEnd，否则 \n 会导致 https://github.com/siyuan-note/siyuan/issues/6218
-            event.clipboardData.setData("text/html", Constants.ZWSP + html);
+            let textPlain = protyle.lute.BlockDOM2StdMd(html).trimEnd(); // 需要 trimEnd，否则 \n 会导致 https://github.com/siyuan-note/siyuan/issues/6218
+            textPlain = textPlain.replace(/\u00A0/g, " "); // Replace non-breaking spaces with normal spaces when copying https://github.com/siyuan-note/siyuan/issues/9382
+            event.clipboardData.setData("text/plain", textPlain);
+            event.clipboardData.setData("text/html", protyle.lute.BlockDOM2HTML(html));
+            event.clipboardData.setData("text/siyuan", html);
         });
 
         let beforeContextmenuRange: Range;
         this.element.addEventListener("contextmenu", (event: MouseEvent & { detail: any }) => {
+            if (event.shiftKey) {
+                return;
+            }
             event.stopPropagation();
             event.preventDefault();
             const x = event.clientX || event.detail.x;
@@ -1122,15 +1455,34 @@ export class WYSIWYG {
                     focusSideBlock(embedElement);
                 }
                 protyle.gutter.renderMenu(protyle, embedElement);
+                /// #if MOBILE
+                window.siyuan.menus.menu.fullscreen();
+                /// #else
                 window.siyuan.menus.menu.popup({x, y});
+                /// #endif
                 return false;
             }
-            if (protyle.disabled) {
-                return false;
+            // 在 span 前面，防止单元格哪 block-ref 被修改
+            const avRowElement = hasClosestByClassName(target, "av__row");
+            if (avRowElement && avContextmenu(protyle, avRowElement, {
+                x: event.clientX,
+                y: avRowElement.getBoundingClientRect().bottom,
+                h: avRowElement.clientHeight
+            })) {
+                event.stopPropagation();
+                event.preventDefault();
+                return;
             }
             protyle.toolbar.range = getEditorRange(protyle.element);
             if (target.tagName === "SPAN") { // https://ld246.com/article/1665141518103
-                const types = protyle.toolbar.getCurrentType(protyle.toolbar.range);
+                let types = protyle.toolbar.getCurrentType(protyle.toolbar.range);
+                if (types.length === 0) {
+                    // https://github.com/siyuan-note/siyuan/issues/8960
+                    types = (target.dataset.type || "").split(" ");
+                }
+                if (types.length > 0) {
+                    removeSearchMark(target);
+                }
                 if (types.includes("block-ref")) {
                     refMenu(protyle, target);
                     // 阻止 popover
@@ -1139,18 +1491,19 @@ export class WYSIWYG {
                         target.removeAttribute("prevent-popover");
                     }, 620);
                     return false;
-                }
-                if (types.includes("file-annotation-ref")) {
-                    protyle.toolbar.showFileAnnotationRef(protyle, target);
+                } else if (types.includes("file-annotation-ref") && !protyle.disabled) {
+                    fileAnnotationRefMenu(protyle, target);
                     return false;
-                }
-                if (types.includes("inline-memo")) {
+                } else if (types.includes("tag") && !protyle.disabled) {
+                    tagMenu(protyle, target);
+                    return false;
+                } else if (types.includes("inline-memo")) {
                     protyle.toolbar.showRender(protyle, target);
                     return false;
-                }
-                if (types.includes("a")) {
+                } else if (types.includes("a") && !protyle.disabled) {
                     linkMenu(protyle, target);
-                    if (target.getAttribute("data-href")?.startsWith("siyuan://blocks")) {
+                    if (window.siyuan.config.editor.floatWindowMode === 0 &&
+                        target.getAttribute("data-href")?.startsWith("siyuan://blocks")) {
                         // 阻止 popover
                         target.setAttribute("prevent-popover", "true");
                         setTimeout(() => {
@@ -1171,15 +1524,40 @@ export class WYSIWYG {
             if (!nodeElement) {
                 return false;
             }
-            if (!isNotEditBlock(nodeElement) &&
+            const avCellHeaderElement = hasClosestByClassName(target, "av__cell--header");
+            if (avCellHeaderElement) {
+                showColMenu(protyle, nodeElement, avCellHeaderElement);
+                event.stopPropagation();
+                event.preventDefault();
+                return;
+            }
+            const avTabHeaderElement = hasClosestByClassName(target, "item");
+            if (nodeElement.classList.contains("av") && avTabHeaderElement) {
+                if (avTabHeaderElement.classList.contains("item--focus")) {
+                    openViewMenu({protyle, blockElement: nodeElement, element: avTabHeaderElement});
+                } else {
+                    nodeElement.removeAttribute("data-render");
+                    avRender(nodeElement, protyle, () => {
+                        openViewMenu({
+                            protyle,
+                            blockElement: nodeElement,
+                            element: nodeElement.querySelector(".item.item--focus")
+                        });
+                    }, avTabHeaderElement.dataset.id);
+                }
+                event.stopPropagation();
+                event.preventDefault();
+                return;
+            }
+            if (!isNotEditBlock(nodeElement) && !nodeElement.classList.contains("protyle-wysiwyg--select") &&
+                !hasClosestByClassName(target, "protyle-action") && // https://github.com/siyuan-note/siyuan/issues/8983
                 (isMobile() || event.detail.target || (beforeContextmenuRange && nodeElement.contains(beforeContextmenuRange.startContainer)))
             ) {
-                if (!isMobile() || protyle.toolbar?.element.classList.contains("fn__none")) {
+                if ((!isMobile() || protyle.toolbar?.element.classList.contains("fn__none")) && !nodeElement.classList.contains("av")) {
                     contentMenu(protyle, nodeElement);
                     window.siyuan.menus.menu.popup({x, y: y + 13, h: 26});
                     protyle.toolbar?.element.classList.add("fn__none");
                     if (nodeElement.classList.contains("table")) {
-                        nodeElement.querySelector("table").classList.remove("select");
                         nodeElement.querySelector(".table__select").removeAttribute("style");
                     }
                 }
@@ -1188,7 +1566,11 @@ export class WYSIWYG {
                 if (protyle.gutter) {
                     protyle.gutter.renderMenu(protyle, nodeElement);
                 }
+                /// #if MOBILE
+                window.siyuan.menus.menu.fullscreen();
+                /// #else
                 window.siyuan.menus.menu.popup({x, y});
+                /// #endif
                 protyle.toolbar?.element.classList.add("fn__none");
             }
         });
@@ -1208,15 +1590,18 @@ export class WYSIWYG {
             if (!preventGetTopHTML &&
                 event.deltaY < 0 && !protyle.scroll.element.classList.contains("fn__none") &&
                 protyle.contentElement.clientHeight === protyle.contentElement.scrollHeight &&
-                protyle.wysiwyg.element.firstElementChild.getAttribute("data-eof") !== "true") {
+                protyle.wysiwyg.element.firstElementChild.getAttribute("data-eof") !== "1") {
                 fetchPost("/api/filetree/getDoc", {
                     id: protyle.wysiwyg.element.firstElementChild.getAttribute("data-node-id"),
                     mode: 1,
-                    k: protyle.options.key || "",
                     size: window.siyuan.config.editor.dynamicLoadBlocks,
                 }, getResponse => {
                     preventGetTopHTML = false;
-                    onGet(getResponse, protyle, [Constants.CB_GET_BEFORE, Constants.CB_GET_UNCHANGEID]);
+                    onGet({
+                        data: getResponse,
+                        protyle,
+                        action: [Constants.CB_GET_BEFORE, Constants.CB_GET_UNCHANGEID],
+                    });
                 });
                 preventGetTopHTML = true;
             }
@@ -1253,7 +1638,7 @@ export class WYSIWYG {
             }
             const nodeElement = hasClosestBlock(event.target);
             if (nodeElement && (nodeElement.classList.contains("list") || nodeElement.classList.contains("li"))) {
-                // 光标在列表下部应显示右侧的元素，而不是列表本身。放在 globalShortcut 中的 mousemove 下处理
+                // 光标在列表下部应显示右侧的元素，而不是列表本身。放在 windowEvent 中的 mousemove 下处理
                 return;
             }
             if (nodeElement) {
@@ -1261,7 +1646,7 @@ export class WYSIWYG {
                 if (embedElement) {
                     protyle.gutter.render(protyle, embedElement, this.element);
                 } else {
-                    protyle.gutter.render(protyle, nodeElement, this.element);
+                    protyle.gutter.render(protyle, nodeElement, this.element, event.target);
                 }
             }
         });
@@ -1276,6 +1661,17 @@ export class WYSIWYG {
             // https://github.com/siyuan-note/siyuan/issues/4600
             if (event.target.tagName === "PROTYLE-HTML") {
                 event.stopPropagation();
+                return;
+            }
+            if (!hasClosestByAttribute(event.target, "contenteditable", "true")) {
+                event.stopPropagation();
+                event.preventDefault();
+                return;
+            }
+            const blockElement = hasClosestBlock(event.target);
+            if (blockElement && !getContenteditableElement(blockElement)) {
+                event.stopPropagation();
+                event.preventDefault();
                 return;
             }
             paste(protyle, event);
@@ -1321,18 +1717,19 @@ export class WYSIWYG {
             }
         });
 
+        let timeout: number;
         this.element.addEventListener("input", (event: InputEvent) => {
             const target = event.target as HTMLElement;
             if (target.tagName === "VIDEO" || target.tagName === "AUDIO" || event.inputType === "historyRedo") {
                 return;
             }
-            /// #if !BROWSER
             if (event.inputType === "historyUndo") {
-                getCurrentWindow().webContents.redo();
+                /// #if !BROWSER
+                ipcRenderer.send(Constants.SIYUAN_CMD, "redo");
+                /// #endif
                 window.siyuan.menus.menu.remove();
                 return;
             }
-            /// #endif
             const range = getEditorRange(this.element);
             const blockElement = hasClosestBlock(range.startContainer);
             if (!blockElement) {
@@ -1342,6 +1739,9 @@ export class WYSIWYG {
                 event.stopPropagation();
                 return;
             }
+            if ([":", "(", "【", "（", "[", "{", "「", "『", "#", "/", "、"].includes(event.data)) {
+                protyle.hint.enableExtend = true;
+            }
             if (event.isComposing || isComposition ||
                 // https://github.com/siyuan-note/siyuan/issues/337 编辑器内容拖拽问题
                 event.inputType === "deleteByDrag" || event.inputType === "insertFromDrop"
@@ -1349,14 +1749,16 @@ export class WYSIWYG {
                 return;
             }
             this.escapeInline(protyle, range, event);
-            if (/^\d{1}$/.test(event.data) || event.data === "‘" || event.data === "“") {
-                setTimeout(() => {
+
+            if ((/^\d{1}$/.test(event.data) || event.data === "‘" || event.data === "“" ||
+                // 百度输入法中文反双引号 https://github.com/siyuan-note/siyuan/issues/9686
+                event.data === "”" ||
+                event.data === "「")) {
+                clearTimeout(timeout);  // https://github.com/siyuan-note/siyuan/issues/9179
+                timeout = window.setTimeout(() => {
                     input(protyle, blockElement, range, true); // 搜狗拼音数字后面句号变为点；Mac 反向双引号无法输入
                 });
             } else {
-                if (event.data === ":") {
-                    protyle.hint.enableEmoji = true;
-                }
                 input(protyle, blockElement, range, true);
             }
             event.stopPropagation();
@@ -1364,13 +1766,14 @@ export class WYSIWYG {
 
         this.element.addEventListener("keyup", (event) => {
             const range = getEditorRange(this.element).cloneRange();
+            const nodeElement = hasClosestBlock(range.startContainer);
             if (event.key !== "PageUp" && event.key !== "PageDown" && event.key !== "Home" && event.key !== "End" && event.key.indexOf("Arrow") === -1 &&
                 event.key !== "Alt" && event.key !== "Shift" && event.key !== "CapsLock" && event.key !== "Escape" && event.key !== "Meta" && !/^F\d{1,2}$/.test(event.key) &&
                 (!event.isComposing || (event.isComposing && range.toString() !== "")) // https://github.com/siyuan-note/siyuan/issues/4341
             ) {
                 // 搜狗输入法不走 keydown，需重新记录历史状态
-                const nodeElement = hasClosestBlock(range.startContainer);
-                if (nodeElement && typeof protyle.wysiwyg.lastHTMLs[nodeElement.getAttribute("data-node-id")] === "undefined") {
+                if (range.toString() === "" &&  // windows 下回车新建块输入abc，选中 bc ctrl+m 后光标错误
+                    nodeElement && typeof protyle.wysiwyg.lastHTMLs[nodeElement.getAttribute("data-node-id")] === "undefined") {
                     range.insertNode(document.createElement("wbr"));
                     protyle.wysiwyg.lastHTMLs[nodeElement.getAttribute("data-node-id")] = nodeElement.outerHTML;
                     nodeElement.querySelector("wbr").remove();
@@ -1383,14 +1786,13 @@ export class WYSIWYG {
                 return;
             }
 
-            if ((event.shiftKey || isCtrl(event)) && !event.isComposing && range.toString() !== "") {
+            if ((event.shiftKey || isOnlyMeta(event)) && !event.isComposing && range.toString() !== "") {
                 // 工具栏
                 protyle.toolbar.render(protyle, range, event);
                 countSelectWord(range);
             }
 
             if (event.eventPhase !== 3 && !event.shiftKey && (event.key.indexOf("Arrow") > -1 || event.key === "Home" || event.key === "End" || event.key === "PageUp" || event.key === "PageDown") && !event.isComposing) {
-                const nodeElement = hasClosestBlock(range.startContainer);
                 if (nodeElement) {
                     this.setEmptyOutline(protyle, nodeElement);
                     if (range.toString() === "") {
@@ -1399,25 +1801,62 @@ export class WYSIWYG {
                 }
                 event.stopPropagation();
             }
+
+            // https://github.com/siyuan-note/siyuan/issues/8918
+            if ((event.key === "ArrowLeft" || event.key === "ArrowRight" ||
+                    event.key === "Alt" || event.key === "Shift") &&    // 选中后 alt+shift+arrowRight 会导致光标和选中块不一致
+                nodeElement && !nodeElement.classList.contains("protyle-wysiwyg--select")) {
+                const selectElements = Array.from(protyle.wysiwyg.element.querySelectorAll(".protyle-wysiwyg--select"));
+                let containRange = false;
+                selectElements.find(item => {
+                    if (item.contains(range.startContainer)) {
+                        containRange = true;
+                        return true;
+                    }
+                });
+                if (!containRange && selectElements.length > 0) {
+                    selectElements.forEach(item => {
+                        item.classList.remove("protyle-wysiwyg--select");
+                    });
+                    nodeElement.classList.add("protyle-wysiwyg--select");
+                }
+            }
         });
 
         this.element.addEventListener("dblclick", (event: MouseEvent & { target: HTMLElement }) => {
-            if (event.target.tagName === "IMG") {
-                previewImage((event.target as HTMLImageElement).src, protyle.block.rootID);
+            if (event.target.tagName === "IMG" && !event.target.classList.contains("emoji")) {
+                previewDocImage((event.target as HTMLImageElement).src, protyle.block.rootID);
                 return;
             }
         });
 
-        let shiftStartElement: HTMLElement;
         this.element.addEventListener("click", (event: MouseEvent & { target: HTMLElement }) => {
+            if (this.preventClick) {
+                this.preventClick = false;
+                return;
+            }
+            protyle.app.plugins.forEach(item => {
+                item.eventBus.emit("click-editorcontent", {
+                    protyle,
+                    event
+                });
+            });
             hideElements(["hint", "util"], protyle);
+            const ctrlIsPressed = isOnlyMeta(event);
             /// #if !MOBILE
             const backlinkBreadcrumbItemElement = hasClosestByClassName(event.target, "protyle-breadcrumb__item");
             if (backlinkBreadcrumbItemElement) {
                 const breadcrumbId = backlinkBreadcrumbItemElement.getAttribute("data-id");
                 if (breadcrumbId) {
-                    if (window.siyuan.ctrlIsPressed) {
-                        openFileById({id: breadcrumbId, action: [Constants.CB_GET_FOCUS]});
+                    if (ctrlIsPressed) {
+                        checkFold(breadcrumbId, (zoomIn) => {
+                            openFileById({
+                                app: protyle.app,
+                                id: breadcrumbId,
+                                action: zoomIn ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT],
+                                zoomIn
+                            });
+                        });
                     } else {
                         loadBreadcrumb(protyle, backlinkBreadcrumbItemElement);
                     }
@@ -1429,14 +1868,13 @@ export class WYSIWYG {
                 return;
             }
             /// #endif
-            if (!window.siyuan.shiftIsPressed) {
-                shiftStartElement = undefined;
+            if (!event.shiftKey) {
+                this.shiftStartElement = undefined;
             }
             this.setEmptyOutline(protyle, event.target);
             const tableElement = hasClosestByClassName(event.target, "table");
             this.element.querySelectorAll(".table").forEach(item => {
                 if (!tableElement || !item.isSameNode(tableElement)) {
-                    item.querySelector("table").classList.remove("select");
                     item.querySelector(".table__select").removeAttribute("style");
                 }
                 if (tableElement && tableElement.isSameNode(item) && item.querySelector(".table__select").getAttribute("style")) {
@@ -1444,17 +1882,27 @@ export class WYSIWYG {
                     event.stopPropagation();
                 }
             });
+            // 面包屑定位，需至于前，否则 return 的元素就无法进行面包屑定位
+            if (protyle.options.render.breadcrumb) {
+                protyle.breadcrumb.render(protyle);
+            }
             const range = getEditorRange(this.element);
             // 需放在嵌入块之前，否则嵌入块内的引用、链接、pdf 双链无法点击打开 https://ld246.com/article/1630479789513
             const blockRefElement = hasClosestByAttribute(event.target, "data-type", "block-ref");
-            const aElement = hasClosestByAttribute(event.target, "data-type", "a");
-            if (blockRefElement ||
-                (aElement && aElement.getAttribute("data-href").startsWith("siyuan://blocks/"))
-            ) {
+            const aElement = hasClosestByAttribute(event.target, "data-type", "a") || hasClosestByAttribute(event.target, "data-type", "url");
+            let aLink = "";
+            if (aElement) {
+                if (aElement.classList.contains("av__celltext")) {
+                    aLink = aElement.textContent.trim();
+                } else {
+                    aLink = aElement.getAttribute("data-href");
+                }
+            }
+            if (blockRefElement || aLink.startsWith("siyuan://blocks/")) {
                 event.stopPropagation();
                 event.preventDefault();
                 hideElements(["dialog", "toolbar"], protyle);
-                if (range.toString() !== "" && !window.siyuan.shiftIsPressed) {
+                if (range.toString() !== "" && !event.shiftKey) {
                     // 选择不打开引用
                     return;
                 }
@@ -1462,39 +1910,44 @@ export class WYSIWYG {
                 if (blockRefElement) {
                     refBlockId = blockRefElement.getAttribute("data-id");
                 } else if (aElement) {
-                    refBlockId = aElement.getAttribute("data-href").substring(16, 38);
+                    refBlockId = aLink.substring(16, 38);
                 }
-
-                fetchPost("/api/block/checkBlockFold", {id: refBlockId}, (foldResponse) => {
+                checkFold(refBlockId, (zoomIn, action) => {
                     /// #if MOBILE
-                    openMobileFileById(refBlockId, foldResponse.data ? [Constants.CB_GET_ALL, Constants.CB_GET_HL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT]);
+                    openMobileFileById(protyle.app, refBlockId, zoomIn ? [Constants.CB_GET_ALL, Constants.CB_GET_HL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]);
+                    activeBlur();
+                    hideKeyboardToolbar();
                     /// #else
-                    if (window.siyuan.shiftIsPressed) {
+                    if (event.shiftKey) {
                         openFileById({
+                            app: protyle.app,
                             id: refBlockId,
                             position: "bottom",
-                            action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT],
-                            zoomIn: foldResponse.data
+                            action,
+                            zoomIn
                         });
-                    } else if (window.siyuan.altIsPressed) {
+                    } else if (event.altKey) {
                         openFileById({
+                            app: protyle.app,
                             id: refBlockId,
                             position: "right",
-                            action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT],
-                            zoomIn: foldResponse.data
+                            action,
+                            zoomIn
                         });
-                    } else if (window.siyuan.ctrlIsPressed) {
+                    } else if (ctrlIsPressed) {
                         openFileById({
+                            app: protyle.app,
                             id: refBlockId,
-                            action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT],
                             keepCursor: true,
-                            zoomIn: foldResponse.data
+                            action: zoomIn ? [Constants.CB_GET_HL, Constants.CB_GET_ALL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL],
+                            zoomIn
                         });
                     } else {
                         openFileById({
+                            app: protyle.app,
                             id: refBlockId,
-                            action: foldResponse.data ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT],
-                            zoomIn: foldResponse.data
+                            action,
+                            zoomIn
                         });
                     }
                     /// #endif
@@ -1525,21 +1978,21 @@ export class WYSIWYG {
                 /// #if MOBILE
                 openByMobile(linkAddress);
                 /// #else
-                if (window.siyuan.ctrlIsPressed) {
+                if (ctrlIsPressed) {
                     openBy(linkAddress, "folder");
-                } else if (window.siyuan.shiftIsPressed) {
+                } else if (event.shiftKey) {
                     openBy(linkAddress, "app");
                 } else {
-                    openAsset(linkAddress, fileIds[2], "right");
+                    openAsset(protyle.app, linkAddress, fileIds[2], "right");
                 }
                 /// #endif
                 return;
             }
 
-            if (aElement && !window.siyuan.altIsPressed) {
+            if (aElement && !event.altKey) {
                 event.stopPropagation();
                 event.preventDefault();
-                const linkAddress = aElement.getAttribute("data-href");
+                let linkAddress = Lute.UnEscapeHTMLStr(aLink);
                 /// #if MOBILE
                 openByMobile(linkAddress);
                 /// #else
@@ -1549,17 +2002,16 @@ export class WYSIWYG {
                         (!linkPathname.endsWith(".pdf") ||
                             (linkPathname.endsWith(".pdf") && !linkAddress.startsWith("file://")))
                     ) {
-                        if (window.siyuan.ctrlIsPressed) {
+                        if (ctrlIsPressed) {
                             openBy(linkAddress, "folder");
-                        } else if (window.siyuan.shiftIsPressed) {
+                        } else if (event.shiftKey) {
                             openBy(linkAddress, "app");
                         } else {
-                            const page = getSearch("page", linkAddress);
-                            openAsset(linkPathname, page === "" ? undefined : parseInt(page), "right");
+                            openAsset(protyle.app, linkPathname, parseInt(getSearch("page", linkAddress)), "right");
                         }
                     } else {
                         /// #if !BROWSER
-                        if (window.siyuan.ctrlIsPressed) {
+                        if (ctrlIsPressed) {
                             openBy(linkAddress, "folder");
                         } else {
                             openBy(linkAddress, "app");
@@ -1568,8 +2020,13 @@ export class WYSIWYG {
                         openByMobile(linkAddress);
                         /// #endif
                     }
-                } else {
+                } else if (linkAddress) {
                     /// #if !BROWSER
+                    if (0 > linkAddress.indexOf(":")) {
+                        // 使用 : 判断，不使用 :// 判断 Open external application protocol invalid https://github.com/siyuan-note/siyuan/issues/10075
+                        // Support click to open hyperlinks like `www.foo.com` https://github.com/siyuan-note/siyuan/issues/9986
+                        linkAddress = `https://${linkAddress}`;
+                    }
                     shell.openExternal(linkAddress).catch((e) => {
                         showMessage(e);
                     });
@@ -1581,75 +2038,79 @@ export class WYSIWYG {
                 return;
             }
 
-            /// #if !MOBILE
             const tagElement = hasClosestByAttribute(event.target, "data-type", "tag");
-            if (tagElement && !window.siyuan.altIsPressed && protyle.model) {
-                openGlobalSearch(`#${tagElement.textContent}#`, !window.siyuan.ctrlIsPressed);
+            if (tagElement && !event.altKey) {
+                /// #if !MOBILE
+                openGlobalSearch(protyle.app, `#${tagElement.textContent}#`, !ctrlIsPressed);
                 hideElements(["dialog"]);
+                /// #else
+                const searchOption = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+                popSearch(protyle.app, {
+                    removed: searchOption.removed,
+                    sort: searchOption.sort,
+                    group: searchOption.group,
+                    hasReplace: false,
+                    method: 0,
+                    hPath: "",
+                    idPath: [],
+                    k: `#${tagElement.textContent}#`,
+                    r: "",
+                    page: 1,
+                    types: Object.assign({}, searchOption.types),
+                    replaceTypes: Object.assign({}, searchOption.replaceTypes)
+                });
+                /// #endif
                 return;
             }
-            /// #endif
 
             const embedItemElement = hasClosestByClassName(event.target, "protyle-wysiwyg__embed");
             if (embedItemElement) {
                 const embedId = embedItemElement.getAttribute("data-id");
-                /// #if MOBILE
-                openMobileFileById(embedId, [Constants.CB_GET_ALL]);
-                /// #else
-                if (window.siyuan.shiftIsPressed) {
-                    openFileById({
-                        id: embedId,
-                        position: "bottom",
-                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL],
-                        zoomIn: true
-                    });
-                } else if (window.siyuan.altIsPressed) {
-                    openFileById({
-                        id: embedId,
-                        position: "right",
-                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL],
-                        zoomIn: true
-                    });
-                } else if (window.siyuan.ctrlIsPressed) {
-                    openFileById({
-                        id: embedId,
-                        action: [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL],
-                        keepCursor: true,
-                        zoomIn: true
-                    });
-                } else if (!protyle.disabled) {
-                    window.siyuan.blockPanels.push(new BlockPanel({
-                        targetElement: embedItemElement,
-                        nodeIds: [embedId],
-                    }));
-                }
-                /// #endif
+                checkFold(embedId, (zoomIn, action) => {
+                    /// #if MOBILE
+                    openMobileFileById(protyle.app, embedId, zoomIn ? [Constants.CB_GET_ALL, Constants.CB_GET_HL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL]);
+                    activeBlur();
+                    hideKeyboardToolbar();
+                    /// #else
+                    if (event.shiftKey) {
+                        openFileById({
+                            app: protyle.app,
+                            id: embedId,
+                            position: "bottom",
+                            action,
+                            zoomIn
+                        });
+                    } else if (event.altKey) {
+                        openFileById({
+                            app: protyle.app,
+                            id: embedId,
+                            position: "right",
+                            action,
+                            zoomIn
+                        });
+                    } else if (ctrlIsPressed) {
+                        openFileById({
+                            app: protyle.app,
+                            id: embedId,
+                            action: zoomIn ? [Constants.CB_GET_HL, Constants.CB_GET_ALL] : [Constants.CB_GET_HL, Constants.CB_GET_CONTEXT],
+                            zoomIn,
+                            keepCursor: true,
+                        });
+                    } else if (!protyle.disabled) {
+                        window.siyuan.blockPanels.push(new BlockPanel({
+                            app: protyle.app,
+                            targetElement: embedItemElement,
+                            isBacklink: false,
+                            nodeIds: [embedId],
+                        }));
+                    }
+                    /// #endif
+                });
                 event.stopPropagation();
                 return;
             }
 
-            const attrBookmarkElement = hasClosestByClassName(event.target, "protyle-attr--bookmark");
-            if (attrBookmarkElement) {
-                openAttr(attrBookmarkElement.parentElement.parentElement, protyle, "bookmark");
-                event.stopPropagation();
-                return;
-            }
-            const attrNameElement = hasClosestByClassName(event.target, "protyle-attr--name");
-            if (attrNameElement) {
-                openAttr(attrNameElement.parentElement.parentElement, protyle, "name");
-                event.stopPropagation();
-                return;
-            }
-            const attrAliasElement = hasClosestByClassName(event.target, "protyle-attr--alias");
-            if (attrAliasElement) {
-                openAttr(attrAliasElement.parentElement.parentElement, protyle, "alias");
-                event.stopPropagation();
-                return;
-            }
-            const attrMemoElement = hasClosestByClassName(event.target, "protyle-attr--memo");
-            if (attrMemoElement) {
-                openAttr(attrMemoElement.parentElement.parentElement, protyle, "memo");
-                event.stopPropagation();
+            if (commonClick(event, protyle)) {
                 return;
             }
 
@@ -1668,11 +2129,16 @@ export class WYSIWYG {
             const menuElement = hasClosestByClassName(event.target, "protyle-action__menu");
             if (menuElement) {
                 protyle.gutter.renderMenu(protyle, menuElement.parentElement.parentElement);
+                /// #if MOBILE
+                window.siyuan.menus.menu.fullscreen();
+                /// #else
                 const rect = menuElement.getBoundingClientRect();
                 window.siyuan.menus.menu.popup({
                     x: rect.left,
-                    y: rect.top
-                }, true);
+                    y: rect.top,
+                    isLeft: true
+                });
+                /// #endif
                 event.stopPropagation();
                 event.preventDefault();
                 return;
@@ -1700,7 +2166,7 @@ export class WYSIWYG {
 
             // 需放在属性后，否则数学公式无法点击属性；需放在 action 后，否则嵌入块的的 action 无法打开；需放在嵌入块后，否则嵌入块中的数学公式会被打开
             const mathElement = hasClosestByAttribute(event.target, "data-subtype", "math");
-            if (!window.siyuan.shiftIsPressed && !window.siyuan.ctrlIsPressed && mathElement && !protyle.disabled) {
+            if (!event.shiftKey && !ctrlIsPressed && mathElement && !protyle.disabled) {
                 protyle.toolbar.showRender(protyle, mathElement);
                 event.stopPropagation();
                 return;
@@ -1714,8 +2180,9 @@ export class WYSIWYG {
                         clientX: event.clientX + 4,
                         clientY: event.clientY
                     });
-                } else if (!protyle.disabled && actionElement.parentElement.classList.contains("li")) {
-                    if (window.siyuan.altIsPressed) {
+                } else if (actionElement.parentElement.classList.contains("li")) {
+                    const actionId = actionElement.parentElement.getAttribute("data-node-id");
+                    if (event.altKey && !protyle.disabled) {
                         // 展开/折叠当前层级的所有列表项
                         if (actionElement.parentElement.parentElement.classList.contains("protyle-wysiwyg")) {
                             // 缩放列表项 https://ld246.com/article/1653123034794
@@ -1743,28 +2210,30 @@ export class WYSIWYG {
                             updateTransaction(protyle, actionElement.parentElement.parentElement.getAttribute("data-node-id"), actionElement.parentElement.parentElement.outerHTML, oldHTML);
                         }
                         hideElements(["gutter"], protyle);
-                    } else if (window.siyuan.shiftIsPressed) {
-                        openAttr(actionElement.parentElement, protyle);
-                    } else if (window.siyuan.ctrlIsPressed) {
-                        zoomOut(protyle, actionElement.parentElement.getAttribute("data-node-id"));
+                    } else if (event.shiftKey && !protyle.disabled) {
+                        openAttr(actionElement.parentElement, "bookmark", protyle);
+                    } else if (ctrlIsPressed) {
+                        zoomOut({protyle, id: actionId});
                     } else {
                         if (actionElement.classList.contains("protyle-action--task")) {
-                            const html = actionElement.parentElement.outerHTML;
-                            if (actionElement.parentElement.classList.contains("protyle-task--done")) {
-                                actionElement.querySelector("use").setAttribute("xlink:href", "#iconUncheck");
-                                actionElement.parentElement.classList.remove("protyle-task--done");
-                            } else {
-                                actionElement.querySelector("use").setAttribute("xlink:href", "#iconCheck");
-                                actionElement.parentElement.classList.add("protyle-task--done");
+                            if (!protyle.disabled) {
+                                const html = actionElement.parentElement.outerHTML;
+                                if (actionElement.parentElement.classList.contains("protyle-task--done")) {
+                                    actionElement.querySelector("use").setAttribute("xlink:href", "#iconUncheck");
+                                    actionElement.parentElement.classList.remove("protyle-task--done");
+                                } else {
+                                    actionElement.querySelector("use").setAttribute("xlink:href", "#iconCheck");
+                                    actionElement.parentElement.classList.add("protyle-task--done");
+                                }
+                                actionElement.parentElement.setAttribute("updated", dayjs().format("YYYYMMDDHHmmss"));
+                                updateTransaction(protyle, actionId, actionElement.parentElement.outerHTML, html);
                             }
-                            actionElement.parentElement.setAttribute("updated", dayjs().format("YYYYMMDDHHmmss"));
-                            updateTransaction(protyle, actionElement.parentElement.getAttribute("data-node-id"), actionElement.parentElement.outerHTML, html);
                         } else {
-                            protyle.gutter.renderMenu(protyle, actionElement.parentElement);
-                            window.siyuan.menus.menu.popup({
-                                x: event.clientX - 16,
-                                y: event.clientY - 16
-                            }, true);
+                            if (protyle.block.showAll && protyle.block.id === actionId) {
+                                enterBack(protyle, actionId);
+                            } else {
+                                zoomOut({protyle, id: actionId});
+                            }
                         }
                     }
                 }
@@ -1774,18 +2243,26 @@ export class WYSIWYG {
 
             const selectElement = hasClosestByClassName(event.target, "hr") ||
                 hasClosestByClassName(event.target, "iframe");
-            if (!window.siyuan.shiftIsPressed && !window.siyuan.ctrlIsPressed && selectElement) {
+            if (!event.shiftKey && !ctrlIsPressed && selectElement) {
                 selectElement.classList.add("protyle-wysiwyg--select");
                 event.stopPropagation();
                 return;
             }
 
             const imgElement = hasTopClosestByClassName(event.target, "img");
-            if (!window.siyuan.shiftIsPressed && !window.siyuan.ctrlIsPressed && imgElement) {
+            if (!event.shiftKey && !ctrlIsPressed && imgElement) {
                 imgElement.classList.add("img--select");
                 range.setStartAfter(imgElement);
                 range.collapse(true);
                 focusByRange(range);
+                // 需等待 range 更新再次进行渲染
+                if (protyle.options.render.breadcrumb) {
+                    protyle.breadcrumb.render(protyle);
+                }
+                return;
+            }
+
+            if (avClick(protyle, event)) {
                 return;
             }
 
@@ -1796,7 +2273,7 @@ export class WYSIWYG {
                     const lastEditElement = getContenteditableElement(getLastBlock(this.element.lastElementChild));
                     if (!lastEditElement ||
                         (this.element.lastElementChild.getAttribute("data-type") !== "NodeParagraph" && protyle.wysiwyg.element.getAttribute("data-doc-type") !== "NodeListItem") ||
-                        (this.element.lastElementChild.getAttribute("data-type") === "NodeParagraph" && getContenteditableElement(lastEditElement).textContent !== "")) {
+                        (this.element.lastElementChild.getAttribute("data-type") === "NodeParagraph" && getContenteditableElement(lastEditElement).innerHTML !== "")) {
                         const emptyElement = genEmptyElement(false, false);
                         this.element.insertAdjacentElement("beforeend", emptyElement);
                         transaction(protyle, [{
@@ -1813,9 +2290,16 @@ export class WYSIWYG {
                         range.selectNodeContents(emptyEditElement);
                         range.collapse(true);
                         focusByRange(range);
+                        // 需等待 range 更新再次进行渲染
+                        if (protyle.options.render.breadcrumb) {
+                            setTimeout(() => {
+                                protyle.breadcrumb.render(protyle);
+                            }, Constants.TIMEOUT_TRANSITION);
+                        }
                     } else if (lastEditElement) {
                         range.selectNodeContents(lastEditElement);
                         range.collapse(false);
+                        focusByRange(range);
                     }
                 }
             }
@@ -1823,11 +2307,15 @@ export class WYSIWYG {
             setTimeout(() => {
                 // 选中后，在选中的文字上点击需等待 range 更新
                 const newRange = getEditorRange(this.element);
+                /// #if !MOBILE
                 if (newRange.toString().replace(Constants.ZWSP, "") !== "") {
                     protyle.toolbar.render(protyle, newRange);
                 } else {
                     hideElements(["toolbar"], protyle);
+                    // https://github.com/siyuan-note/siyuan/issues/9785
+                    protyle.toolbar.range = newRange;
                 }
+                /// #endif
                 if (!protyle.wysiwyg.element.querySelector(".protyle-wysiwyg--select")) {
                     countSelectWord(newRange, protyle.block.rootID);
                 }
@@ -1838,33 +2326,25 @@ export class WYSIWYG {
                 /// #if !MOBILE
                 pushBack(protyle, newRange);
                 /// #endif
-            }, isMobile() ? 520 : 0); // Android 双击慢了出不来
-            protyle.hint.enableEmoji = false;
-            if (window.siyuan.shiftIsPressed) {
+            }, (isMobile() || isInIOS()) ? 520 : 0); // Android/iPad 双击慢了出不来
+            protyle.hint.enableExtend = false;
+            if (event.shiftKey) {
                 event.preventDefault();
                 event.stopPropagation();
                 // shift 多选
-                let startElement = hasClosestBlock(range.startContainer);
+                let startElement = this.shiftStartElement;
                 let endElement = hasClosestBlock(event.target);
-                if (startElement && endElement && startElement.isSameNode(endElement)) {
-                    startElement = hasClosestBlock(range.endContainer);
-                }
-                if (startElement && endElement && (!startElement.isSameNode(endElement) || (shiftStartElement && shiftStartElement.isSameNode(startElement)))) {
+                if (this.shiftStartElement && endElement && !this.shiftStartElement.isSameNode(endElement)) {
                     let toDown = true;
                     range.collapse(true);
-                    if (shiftStartElement) {
-                        startElement = shiftStartElement;
-                    } else {
-                        shiftStartElement = startElement;
-                    }
                     const startRect = startElement.getBoundingClientRect();
                     const endRect = endElement.getBoundingClientRect();
                     let startTop = startRect.top;
                     let endTop = endRect.top;
                     if (startTop === endTop) {
                         // 横排 https://ld246.com/article/1663036247544
-                        startTop = startRect.right;
-                        endTop = endRect.right;
+                        startTop = startRect.left;
+                        endTop = endRect.left;
                     }
                     if (startTop > endTop) {
                         const tempElement = endElement;
@@ -1881,12 +2361,14 @@ export class WYSIWYG {
                     while (currentElement) {
                         if (currentElement && !currentElement.classList.contains("protyle-attr")) {
                             const currentRect = currentElement.getBoundingClientRect();
-                            if (startRect.top === endRect.top ? (currentRect.right <= endTop) : (currentRect.top <= endTop)) {
+                            if (startRect.top === endRect.top ? (currentRect.left <= endTop) : (currentRect.top <= endTop)) {
                                 if (hasJump) {
                                     // 父节点的下个节点在选中范围内才可使用父节点作为选中节点
                                     if (currentElement.nextElementSibling && !currentElement.nextElementSibling.classList.contains("protyle-attr")) {
                                         const currentNextRect = currentElement.nextElementSibling.getBoundingClientRect();
-                                        if (startRect.top === endRect.top ? (currentNextRect.right <= endTop) : (currentNextRect.top <= endTop)) {
+                                        if (startRect.top === endRect.top ?
+                                            (currentNextRect.left <= endTop && currentNextRect.bottom <= endRect.bottom) :
+                                            (currentNextRect.top <= endTop)) {
                                             selectElements = [currentElement];
                                             currentElement = currentElement.nextElementSibling as HTMLElement;
                                             hasJump = false;
@@ -1918,7 +2400,7 @@ export class WYSIWYG {
                     }
                     if (selectElements.length === 1 && !selectElements[0].classList.contains("list") && !selectElements[0].classList.contains("bq") && !selectElements[0].classList.contains("sb")) {
                         // 单个 p 不选中
-                        shiftStartElement = undefined;
+                        this.shiftStartElement = undefined;
                     } else {
                         const ids: string[] = [];
                         if (!protyle.wysiwyg.element.querySelector(".protyle-wysiwyg--select") && protyle.scroll && !protyle.scroll.element.classList.contains("fn__none") && !protyle.scroll.keepLazyLoad &&
@@ -1928,6 +2410,10 @@ export class WYSIWYG {
                         selectElements.forEach(item => {
                             item.classList.add("protyle-wysiwyg--select");
                             ids.push(item.getAttribute("data-node-id"));
+                            // 清除选中的子块 https://ld246.com/article/1667826582251
+                            item.querySelectorAll(".protyle-wysiwyg--select").forEach(subItem => {
+                                subItem.classList.remove("protyle-wysiwyg--select");
+                            });
                         });
                         countBlockWord(ids);
                         if (toDown) {
@@ -1945,7 +2431,7 @@ export class WYSIWYG {
                 focusByRange(range);
             }
 
-            if (window.siyuan.ctrlIsPressed) {
+            if (ctrlIsPressed && range.toString() === "") {
                 let ctrlElement = hasClosestBlock(event.target);
                 if (ctrlElement) {
                     ctrlElement = getTopAloneElement(ctrlElement) as HTMLElement;
@@ -1961,8 +2447,8 @@ export class WYSIWYG {
                         item.removeAttribute("select-start");
                         item.removeAttribute("select-end");
                     });
-                    const ctrlParentElement = hasClosestByClassName(ctrlElement, "protyle-wysiwyg--select");
-                    if (ctrlParentElement && !ctrlElement.isSameNode(ctrlParentElement)) {
+                    const ctrlParentElement = hasClosestByClassName(ctrlElement.parentElement, "protyle-wysiwyg--select");
+                    if (ctrlParentElement) {
                         ctrlParentElement.classList.remove("protyle-wysiwyg--select");
                         ctrlParentElement.removeAttribute("select-start");
                         ctrlParentElement.removeAttribute("select-end");
@@ -1973,11 +2459,6 @@ export class WYSIWYG {
                     });
                     countBlockWord(ids);
                 }
-            }
-
-            // 面包屑定位
-            if (protyle.options.render.breadcrumb) {
-                protyle.breadcrumb.render(protyle);
             }
         });
     }

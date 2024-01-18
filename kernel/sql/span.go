@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -80,8 +80,23 @@ func SelectSpansRawStmt(stmt string, limit int) (ret []*Span) {
 	return
 }
 
+func QueryTagSpansByLabel(label string) (ret []*Span) {
+	stmt := "SELECT * FROM spans WHERE type LIKE '%tag%' AND content LIKE '%" + label + "%' GROUP BY block_id"
+	rows, err := query(stmt)
+	if nil != err {
+		logging.LogErrorf("sql query failed: %s", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		span := scanSpanRows(rows)
+		ret = append(ret, span)
+	}
+	return
+}
+
 func QueryTagSpansByKeyword(keyword string, limit int) (ret []*Span) {
-	stmt := "SELECT * FROM spans WHERE type LIKE '%tag%' AND content LIKE '%" + keyword + "%'"
+	stmt := "SELECT * FROM spans WHERE type LIKE '%tag%' AND content LIKE '%" + keyword + "%' GROUP BY markdown"
 	stmt += " LIMIT " + strconv.Itoa(limit)
 	rows, err := query(stmt)
 	if nil != err {
@@ -96,12 +111,11 @@ func QueryTagSpansByKeyword(keyword string, limit int) (ret []*Span) {
 	return
 }
 
-func QueryTagSpans(p string, limit int) (ret []*Span) {
+func QueryTagSpans(p string) (ret []*Span) {
 	stmt := "SELECT * FROM spans WHERE type LIKE '%tag%'"
 	if "" != p {
 		stmt += " AND path = '" + p + "'"
 	}
-	stmt += " LIMIT " + strconv.Itoa(limit)
 	rows, err := query(stmt)
 	if nil != err {
 		logging.LogErrorf("sql query failed: %s", err)

@@ -3,6 +3,7 @@ import {transaction, updateTransaction} from "./transaction";
 import {genEmptyBlock} from "../../block/util";
 import * as dayjs from "dayjs";
 import {Constants} from "../../constants";
+import {moveToPrevious} from "./remove";
 
 export const updateListOrder = (listElement: Element, sIndex?: number) => {
     if (listElement.getAttribute("data-subtype") !== "o") {
@@ -277,7 +278,15 @@ export const breakList = (protyle: IProtyle, blockElement: Element, range: Range
     focusByWbr(protyle.wysiwyg.element, range);
 };
 
-export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range: Range) => {
+/**
+ * 缩进列表
+ * @param protyle
+ * @param liItemElements
+ * @param range
+ * @param isDelete
+ * @param deleteElement 末尾反向删除时才会传入
+ */
+export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range: Range, isDelete = false, deleteElement?: Element) => {
     const liElement = liItemElements[0].parentElement;
     const liId = liElement.getAttribute("data-node-id");
     if (!liId) {
@@ -285,17 +294,23 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
         return;
     }
     const parentLiItemElement = liElement.parentElement;
+    const parentParentElement = parentLiItemElement.parentElement;
+    if (liElement.previousElementSibling?.classList.contains("protyle-action") && !parentParentElement.getAttribute("data-node-id")) {
+        // https://ld246.com/article/1691981936960 情况下 zoom in 列表项
+        return;
+    }
     if (parentLiItemElement.classList.contains("protyle-wysiwyg") || parentLiItemElement.classList.contains("sb") || parentLiItemElement.classList.contains("bq")) {
         // 顶层列表
         const doOperations: IOperation[] = [];
         const undoOperations: IOperation[] = [];
         range.collapse(false);
+        moveToPrevious(deleteElement, range, isDelete);
         range.insertNode(document.createElement("wbr"));
         let startIndex;
         if (!liItemElements[0].previousElementSibling && liElement.getAttribute("data-subtype") === "o") {
             startIndex = parseInt(liItemElements[0].getAttribute("data-marker"));
         }
-        let previousID = liId;
+        let topPreviousID = liId;
         let previousElement: Element = liElement;
         let nextElement = liItemElements[liItemElements.length - 1].nextElementSibling;
         let lastBlockElement = liItemElements[liItemElements.length - 1].lastElementChild.previousElementSibling;
@@ -311,17 +326,17 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
                 doOperations.push({
                     action: "move",
                     id,
-                    previousID,
+                    previousID: topPreviousID,
                     parentID: parentLiItemElement.getAttribute("data-node-id") || protyle.block.parentID
                 });
                 undoOperations.push({
                     action: "move",
                     id,
-                    previousID: index === 1 ? undefined : previousID,
+                    previousID: index === 1 ? undefined : topPreviousID,
                     parentID: item.getAttribute("data-node-id"),
                     data: blockElement.contains(range.startContainer) ? "focus" : "" // 标记需要 focus，https://ld246.com/article/1650018446988/comment/1650081404993?r=Vanessa#comments
                 });
-                previousID = id;
+                topPreviousID = id;
                 previousElement.after(blockElement);
                 previousElement = blockElement;
             });
@@ -346,21 +361,21 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
                     previousID: previousElement.getAttribute("data-node-id"),
                 });
             }
-            let previousID;
+            let topOldPreviousID;
             while (nextElement && !nextElement.classList.contains("protyle-attr")) {
                 doOperations.push({
                     action: "move",
                     id: nextElement.getAttribute("data-node-id"),
-                    previousID: previousID || lastBlockElement.lastElementChild.previousElementSibling?.getAttribute("data-node-id"),
+                    previousID: topOldPreviousID || lastBlockElement.lastElementChild.previousElementSibling?.getAttribute("data-node-id"),
                     parentID: lastBlockElement.getAttribute("data-node-id")
                 });
                 undoOperations.push({
                     action: "move",
                     id: nextElement.getAttribute("data-node-id"),
                     parentID: lastBlockElement.getAttribute("data-node-id"),
-                    previousID: previousID || nextElement.previousElementSibling?.getAttribute("data-node-id"),
+                    previousID: topOldPreviousID || nextElement.previousElementSibling?.getAttribute("data-node-id"),
                 });
-                previousID = nextElement.getAttribute("data-node-id");
+                topOldPreviousID = nextElement.getAttribute("data-node-id");
                 const tempElement = nextElement;
                 nextElement = nextElement.nextElementSibling;
                 lastBlockElement.lastElementChild.before(tempElement);
@@ -406,6 +421,10 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
                 action: "delete",
                 id: liId
             });
+            // 聚焦列表，第一个列表项反向缩进后刷新会关闭页签
+            if (liId === protyle.block.id) {
+                protyle.block.id = protyle.block.parentID;
+            }
             undoOperations.splice(0, 0, {
                 action: "insert",
                 data: movedHTML,
@@ -437,6 +456,7 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
     if (liElement.childElementCount === 2 && parentLiItemElement.childElementCount === 3) {
         // 列表项里仅有包含一个列表项的列表，如 1. 1. 1 https://github.com/siyuan-note/insider/issues/494
         range.collapse(false);
+        moveToPrevious(deleteElement, range, isDelete);
         range.insertNode(document.createElement("wbr"));
         const html = parentLiItemElement.outerHTML;
         liItemElements[0].firstElementChild.remove();
@@ -448,6 +468,7 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
     }
 
     range.collapse(false);
+    moveToPrevious(deleteElement, range, isDelete);
     range.insertNode(document.createElement("wbr"));
     const doOperations: IOperation[] = [];
     const undoOperations: IOperation[] = [];
@@ -537,15 +558,15 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
             lastBlockElement.setAttribute("data-type", "NodeList");
             lastBlockElement.setAttribute("updated", dayjs().format("YYYYMMDDHHmmss"));
             lastBlockElement.innerHTML = `<div class="protyle-attr" contenteditable="false">${Constants.ZWSP}</div>`;
-            liItemElements[0].lastElementChild.before(lastBlockElement);
             doOperations.push({
                 action: "insert",
                 id: newId,
                 data: lastBlockElement.outerHTML,
                 previousID: liItemElements[0].lastElementChild.previousElementSibling.getAttribute("data-node-id"),
             });
+            liItemElements[0].lastElementChild.before(lastBlockElement);
         }
-        let previousID;
+        let subPreviousID;
         while (nextElement && !nextElement.classList.contains("protyle-attr")) {
             const nextId = nextElement.getAttribute("data-node-id");
             if (nextElement.getAttribute("data-subtype") !== lastBlockElement.getAttribute("data-subtype")) {
@@ -566,16 +587,15 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
             doOperations.push({
                 action: "move",
                 id: nextId,
-                previousID: previousID || lastBlockElement.lastElementChild.previousElementSibling?.getAttribute("data-node-id"),
+                previousID: subPreviousID || lastBlockElement.lastElementChild.previousElementSibling?.getAttribute("data-node-id"),
                 parentID: lastBlockElement.getAttribute("data-node-id")
             });
             undoOperations.push({
                 action: "move",
                 id: nextId,
-                parentID: lastBlockElement.getAttribute("data-node-id"),
-                previousID: previousID || nextElement.previousElementSibling?.getAttribute("data-node-id"),
+                previousID: subPreviousID || lastBlockElement.parentElement?.getAttribute("data-node-id"),
             });
-            previousID = nextId;
+            subPreviousID = nextId;
             const tempElement = nextElement;
             nextElement = nextElement.nextElementSibling;
             lastBlockElement.lastElementChild.before(tempElement);
@@ -610,7 +630,45 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
             });
         }
     }
-    if (liElement.childElementCount === 1) {
+    if (!window.siyuan.config.editor.listLogicalOutdent && liElement.nextElementSibling) {
+        // https://github.com/siyuan-note/siyuan/issues/9226
+        nextElement = liElement.nextElementSibling;
+        let subBlockPreviousID;
+        while (nextElement && !nextElement.classList.contains("protyle-attr")) {
+            const nextId = nextElement.getAttribute("data-node-id");
+            doOperations.push({
+                action: "move",
+                id: nextId,
+                previousID: subBlockPreviousID || lastBlockElement.getAttribute("data-node-id"),
+            });
+            undoOperations.push({
+                action: "move",
+                id: nextId,
+                previousID: subBlockPreviousID || liElement.getAttribute("data-node-id"),
+            });
+            subBlockPreviousID = nextId;
+            const tempElement = nextElement;
+            nextElement = nextElement.nextElementSibling;
+            lastBlockElement.after(tempElement);
+            lastBlockElement = tempElement;
+        }
+    }
+    if (liElement.childElementCount === 1 && parentLiItemElement.childElementCount === 3) {
+        // https://ld246.com/article/1691981936960
+        doOperations.push({
+            action: "delete",
+            id: parentLiItemElement.getAttribute("data-node-id")
+        });
+        undoOperations.splice(0, 0, {
+            action: "insert",
+            id: parentLiItemElement.getAttribute("data-node-id"),
+            data: parentLiItemElement.outerHTML,
+            previousID: parentLiItemElement.previousElementSibling?.getAttribute("data-node-id"),
+            // https://github.com/siyuan-note/siyuan/issues/9237 无 previousID
+            parentID: parentLiItemElement.parentElement.getAttribute("data-node-id"),
+        });
+        parentLiItemElement.remove();
+    } else if (liElement.childElementCount === 1) {
         doOperations.push({
             action: "delete",
             id: liElement.getAttribute("data-node-id")
@@ -635,13 +693,13 @@ export const listOutdent = (protyle: IProtyle, liItemElements: Element[], range:
             id: liElement.getAttribute("data-node-id"),
         });
     }
-    if (parentLiItemElement.parentElement.classList.contains("protyle-wysiwyg")) {
+    if (parentParentElement.classList.contains("protyle-wysiwyg")) {
         transaction(protyle, doOperations, undoOperations);
     } else {
-        if (parentLiItemElement.getAttribute("data-subtype") === "o") {
-            updateListOrder(parentLiItemElement.parentElement);
+        if (parentLiItemElement && parentLiItemElement.getAttribute("data-subtype") === "o") {
+            updateListOrder(parentParentElement);
         }
-        updateTransaction(protyle, parentLiItemElement.parentElement.getAttribute("data-node-id"), parentLiItemElement.parentElement.outerHTML, html);
+        updateTransaction(protyle, parentParentElement.getAttribute("data-node-id"), parentParentElement.outerHTML, html);
     }
-    focusByWbr(parentLiItemElement.parentElement, range);
+    focusByWbr(parentParentElement, range);
 };

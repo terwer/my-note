@@ -21,7 +21,7 @@
             border: 1px solid rgba(0, 0, 0, .06);
             min-height: 100vh;
             box-sizing: border-box;
-            padding: 0 calc((100vw - 608px) / 2);
+            padding: 0 calc((100vw - 608px) * 0.3);
         }
 
         .fn__flex-1 {
@@ -31,13 +31,13 @@
         }
 
         h2 {
-            margin: 0 0 4px 0;
+            margin: 0 0 12px 0;
             line-height: 24px;
         }
 
         .b3-select {
             border: 1px solid rgba(0, 0, 0, .06);
-            border-radius: 4px;
+            border-radius: 6px;
             padding: 4px 8px;
             line-height: 20px;
             box-sizing: border-box;
@@ -57,7 +57,7 @@
         .b3-button {
             cursor: pointer;
             color: #fff;
-            border-radius: 4px;
+            border-radius: 6px;
             line-height: 20px;
             padding: 4px 8px;
             background-color: #218bff;
@@ -169,7 +169,7 @@
             vertical-align: middle;
             background-color: #f3f3f3;
             border: solid 1px rgba(0, 0, 0, .06);
-            border-radius: 3px;
+            border-radius: 6px;
             box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .06);
         }
 
@@ -195,26 +195,27 @@
     <div class="fn__flex-1"></div>
     <img class="icon">
     <h2>思源笔记</h2>
-    <div class="slogan">构建你永恒的数字花园</div>
+    <div class="slogan">重构你的思维</div>
     <div class="fn__flex-1"></div>
     <label class="b3-label">
         <div>
             🌐 外观语言
-            <div class="b3-label__text">用户界面语言，后续可在 <kbd>设置</kbd> - <kbd>外观</kbd> 中切换</div>
+            <div class="b3-label__text">用户界面语言，后续可以在 <kbd>设置</kbd> - <kbd>外观</kbd> 中进行切换</div>
         </div>
         <div class="fn__space"></div>
         <div class="fn__flex-1"></div>
         <select class="b3-select lang">
-            <option value="en-US">English</option>
-            <option value="fr-FR">Français</option>
-            <option value="zh-CN">简体中文</option>
-            <option value="zh-CHT">繁體中文</option>
+            <option value="en_US">English</option>
+            <option value="es_ES">Español</option>
+            <option value="fr_FR">Français</option>
+            <option value="zh_CN">简体中文</option>
+            <option value="zh_CHT">繁體中文</option>
         </select>
     </label>
     <label class="b3-label">
         <div>
             🗂️ 工作空间
-            <div class="b3-label__text"> 工作空间用于存放数据，后续可在 <kbd>设置</kbd> - <kbd>关于</kbd> 中切换</div>
+            <div class="b3-label__text"> 工作空间用于存放数据，后续可以在顶栏左上角的主菜单中进行切换</div>
         </div>
         <div class="fn__space"></div>
         <div class="fn__flex-1"></div>
@@ -227,7 +228,7 @@
     <div class="feedback">
         <span>❤️ <a href="https://ld246.com/article/1649901726096" target="_blank">求助反馈建议</a></span>
         <span>🏘️ <a href="https://ld246.com/article/1640266171309" target="_blank">用户社区汇总</a></span>
-        <span><a href="https://b3log.org/siyuan/download.html" target="_blank" class="version"></a></span>
+        <span>🔖 <a href="https://b3log.org/siyuan/download.html" target="_blank" class="version"></a></span>
     </div>
     <div class="fn__flex-1"></div>
 </div>
@@ -235,29 +236,30 @@
     <div class="fn__flex-1"></div>
     <img class="icon">
     <h2>SiYuan</h2>
-    <div class="slogan">Build Your Eternal Digital Garden</div>
+    <div class="slogan">Refactor your thinking</div>
     <div class="fn__flex-1"></div>
     <label class="b3-label">
         <div>
             🌐 Language
-            <div class="b3-label__text">User interface language, which can be switched later in <br>
-                <kbd>Settings</kbd> - <kbd>Appearance</kbd>
+            <div class="b3-label__text">User interface language, which can be switched later in <kbd>Settings</kbd> -
+                <kbd>Appearance</kbd>
             </div>
         </div>
         <div class="fn__space"></div>
         <div class="fn__flex-1"></div>
         <select class="b3-select lang">
-            <option value="en-US">English</option>
-            <option value="fr-FR">Français</option>
-            <option value="zh-CN">简体中文</option>
-            <option value="zh-CHT">繁體中文</option>
+            <option value="en_US">English</option>
+            <option value="es_ES">Español</option>
+            <option value="fr_FR">Français</option>
+            <option value="zh_CN">简体中文</option>
+            <option value="zh_CHT">繁體中文</option>
         </select>
     </label>
     <label class="b3-label">
         <div>
             🗂️ Workspace
-            <div class="b3-label__text">The workspace is used to store data, which can be switched later in <br>
-                <kbd>Settings</kbd> - <kbd>About</kbd>
+            <div class="b3-label__text">The workspace is used to store data, which can be switched later in the top bar
+                menu later
             </div>
         </div>
         <div class="fn__space"></div>
@@ -266,12 +268,12 @@
     </label>
     <div class="fn__flex-1"></div>
     <div class="fn__flex-1 notice">
-        <span>⚠️ Do not use a third-party synchronization disk to synchronize data, otherwise it will cause abnormal operation and data damage</span>
+        <span>⚠️ Do not use a third-party sync disk to sync data, otherwise it will cause abnormal operation and data damage</span>
     </div>
     <div class="feedback">
-        <span>❤️ Feedback via <a href="https://github.com/siyuan-note/siyuan/issues"
-                                 target="_blank">GitHub Issues</a></span>
-        <span><a href="https://b3log.org/siyuan/en/download.html" target="_blank" class="version"></a></span>
+        <span>❤️ <a href="https://liuyun.io/article/1686530886208" target="_blank">Support and Feedback</a></span>
+        <span>🏘️ <a href="https://liuyun.io/article/1687779743723" target="_blank">User community summary</a></span>
+        <span>🔖 <a href="https://b3log.org/siyuan/en/download.html" target="_blank" class="version"></a></span>
     </div>
     <div class="fn__flex-1"></div>
 </div>
@@ -283,84 +285,215 @@
 </svg>
 <div class="drag"></div>
 <script>
-  const getSearch = (key) => {
-    if (window.location.search.indexOf('?') === -1) {
-      return ''
+    const isChinese = (lang) => {
+        return 'zh_CN' === lang || 'zh_CHT' === lang
     }
-    let value = ''
-    const data = window.location.search.split('?')[1].split('&')
-    data.find(item => {
-      const keyValue = item.split('=')
-      if (keyValue[0] === key) {
-        value = keyValue[1]
-        return true
-      }
-    })
-    return value
-  }
 
-  const setLang = (lang) => {
-    if (lang === 'zh-CN') {
-      document.title = `思源笔记 v${getSearch('v')}`
-      document.getElementById('zhCN').classList.remove('fn__none')
-      document.getElementById('enUS').classList.add('fn__none')
-    } else {
-      document.title = `SiYuan v${getSearch('v')}`
-      document.getElementById('zhCN').classList.add('fn__none')
-      document.getElementById('enUS').classList.remove('fn__none')
-    }
-  }
-
-  setLang(navigator.language)
-
-  document.querySelectorAll('.version').forEach(item => {
-    item.textContent = `🔖 v${getSearch('v')}`
-  })
-
-  document.querySelectorAll('.icon').forEach(item => {
-    item.src = decodeURIComponent(`${getSearch('icon')}`)
-  })
-
-  document.querySelectorAll('.lang').forEach(item => {
-    item.value = navigator.language
-    item.addEventListener('change', () => {
-      document.querySelectorAll('.lang').forEach(item1 => {
-        item1.value = item.value
-      })
-      setLang(item.value)
-    })
-  })
-
-  document.getElementById('close').addEventListener('click', () => {
-    const {ipcRenderer} = require('electron')
-    ipcRenderer.send('siyuan-first-quit')
-  })
-  document.getElementById('min').addEventListener('click', () => {
-    const {getCurrentWindow} = require('@electron/remote')
-    getCurrentWindow().minimize()
-  })
-
-  document.querySelectorAll('.choosePath').forEach((item) => {
-    item.addEventListener('click', () => {
-      const {dialog} = require('@electron/remote')
-      const path = require('path')
-      dialog.showOpenDialog({
-        defaultPath: path.join(decodeURIComponent(getSearch('home')), 'Documents'),
-        properties: ['openDirectory', 'createDirectory'],
-      }).then((result) => {
-        if (!result.canceled) {
-          const {ipcRenderer} = require('electron')
-          const fs = require('fs')
-          const initPath = path.join(result.filePaths[0], 'SiYuan')
-          if (!fs.existsSync(initPath)) {
-            fs.mkdirSync(initPath, {mode: 0o755, recursive: true})
-          }
-          const lang = document.querySelector('.lang').value.replaceAll('-', '_')
-          ipcRenderer.send('siyuan-first-init', `${initPath}-${lang}`)
+    const getSearch = (key) => {
+        if (window.location.search.indexOf('?') === -1) {
+            return ''
         }
-      })
+        let value = ''
+        const data = window.location.search.split('?')[1].split('&')
+        data.find(item => {
+            const keyValue = item.split('=')
+            if (keyValue[0] === key) {
+                value = keyValue[1]
+                return true
+            }
+        })
+        return value
+    }
+
+    let currentLang = decodeURIComponent(getSearch('lang'))
+    const setLang = (lang) => {
+        if (isChinese(lang)) {
+            document.title = `思源笔记 v${getSearch('v')}`
+            document.getElementById('zhCN').classList.remove('fn__none')
+            document.getElementById('enUS').classList.add('fn__none')
+        } else {
+            document.title = `SiYuan v${getSearch('v')}`
+            document.getElementById('zhCN').classList.add('fn__none')
+            document.getElementById('enUS').classList.remove('fn__none')
+        }
+        currentLang = lang
+    }
+    setLang(currentLang)
+
+    document.querySelectorAll('.version').forEach(item => {
+        item.textContent = `v${getSearch('v')}`
     })
-  })
+
+    document.querySelectorAll('.icon').forEach(item => {
+        item.src = decodeURIComponent(`${getSearch('icon')}`)
+    })
+
+    document.querySelectorAll('.lang').forEach(item => {
+        item.value = currentLang
+        item.addEventListener('change', () => {
+            document.querySelectorAll('.lang').forEach(item1 => {
+                item1.value = item.value
+            })
+            setLang(item.value)
+        })
+    })
+
+    document.getElementById('close').addEventListener('click', () => {
+        const {ipcRenderer} = require('electron')
+        ipcRenderer.send('siyuan-first-quit')
+    })
+    document.getElementById('min').addEventListener('click', () => {
+        const {ipcRenderer} = require('electron')
+        ipcRenderer.send("siyuan-cmd", "minimize");
+    })
+
+    document.querySelectorAll('.choosePath').forEach((item) => {
+        item.addEventListener('click', async () => {
+            const path = require('path')
+            const fs = require('fs')
+
+            const defaultWorkspace = path.join(decodeURIComponent(getSearch('home')), "SiYuan")
+            if (!fs.existsSync(defaultWorkspace)) {
+                fs.mkdirSync(defaultWorkspace, {mode: 0o755, recursive: true})
+            }
+
+            const {ipcRenderer} = require('electron')
+            const result = await ipcRenderer.invoke("siyuan-get", {
+                cmd: "showOpenDialog",
+                defaultPath: defaultWorkspace,
+                properties: ['openDirectory', 'createDirectory'],
+            });
+
+            if (result.canceled) {
+                return
+            }
+            const initPath = result.filePaths[0]
+
+            if (isICloudPath(initPath)) {
+                let msg = '⚠️ This folder is under the iCloud sync path, please change another path'
+                if (isChinese(currentLang)) {
+                    msg = '⚠️ 该文件夹位于 iCloud 同步路径下，请更换其他路径'
+                }
+                alert(msg)
+                return
+            }
+
+            if (isCloudDrivePath(initPath)) {
+                let msg = '⚠️ The folder path can not contain onedrive, dropbox, google drive, pcloud and 坚果云, please change another path'
+                if (isChinese(currentLang)) {
+                    msg = '⚠️ 文件夹路径不能包含 onedrive、dropbox、google drive、pcloud 和 坚果云，请更换其他路径'
+                }
+                alert(msg)
+                return
+            }
+            let msg = '⚠️ Do not set the workspace under the path of a third-party sync disk, otherwise the data will be damaged (iCloud/OneDrive/Dropbox/Google Drive/Nutstore/Baidu Netdisk/Tencent Weiyun, etc.), continue?'
+            if (isChinese(currentLang)) {
+                msg = '⚠️ 请勿将工作空间设置在第三方同步盘路径下，否则数据会被损坏（iCloud/OneDrive/Dropbox/Google Drive/坚果云/百度网盘/腾讯微云等），是否继续？'
+            }
+            if (!confirm(msg)) {
+                return
+            }
+            if (!fs.existsSync(initPath)) {
+                fs.mkdirSync(initPath, {mode: 0o755, recursive: true})
+            }
+            ipcRenderer.send('siyuan-first-init', {
+                workspace: initPath,
+                lang: document.querySelector('.lang').value
+            })
+        })
+    })
+
+    const isCloudDrivePath = (absPath) => {
+        const absPathLower = absPath.toLowerCase()
+        return -1 < absPathLower.indexOf("onedrive") || -1 < absPathLower.indexOf("dropbox") ||
+            -1 < absPathLower.indexOf("google drive") || -1 < absPathLower.indexOf("pcloud") ||
+            -1 < absPathLower.indexOf("坚果云")
+    }
+
+    const isICloudPath = (absPath) => {
+        const os = require('os')
+        if ('darwin' !== os.platform()) {
+            return false
+        }
+
+        // macOS 端对工作空间放置在 iCloud 路径下做检查 https://github.com/siyuan-note/siyuan/issues/7747
+        const path = require('path')
+        const homePath = decodeURIComponent(getSearch('home'))
+        const absPathLower = absPath.toLowerCase()
+        const iCloudRoot = path.join(homePath, 'Library', 'Mobile Documents')
+        if (!simpleCheckIcloudPath(absPath, homePath)) {
+            // 简单判断无法通过则复杂验证
+            const allFiles = walk(iCloudRoot)
+            for (const file of allFiles) {
+                if (-1 < absPathLower.indexOf(file.toLowerCase())) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    // 简单判断 iCloud 同步目录
+    // 不允许 为桌面 文档 和 iCloud 文件夹 和软链接
+    const simpleCheckIcloudPath = (absPath, homePath) => {
+        const fs = require('fs')
+        let stat = fs.lstatSync(absPath)
+        if (stat.isSymbolicLink()) {
+            return false
+        }
+
+        const path = require('path')
+        const absPathLower = absPath.toLowerCase()
+        const iCloudRoot = path.join(homePath, 'Library', 'Mobile Documents')
+        if (absPathLower.startsWith(iCloudRoot.toLowerCase())) {
+            return false
+        }
+
+        const documentsRoot = path.join(homePath, 'Documents')
+        if (absPathLower.startsWith(documentsRoot.toLowerCase())) {
+            return false
+        }
+
+        const desktopRoot = path.join(homePath, 'Desktop')
+        if (absPathLower.startsWith(desktopRoot.toLowerCase())) {
+            return false
+        }
+        return true
+    }
+
+    const walk = (dir, files = []) => {
+        let dirFiles;
+        const fs = require('fs')
+        try {
+            if (!fs.existsSync(dir)) {
+                console.log("dir [" + dir + "] not exists")
+                return files
+            }
+            dirFiles = fs.readdirSync(dir)
+        } catch (e) {
+            console.error("read dir [" + dir + "] failed: ", e)
+            return files
+        }
+
+        const path = require('path')
+        for (const f of dirFiles) {
+            let stat = fs.lstatSync(dir + path.sep + f)
+            if (stat.isSymbolicLink()) {
+                files.push(fs.readlinkSync(dir + path.sep + f))
+                continue
+            }
+            if (stat.isDirectory()) {
+                // 如果已经遍历过则不再遍历
+                if (files.includes(dir + path.sep + f)) {
+                    continue
+                }
+                files.push(dir + path.sep + f)
+                walk(dir + path.sep + f, files)
+            }
+        }
+        return files
+    }
+
 </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -37,7 +37,7 @@ func serveSnippets(c *gin.Context) {
 	name := strings.TrimSuffix(filePath, ext)
 	confSnippets, err := model.LoadSnippets()
 	if nil != err {
-		logging.LogErrorf("load snippets failed: %s", name, err)
+		logging.LogErrorf("load snippets failed: %s", err)
 		c.Status(404)
 		return
 	}

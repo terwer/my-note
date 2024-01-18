@@ -6,7 +6,7 @@
 		"icon": "1f50f",
 		"id": "20211226115043-afhev0g",
 		"title": "資料安全",
-		"updated": "20220626214021"
+		"updated": "20230422123349"
 	},
 	"Children": [
 		{
@@ -44,7 +44,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20211226115155-2bnjxep",
-				"updated": "20211228141318"
+				"updated": "20230422123349"
 			},
 			"Children": [
 				{
@@ -56,7 +56,7 @@
 					},
 					"Properties": {
 						"id": "20211226115155-r4hwqlr",
-						"updated": "20211228141318"
+						"updated": "20230422123349"
 					},
 					"Children": [
 						{
@@ -64,12 +64,19 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20211226115155-n4d8iqg",
-								"updated": "20211228141318"
+								"updated": "20230422123349"
 							},
 							"Children": [
 								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "block-ref",
+									"TextMarkBlockRefID": "20230422120236-58nari9",
+									"TextMarkBlockRefSubtype": "s",
+									"TextMarkTextContent": "可用性"
+								},
+								{
 									"Type": "NodeText",
-									"Data": "可用性：資料不遺失、不沖突，保持資料的完整和一致"
+									"Data": "：資料不遺失，保持資料的完整和一致"
 								}
 							]
 						}
@@ -207,7 +214,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "資料的可用性依賴於硬件磁碟和作業系統的可用性"
+									"Data": "資料的可用性依賴於硬體磁碟和作業系統的可用性"
 								}
 							]
 						}
@@ -243,37 +250,15 @@
 					"Data": "思源雲端同步使用"
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20211227210109-0f92zh2"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "端到端加密"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20211227210109-0f92zh2",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "端到端加密"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "，密碼在本地通過內置金鑰加密保存，除使用者之外的任何第三方均無法在雲端獲得明文資料。"
+					"Data": "，密碼在本地通過內置密鑰加密保存，除使用者之外的任何第三方均無法在雲端獲得明文資料。"
 				}
 			]
 		},
@@ -323,7 +308,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "定期備份數據，參考 321 備份原則（至少 3 個副本、2 種介質和 1 個異地存儲）"
+									"Data": "定期備份資料，參考 321 備份原則（至少 3 個副本、2 種介質和 1 個異地存儲）"
 								}
 							]
 						}
@@ -351,7 +336,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "重要密碼、金鑰或者核心機密等建議使用專用軟體、設備或者離線保存"
+									"Data": "重要密碼、密鑰或者Kernel機密等建議使用專用軟體、設備或者離線保存"
 								}
 							]
 						}
@@ -384,7 +369,7 @@
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "主要針對本地數據安全和思源雲端存儲安全進行評估。"
+					"Data": "主要針對本地資料安全和思源雲端存儲安全進行評估。"
 				}
 			]
 		},
@@ -434,7 +419,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "本地操作系統是完全受信任的環境。這是數據安全最基礎的前提，基於該前提才能保證"
+									"Data": "本地操作系統是完全受信任的環境。這是資料安全最基礎的前提，基於該前提才能保證"
 								}
 							]
 						},
@@ -469,7 +454,7 @@
 											"Children": [
 												{
 													"Type": "NodeText",
-													"Data": "原始數據的可用性"
+													"Data": "原始資料的可用性"
 												}
 											]
 										}
@@ -497,7 +482,7 @@
 											"Children": [
 												{
 													"Type": "NodeText",
-													"Data": "原始數據不被洩漏"
+													"Data": "原始資料不被洩漏"
 												}
 											]
 										}
@@ -585,7 +570,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "雲端存儲中的數據不被刪除"
+									"Data": "雲端存儲中的資料不被刪除"
 								}
 							]
 						}
@@ -695,7 +680,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "只有通過正確的密鑰才能解密數據"
+									"Data": "只有通過正確的密鑰才能解密資料"
 								}
 							]
 						}
@@ -723,7 +708,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "數據被篡改後無法解密"
+									"Data": "資料被篡改後無法解密"
 								}
 							]
 						}
@@ -805,7 +790,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "獲取到已經加密的數據，嘗試暴力破解"
+									"Data": "獲取到已經加密的資料，嘗試暴力破解"
 								}
 							]
 						}
@@ -833,7 +818,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "通過索引信息推斷出數據大小"
+									"Data": "通過索引信息推斷出資料大小"
 								}
 							]
 						}
@@ -886,7 +871,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "篡改數據造成數據不可用"
+									"Data": "篡改資料造成資料不可用"
 								}
 							]
 						}
@@ -942,7 +927,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "通過流量推斷出數據大小"
+									"Data": "通過流量推斷出資料大小"
 								}
 							]
 						}
@@ -1024,7 +1009,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "修改或刪除原始數據，造成原始數據不可用"
+									"Data": "修改或刪除原始資料，造成原始資料不可用"
 								}
 							]
 						}
@@ -1052,7 +1037,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "獲得原始數據"
+									"Data": "獲得原始資料"
 								}
 							]
 						}
@@ -1133,7 +1118,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "修改或刪除雲端存儲，造成雲端存儲數據不可用"
+									"Data": "修改或刪除雲端存儲，造成雲端存儲資料不可用"
 								}
 							]
 						}

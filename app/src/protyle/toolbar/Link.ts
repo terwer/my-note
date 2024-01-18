@@ -1,7 +1,6 @@
 import {ToolbarItem} from "./ToolbarItem";
 import {linkMenu} from "../../menus/protyle";
 import {hasClosestBlock, hasClosestByAttribute} from "../util/hasClosest";
-import {focusByRange, focusByWbr} from "../util/selection";
 import {readText} from "../util/compatibility";
 import {Constants} from "../../constants";
 
@@ -26,12 +25,11 @@ export class Link extends ToolbarItem {
                 return;
             }
 
-            const rangeString = range.toString().trim();
+            const rangeString = range.toString().trim().replace(Constants.ZWSP, "");
             let dataHref = "";
             let dataText = "";
             try {
                 const clipText = await readText();
-
                 // 选中链接时需忽略剪切板内容 https://ld246.com/article/1643035329737
                 if (protyle.lute.IsValidLinkDest(rangeString)) {
                     dataHref = rangeString;
@@ -57,24 +55,3 @@ export class Link extends ToolbarItem {
         });
     }
 }
-
-export const removeLink = (linkElement: HTMLElement, range: Range) => {
-    const types = linkElement.getAttribute("data-type").split(" ");
-    if (types.length === 1) {
-        const linkParentElement = linkElement.parentElement;
-        linkElement.outerHTML = linkElement.innerHTML + "<wbr>";
-        focusByWbr(linkParentElement, range);
-    } else {
-        types.find((itemType, index) => {
-            if ("a" === itemType) {
-                types.splice(index, 1);
-                return true;
-            }
-        });
-        linkElement.setAttribute("data-type", types.join(" "));
-        linkElement.removeAttribute("data-href");
-        range.selectNodeContents(linkElement);
-        range.collapse(false);
-        focusByRange(range);
-    }
-};

@@ -3,21 +3,27 @@ import {Dialog} from "../dialog";
 import {focusByRange} from "../protyle/util/selection";
 import {hasClosestBlock} from "../protyle/util/hasClosest";
 import {removeEmbed} from "../protyle/wysiwyg/removeEmbed";
-import {insertHTML} from "../protyle/util/insertHTML";
-import {genEmptyBlock} from "../block/util";
 import {isMobile} from "../util/functions";
 import {getAssetName, getDisplayName, pathPosix, setNotebookName} from "../util/pathName";
 import {fetchPost} from "../util/fetch";
-import {escapeHtml} from "../util/escape";
 import {Constants} from "../constants";
+import {showTooltip} from "../dialog/tooltip";
 
-export const validateName = (name: string) => {
+export const validateName = (name: string, targetElement?: HTMLElement) => {
     if (/\r\n|\r|\n|\u2028|\u2029|\t|\//.test(name)) {
-        showMessage(window.siyuan.languages.fileNameRule);
+        if (targetElement) {
+            showTooltip(window.siyuan.languages.fileNameRule, targetElement, true);
+        } else {
+            showMessage(window.siyuan.languages.fileNameRule);
+        }
         return false;
     }
     if (name.length > Constants.SIZE_TITLE) {
-        showMessage(window.siyuan.languages["_kernel"]["106"]);
+        if (targetElement) {
+            showTooltip(window.siyuan.languages["_kernel"]["106"], targetElement, true);
+        } else {
+            showMessage(window.siyuan.languages["_kernel"]["106"]);
+        }
         return false;
     }
     return true;
@@ -28,7 +34,7 @@ export const replaceFileName = (name: string) => {
 };
 
 export const replaceLocalPath = (name: string) => {
-    return name.replace(/\\\\|\/|:|\*|\?|\\|'|<|>|\|/g, "");
+    return name.replace(/\\\\|\/|"|:|\*|\?|\\|'|<|>|\|/g, "");
 };
 
 export const rename = (options: {
@@ -38,7 +44,7 @@ export const rename = (options: {
     type: "notebook" | "file"
     range?: Range,
 }) => {
-    if (window.siyuan.config.editor.readOnly || window.siyuan.config.readonly) {
+    if (window.siyuan.config.readonly) {
         return;
     }
     const dialog = new Dialog({
@@ -48,13 +54,14 @@ export const rename = (options: {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-        width: isMobile() ? "80vw" : "520px",
+        width: isMobile() ? "92vw" : "520px",
         destroyCallback() {
             if (options.range) {
                 focusByRange(options.range);
             }
         }
     });
+    dialog.element.setAttribute("data-key", Constants.DIALOG_RENAME);
     const inputElement = dialog.element.querySelector("input") as HTMLInputElement;
     const btnsElement = dialog.element.querySelectorAll(".b3-button");
     dialog.bindInput(inputElement, () => {
@@ -105,8 +112,9 @@ export const renameAsset = (assetPath: string) => {
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
     <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
 </div>`,
-        width: isMobile() ? "80vw" : "520px",
+        width: isMobile() ? "92vw" : "520px",
     });
+    dialog.element.setAttribute("data-key", Constants.DIALOG_RENAMEASSETS);
     const inputElement = dialog.element.querySelector("input") as HTMLInputElement;
     const btnsElement = dialog.element.querySelectorAll(".b3-button");
     dialog.bindInput(inputElement, () => {
@@ -165,18 +173,5 @@ export const newFileContentBySelect = (protyle: IProtyle) => {
         path: pathPosix().join(getDisplayName(protyle.path, false, true), Lute.NewNodeID() + ".sy"),
         title: fileNameShort,
         md: protyle.lute.BlockDOM2StdMd(html)
-    });
-};
-
-export const newFileBySelect = (fileName: string, protyle: IProtyle) => {
-    const newName = replaceFileName(fileName) || "Untitled";
-    const id = Lute.NewNodeID();
-    fetchPost("/api/filetree/createDoc", {
-        notebook: protyle.notebookId,
-        path: pathPosix().join(getDisplayName(protyle.path, false, true), id + ".sy"),
-        title: newName,
-        md: ""
-    }, () => {
-        insertHTML(genEmptyBlock(false, false, `<span data-type="block-ref" data-id="${id}" data-subtype="d">${escapeHtml(newName.substring(0, window.siyuan.config.editor.blockRefDynamicAnchorTextMaxLen))}</span>`), protyle);
     });
 };

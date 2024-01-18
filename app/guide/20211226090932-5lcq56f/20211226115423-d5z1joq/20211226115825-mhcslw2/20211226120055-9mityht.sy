@@ -5,7 +5,7 @@
 	"Properties": {
 		"id": "20211226120055-9mityht",
 		"title": "什麼是內容塊",
-		"updated": "20211228134758"
+		"updated": "20230630091613"
 	},
 	"Children": [
 		{
@@ -111,33 +111,11 @@
 					"Data": "所以，內容塊存在"
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20211226120227-2s70boj"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "很多類型"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20211226120227-2s70boj",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "很多類型"
 				},
 				{
 					"Type": "NodeText",
@@ -206,33 +184,11 @@
 					"Data": "至此，我們已經能夠用內容塊來描述所有的內容了，這樣就能通過統一的用法來"
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20211226120247-63nd8y5"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "連結內容塊"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20211226120247-63nd8y5",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "連結內容塊"
 				},
 				{
 					"Type": "NodeText",
@@ -269,33 +225,11 @@
 					"Data": "我們可以為每個內容塊命名、新增別名和備註。命名和別名主要用於反連"
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20211226120415-kqk522d"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "提及"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20211226120415-kqk522d",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "提及"
 				},
 				{
 					"Type": "NodeText",
@@ -348,33 +282,11 @@
 					"Data": "可使用"
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20211226120508-yzh70eh"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "嵌入內容塊"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20211226120508-yzh70eh",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "嵌入內容塊"
 				},
 				{
 					"Type": "NodeText",
@@ -418,12 +330,131 @@
 			]
 		},
 		{
-			"ID": "20211226152554-ac2iftz",
+			"ID": "20230419153659-0rxrgc6",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20211226152554-ac2iftz",
-				"updated": "20211226152554"
-			}
+				"id": "20230419153659-0rxrgc6",
+				"updated": "20230419153659"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "注意"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​："
+				}
+			]
+		},
+		{
+			"ID": "20230419153659-uh8hdye",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230419153659-uh8hdye",
+				"updated": "20230630091613"
+			},
+			"Children": [
+				{
+					"ID": "20230419153659-w5q9kdh",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230419153659-w5q9kdh",
+						"updated": "20230419153659"
+					},
+					"Children": [
+						{
+							"ID": "20230419153659-egnlgvq",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230419153659-egnlgvq",
+								"updated": "20230419153659"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "命名是唯一的，一個塊只能設置一個命名"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230419153659-xp3eeou",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230419153659-xp3eeou",
+						"updated": "20230419153659"
+					},
+					"Children": [
+						{
+							"ID": "20230419153659-z4eqmz0",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230419153659-z4eqmz0",
+								"updated": "20230419153659"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "別名可以設置多個，通過英文狀態下的逗號（"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": ","
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​）分隔"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230419153659-xjdb4u5",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230419153659-xjdb4u5",
+						"updated": "20230630091613"
+					},
+					"Children": [
+						{
+							"ID": "20230419153659-0whksmd",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230419153659-0whksmd",
+								"updated": "20230630091613"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "備註僅支持純文字"
+								}
+							]
+						}
+					]
+				}
+			]
 		}
 	]
 }

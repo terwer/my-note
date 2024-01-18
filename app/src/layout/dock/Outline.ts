@@ -1,31 +1,39 @@
 import {Tab} from "../Tab";
 import {Model} from "../Model";
 import {Tree} from "../../util/Tree";
-import {getDockByType, setPanelFocus} from "../util";
+import {getInstanceById, setPanelFocus} from "../util";
+import {getDockByType} from "../tabUtil";
 import {fetchPost} from "../../util/fetch";
 import {getAllModels} from "../getAll";
-import {hasClosestByClassName} from "../../protyle/util/hasClosest";
+import {hasClosestBlock, hasClosestByClassName, hasTopClosestByClassName} from "../../protyle/util/hasClosest";
 import {updateHotkeyTip} from "../../protyle/util/compatibility";
 import {openFileById} from "../../editor/util";
 import {Constants} from "../../constants";
 import {escapeHtml} from "../../util/escape";
 import {unicode2Emoji} from "../../emoji";
 import {onGet} from "../../protyle/util/onGet";
+import {getPreviousBlock} from "../../protyle/wysiwyg/getBlock";
+import {App} from "../../index";
+import {checkFold} from "../../util/noRelyPCFunction";
 
 export class Outline extends Model {
-    private tree: Tree;
+    public tree: Tree;
     public element: HTMLElement;
     public headerElement: HTMLElement;
     public type: "pin" | "local";
     public blockId: string;
+    public isPreview: boolean;
     private openNodes: { [key: string]: string[] } = {};
 
     constructor(options: {
+        app: App,
         tab: Tab,
         blockId: string,
-        type: "pin" | "local"
+        type: "pin" | "local",
+        isPreview: boolean
     }) {
         super({
+            app: options.app,
             id: options.tab.id,
             callback() {
                 if (this.type === "local") {
@@ -61,10 +69,16 @@ export class Outline extends Model {
                                 });
                             }
                             break;
+                        case "removeDoc":
+                            if (data.data.ids.includes(this.blockId) && this.type === "local") {
+                                this.parent.parent.removeTab(this.parent.id);
+                            }
+                            break;
                     }
                 }
             }
         });
+        this.isPreview = options.isPreview;
         this.blockId = options.blockId;
         this.type = options.type;
         options.tab.panelElement.classList.add("fn__flex-column", "file-tree", "sy__outline");
@@ -75,7 +89,7 @@ export class Outline extends Model {
     </div>
     <span class="fn__flex-1 fn__space"></span>
     <span data-type="expand" class="block__icon b3-tooltips b3-tooltips__sw" aria-label="${window.siyuan.languages.stickOpen} ${updateHotkeyTip(window.siyuan.config.keymap.editor.general.expand.custom)}">
-        <svg><use xlink:href="#iconFullscreen"></use></svg>
+        <svg><use xlink:href="#iconExpand"></use></svg>
     </span>
     <span class="fn__space"></span>
     <span data-type="collapse" class="block__icon b3-tooltips b3-tooltips__sw" aria-label="${window.siyuan.languages.collapse} ${updateHotkeyTip(window.siyuan.config.keymap.editor.general.collapse.custom)}">
@@ -84,7 +98,7 @@ export class Outline extends Model {
     <span class="${this.type === "local" ? "fn__none " : ""}fn__space"></span>
     <span data-type="min" class="${this.type === "local" ? "fn__none " : ""}block__icon b3-tooltips b3-tooltips__sw" aria-label="${window.siyuan.languages.min} ${updateHotkeyTip(window.siyuan.config.keymap.general.closeTab.custom)}"><svg><use xlink:href='#iconMin'></use></svg></span>
 </div>
-<div class="b3-list-item"></div>
+<div class="b3-list-item fn__none"></div>
 <div class="fn__flex-1" style="margin-bottom: 8px"></div>`;
         this.element = options.tab.panelElement.lastElementChild as HTMLElement;
         this.headerElement = options.tab.panelElement.firstElementChild as HTMLElement;
@@ -93,11 +107,39 @@ export class Outline extends Model {
             data: null,
             click: (element: HTMLElement) => {
                 const id = element.getAttribute("data-node-id");
-                fetchPost("/api/attr/getBlockAttrs", {id}, (attrResponse) => {
-                    openFileById({
-                        id,
-                        action: attrResponse.data["heading-fold"] === "1" ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL, Constants.CB_GET_HTML] : [Constants.CB_GET_FOCUS, Constants.CB_GET_SETID, Constants.CB_GET_CONTEXT, Constants.CB_GET_HTML],
+                if (this.isPreview) {
+                    const headElement = document.getElementById(id);
+                    if (headElement) {
+                        const tabElement = hasTopClosestByClassName(headElement, "protyle");
+                        if (tabElement) {
+                            const tab = getInstanceById(tabElement.getAttribute("data-id")) as Tab;
+                            tab.parent.switchTab(tab.headElement);
+                        }
+                        headElement.scrollIntoView();
+                    } else {
+                        openFileById({
+                            app: options.app,
+                            id: this.blockId,
+                            mode: "preview",
+                        });
+                    }
+                } else {
+                    checkFold(id, (zoomIn) => {
+                        openFileById({
+                            app: options.app,
+                            id,
+                            action: zoomIn ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL, Constants.CB_GET_HTML] : [Constants.CB_GET_FOCUS, Constants.CB_GET_SETID, Constants.CB_GET_CONTEXT, Constants.CB_GET_HTML],
+                        });
                     });
+                }
+            },
+            ctrlClick(element: HTMLElement) {
+                const id = element.getAttribute("data-node-id");
+                openFileById({
+                    app: options.app,
+                    id,
+                    action: [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL, Constants.CB_GET_HTML],
+                    zoomIn: true,
                 });
             }
         });
@@ -105,7 +147,9 @@ export class Outline extends Model {
         options.tab.panelElement.querySelector('[data-type="collapse"]').addEventListener("click", () => {
             this.tree.collapseAll();
         });
-        options.tab.panelElement.querySelector('[data-type="expand"]').addEventListener("click", (event: MouseEvent & { target: Element }) => {
+        options.tab.panelElement.querySelector('[data-type="expand"]').addEventListener("click", (event: MouseEvent & {
+            target: Element
+        }) => {
             const iconElement = hasClosestByClassName(event.target, "block__icon");
             if (!iconElement) {
                 return;
@@ -144,7 +188,11 @@ export class Outline extends Model {
                                     mode: 0,
                                     size: window.siyuan.config.editor.dynamicLoadBlocks,
                                 }, getResponse => {
-                                    onGet(getResponse, item.editor.protyle, [Constants.CB_GET_FOCUS]);
+                                    onGet({
+                                        data: getResponse,
+                                        protyle: item.editor.protyle,
+                                        action: [Constants.CB_GET_FOCUS],
+                                    });
                                 });
                             }
                             return true;
@@ -156,39 +204,52 @@ export class Outline extends Model {
             }
         });
 
-        fetchPost("/api/outline/getDocOutline", {
-            id: this.blockId,
-        }, response => {
-            this.update(response);
-        });
-
-        if (this.type === "pin") {
-            setPanelFocus(options.tab.panelElement);
+        if (this.isPreview) {
+            if (this.blockId) {
+                fetchPost("/api/export/preview", {
+                    id: this.blockId,
+                }, response => {
+                    response.data = response.data.outline;
+                    this.update(response);
+                });
+            }
+        } else {
+            fetchPost("/api/outline/getDocOutline", {
+                id: this.blockId,
+            }, response => {
+                this.update(response);
+            });
         }
     }
 
     public updateDocTitle(ial?: IObject) {
+        const docTitleElement = this.headerElement.nextElementSibling as HTMLElement;
         if (this.type === "pin") {
             if (ial) {
-                let iconHTML = `<span class="b3-list-item__graphic">${unicode2Emoji(ial.icon || Constants.SIYUAN_IMAGE_FILE)}</span>`;
-                if (ial.icon === Constants.ZWSP && this.headerElement.nextElementSibling.firstElementChild) {
-                    iconHTML = this.headerElement.nextElementSibling.firstElementChild.outerHTML;
+                let iconHTML = `${unicode2Emoji(ial.icon || Constants.SIYUAN_IMAGE_FILE, "b3-list-item__graphic", true)}`;
+                if (ial.icon === Constants.ZWSP && docTitleElement.firstElementChild) {
+                    iconHTML = docTitleElement.firstElementChild.outerHTML;
                 }
-                this.headerElement.nextElementSibling.innerHTML = `${iconHTML}
+                docTitleElement.innerHTML = `${iconHTML}
 <span class="b3-list-item__text">${escapeHtml(ial.title)}</span>`;
-                this.headerElement.nextElementSibling.setAttribute("title", ial.title);
+                docTitleElement.setAttribute("title", ial.title);
+                docTitleElement.classList.remove("fn__none");
             } else {
-                this.headerElement.nextElementSibling.innerHTML = "";
-                this.headerElement.nextElementSibling.removeAttribute("title");
+                docTitleElement.classList.add("fn__none");
             }
+        } else {
+            docTitleElement.classList.add("fn__none");
         }
     }
 
     private onTransaction(data: IWebSocketData) {
+        if (this.isPreview) {
+            return;
+        }
         let needReload = false;
         data.data[0].doOperations.forEach((item: IOperation) => {
             if ((item.action === "update" || item.action === "insert") &&
-                (item.data.indexOf('data-type="NodeHeading"') > -1 || item.data.indexOf('<div contenteditable="true" spellcheck="false"><wbr></div>') > -1)) {
+                (item.data.indexOf('data-type="NodeHeading"') > -1 || item.data.indexOf(`<div contenteditable="true" spellcheck="${window.siyuan.config.editor.spellcheck}"><wbr></div>`) > -1)) {
                 needReload = true;
             } else if (item.action === "delete" || item.action === "move") {
                 needReload = true;
@@ -206,11 +267,51 @@ export class Outline extends Model {
                 id: this.blockId,
             }, response => {
                 this.update(response);
+                // https://github.com/siyuan-note/siyuan/issues/8372
+                if (getSelection().rangeCount > 0) {
+                    const blockElement = hasClosestBlock(getSelection().getRangeAt(0).startContainer);
+                    if (blockElement && blockElement.getAttribute("data-type") === "NodeHeading") {
+                        this.setCurrent(blockElement);
+                    }
+                }
             });
         }
     }
 
-    public setCurrent(id: string) {
+    public setCurrent(nodeElement: HTMLElement) {
+        if (!nodeElement) {
+            return;
+        }
+        if (nodeElement.getAttribute("data-type") === "NodeHeading") {
+            this.setCurrentById(nodeElement.getAttribute("data-node-id"));
+        } else {
+            let previousElement = getPreviousBlock(nodeElement);
+            while (previousElement) {
+                if (previousElement.getAttribute("data-type") === "NodeHeading") {
+                    break;
+                } else {
+                    previousElement = getPreviousBlock(previousElement);
+                }
+            }
+            if (previousElement) {
+                this.setCurrentById(previousElement.getAttribute("data-node-id"));
+            } else {
+                fetchPost("/api/block/getBlockBreadcrumb", {
+                    id: nodeElement.getAttribute("data-node-id"),
+                    excludeTypes: []
+                }, (response) => {
+                    response.data.reverse().find((item: IBreadcrumb) => {
+                        if (item.type === "NodeHeading") {
+                            this.setCurrentById(item.id);
+                            return true;
+                        }
+                    });
+                });
+            }
+        }
+    }
+
+    private setCurrentById(id: string) {
         this.element.querySelectorAll(".b3-list-item.b3-list-item--focus").forEach(item => {
             item.classList.remove("b3-list-item--focus");
         });
@@ -231,18 +332,25 @@ export class Outline extends Model {
             currentId = currentElement.getAttribute("data-node-id");
         }
 
-        if (this.openNodes[this.blockId]) {
+        if (!this.isPreview && this.openNodes[this.blockId]) {
             this.openNodes[this.blockId] = this.tree.getExpandIds();
         }
         if (typeof callbackId !== "undefined") {
             this.blockId = callbackId;
         }
         this.tree.updateData(data.data);
-        if (this.openNodes[this.blockId] && !this.headerElement.querySelector('[data-type="expand"]').classList.contains("block__icon--active")) {
+        if (!this.isPreview && this.openNodes[this.blockId] && !this.headerElement.querySelector('[data-type="expand"]').classList.contains("block__icon--active")) {
             this.tree.setExpandIds(this.openNodes[this.blockId]);
         } else {
             this.tree.expandAll();
-            this.openNodes[this.blockId] = this.tree.getExpandIds();
+            if (!this.isPreview) {
+                this.openNodes[this.blockId] = this.tree.getExpandIds();
+            }
+        }
+        if (this.isPreview) {
+            this.tree.element.querySelectorAll(".popover__block").forEach(item => {
+                item.classList.remove("popover__block");
+            });
         }
 
         if (currentId) {

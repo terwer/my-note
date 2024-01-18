@@ -2,12 +2,12 @@ import {Constants} from "../constants";
 import {addScript} from "../protyle/util/addScript";
 import {addStyle} from "../protyle/util/addStyle";
 /// #if !MOBILE
-import {ipcRenderer} from "electron";
 import {getAllModels} from "../layout/getAll";
 import {exportLayout} from "../layout/util";
 /// #endif
-import {isMobile} from "./functions";
 import {fetchPost} from "./fetch";
+import {appearance} from "../config/appearance";
+import {isInAndroid, isInIOS} from "../protyle/util/compatibility";
 
 const loadThirdIcon = (iconURL: string, data: IAppearance) => {
     addScript(iconURL, "iconDefaultScript").then(() => {
@@ -22,8 +22,22 @@ const loadThirdIcon = (iconURL: string, data: IAppearance) => {
 };
 
 export const loadAssets = (data: IAppearance) => {
+    const htmlElement = document.getElementsByTagName("html")[0];
+    htmlElement.setAttribute("lang", window.siyuan.config.appearance.lang);
+    htmlElement.setAttribute("data-theme-mode", getThemeMode());
+    htmlElement.setAttribute("data-light-theme", window.siyuan.config.appearance.themeLight);
+    htmlElement.setAttribute("data-dark-theme", window.siyuan.config.appearance.themeDark);
+    const OSTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    if (window.siyuan.config.appearance.modeOS && (
+        (window.siyuan.config.appearance.mode === 1 && OSTheme === "light") ||
+        (window.siyuan.config.appearance.mode === 0 && OSTheme === "dark")
+    )) {
+        fetchPost("/api/system/setAppearanceMode", {mode: OSTheme === "light" ? 0 : 1});
+        window.siyuan.config.appearance.mode = (OSTheme === "light" ? 0 : 1);
+    }
+
     const defaultStyleElement = document.getElementById("themeDefaultStyle");
-    let defaultThemeAddress = `/appearance/themes/${data.mode === 1 ? "midnight" : "daylight"}/${data.customCSS ? "custom" : "theme"}.css?v=${data.customCSS ? new Date().getTime() : Constants.SIYUAN_VERSION}`;
+    let defaultThemeAddress = `/appearance/themes/${data.mode === 1 ? "midnight" : "daylight"}/theme.css?v=${Constants.SIYUAN_VERSION}`;
     if ((data.mode === 1 && data.themeDark !== "midnight") || (data.mode === 0 && data.themeLight !== "daylight")) {
         defaultThemeAddress = `/appearance/themes/${data.mode === 1 ? "midnight" : "daylight"}/theme.css?v=${Constants.SIYUAN_VERSION}`;
     }
@@ -37,7 +51,7 @@ export const loadAssets = (data: IAppearance) => {
     }
     const styleElement = document.getElementById("themeStyle");
     if ((data.mode === 1 && data.themeDark !== "midnight") || (data.mode === 0 && data.themeLight !== "daylight")) {
-        const themeAddress = `/appearance/themes/${data.mode === 1 ? data.themeDark : data.themeLight}/${data.customCSS ? "custom" : "theme"}.css?v=${data.customCSS ? new Date().getTime() : data.themeVer}`;
+        const themeAddress = `/appearance/themes/${data.mode === 1 ? data.themeDark : data.themeLight}/theme.css?v=${data.themeVer}`;
         if (styleElement) {
             if (!styleElement.getAttribute("href").startsWith(themeAddress)) {
                 styleElement.remove();
@@ -53,13 +67,8 @@ export const loadAssets = (data: IAppearance) => {
     getAllModels().graph.forEach(item => {
         item.searchGraph(false);
     });
-    const localPDF = JSON.parse(localStorage.getItem(Constants.LOCAL_PDFTHEME) || "{}");
-    let pdfTheme: string;
-    if (window.siyuan.config.appearance.mode === 0) {
-        pdfTheme = localPDF.light || "light";
-    } else {
-        pdfTheme = localPDF.dark || "dark";
-    }
+    const pdfTheme = window.siyuan.config.appearance.mode === 0 ? window.siyuan.storage[Constants.LOCAL_PDFTHEME].light :
+        window.siyuan.storage[Constants.LOCAL_PDFTHEME].dark;
     document.querySelectorAll(".pdf__outer").forEach(item => {
         const darkElement = item.querySelector("#pdfDark");
         const lightElement = item.querySelector("#pdfLight");
@@ -96,7 +105,7 @@ export const loadAssets = (data: IAppearance) => {
         while (svgElement.tagName === "svg") {
             const currentSvgElement = svgElement;
             svgElement = svgElement.nextElementSibling;
-            if (currentSvgElement.id !== "emojiScriptSvg") {
+            if (!currentSvgElement.getAttribute("data-name")) {
                 currentSvgElement.remove();
             }
         }
@@ -107,19 +116,43 @@ export const loadAssets = (data: IAppearance) => {
 };
 
 export const initAssets = () => {
-    const emojiElement = document.getElementById("emojiScript");
     const loadingElement = document.getElementById("loading");
-    if (!emojiElement && !window.siyuan.config.appearance.nativeEmoji && !isMobile()) {
-        addScript("/appearance/emojis/twitter-emoji.js?v=1.0.1", "emojiScript").then(() => {
-            if (loadingElement) {
-                loadingElement.remove();
-            }
-        });
-    } else if (loadingElement) {
+    if (loadingElement) {
         setTimeout(() => {
             loadingElement.remove();
         }, 160);
     }
+    updateMobileTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", event => {
+        const OSTheme = event.matches ? "dark" : "light";
+        updateMobileTheme(OSTheme);
+        if (!window.siyuan.config.appearance.modeOS) {
+            return;
+        }
+        if ((window.siyuan.config.appearance.mode === 0 && OSTheme === "light") ||
+            (window.siyuan.config.appearance.mode === 1 && OSTheme === "dark")) {
+            return;
+        }
+        fetchPost("/api/system/setAppearanceMode", {
+            mode: OSTheme === "light" ? 0 : 1
+        }, response => {
+            if (window.siyuan.config.appearance.themeJS) {
+                /// #if !MOBILE
+                exportLayout({
+                    cb() {
+                        window.location.reload();
+                    },
+                    errorExit: false,
+                });
+                /// #else
+                window.location.reload();
+                /// #endif
+                return;
+            }
+            window.siyuan.config.appearance = response.data.appearance;
+            loadAssets(response.data.appearance);
+        });
+    });
 };
 
 export const addGA = () => {
@@ -132,20 +165,34 @@ export const addGA = () => {
         };
         /*eslint-enable */
         gtag("js", new Date());
-        gtag("config", "G-L7WEXVQCR9");
+        gtag("config", "G-L7WEXVQCR9", {send_page_view: false});
         const para = {
             version: Constants.SIYUAN_VERSION,
             container: window.siyuan.config.system.container,
-            isLoggedIn: "false",
-            subscriptionStatus: "-1",
-            subscriptionPlan: "-1",
-            subscriptionType: "-1",
+            os: window.siyuan.config.system.os,
+            osPlatform: window.siyuan.config.system.osPlatform,
+            isLoggedIn: false,
+            subscriptionStatus: -1,
+            subscriptionPlan: -1,
+            subscriptionType: -1,
+            oneTimePayStatus: -1,
+            syncEnabled: false,
+            syncProvider: -1,
+            cTreeCount: window.siyuan.config.stat.cTreeCount,
+            cBlockCount: window.siyuan.config.stat.cBlockCount,
+            cDataSize: window.siyuan.config.stat.cDataSize,
+            cAssetsSize: window.siyuan.config.stat.cAssetsSize,
         };
         if (window.siyuan.user) {
-            para.isLoggedIn = "true";
-            para.subscriptionStatus = window.siyuan.user.userSiYuanSubscriptionStatus.toString();
-            para.subscriptionPlan = window.siyuan.user.userSiYuanSubscriptionPlan.toString();
-            para.subscriptionType = window.siyuan.user.userSiYuanSubscriptionType.toString();
+            para.isLoggedIn = true;
+            para.subscriptionStatus = window.siyuan.user.userSiYuanSubscriptionStatus;
+            para.subscriptionPlan = window.siyuan.user.userSiYuanSubscriptionPlan;
+            para.subscriptionType = window.siyuan.user.userSiYuanSubscriptionType;
+            para.oneTimePayStatus = window.siyuan.user.userSiYuanOneTimePayStatus;
+        }
+        if (window.siyuan.config.sync) {
+            para.syncEnabled = window.siyuan.config.sync.enabled;
+            para.syncProvider = window.siyuan.config.sync.provider;
         }
         gtag("event", Constants.ANALYTICS_EVT_ON_GET_CONFIG, para);
     }
@@ -159,7 +206,8 @@ export const setInlineStyle = (set = true) => {
 .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h1, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h2, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h3, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h4, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h5, .protyle-wysiwyg [data-node-id].li > .protyle-action ~ .h6 {line-height:${height + 8}px;}
 .protyle-wysiwyg [data-node-id].li > .protyle-action:after {height: ${window.siyuan.config.editor.fontSize}px;width: ${window.siyuan.config.editor.fontSize}px;margin:-${window.siyuan.config.editor.fontSize / 2}px 0 0 -${window.siyuan.config.editor.fontSize / 2}px}
 .protyle-wysiwyg [data-node-id].li > .protyle-action svg {height: ${Math.max(14, window.siyuan.config.editor.fontSize - 8)}px}
-.protyle-wysiwyg [data-node-id] [spellcheck="false"] {min-height:${height}px;}
+.protyle-wysiwyg [data-node-id].li:before {height: calc(100% - ${height + 8}px);top:${(height + 8)}px}
+.protyle-wysiwyg [data-node-id] [spellcheck] {min-height:${height}px;}
 .protyle-wysiwyg [data-node-id] {${window.siyuan.config.editor.rtl ? " direction: rtl;" : ""}${window.siyuan.config.editor.justify ? " text-align: justify;" : ""}}
 .protyle-wysiwyg .li {min-height:${height + 8}px}
 .protyle-gutters button svg {height:${height}px}
@@ -171,10 +219,19 @@ export const setInlineStyle = (set = true) => {
 .protyle-wysiwyg .h5 img.emoji, .b3-typography h5 img.emoji {width:${Math.floor(window.siyuan.config.editor.fontSize * 1.13 * 1.25)}px}
 .protyle-wysiwyg .h6 img.emoji, .b3-typography h6 img.emoji {width:${Math.floor(window.siyuan.config.editor.fontSize * 1.25)}px}`;
     if (window.siyuan.config.editor.fontFamily) {
-        style += `.b3-typography:not(.b3-typography--default), .protyle-wysiwyg, .protyle-title, .protyle-title__input{font-family: "${window.siyuan.config.editor.fontFamily}", "quote", "Helvetica Neue", "Luxi Sans", "DejaVu Sans", "Hiragino Sans GB", "Microsoft Yahei", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols" !important;}`;
+        style += `\n.b3-typography:not(.b3-typography--default), .protyle-wysiwyg, .protyle-title {font-family: "${window.siyuan.config.editor.fontFamily}", var(--b3-font-family-protyle)}`;
+    }
+    // pad 端菜单移除显示，如工作空间
+    if ("ontouchend" in document) {
+        style += "\n.b3-menu .b3-menu__action {opacity: 0.68;}";
     }
     if (set) {
-        document.getElementById("editorFontSize").innerHTML = style;
+        const siyuanStyle = document.getElementById("siyuanStyle");
+        if (siyuanStyle) {
+            siyuanStyle.innerHTML = style;
+        } else {
+            document.querySelector("#pluginsStyle").insertAdjacentHTML("beforebegin", `<style id="siyuanStyle">${style}</style>`);
+        }
     }
     return style;
 };
@@ -208,26 +265,64 @@ export const setMode = (modeElementValue: number) => {
         mode: modeElementValue === 2 ? window.siyuan.config.appearance.mode : modeElementValue,
         modeOS: modeElementValue === 2,
     }), response => {
-        if ((
-                window.siyuan.config.appearance.themeJS && !response.data.modeOS &&
-                (
-                    response.data.mode !== window.siyuan.config.appearance.mode ||
-                    window.siyuan.config.appearance.themeLight !== response.data.themeLight ||
-                    window.siyuan.config.appearance.themeDark !== response.data.themeDark
-                )
-            ) ||
-            (response.data.modeOS && !window.siyuan.config.appearance.modeOS)
-        ) {
-            exportLayout(true);
-            return;
+        if (window.siyuan.config.appearance.themeJS) {
+            if (!response.data.modeOS && (
+                response.data.mode !== window.siyuan.config.appearance.mode ||
+                window.siyuan.config.appearance.themeLight !== response.data.themeLight ||
+                window.siyuan.config.appearance.themeDark !== response.data.themeDark
+            )) {
+                exportLayout({
+                    cb() {
+                        window.location.reload();
+                    },
+                    errorExit: false,
+                });
+                return;
+            }
+            const OSTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            if (response.data.modeOS && (
+                (response.data.mode === 1 && OSTheme === "light") || (response.data.mode === 0 && OSTheme === "dark")
+            )) {
+                exportLayout({
+                    cb() {
+                        window.location.reload();
+                    },
+                    errorExit: false,
+                });
+                return;
+            }
         }
-        window.siyuan.config.appearance = response.data;
-        /// #if !BROWSER
-        ipcRenderer.send(Constants.SIYUAN_CONFIG_THEME, response.data.modeOS ? "system" : (response.data.mode === 1 ? "dark" : "light"));
-        ipcRenderer.send(Constants.SIYUAN_CONFIG_CLOSE, response.data.closeButtonBehavior);
-        /// #endif
-        loadAssets(response.data);
-        document.querySelector("#barMode use").setAttribute("xlink:href", `#icon${window.siyuan.config.appearance.modeOS ? "Mode" : (window.siyuan.config.appearance.mode === 0 ? "Light" : "Dark")}`);
+        appearance.onSetappearance(response.data);
     });
     /// #endif
+};
+
+const updateMobileTheme = (OSTheme: string) => {
+    if (isInIOS() || isInAndroid()) {
+        setTimeout(() => {
+            const backgroundColor = getComputedStyle(document.body).getPropertyValue("--b3-theme-background").trim();
+            let mode = window.siyuan.config.appearance.mode;
+            if (window.siyuan.config.appearance.modeOS) {
+                if (OSTheme === "dark") {
+                    mode = 1;
+                } else {
+                    mode = 0;
+                }
+            }
+            if (isInIOS()) {
+                window.webkit.messageHandlers.changeStatusBar.postMessage((backgroundColor || (mode === 0 ? "#fff" : "#1e1e1e")) + " " + mode);
+            } else if (isInAndroid()) {
+                window.JSAndroid.changeStatusBarColor(backgroundColor, mode);
+            }
+        }, 500); // 移动端需要加载完才可以获取到颜色
+    }
+};
+
+export const getThemeMode = () => {
+    const OSTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    if (window.siyuan.config.appearance.modeOS) {
+        return OSTheme;
+    } else {
+        return window.siyuan.config.appearance.mode === 0 ? "light" : "dark";
+    }
 };

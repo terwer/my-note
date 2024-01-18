@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -120,9 +120,12 @@ func ClosePushChan(id string) {
 	})
 }
 
+func ReloadUIResetScroll() {
+	BroadcastByType("main", "reloadui", 0, "", map[string]interface{}{"resetScroll": true})
+}
+
 func ReloadUI() {
-	evt := NewCmdResult("reloadui", 0, PushModeBroadcast, 0)
-	PushEvent(evt)
+	BroadcastByType("main", "reloadui", 0, "", nil)
 }
 
 func PushTxErr(msg string, code int, data interface{}) {
@@ -151,6 +154,10 @@ func PushStatusBar(msg string) {
 	BroadcastByType("main", "statusbar", 0, msg, nil)
 }
 
+func PushBackgroundTask(data map[string]interface{}) {
+	BroadcastByType("main", "backgroundtask", 0, "", data)
+}
+
 type BlockStatResult struct {
 	RuneCount  int `json:"runeCount"`
 	WordCount  int `json:"wordCount"`
@@ -161,6 +168,8 @@ type BlockStatResult struct {
 
 func ContextPushMsg(context map[string]interface{}, msg string) {
 	switch context[eventbus.CtxPushMsg].(int) {
+	case eventbus.CtxPushMsgToNone:
+		break
 	case eventbus.CtxPushMsgToProgress:
 		PushEndlessProgress(msg)
 	case eventbus.CtxPushMsgToStatusBar:
@@ -176,6 +185,11 @@ const (
 	PushProgressCodeEndless    = 1 // 无进度
 	PushProgressCodeEnd        = 2 // 关闭进度
 )
+
+func PushClearAllMsg() {
+	ClearPushProgress(100)
+	PushClearMsg("")
+}
 
 func ClearPushProgress(total int) {
 	PushProgress(PushProgressCodeEnd, total, total, "")
@@ -202,8 +216,16 @@ func PushClearProgress() {
 	BroadcastByType("main", "cprogress", 0, "", nil)
 }
 
+func PushProtyleReload(rootID string) {
+	BroadcastByType("protyle", "reload", 0, "", rootID)
+}
+
+func PushProtyleLoading(rootID, msg string) {
+	BroadcastByType("protyle", "addLoading", 0, msg, rootID)
+}
+
 func PushDownloadProgress(id string, percent float32) {
-	evt := NewCmdResult("downloadProgress", 0, PushModeBroadcast, 0)
+	evt := NewCmdResult("downloadProgress", 0, PushModeBroadcast)
 	evt.Data = map[string]interface{}{
 		"id":      id,
 		"percent": percent,
@@ -214,9 +236,6 @@ func PushDownloadProgress(id string, percent float32) {
 func PushEvent(event *Result) {
 	msg := event.Bytes()
 	mode := event.PushMode
-	if "reload" == event.Cmd {
-		mode = event.ReloadPushMode
-	}
 	switch mode {
 	case PushModeBroadcast:
 		Broadcast(msg)
@@ -228,7 +247,8 @@ func PushEvent(event *Result) {
 		broadcastOtherApps(msg, event.AppId)
 	case PushModeBroadcastApp:
 		broadcastApp(msg, event.AppId)
-	case PushModeNone:
+	case PushModeBroadcastMainExcludeSelfApp:
+		broadcastOtherAppMains(msg, event.AppId)
 	}
 }
 
@@ -270,6 +290,26 @@ func broadcastOtherApps(msg []byte, excludeApp string) {
 			if app, _ := session.Get("app"); app == excludeApp {
 				return true
 			}
+			session.Write(msg)
+			return true
+		})
+		return true
+	})
+}
+
+func broadcastOtherAppMains(msg []byte, excludeApp string) {
+	sessions.Range(func(key, value interface{}) bool {
+		appSessions := value.(*sync.Map)
+		appSessions.Range(func(key, value interface{}) bool {
+			session := value.(*melody.Session)
+			if app, _ := session.Get("app"); app == excludeApp {
+				return true
+			}
+
+			if t, ok := session.Get("type"); ok && "main" != t {
+				return true
+			}
+
 			session.Write(msg)
 			return true
 		})

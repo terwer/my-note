@@ -8,7 +8,7 @@
 		"title": "Formatting elements",
 		"title-img": "background-color:#269;background-image: linear-gradient(white 2px, transparent 2px),linear-gradient(90deg, white 2px, transparent 2px),linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px);background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;background-position:-2px -2px, -2px -2px, -1px -1px, -1px -1px;",
 		"type": "doc",
-		"updated": "20220918174924"
+		"updated": "20230820185102"
 	},
 	"Children": [
 		{
@@ -2390,7 +2390,7 @@
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "Horizontal rule"
+					"Data": "Thematic break"
 				}
 			]
 		},
@@ -2421,19 +2421,16 @@
 			"ID": "20210104091509-oizpd0y",
 			"Type": "NodeMathBlock",
 			"Properties": {
-				"id": "20210104091509-oizpd0y"
+				"id": "20210104091509-oizpd0y",
+				"updated": "20230328091244"
 			},
 			"Children": [
 				{
 					"Type": "NodeMathBlockOpenMarker"
 				},
 				{
-					"ID": "20220307092214-ygtyx4w",
 					"Type": "NodeMathBlockContent",
-					"Data": "\\frac{1}{\n  \\Bigl(\\sqrt{\\phi \\sqrt{5}}-\\phi\\Bigr) e^{\n  \\frac25 \\pi}} = 1+\\frac{e^{-2\\pi}} {1+\\frac{e^{-4\\pi}} {\n    1+\\frac{e^{-6\\pi}}\n    {1+\\frac{e^{-8\\pi}}{1+\\cdots}}\n  }\n}",
-					"Properties": {
-						"id": "20220307092214-ygtyx4w"
-					}
+					"Data": "\\frac{1}{\n  \\Bigl(\\sqrt{\\phi \\sqrt{5}}-\\phi\\Bigr) e^{\n  \\frac25 \\pi}} = 1+\\frac{e^{-2\\pi}} {1+\\frac{e^{-4\\pi}} {\n    1+\\frac{e^{-6\\pi}}\n    {1+\\frac{e^{-8\\pi}}{1+\\cdots}}\n  }\n}"
 				},
 				{
 					"Type": "NodeMathBlockCloseMarker"
@@ -2458,7 +2455,7 @@
 		{
 			"ID": "20220909095329-0tocxte",
 			"Type": "NodeIFrame",
-			"Data": "\u003ciframe src=\"https://player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" data-src=\"//player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\"\u003e\u003c/iframe\u003e",
+			"Data": "\u003ciframe src=\"https://player.bilibili.com/player.html?bvid=BV1ov41187qM\u0026amp;page=1\u0026amp;high_quality=1\u0026amp;as_wide=1\u0026amp;allowfullscreen=true\u0026amp;aid=247401039\u0026amp;cid=319662466\u0026amp;autoplay=0\" data-src=\"//player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\" sandbox=\"allow-top-navigation-by-user-activation allow-same-origin allow-forms allow-scripts allow-popups\"\u003e\u003c/iframe\u003e",
 			"Properties": {
 				"id": "20220909095329-0tocxte",
 				"updated": "20220909095329"
@@ -2645,7 +2642,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2721,7 +2718,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2791,7 +2788,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2861,7 +2858,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2931,7 +2928,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -2997,7 +2994,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -3067,7 +3064,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/mermaid-js/mermaid",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "Mermaid"
 				},
 				{
@@ -3115,6 +3112,220 @@
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
 					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20221225013111-k0tinm3",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20221225013111-k0tinm3",
+				"updated": "20221225013144"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "It can be defined in the following three formats:"
+				}
+			]
+		},
+		{
+			"ID": "20221225013111-f97ur4a",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20221225013111-f97ur4a",
+				"updated": "20221225103242"
+			},
+			"Children": [
+				{
+					"ID": "20221225013111-jhcu06t",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20221225013111-jhcu06t",
+						"updated": "20221225103242"
+					},
+					"Children": [
+						{
+							"ID": "20221225013111-6lkoa8j",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20221225013111-6lkoa8j",
+								"updated": "20221225013111"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "JSON"
+								}
+							]
+						},
+						{
+							"ID": "20221225103239-3a212px",
+							"Type": "NodeCodeBlock",
+							"IsFencedCodeBlock": true,
+							"Properties": {
+								"id": "20221225103239-3a212px",
+								"updated": "20221225103242"
+							},
+							"Children": [
+								{
+									"Type": "NodeCodeBlockFenceOpenMarker",
+									"Data": "```"
+								},
+								{
+									"Type": "NodeCodeBlockFenceInfoMarker",
+									"CodeBlockInfo": "anNvbg=="
+								},
+								{
+									"Type": "NodeCodeBlockCode",
+									"Data": "{\n    \"propName\": \"propValue\"\n}\n"
+								},
+								{
+									"Type": "NodeCodeBlockFenceCloseMarker",
+									"Data": "```"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20221225013111-whe7nls",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20221225013111-whe7nls",
+						"updated": "20221225013111"
+					},
+					"Children": [
+						{
+							"ID": "20221225013111-nspyxcz",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20221225013111-nspyxcz",
+								"updated": "20221225013111"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "JavaScript Object"
+								}
+							]
+						},
+						{
+							"ID": "20221225103231-nffgx96",
+							"Type": "NodeCodeBlock",
+							"IsFencedCodeBlock": true,
+							"Properties": {
+								"id": "20221225103231-nffgx96",
+								"updated": "20221225103236"
+							},
+							"Children": [
+								{
+									"Type": "NodeCodeBlockFenceOpenMarker",
+									"Data": "```"
+								},
+								{
+									"Type": "NodeCodeBlockFenceInfoMarker",
+									"CodeBlockInfo": "amF2YXNjcmlwdA=="
+								},
+								{
+									"Type": "NodeCodeBlockCode",
+									"Data": "{\n    propName: 'propValue',\n}\n"
+								},
+								{
+									"Type": "NodeCodeBlockFenceCloseMarker",
+									"Data": "```"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20221225013111-jpxi1rx",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20221225013111-jpxi1rx",
+						"updated": "20221225013408"
+					},
+					"Children": [
+						{
+							"ID": "20221225013111-n32s76k",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20221225013111-n32s76k",
+								"updated": "20221225013408"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "An Immediately-Invoked Function Expression (IIFE)  that returns a JavaScript Object"
+								}
+							]
+						},
+						{
+							"ID": "20221225103222-gizv6uz",
+							"Type": "NodeCodeBlock",
+							"IsFencedCodeBlock": true,
+							"Properties": {
+								"id": "20221225103222-gizv6uz",
+								"updated": "20221225103227"
+							},
+							"Children": [
+								{
+									"Type": "NodeCodeBlockFenceOpenMarker",
+									"Data": "```"
+								},
+								{
+									"Type": "NodeCodeBlockFenceInfoMarker",
+									"CodeBlockInfo": "amF2YXNjcmlwdA=="
+								},
+								{
+									"Type": "NodeCodeBlockCode",
+									"Data": "(() =\u003e {\n    const option = {};\n    option.propName = `propValue`;\n    return option;\n})()\n"
+								},
+								{
+									"Type": "NodeCodeBlockFenceCloseMarker",
+									"Data": "```"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20221105164926-hhpq6np",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20221105164926-hhpq6np",
+				"updated": "20221225013054"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "For the specific syntax, please refer to "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "a",
+					"TextMarkAHref": "https://echarts.apache.org/zh/index.html",
+					"TextMarkTextContent": "ECharts"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "."
 				}
 			]
 		},
@@ -3175,22 +3386,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211213121948-zo8q9wp",
-				"updated": "20211213122027"
+				"updated": "20230820185102"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "Please refer to "
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/paulrosen/abcjs",
-					"TextMarkTextContent": "abcjs"
-				},
-				{
-					"Type": "NodeText",
-					"Data": " for the syntax."
+					"Data": "Please refer to abcjs (github repo: paulrosen/abcjs) for the syntax."
 				}
 			]
 		},
@@ -3331,7 +3532,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://github.com/adrai/flowchart.js",
+					"TextMarkAHref": "https://mermaid.js.org/",
 					"TextMarkTextContent": "flowchart.js"
 				},
 				{

@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -32,30 +32,29 @@ import (
 )
 
 type Widget struct {
-	Package
+	*Package
 }
 
 func Widgets() (widgets []*Widget) {
 	widgets = []*Widget{}
 
-	pkgIndex, err := getPkgIndex("widgets")
+	stageIndex, err := getStageIndex("widgets")
 	if nil != err {
 		return
 	}
 	bazaarIndex := getBazaarIndex()
 
-	repos := pkgIndex["repos"].([]interface{})
 	waitGroup := &sync.WaitGroup{}
 	lock := &sync.Mutex{}
 	p, _ := ants.NewPoolWithFunc(8, func(arg interface{}) {
 		defer waitGroup.Done()
 
-		repo := arg.(map[string]interface{})
-		repoURL := repo["url"].(string)
+		repo := arg.(*StageRepo)
+		repoURL := repo.URL
 
 		widget := &Widget{}
 		innerU := util.BazaarOSSServer + "/package/" + repoURL + "/widget.json"
-		innerResp, innerErr := httpclient.NewBrowserRequest().SetResult(widget).Get(innerU)
+		innerResp, innerErr := httpclient.NewBrowserRequest().SetSuccessResult(widget).Get(innerU)
 		if nil != innerErr {
 			logging.LogErrorf("get bazaar package [%s] failed: %s", repoURL, innerErr)
 			return
@@ -65,15 +64,25 @@ func Widgets() (widgets []*Widget) {
 			return
 		}
 
+		if disallowDisplayBazaarPackage(widget.Package) {
+			return
+		}
+
+		widget.URL = strings.TrimSuffix(widget.URL, "/")
 		repoURLHash := strings.Split(repoURL, "@")
 		widget.RepoURL = "https://github.com/" + repoURLHash[0]
 		widget.RepoHash = repoURLHash[1]
 		widget.PreviewURL = util.BazaarOSSServer + "/package/" + repoURL + "/preview.png?imageslim"
 		widget.PreviewURLThumb = util.BazaarOSSServer + "/package/" + repoURL + "/preview.png?imageView2/2/w/436/h/232"
-		widget.Updated = repo["updated"].(string)
-		widget.Stars = int(repo["stars"].(float64))
-		widget.OpenIssues = int(repo["openIssues"].(float64))
-		widget.Size = int64(repo["size"].(float64))
+		widget.IconURL = util.BazaarOSSServer + "/package/" + repoURL + "/icon.png"
+		widget.Funding = repo.Package.Funding
+		widget.PreferredFunding = getPreferredFunding(widget.Funding)
+		widget.PreferredName = getPreferredName(widget.Package)
+		widget.PreferredDesc = getPreferredDesc(widget.Description)
+		widget.Updated = repo.Updated
+		widget.Stars = repo.Stars
+		widget.OpenIssues = repo.OpenIssues
+		widget.Size = repo.Size
 		widget.HSize = humanize.Bytes(uint64(widget.Size))
 		widget.HUpdated = formatUpdated(widget.Updated)
 		pkg := bazaarIndex[strings.Split(repoURL, "@")[0]]
@@ -84,7 +93,7 @@ func Widgets() (widgets []*Widget) {
 		widgets = append(widgets, widget)
 		lock.Unlock()
 	})
-	for _, repo := range repos {
+	for _, repo := range stageIndex.Repos {
 		waitGroup.Add(1)
 		p.Invoke(repo)
 	}
@@ -97,7 +106,13 @@ func Widgets() (widgets []*Widget) {
 
 func InstalledWidgets() (ret []*Widget) {
 	ret = []*Widget{}
-	widgetDirs, err := os.ReadDir(filepath.Join(util.DataDir, "widgets"))
+
+	widgetsPath := filepath.Join(util.DataDir, "widgets")
+	if !util.IsPathRegularDirOrSymlinkDir(widgetsPath) {
+		return
+	}
+
+	widgetDirs, err := os.ReadDir(widgetsPath)
 	if nil != err {
 		logging.LogWarnf("read widgets folder failed: %s", err)
 		return
@@ -106,27 +121,26 @@ func InstalledWidgets() (ret []*Widget) {
 	bazaarWidgets := Widgets()
 
 	for _, widgetDir := range widgetDirs {
-		if !widgetDir.IsDir() {
+		if !util.IsDirRegularOrSymlink(widgetDir) {
 			continue
 		}
 		dirName := widgetDir.Name()
 
-		widgetConf, parseErr := WidgetJSON(dirName)
-		if nil != parseErr || nil == widgetConf {
+		widget, parseErr := WidgetJSON(dirName)
+		if nil != parseErr || nil == widget {
 			continue
 		}
 
 		installPath := filepath.Join(util.DataDir, "widgets", dirName)
 
-		widget := &Widget{}
 		widget.Installed = true
-		widget.Name = widgetConf["name"].(string)
-		widget.Author = widgetConf["author"].(string)
-		widget.URL = widgetConf["url"].(string)
-		widget.Version = widgetConf["version"].(string)
 		widget.RepoURL = widget.URL
 		widget.PreviewURL = "/widgets/" + dirName + "/preview.png"
 		widget.PreviewURLThumb = "/widgets/" + dirName + "/preview.png"
+		widget.IconURL = "/widgets/" + dirName + "/icon.png"
+		widget.PreferredFunding = getPreferredFunding(widget.Funding)
+		widget.PreferredName = getPreferredName(widget.Package)
+		widget.PreferredDesc = getPreferredDesc(widget.Description)
 		info, statErr := os.Stat(filepath.Join(installPath, "README.md"))
 		if nil != statErr {
 			logging.LogWarnf("stat install theme README.md failed: %s", statErr)
@@ -136,12 +150,14 @@ func InstalledWidgets() (ret []*Widget) {
 		installSize, _ := util.SizeOfDirectory(installPath)
 		widget.InstallSize = installSize
 		widget.HInstallSize = humanize.Bytes(uint64(installSize))
-		readme, readErr := os.ReadFile(filepath.Join(installPath, "README.md"))
+		readmeFilename := getPreferredReadme(widget.Readme)
+		readme, readErr := os.ReadFile(filepath.Join(installPath, readmeFilename))
 		if nil != readErr {
-			logging.LogWarnf("read install widget README.md failed: %s", readErr)
+			logging.LogWarnf("read installed README.md failed: %s", readErr)
 			continue
 		}
-		widget.README, _ = renderREADME(widget.URL, readme)
+
+		widget.PreferredReadme, _ = renderREADME(widget.URL, readme)
 		widget.Outdated = isOutdatedWidget(widget, bazaarWidgets)
 		ret = append(ret, widget)
 	}

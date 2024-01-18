@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,6 +18,7 @@ package api
 
 import (
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/model"
+	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -42,7 +44,7 @@ func copyStdMarkdown(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
-	ret.Data = model.CopyStdMarkdown(id)
+	ret.Data = model.ExportStdMarkdown(id)
 }
 
 func html2BlockDOM(c *gin.Context) {
@@ -55,13 +57,13 @@ func html2BlockDOM(c *gin.Context) {
 	}
 
 	dom := arg["dom"].(string)
-	luteEngine := model.NewLute()
-	markdown, err := luteEngine.HTML2Markdown(dom)
+	markdown, err := model.HTML2Markdown(dom)
 	if nil != err {
 		ret.Data = "Failed to convert"
 		return
 	}
 
+	luteEngine := util.NewLute()
 	var unlinks []*ast.Node
 	tree := parse.Parse("", []byte(markdown), luteEngine.ParseOptions)
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
@@ -70,7 +72,7 @@ func html2BlockDOM(c *gin.Context) {
 		}
 
 		if ast.NodeListItem == n.Type && nil == n.FirstChild {
-			newNode := parse.NewParagraph()
+			newNode := treenode.NewParagraph()
 			n.AppendChild(newNode)
 			n.SetIALAttr("updated", util.TimeFromID(newNode.ID))
 			return ast.WalkSkipChildren
@@ -81,6 +83,32 @@ func html2BlockDOM(c *gin.Context) {
 	})
 	for _, n := range unlinks {
 		n.Unlink()
+	}
+
+	// 表格只包含一个单元格时，将其转换为段落
+	// Copy one cell from Excel/HTML table and paste it using the cell's content https://github.com/siyuan-note/siyuan/issues/9614
+	unlinks = nil
+	if nil != tree.Root.FirstChild && ast.NodeTable == tree.Root.FirstChild.Type && (nil == tree.Root.FirstChild.Next ||
+		(ast.NodeKramdownBlockIAL == tree.Root.FirstChild.Next.Type && nil == tree.Root.FirstChild.Next.Next)) {
+		if nil != tree.Root.FirstChild.FirstChild && ast.NodeTableHead == tree.Root.FirstChild.FirstChild.Type {
+			head := tree.Root.FirstChild.FirstChild
+			if nil == head.Next && nil != head.FirstChild && nil == head.FirstChild.Next {
+				row := head.FirstChild
+				if nil != row.FirstChild && nil == row.FirstChild.Next {
+					cell := row.FirstChild
+					p := treenode.NewParagraph()
+					var contents []*ast.Node
+					for c := cell.FirstChild; nil != c; c = c.Next {
+						contents = append(contents, c)
+					}
+					for _, c := range contents {
+						p.AppendChild(c)
+					}
+					tree.Root.FirstChild.Unlink()
+					tree.Root.PrependChild(p)
+				}
+			}
+		}
 	}
 
 	if util.ContainerStd == model.Conf.System.Container {
@@ -103,6 +131,17 @@ func html2BlockDOM(c *gin.Context) {
 			if gulu.OS.IsWindows() {
 				localPath = strings.TrimPrefix(localPath, "/")
 			}
+
+			unescaped, _ := url.PathUnescape(localPath)
+			if unescaped != localPath {
+				// `Convert network images/assets to local` supports URL-encoded local file names https://github.com/siyuan-note/siyuan/issues/9929
+				localPath = unescaped
+			}
+
+			if !filepath.IsAbs(localPath) {
+				// Kernel crash when copy-pasting from some browsers https://github.com/siyuan-note/siyuan/issues/9203
+				return ast.WalkContinue
+			}
 			if !gulu.File.IsExist(localPath) {
 				return ast.WalkContinue
 			}
@@ -122,7 +161,7 @@ func html2BlockDOM(c *gin.Context) {
 	}
 
 	// 复制带超链接的图片无法保存到本地 https://github.com/siyuan-note/siyuan/issues/5993
-	luteEngine.NestedInlines2FlattedSpans(tree)
+	parse.NestedInlines2FlattedSpans(tree, false)
 
 	renderer := render.NewProtyleRenderer(tree, luteEngine.RenderOptions)
 	output := renderer.Render()

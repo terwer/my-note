@@ -1,20 +1,18 @@
-import {closePanel} from "../util/closePanel";
 import {fetchPost} from "../../util/fetch";
-import {setInlineStyle} from "../../util/assets";
 import {genOptions} from "../../util/genOptions";
-import {reloadProtyle} from "../../protyle/util/reload";
+import {openModel} from "../menu/model";
 
-export const initAppearance = (modelElement: HTMLElement, modelMainElement: HTMLElement) => {
-    closePanel();
-    modelElement.style.top = "0";
-    modelElement.querySelector(".toolbar__icon").innerHTML = '<use xlink:href="#iconTheme"></use>';
-    modelElement.querySelector(".toolbar__text").textContent = window.siyuan.languages.appearance;
-    modelMainElement.innerHTML = `<div class="b3-label">
+export const initAppearance = () => {
+    openModel({
+        title: window.siyuan.languages.appearance,
+        icon:"iconTheme",
+        html: `<div class="b3-label">
     ${window.siyuan.languages.appearance4}
     <div class="fn__hr"></div>
     <select class="b3-select fn__block" id="mode">
-      <option value="0" ${window.siyuan.config.appearance.mode === 0 ? "selected" : ""}>${window.siyuan.languages.themeLight}</option>
-      <option value="1" ${window.siyuan.config.appearance.mode === 1 ? "selected" : ""}>${window.siyuan.languages.themeDark}</option>
+      <option value="0" ${(window.siyuan.config.appearance.mode === 0 && !window.siyuan.config.appearance.modeOS) ? "selected" : ""}>${window.siyuan.languages.themeLight}</option>
+      <option value="1" ${(window.siyuan.config.appearance.mode === 1 && !window.siyuan.config.appearance.modeOS) ? "selected" : ""}>${window.siyuan.languages.themeDark}</option>
+      <option value="2" ${window.siyuan.config.appearance.modeOS ? "selected" : ""}>${window.siyuan.languages.themeOS}</option>
     </select>
     <div class="b3-label__text">${window.siyuan.languages.appearance5}</div>
 </div>
@@ -44,42 +42,23 @@ export const initAppearance = (modelElement: HTMLElement, modelMainElement: HTML
     <div class="fn__hr"></div>
     <select id="lang" class="b3-select fn__block">${genOptions(window.siyuan.config.langs, window.siyuan.config.appearance.lang)}</select>
     <div class="b3-label__text">${window.siyuan.languages.language1}</div>
-</div>
-<div class="b3-label">
-    ${window.siyuan.languages.fontSize} <span id="fontSize" class="ft__on-surface">${window.siyuan.config.editor.fontSize}px</span>
-    <div class="fn__hr"></div>
-    <input class="b3-slider fn__block" max="72" min="9" step="1" type="range" value="${window.siyuan.config.editor.fontSize}">
-    <div class="b3-label__text">${window.siyuan.languages.fontSizeTip}</div>
-</div>`;
-    modelMainElement.querySelector(".b3-slider").addEventListener("input", (event: InputEvent & { target: HTMLInputElement }) => {
-        modelMainElement.querySelector("#fontSize").textContent = event.target.value + "px";
-        window.siyuan.config.editor.fontSize = parseInt(event.target.value);
-        fetchPost("/api/setting/setEditor", window.siyuan.config.editor, (response) => {
-            window.siyuan.config.editor = response.data;
-            reloadProtyle(window.siyuan.mobileEditor.protyle);
-            setInlineStyle();
-        });
-    });
-    modelMainElement.querySelectorAll("select").forEach(item => {
-        item.addEventListener("change", () => {
-            fetchPost("/api/setting/setAppearance", {
-                icon: (modelMainElement.querySelector("#icon") as HTMLSelectElement).value,
-                mode: parseInt((modelMainElement.querySelector("#mode") as HTMLSelectElement).value),
-                modeOS: window.siyuan.config.appearance.modeOS,
-                codeBlockThemeDark: window.siyuan.config.appearance.codeBlockThemeDark,
-                codeBlockThemeLight: window.siyuan.config.appearance.codeBlockThemeLight,
-                themeDark: (modelMainElement.querySelector("#themeDark") as HTMLSelectElement).value,
-                themeLight: (modelMainElement.querySelector("#themeLight") as HTMLSelectElement).value,
-                darkThemes: window.siyuan.config.appearance.darkThemes,
-                lightThemes: window.siyuan.config.appearance.lightThemes,
-                icons: window.siyuan.config.appearance.icons,
-                lang: (modelMainElement.querySelector("#lang") as HTMLSelectElement).value,
-                customCSS: window.siyuan.config.appearance.customCSS,
-                closeButtonBehavior: window.siyuan.config.appearance.closeButtonBehavior,
-                nativeEmoji: window.siyuan.config.appearance.nativeEmoji,
-            }, () => {
-                window.location.reload();
+</div>`,
+        bindEvent(modelMainElement: HTMLElement) {
+            modelMainElement.querySelectorAll("select").forEach(item => {
+                item.addEventListener("change", () => {
+                    const modeElementValue = parseInt((modelMainElement.querySelector("#mode") as HTMLSelectElement).value);
+                    fetchPost("/api/setting/setAppearance", Object.assign({}, window.siyuan.config.appearance, {
+                        icon: (modelMainElement.querySelector("#icon") as HTMLSelectElement).value,
+                        mode: modeElementValue === 2 ? window.siyuan.config.appearance.mode : modeElementValue,
+                        modeOS: modeElementValue === 2,
+                        themeDark: (modelMainElement.querySelector("#themeDark") as HTMLSelectElement).value,
+                        themeLight: (modelMainElement.querySelector("#themeLight") as HTMLSelectElement).value,
+                        lang: (modelMainElement.querySelector("#lang") as HTMLSelectElement).value,
+                    }), () => {
+                        window.location.reload();
+                    });
+                });
             });
-        });
+        }
     });
 };

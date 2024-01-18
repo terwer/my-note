@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -18,6 +18,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,13 @@ func pushMsg(c *gin.Context) {
 		return
 	}
 
-	msg := arg["msg"].(string)
+	msg := strings.TrimSpace(arg["msg"].(string))
+	if "" == msg {
+		ret.Code = -1
+		ret.Msg = "msg can't be empty"
+		return
+	}
+
 	timeout := 7000
 	if nil != arg["timeout"] {
 		timeout = int(arg["timeout"].(float64))

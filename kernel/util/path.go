@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -35,12 +35,6 @@ var (
 	UserAgent = "SiYuan/" + Ver
 )
 
-const (
-	AliyunServer     = "https://siyuan-sync.b3logfile.com" // 云端服务地址，阿里云负载均衡，用于接口，数据同步文件上传、下载会走七牛云 OSS http://siyuan-data.b3logfile.com
-	BazaarStatServer = "http://bazaar.b3logfile.com"       // 集市包统计服务地址，直接对接 Bucket 没有 CDN 缓存
-	BazaarOSSServer  = "https://oss.b3logfile.com"         // 云端对象存储地址，七牛云，仅用于读取集市包
-)
-
 func ShortPathForBootingDisplay(p string) string {
 	if 25 > len(p) {
 		return p
@@ -48,40 +42,6 @@ func ShortPathForBootingDisplay(p string) string {
 	p = strings.TrimSuffix(p, ".sy")
 	p = path.Base(p)
 	return p
-}
-
-func IsIDPattern(str string) bool {
-	if len("20060102150405-1a2b3c4") != len(str) {
-		return false
-	}
-
-	if 1 != strings.Count(str, "-") {
-		return false
-	}
-
-	parts := strings.Split(str, "-")
-	idPart := parts[0]
-	if 14 != len(idPart) {
-		return false
-	}
-
-	for _, c := range idPart {
-		if !('0' <= c && '9' >= c) {
-			return false
-		}
-	}
-
-	randPart := parts[1]
-	if 7 != len(randPart) {
-		return false
-	}
-
-	for _, c := range randPart {
-		if !('a' <= c && 'z' >= c) && !('0' <= c && '9' >= c) {
-			return false
-		}
-	}
-	return true
 }
 
 var LocalIPs []string
@@ -100,12 +60,69 @@ func GetLocalIPs() (ret []string) {
 		logging.LogWarnf("get interface addresses failed: %s", err)
 		return
 	}
+
+	IPv4Nets := []*net.IPNet{}
+	IPv6Nets := []*net.IPNet{}
 	for _, addr := range addrs {
-		if networkIp, ok := addr.(*net.IPNet); ok && !networkIp.IP.IsLoopback() && networkIp.IP.To4() != nil &&
-			bytes.Equal([]byte{255, 255, 255, 0}, networkIp.Mask) {
-			ret = append(ret, networkIp.IP.String())
+		if networkIp, ok := addr.(*net.IPNet); ok && networkIp.IP.String() != "<nil>" {
+			if networkIp.IP.To4() != nil {
+				IPv4Nets = append(IPv4Nets, networkIp)
+			} else if networkIp.IP.To16() != nil {
+				IPv6Nets = append(IPv6Nets, networkIp)
+			}
 		}
 	}
+
+	// loopback address
+	for _, net := range IPv4Nets {
+		if net.IP.IsLoopback() {
+			ret = append(ret, net.IP.String())
+		}
+	}
+	// private address
+	for _, net := range IPv4Nets {
+		if net.IP.IsPrivate() {
+			ret = append(ret, net.IP.String())
+		}
+	}
+	// IPv4 private address
+	for _, net := range IPv4Nets {
+		if net.IP.IsGlobalUnicast() {
+			ret = append(ret, net.IP.String())
+		}
+	}
+	// link-local unicast address
+	for _, net := range IPv4Nets {
+		if net.IP.IsLinkLocalUnicast() {
+			ret = append(ret, net.IP.String())
+		}
+	}
+
+	// loopback address
+	for _, net := range IPv6Nets {
+		if net.IP.IsLoopback() {
+			ret = append(ret, "["+net.IP.String()+"]")
+		}
+	}
+	// private address
+	for _, net := range IPv6Nets {
+		if net.IP.IsPrivate() {
+			ret = append(ret, "["+net.IP.String()+"]")
+		}
+	}
+	// IPv6 private address
+	for _, net := range IPv6Nets {
+		if net.IP.IsGlobalUnicast() {
+			ret = append(ret, "["+net.IP.String()+"]")
+		}
+	}
+	// link-local unicast address
+	for _, net := range IPv6Nets {
+		if net.IP.IsLinkLocalUnicast() {
+			ret = append(ret, "["+net.IP.String()+"]")
+		}
+	}
+
 	ret = append(ret, LocalHost)
 	ret = gulu.Str.RemoveDuplicatedElem(ret)
 	return
@@ -161,6 +178,19 @@ func GetChildDocDepth(treeAbsPath string) (ret int) {
 	return
 }
 
+func NormalizeTimeout(timeout int) int {
+	if 7 > timeout {
+		if 1 > timeout {
+			return 30
+		}
+		return 7
+	}
+	if 300 < timeout {
+		return 300
+	}
+	return timeout
+}
+
 func NormalizeEndpoint(endpoint string) string {
 	endpoint = strings.TrimSpace(endpoint)
 	if "" == endpoint {
@@ -175,14 +205,20 @@ func NormalizeEndpoint(endpoint string) string {
 	return endpoint
 }
 
-func FilterMoveDocFromPaths(fromPaths []string, toPath string) (retFromPaths []string) {
-	fromPaths = append(fromPaths, toPath)
-	retFromPaths = FilterSelfChildDocs(fromPaths)
+func FilterMoveDocFromPaths(fromPaths []string, toPath string) (ret []string) {
+	tmp := FilterSelfChildDocs(fromPaths)
+	for _, fromPath := range tmp {
+		fromDir := strings.TrimSuffix(fromPath, ".sy")
+		if strings.HasPrefix(toPath, fromDir) {
+			continue
+		}
+		ret = append(ret, fromPath)
+	}
 	return
 }
 
 func FilterSelfChildDocs(paths []string) (ret []string) {
-	sort.Slice(paths, func(i, j int) bool { return len(paths[i]) < len(paths[j]) })
+	sort.Slice(paths, func(i, j int) bool { return strings.Count(paths[i], "/") < strings.Count(paths[j], "/") })
 
 	dirs := map[string]string{}
 	for _, fromPath := range paths {
@@ -201,4 +237,43 @@ func FilterSelfChildDocs(paths []string) (ret []string) {
 		ret = append(ret, fromPath)
 	}
 	return
+}
+
+func IsAssetLinkDest(dest []byte) bool {
+	return bytes.HasPrefix(dest, []byte("assets/"))
+}
+
+var (
+	SiYuanAssetsImage = []string{".apng", ".ico", ".cur", ".jpg", ".jpe", ".jpeg", ".jfif", ".pjp", ".pjpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif"}
+	SiYuanAssetsAudio = []string{".mp3", ".wav", ".ogg", ".m4a"}
+	SiYuanAssetsVideo = []string{".mov", ".weba", ".mkv", ".mp4", ".webm"}
+)
+
+func IsDisplayableAsset(p string) bool {
+	ext := strings.ToLower(filepath.Ext(p))
+	if "" == ext {
+		return false
+	}
+	if gulu.Str.Contains(ext, SiYuanAssetsImage) {
+		return true
+	}
+	if gulu.Str.Contains(ext, SiYuanAssetsAudio) {
+		return true
+	}
+	if gulu.Str.Contains(ext, SiYuanAssetsVideo) {
+		return true
+	}
+	return false
+}
+
+func GetAbsPathInWorkspace(relPath string) (string, error) {
+	absPath := filepath.Join(WorkspaceDir, relPath)
+	if WorkspaceDir == absPath {
+		return absPath, nil
+	}
+
+	if IsSubPath(WorkspaceDir, absPath) {
+		return absPath, nil
+	}
+	return "", os.ErrPermission
 }

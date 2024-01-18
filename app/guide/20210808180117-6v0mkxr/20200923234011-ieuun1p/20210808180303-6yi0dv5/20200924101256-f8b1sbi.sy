@@ -6,7 +6,7 @@
 		"id": "20200924101256-f8b1sbi",
 		"title": "Ref Content Block",
 		"type": "doc",
-		"updated": "20220623201408"
+		"updated": "20230820102811"
 	},
 	"Children": [
 		{
@@ -201,32 +201,11 @@
 							},
 							"Children": [
 								{
-									"Type": "NodeBlockRef",
-									"Children": [
-										{
-											"Type": "NodeOpenParen"
-										},
-										{
-											"Type": "NodeOpenParen"
-										},
-										{
-											"Type": "NodeBlockRefID",
-											"Data": "20200924101210-zwf8ags"
-										},
-										{
-											"Type": "NodeBlockRefSpace"
-										},
-										{
-											"Type": "NodeBlockRefText",
-											"Data": "Graph"
-										},
-										{
-											"Type": "NodeCloseParen"
-										},
-										{
-											"Type": "NodeCloseParen"
-										}
-									]
+									"Type": "NodeTextMark",
+									"TextMarkType": "block-ref",
+									"TextMarkBlockRefID": "20200924101210-zwf8ags",
+									"TextMarkBlockRefSubtype": "s",
+									"TextMarkTextContent": "Graph"
 								},
 								{
 									"Type": "NodeText",
@@ -260,32 +239,11 @@
 							},
 							"Children": [
 								{
-									"Type": "NodeBlockRef",
-									"Children": [
-										{
-											"Type": "NodeOpenParen"
-										},
-										{
-											"Type": "NodeOpenParen"
-										},
-										{
-											"Type": "NodeBlockRefID",
-											"Data": "20200924101210-3qfiiat"
-										},
-										{
-											"Type": "NodeBlockRefSpace"
-										},
-										{
-											"Type": "NodeBlockRefText",
-											"Data": "Backlinks"
-										},
-										{
-											"Type": "NodeCloseParen"
-										},
-										{
-											"Type": "NodeCloseParen"
-										}
-									]
+									"Type": "NodeTextMark",
+									"TextMarkType": "block-ref",
+									"TextMarkBlockRefID": "20200924101210-3qfiiat",
+									"TextMarkBlockRefSubtype": "s",
+									"TextMarkTextContent": "Backlinks"
 								},
 								{
 									"Type": "NodeText",
@@ -531,6 +489,287 @@
 								{
 									"Type": "NodeText",
 									"Data": "Clear the anchor text in the pop-up menu after right-clicking the reference element, this will use dynamic anchor text"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230420185940-emsw72v",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230420185940-emsw72v",
+				"updated": "20230420185940"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "In the "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "(("
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ search result list:"
+				}
+			]
+		},
+		{
+			"ID": "20230420185940-z74ufig",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230420185940-z74ufig",
+				"updated": "20230420190018"
+			},
+			"Children": [
+				{
+					"ID": "20230420185940-g8mpohi",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230420185940-g8mpohi",
+						"updated": "20230420190018"
+					},
+					"Children": [
+						{
+							"ID": "20230420185940-ro5d977",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230420185940-ro5d977",
+								"updated": "20230420190018"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "Direct "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Enter"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ or "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Click"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ will use dynamic anchor text"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230420185940-ksegxpq",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230420185940-ksegxpq",
+						"updated": "20230420190017"
+					},
+					"Children": [
+						{
+							"ID": "20230420185940-ajmbc76",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230420185940-ajmbc76",
+								"updated": "20230420190017"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "Press "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Enter"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ or "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Ctrl+Click"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ to use static anchor text"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230420123242-xsz318y",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230420123242-xsz318y",
+				"updated": "20230420123245"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Filter"
+				}
+			]
+		},
+		{
+			"ID": "20230518100549-bu599ue",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20230518100549-bu599ue",
+				"updated": "20230518100627"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "After enabling "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "[[ only search documents"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ in "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Settings"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Editor"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​: "
+				}
+			]
+		},
+		{
+			"ID": "20230420123242-7uymi9i",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230420123242-7uymi9i",
+				"updated": "20230820102811"
+			},
+			"Children": [
+				{
+					"ID": "20230420123242-gn62yz6",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230420123242-gn62yz6",
+						"updated": "20230820102811"
+					},
+					"Children": [
+						{
+							"ID": "20230420123242-sbvr7xx",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230420123242-sbvr7xx",
+								"updated": "20230820102811"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "Use "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "(("
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​​ to search in "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "block-ref",
+									"TextMarkBlockRefID": "20200924101225-k254i8g",
+									"TextMarkBlockRefSubtype": "s",
+									"TextMarkTextContent": "all types of blocks"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230420123242-gm0o5hw",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230420123242-gm0o5hw",
+						"updated": "20230820102741"
+					},
+					"Children": [
+						{
+							"ID": "20230420123242-ba8ysjk",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230420123242-ba8ysjk",
+								"updated": "20230820102741"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "Use "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "[["
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ to search only "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "block-ref",
+									"TextMarkBlockRefID": "20210104091538-clx67q4",
+									"TextMarkBlockRefSubtype": "s",
+									"TextMarkTextContent": "doc blocks"
 								}
 							]
 						}

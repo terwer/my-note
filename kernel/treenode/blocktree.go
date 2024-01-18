@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,275 +17,568 @@
 package treenode
 
 import (
-	"io"
 	"os"
-	"runtime/debug"
+	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
 	"github.com/dustin/go-humanize"
+	"github.com/panjf2000/ants/v2"
+	util2 "github.com/siyuan-note/dejavu/util"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/util"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-var blockTrees = map[string]*BlockTree{}
-var blockTreesLock = sync.Mutex{}
-var blockTreesChanged = false
+var blockTrees = &sync.Map{}
+
+type btSlice struct {
+	data    map[string]*BlockTree
+	changed time.Time
+	m       *sync.Mutex
+}
 
 type BlockTree struct {
 	ID       string // 块 ID
 	RootID   string // 根 ID
 	ParentID string // 父 ID
 	BoxID    string // 笔记本 ID
-	Path     string // 文档物理路径
-	HPath    string // 文档逻辑路径
+	Path     string // 文档数据路径
+	HPath    string // 文档可读路径
+	Updated  string // 更新时间
+	Type     string // 类型
+}
+
+func GetBlockTreesByType(typ string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.Type == typ {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
+}
+
+func GetBlockTreeByPath(path string) (ret *BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.Path == path {
+				ret = b
+				break
+			}
+		}
+		slice.m.Unlock()
+		return nil == ret
+	})
+	return
 }
 
 func CountTrees() (ret int) {
 	roots := map[string]bool{}
-	for _, b := range blockTrees {
-		roots[b.RootID] = true
-	}
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			roots[b.RootID] = true
+		}
+		slice.m.Unlock()
+		return true
+	})
 	ret = len(roots)
 	return
 }
 
 func CountBlocks() (ret int) {
-	return len(blockTrees)
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		ret += len(slice.data)
+		slice.m.Unlock()
+		return true
+	})
+	return
 }
 
-func GetBlockTreeRootByPath(boxID, path string) *BlockTree {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
+func GetBlockTreeRootByPath(boxID, path string) (ret *BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID && b.Path == path && b.RootID == b.ID {
+				ret = b
+				break
+			}
+		}
+		slice.m.Unlock()
+		return nil == ret
+	})
+	return
+}
 
-	for _, blockTree := range blockTrees {
-		if blockTree.BoxID == boxID && blockTree.Path == path && blockTree.RootID == blockTree.ID {
-			return blockTree
+func GetBlockTreeRootByHPath(boxID, hPath string) (ret *BlockTree) {
+	hPath = gulu.Str.RemoveInvisible(hPath)
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID && b.HPath == hPath && b.RootID == b.ID {
+				ret = b
+				break
+			}
+		}
+		slice.m.Unlock()
+		return nil == ret
+	})
+	return
+}
+
+func GetBlockTreeRootsByHPath(boxID, hPath string) (ret []*BlockTree) {
+	hPath = gulu.Str.RemoveInvisible(hPath)
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID && b.HPath == hPath && b.RootID == b.ID {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
+}
+
+func GetBlockTreeRootByHPathPreferredParentID(boxID, hPath, preferredParentID string) (ret *BlockTree) {
+	hPath = gulu.Str.RemoveInvisible(hPath)
+	var roots []*BlockTree
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID && b.HPath == hPath && b.RootID == b.ID {
+				if "" == preferredParentID {
+					ret = b
+					break
+				}
+
+				roots = append(roots, b)
+			}
+		}
+		slice.m.Unlock()
+		return nil == ret
+	})
+	if 1 > len(roots) {
+		return
+	}
+
+	for _, root := range roots {
+		if root.ID == preferredParentID {
+			ret = root
+			return
 		}
 	}
-	return nil
+	ret = roots[0]
+	return
 }
 
-func GetBlockTreeRootByHPath(boxID, hPath string) *BlockTree {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
-	for _, blockTree := range blockTrees {
-		if blockTree.BoxID == boxID && blockTree.HPath == hPath && blockTree.RootID == blockTree.ID {
-			return blockTree
-		}
-	}
-	return nil
-}
-
-func GetBlockTree(id string) *BlockTree {
+func GetBlockTree(id string) (ret *BlockTree) {
 	if "" == id {
-		return nil
+		return
 	}
 
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-	return blockTrees[id]
+	hash := btHash(id)
+	val, ok := blockTrees.Load(hash)
+	if !ok {
+		return
+	}
+	slice := val.(*btSlice)
+	slice.m.Lock()
+	ret = slice.data[id]
+	slice.m.Unlock()
+	return
 }
 
 func SetBlockTreePath(tree *parse.Tree) {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
-	for _, b := range blockTrees {
-		if b.RootID == tree.ID {
-			b.BoxID, b.Path, b.HPath = tree.Box, tree.Path, tree.HPath
-		}
-	}
-	blockTreesChanged = true
+	RemoveBlockTreesByRootID(tree.ID)
+	IndexBlockTree(tree)
 }
 
 func RemoveBlockTreesByRootID(rootID string) {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
 	var ids []string
-	for _, b := range blockTrees {
-		if b.RootID == rootID {
-			ids = append(ids, b.RootID)
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.RootID == rootID {
+				ids = append(ids, b.ID)
+			}
 		}
-	}
+		slice.m.Unlock()
+		return true
+	})
+
+	ids = gulu.Str.RemoveDuplicatedElem(ids)
 	for _, id := range ids {
-		delete(blockTrees, id)
+		val, ok := blockTrees.Load(btHash(id))
+		if !ok {
+			continue
+		}
+		slice := val.(*btSlice)
+		slice.m.Lock()
+		delete(slice.data, id)
+		slice.changed = time.Now()
+		slice.m.Unlock()
 	}
-	blockTreesChanged = true
+}
+
+func GetBlockTreesByPathPrefix(pathPrefix string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if strings.HasPrefix(b.Path, pathPrefix) {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
+}
+
+func GetBlockTreesByRootID(rootID string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.RootID == rootID {
+				ret = append(ret, b)
+			}
+		}
+		slice.m.Unlock()
+		return true
+	})
+	return
 }
 
 func RemoveBlockTreesByPathPrefix(pathPrefix string) {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
 	var ids []string
-	for _, b := range blockTrees {
-		if strings.HasPrefix(b.Path, pathPrefix) {
-			ids = append(ids, b.ID)
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if strings.HasPrefix(b.Path, pathPrefix) {
+				ids = append(ids, b.ID)
+			}
 		}
-	}
-	for _, id := range ids {
-		delete(blockTrees, id)
-	}
-	blockTreesChanged = true
-}
-
-func RemoveBlockTreesByBoxID(boxID string) {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
-	var ids []string
-	for _, b := range blockTrees {
-		if b.BoxID == boxID {
-			ids = append(ids, b.ID)
-		}
-	}
-	for _, id := range ids {
-		delete(blockTrees, id)
-	}
-	blockTreesChanged = true
-}
-
-func RemoveBlockTree(id string) {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
-	delete(blockTrees, id)
-	blockTreesChanged = true
-}
-
-func ReindexBlockTree(tree *parse.Tree) {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
-	var ids []string
-	for _, b := range blockTrees {
-		if b.RootID == tree.ID {
-			ids = append(ids, b.ID)
-		}
-	}
-	for _, id := range ids {
-		delete(blockTrees, id)
-	}
-
-	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if !entering || !n.IsBlock() {
-			return ast.WalkContinue
-		}
-		var parentID string
-		if nil != n.Parent {
-			parentID = n.Parent.ID
-		}
-		if "" == n.ID {
-			return ast.WalkContinue
-		}
-		blockTrees[n.ID] = &BlockTree{ID: n.ID, ParentID: parentID, RootID: tree.ID, BoxID: tree.Box, Path: tree.Path, HPath: tree.HPath}
-		return ast.WalkContinue
-	})
-	blockTreesChanged = true
-}
-
-func IndexBlockTree(tree *parse.Tree) {
-	blockTreesLock.Lock()
-	defer blockTreesLock.Unlock()
-
-	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if !entering || !n.IsBlock() {
-			return ast.WalkContinue
-		}
-		var parentID string
-		if nil != n.Parent {
-			parentID = n.Parent.ID
-		}
-		if "" == n.ID {
-			return ast.WalkContinue
-		}
-		blockTrees[n.ID] = &BlockTree{ID: n.ID, ParentID: parentID, RootID: tree.ID, BoxID: tree.Box, Path: tree.Path, HPath: tree.HPath}
-		return ast.WalkContinue
+		slice.m.Unlock()
+		return true
 	})
 
-	// 新建索引不变更持久化文件，调用处会负责调用 SaveBlockTree()
+	ids = gulu.Str.RemoveDuplicatedElem(ids)
+	for _, id := range ids {
+		val, ok := blockTrees.Load(btHash(id))
+		if !ok {
+			continue
+		}
+		slice := val.(*btSlice)
+		slice.m.Lock()
+		delete(slice.data, id)
+		slice.changed = time.Now()
+		slice.m.Unlock()
+	}
 }
 
-func AutoFlushBlockTree() {
-	for {
-		if blockTreesChanged {
-			SaveBlockTree()
-			blockTreesChanged = false
+func GetBlockTreesByBoxID(boxID string) (ret []*BlockTree) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID {
+				ret = append(ret, b)
+			}
 		}
-		time.Sleep(7 * time.Second)
-	}
+		slice.m.Unlock()
+		return true
+	})
+	return
 }
 
-func InitBlockTree(force bool) {
-	start := time.Now()
-
-	if force {
-		err := os.RemoveAll(util.BlockTreePath)
-		if nil != err {
-			logging.LogErrorf("remove blocktree file failed: %s", err)
+func RemoveBlockTreesByBoxID(boxID string) (ids []string) {
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		for _, b := range slice.data {
+			if b.BoxID == boxID {
+				ids = append(ids, b.ID)
+			}
 		}
-		return
-	}
+		slice.m.Unlock()
+		return true
+	})
 
-	var err error
-	fh, err := os.OpenFile(util.BlockTreePath, os.O_RDWR, 0644)
-	if nil != err {
-		logging.LogErrorf("open block tree file failed: %s", err)
-		os.Exit(util.ExitCodeBlockTreeErr)
-		return
-	}
-	defer fh.Close()
-
-	data, err := io.ReadAll(fh)
-	if nil != err {
-		logging.LogErrorf("read block tree failed: %s", err)
-		os.Exit(util.ExitCodeBlockTreeErr)
-		return
-	}
-	blockTreesLock.Lock()
-	if err = msgpack.Unmarshal(data, &blockTrees); nil != err {
-		logging.LogErrorf("unmarshal block tree failed: %s", err)
-		if err = os.RemoveAll(util.BlockTreePath); nil != err {
-			logging.LogErrorf("removed corrupted block tree failed: %s", err)
+	ids = gulu.Str.RemoveDuplicatedElem(ids)
+	for _, id := range ids {
+		val, ok := blockTrees.Load(btHash(id))
+		if !ok {
+			continue
 		}
-		os.Exit(util.ExitCodeBlockTreeErr)
-		return
-	}
-	blockTreesLock.Unlock()
-	debug.FreeOSMemory()
-	if elapsed := time.Since(start).Seconds(); 2 < elapsed {
-		logging.LogWarnf("read block tree [%s] to [%s], elapsed [%.2fs]", humanize.Bytes(uint64(len(data))), util.BlockTreePath, elapsed)
+		slice := val.(*btSlice)
+		slice.m.Lock()
+		delete(slice.data, id)
+		slice.changed = time.Now()
+		slice.m.Unlock()
 	}
 	return
 }
 
-func SaveBlockTree() {
+func RemoveBlockTree(id string) {
+	val, ok := blockTrees.Load(btHash(id))
+	if !ok {
+		return
+	}
+	slice := val.(*btSlice)
+	slice.m.Lock()
+	delete(slice.data, id)
+	slice.changed = time.Now()
+	slice.m.Unlock()
+}
+
+func IndexBlockTree(tree *parse.Tree) {
+	var changedNodes []*ast.Node
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering || !n.IsBlock() {
+			return ast.WalkContinue
+		}
+		if "" == n.ID {
+			return ast.WalkContinue
+		}
+
+		hash := btHash(n.ID)
+		val, ok := blockTrees.Load(hash)
+		if !ok {
+			val = &btSlice{data: map[string]*BlockTree{}, changed: time.Time{}, m: &sync.Mutex{}}
+			blockTrees.Store(hash, val)
+		}
+		slice := val.(*btSlice)
+
+		slice.m.Lock()
+		bt := slice.data[n.ID]
+		slice.m.Unlock()
+
+		if nil != bt {
+			if bt.Updated != n.IALAttr("updated") || bt.Type != TypeAbbr(n.Type.String()) || bt.Path != tree.Path || bt.BoxID != tree.Box || bt.HPath != tree.HPath {
+				children := ChildBlockNodes(n) // 需要考虑子块，因为一些操作（比如移动块）后需要同时更新子块
+				changedNodes = append(changedNodes, children...)
+			}
+		} else {
+			children := ChildBlockNodes(n)
+			changedNodes = append(changedNodes, children...)
+		}
+		return ast.WalkContinue
+	})
+
+	for _, n := range changedNodes {
+		updateBtSlice(n, tree)
+	}
+}
+
+func updateBtSlice(n *ast.Node, tree *parse.Tree) {
+	var parentID string
+	if nil != n.Parent {
+		parentID = n.Parent.ID
+	}
+
+	hash := btHash(n.ID)
+	val, ok := blockTrees.Load(hash)
+	if !ok {
+		val = &btSlice{data: map[string]*BlockTree{}, changed: time.Time{}, m: &sync.Mutex{}}
+		blockTrees.Store(hash, val)
+	}
+	slice := val.(*btSlice)
+	slice.m.Lock()
+	slice.data[n.ID] = &BlockTree{ID: n.ID, ParentID: parentID, RootID: tree.ID, BoxID: tree.Box, Path: tree.Path, HPath: tree.HPath, Updated: n.IALAttr("updated"), Type: TypeAbbr(n.Type.String())}
+	slice.changed = time.Now()
+	slice.m.Unlock()
+}
+
+var blockTreeLock = sync.Mutex{}
+
+func InitBlockTree(force bool) {
+	blockTreeLock.Lock()
+	defer blockTreeLock.Unlock()
+
 	start := time.Now()
+	if force {
+		err := os.RemoveAll(util.BlockTreePath)
+		if nil != err {
+			logging.LogErrorf("remove block tree file failed: %s", err)
+		}
+		blockTrees = &sync.Map{}
+		return
+	}
 
-	blockTreesLock.Lock()
-	data, err := msgpack.Marshal(blockTrees)
+	entries, err := os.ReadDir(util.BlockTreePath)
 	if nil != err {
-		logging.LogErrorf("marshal block tree failed: %s", err)
-		os.Exit(util.ExitCodeBlockTreeErr)
+		logging.LogErrorf("read block tree dir failed: %s", err)
+		os.Exit(logging.ExitCodeFileSysErr)
 		return
 	}
-	blockTreesLock.Unlock()
 
-	if err = gulu.File.WriteFileSafer(util.BlockTreePath, data, 0644); nil != err {
-		logging.LogErrorf("write block tree failed: %s", err)
-		os.Exit(util.ExitCodeBlockTreeErr)
+	size := atomic.Int64{}
+	waitGroup := &sync.WaitGroup{}
+	p, _ := ants.NewPoolWithFunc(4, func(arg interface{}) {
+		defer waitGroup.Done()
+
+		entry := arg.(os.DirEntry)
+		p := filepath.Join(util.BlockTreePath, entry.Name())
+
+		f, err := os.OpenFile(p, os.O_RDONLY, 0644)
+		if nil != err {
+			logging.LogErrorf("open block tree failed: %s", err)
+			os.Exit(logging.ExitCodeFileSysErr)
+			return
+		}
+
+		info, err := f.Stat()
+		if nil != err {
+			logging.LogErrorf("stat block tree failed: %s", err)
+			os.Exit(logging.ExitCodeFileSysErr)
+			return
+		}
+		size.Add(info.Size())
+
+		sliceData := map[string]*BlockTree{}
+		if err = msgpack.NewDecoder(f).Decode(&sliceData); nil != err {
+			logging.LogErrorf("unmarshal block tree failed: %s", err)
+			if err = os.RemoveAll(util.BlockTreePath); nil != err {
+				logging.LogErrorf("removed corrupted block tree failed: %s", err)
+			}
+			os.Exit(logging.ExitCodeFileSysErr)
+			return
+		}
+
+		if err = f.Close(); nil != err {
+			logging.LogErrorf("close block tree failed: %s", err)
+			os.Exit(logging.ExitCodeFileSysErr)
+			return
+		}
+
+		name := entry.Name()[0:strings.Index(entry.Name(), ".")]
+		blockTrees.Store(name, &btSlice{data: sliceData, changed: time.Time{}, m: &sync.Mutex{}})
+	})
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".msgpack") {
+			continue
+		}
+
+		waitGroup.Add(1)
+		p.Invoke(entry)
+	}
+
+	waitGroup.Wait()
+	p.Release()
+
+	elapsed := time.Since(start).Seconds()
+	logging.LogInfof("read block tree [%s] to [%s], elapsed [%.2fs]", humanize.Bytes(uint64(size.Load())), util.BlockTreePath, elapsed)
+	return
+}
+
+func SaveBlockTreeJob() {
+	SaveBlockTree(false)
+}
+
+func SaveBlockTree(force bool) {
+	blockTreeLock.Lock()
+	defer blockTreeLock.Unlock()
+
+	start := time.Now()
+	if err := os.MkdirAll(util.BlockTreePath, 0755); nil != err {
+		logging.LogErrorf("create block tree dir [%s] failed: %s", util.BlockTreePath, err)
+		os.Exit(logging.ExitCodeFileSysErr)
 		return
 	}
-	debug.FreeOSMemory()
-	if elapsed := time.Since(start).Seconds(); 2 < elapsed {
-		logging.LogWarnf("save block tree [size=%s] to [%s], elapsed [%.2fs]", humanize.Bytes(uint64(len(data))), util.BlockTreePath, elapsed)
+
+	size := uint64(0)
+	var count int
+	blockTrees.Range(func(key, value interface{}) bool {
+		slice := value.(*btSlice)
+		slice.m.Lock()
+		if !force && slice.changed.IsZero() {
+			slice.m.Unlock()
+			return true
+		}
+
+		data, err := msgpack.Marshal(slice.data)
+		if nil != err {
+			logging.LogErrorf("marshal block tree failed: %s", err)
+			os.Exit(logging.ExitCodeFileSysErr)
+			return false
+		}
+		slice.m.Unlock()
+
+		p := filepath.Join(util.BlockTreePath, key.(string)) + ".msgpack"
+		if err = gulu.File.WriteFileSafer(p, data, 0644); nil != err {
+			logging.LogErrorf("write block tree failed: %s", err)
+			os.Exit(logging.ExitCodeFileSysErr)
+			return false
+		}
+
+		slice.m.Lock()
+		slice.changed = time.Time{}
+		slice.m.Unlock()
+		size += uint64(len(data))
+		count++
+		return true
+	})
+	if 0 < count {
+		//logging.LogInfof("wrote block trees [%d]", count)
 	}
+
+	elapsed := time.Since(start).Seconds()
+	if 2 < elapsed {
+		logging.LogWarnf("save block tree [size=%s] to [%s], elapsed [%.2fs]", humanize.Bytes(size), util.BlockTreePath, elapsed)
+	}
+}
+
+func CeilTreeCount(count int) int {
+	if 100 > count {
+		return 100
+	}
+
+	for i := 1; i < 40; i++ {
+		if count < i*500 {
+			return i * 500
+		}
+	}
+	return 500*40 + 1
+}
+
+func CeilBlockCount(count int) int {
+	if 5000 > count {
+		return 5000
+	}
+
+	for i := 1; i < 100; i++ {
+		if count < i*10000 {
+			return i * 10000
+		}
+	}
+	return 10000*100 + 1
+}
+
+func btHash(id string) string {
+	return util2.Hash([]byte(id))[0:2]
 }

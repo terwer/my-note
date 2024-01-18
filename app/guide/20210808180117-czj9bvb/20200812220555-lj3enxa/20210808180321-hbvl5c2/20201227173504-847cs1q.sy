@@ -6,7 +6,7 @@
 		"id": "20201227173504-847cs1q",
 		"title": "Docker 伺服",
 		"type": "doc",
-		"updated": "20220518213306"
+		"updated": "20231108220452"
 	},
 	"Children": [
 		{
@@ -396,7 +396,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20210301201353-sffb1m7",
-				"updated": "20210824203629"
+				"updated": "20231108220447"
 			},
 			"Children": [
 				{
@@ -404,33 +404,11 @@
 					"Data": "更多的参数可参考"
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20200828105441-r76vmu5"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "这里"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20200828105441-r76vmu5",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "这里"
 				},
 				{
 					"Type": "NodeText",
@@ -439,7 +417,11 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "docker run -v workspace_dir_host:workspace_dir_container -p 6806:6806 b3log/siyuan --workspace=workspace_dir_container"
+					"TextMarkTextContent": "docker run -d -v workspace_dir_host:workspace_dir_container -p 6806:6806 b3log/siyuan --workspace=workspace_dir_container"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​"
 				}
 			]
 		},
@@ -545,7 +527,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20201227194509-hdnzkry",
-				"updated": "20211112103117"
+				"updated": "20231108220452"
 			},
 			"Children": [
 				{
@@ -559,7 +541,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 和 "
+					"Data": "​ 和 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -568,7 +550,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 都配置为 "
+					"Data": "​ 都配置为 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -577,16 +559,16 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "，对应的启动命令示例："
+					"Data": "​，对应的启动命令示例："
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "docker run -v /siyuan/workspace:/siyuan/workspace -p 6806:6806 -u 1000:1000 b3log/siyuan --workspace=/siyuan/workspace/"
+					"TextMarkTextContent": "docker run -d -v /siyuan/workspace:/siyuan/workspace -p 6806:6806 -u 1000:1000 b3log/siyuan --workspace=/siyuan/workspace/"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "。"
+					"Data": "​。"
 				}
 			]
 		},
@@ -712,6 +694,206 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
 									"TextMarkTextContent": "/ws"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230406104726-hhdyre4",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230406104726-hhdyre4",
+				"updated": "20230406104734"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "tag",
+					"TextMarkTextContent": "注意"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​"
+				}
+			]
+		},
+		{
+			"ID": "20230406104729-slpoivj",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230406104729-slpoivj",
+				"updated": "20230406105236"
+			},
+			"Children": [
+				{
+					"ID": "20230406104740-m2vmsfl",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230406104740-m2vmsfl",
+						"updated": "20230406104740"
+					},
+					"Children": [
+						{
+							"ID": "20230406104740-fv49tp9",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230406104740-fv49tp9",
+								"updated": "20230406105003"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "请务必确认挂载卷的正确性，否则容器删除后数据会丢失"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230406105020-zfsb9jk",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230406105020-zfsb9jk",
+						"updated": "20230406105236"
+					},
+					"Children": [
+						{
+							"ID": "20230406105020-lxhhaqe",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230406105020-lxhhaqe",
+								"updated": "20230406105236"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "不要使用 URL 重写进行重定向，否则鉴权可能会有问题，建议配置反向代理"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20230406104141-6o5jpu6",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20230406104141-6o5jpu6",
+				"updated": "20230406104144"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "限制"
+				}
+			]
+		},
+		{
+			"ID": "20230406104201-nbfn2p9",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20230406104201-nbfn2p9",
+				"updated": "20230406104451"
+			},
+			"Children": [
+				{
+					"ID": "20230406104217-8m58gpo",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230406104217-8m58gpo",
+						"updated": "20230406104217"
+					},
+					"Children": [
+						{
+							"ID": "20230406104217-42a91na",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230406104217-42a91na",
+								"updated": "20230406104310"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "不支持桌面端和移动端应用连接，仅支持在浏览器上使用"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230406104247-qyrt1tz",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230406104247-qyrt1tz"
+					},
+					"Children": [
+						{
+							"ID": "20230406104247-vrslzoi",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230406104247-vrslzoi",
+								"updated": "20230406104438"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "不支持导出 PDF、HTML 和 Word 格式"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20230406104438-kqz2pl7",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20230406104438-kqz2pl7",
+						"updated": "20230406104451"
+					},
+					"Children": [
+						{
+							"ID": "20230406104438-b4m8fen",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20230406104438-b4m8fen",
+								"updated": "20230406104451"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "不支持导入 Markdown 文件"
 								}
 							]
 						}

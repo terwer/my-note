@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -24,8 +24,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
+	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/search"
 	"github.com/siyuan-note/siyuan/kernel/sql"
@@ -33,32 +33,81 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func createDocsByHPath(boxID, hPath, content string) (id string, existed bool, err error) {
+func createDocsByHPath(boxID, hPath, content, parentID, id string /* id 参数仅在 parentID 不为空的情况下使用 */) (retID string, err error) {
 	hPath = strings.TrimSuffix(hPath, ".sy")
-	if existed = nil != treenode.GetBlockTreeRootByHPath(boxID, hPath); existed {
-		hPath += "-" + gulu.Rand.String(7)
+	if "" != parentID {
+		retID = id
+
+		// The save path is incorrect when creating a sub-doc by ref in a doc with the same name https://github.com/siyuan-note/siyuan/issues/8138
+		// 在指定父文档 ID 的情况下优先查找父文档
+		parentHPath, name := path.Split(hPath)
+		parentHPath = strings.TrimSuffix(parentHPath, "/")
+		preferredParent := treenode.GetBlockTreeRootByHPathPreferredParentID(boxID, parentHPath, parentID)
+		if nil != preferredParent && preferredParent.ID == parentID {
+			// 如果父文档存在且 ID 一致，则直接在父文档下创建
+			p := strings.TrimSuffix(preferredParent.Path, ".sy") + "/" + id + ".sy"
+			if _, err = createDoc(boxID, p, name, content); nil != err {
+				logging.LogErrorf("create doc [%s] failed: %s", p, err)
+			}
+			return
+		}
+	} else {
+		retID = ast.NewNodeID()
+		if "" == id {
+			id = retID
+		}
 	}
+
+	root := treenode.GetBlockTreeRootByPath(boxID, hPath)
+	if nil != root {
+		retID = root.ID
+		return
+	}
+
+	hPathBuilder := bytes.Buffer{}
+	hpathBtMap := map[string]*treenode.BlockTree{}
+	parts := strings.Split(hPath, "/")[1:]
+	// The subdoc creation path is unstable when a parent doc with the same name exists https://github.com/siyuan-note/siyuan/issues/9322
+	// 存在同名父文档时子文档创建路径不稳定，这里需要按照完整的 hpath 映射，不能在下面的循环中边构建 hpath 边构建 path，否则虽然 hpath 相同，但是会导致 path 组装错位
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			break
+		}
+
+		hPathBuilder.WriteString("/")
+		hPathBuilder.WriteString(part)
+		hp := hPathBuilder.String()
+		root = treenode.GetBlockTreeRootByHPath(boxID, hp)
+		if nil == root {
+			break
+		}
+
+		hpathBtMap[hp] = root
+	}
+
 	pathBuilder := bytes.Buffer{}
 	pathBuilder.WriteString("/")
-	hPathBuilder := bytes.Buffer{}
+	hPathBuilder = bytes.Buffer{}
 	hPathBuilder.WriteString("/")
-
-	parts := strings.Split(hPath, "/")[1:]
 	for i, part := range parts {
 		hPathBuilder.WriteString(part)
 		hp := hPathBuilder.String()
-		root := treenode.GetBlockTreeRootByHPath(boxID, hp)
+		root = hpathBtMap[hp]
 		isNotLast := i < len(parts)-1
 		if nil == root {
-			id = ast.NewNodeID()
-			pathBuilder.WriteString(id)
+			rootID := ast.NewNodeID()
+			if i == len(parts)-1 {
+				rootID = retID
+			}
+
+			pathBuilder.WriteString(rootID)
 			docP := pathBuilder.String() + ".sy"
 			if isNotLast {
-				if err = createDoc(boxID, docP, part, ""); nil != err {
+				if _, err = createDoc(boxID, docP, part, ""); nil != err {
 					return
 				}
 			} else {
-				if err = createDoc(boxID, docP, part, content); nil != err {
+				if _, err = createDoc(boxID, docP, part, content); nil != err {
 					return
 				}
 			}
@@ -71,7 +120,6 @@ func createDocsByHPath(boxID, hPath, content string) (id string, existed bool, e
 				}
 			}
 		} else {
-			id = root.ID
 			pathBuilder.WriteString(root.ID)
 			if !isNotLast {
 				pathBuilder.WriteString(".sy")
@@ -86,12 +134,12 @@ func createDocsByHPath(boxID, hPath, content string) (id string, existed bool, e
 	return
 }
 
-func toFlatTree(blocks []*Block, baseDepth int, typ string) (ret []*Path) {
+func toFlatTree(blocks []*Block, baseDepth int, typ string, tree *parse.Tree) (ret []*Path) {
 	var blockRoots []*Block
 	for _, block := range blocks {
 		root := getBlockIn(blockRoots, block.RootID)
 		if nil == root {
-			root, _ = getBlock(block.RootID)
+			root, _ = getBlock(block.RootID, tree)
 			blockRoots = append(blockRoots, root)
 		}
 		if nil == root {
@@ -138,7 +186,7 @@ func toSubTree(blocks []*Block, keyword string) (ret []*Path) {
 	for _, block := range blocks {
 		root := getBlockIn(blockRoots, block.RootID)
 		if nil == root {
-			root, _ = getBlock(block.RootID)
+			root, _ = getBlock(block.RootID, nil)
 			blockRoots = append(blockRoots, root)
 		}
 		block.Depth = 1
@@ -199,11 +247,11 @@ func toSubTree(blocks []*Block, keyword string) (ret []*Path) {
 					}
 				}
 				for next := li.FirstChild.Next; nil != next; next = next.Next {
-					subBlock, _ := getBlock(next.ID)
+					subBlock, _ := getBlock(next.ID, tree)
 					if unfold {
 						if ast.NodeList == next.Type {
 							for subLi := next.FirstChild; nil != subLi; subLi = subLi.Next {
-								subLiBlock, _ := getBlock(subLi.ID)
+								subLiBlock, _ := getBlock(subLi.ID, tree)
 								var subFirst *sql.Block
 								if 3 != subLi.ListData.Typ {
 									subFirst = sql.GetBlock(subLi.FirstChild.ID)
@@ -228,7 +276,7 @@ func toSubTree(blocks []*Block, keyword string) (ret []*Path) {
 							headingChildren := treenode.HeadingChildren(next)
 							var breakSub bool
 							for _, n := range headingChildren {
-								block, _ := getBlock(n.ID)
+								block, _ := getBlock(n.ID, tree)
 								subPos := 0
 								content := block.Content
 								if "" != keyword {
@@ -299,7 +347,7 @@ func toSubTree(blocks []*Block, keyword string) (ret []*Path) {
 					for _, headingChild := range headingChildren {
 						if ast.NodeList == headingChild.Type {
 							for subLi := headingChild.FirstChild; nil != subLi; subLi = subLi.Next {
-								subLiBlock, _ := getBlock(subLi.ID)
+								subLiBlock, _ := getBlock(subLi.ID, tree)
 								var subFirst *sql.Block
 								if 3 != subLi.ListData.Typ {
 									subFirst = sql.GetBlock(subLi.FirstChild.ID)
@@ -319,7 +367,7 @@ func toSubTree(blocks []*Block, keyword string) (ret []*Path) {
 								subRoot.Blocks = append(subRoot.Blocks, subLiBlock)
 							}
 						} else {
-							subBlock, _ := getBlock(headingChild.ID)
+							subBlock, _ := getBlock(headingChild.ID, tree)
 							subBlock.Depth = 2
 							subRoot.Blocks = append(subRoot.Blocks, subBlock)
 						}

@@ -37,12 +37,7 @@ export const fixTableRange = (range: Range) => {
             } else if (startCellElement &&
                 // 不能包含自身元素，否则对 cell 中的部分文字两次高亮后就会选中整个 cell。 https://github.com/siyuan-note/siyuan/issues/3649 第二点
                 !startCellElement.contains(range.endContainer)) {
-                const cloneRange = range.cloneRange();
-                range.setEnd(startCellElement.lastChild, startCellElement.lastChild.textContent.length);
-                if (range.toString() === "" && endCellElement) {
-                    range.setStart(endCellElement.firstChild, 0);
-                    range.setEnd(cloneRange.endContainer, cloneRange.endOffset);
-                }
+                setLastNodeRange(startCellElement, range, false);
             }
         }
     }
@@ -103,6 +98,8 @@ export const selectAll = (protyle: IProtyle, nodeElement: Element, range: Range)
                         lastChild = lastChild.lastChild as HTMLElement;
                     }
                 }
+                // 列表回车后，左键全选无法选中
+                focusByRange(range);
                 protyle.toolbar.render(protyle, range);
                 countSelectWord(range, protyle.block.rootID);
                 return true;
@@ -121,6 +118,17 @@ export const selectAll = (protyle: IProtyle, nodeElement: Element, range: Range)
         ids.push(item.getAttribute("data-node-id"));
     });
     countBlockWord(ids, protyle.block.rootID);
+};
+
+// https://github.com/siyuan-note/siyuan/issues/8196
+export const getRangeByPoint = (x: number, y: number) => {
+    const range = document.caretRangeFromPoint(x, y);
+    const imgElement = hasClosestByAttribute(range.startContainer, "data-type", "img");
+    if (imgElement) {
+        range.setStart(imgElement.nextSibling, 0);
+        range.collapse();
+    }
+    return range;
 };
 
 export const getEditorRange = (element: Element) => {
@@ -166,9 +174,19 @@ export const getSelectionPosition = (nodeElement: Element, range?: Range) => {
     if (range.getClientRects().length === 0) {
         if (range.startContainer.nodeType === 3) {
             // 空行时，会出现没有 br 的情况，需要根据父元素 <p> 获取位置信息
-            const parent = range.startContainer.parentElement;
-            if (parent && parent.getClientRects().length > 0) {
-                cursorRect = parent.getClientRects()[0];
+            const parentRects = range.startContainer.parentElement?.getClientRects();
+            // 连续粘贴图片时
+            const previousRects = (range.startContainer as Element).previousElementSibling?.getClientRects();
+            if (parentRects.length > 0 || previousRects.length > 0) {
+                if (parentRects.length === 0 || (previousRects &&
+                    previousRects.length > 0 && parentRects[0].top < previousRects[previousRects.length - 1].bottom)) {
+                    cursorRect = {
+                        left: previousRects[previousRects.length - 1].left,
+                        top: previousRects[previousRects.length - 1].bottom,
+                    };
+                } else {
+                    cursorRect = parentRects[0];
+                }
             } else {
                 return {
                     left: 0,
@@ -196,15 +214,22 @@ export const getSelectionPosition = (nodeElement: Element, range?: Range) => {
                 if (!parentElement) {
                     parentElement = range.startContainer.childNodes[range.startOffset - 1] as HTMLElement;
                 }
-                while (!parentElement.getClientRects || (parentElement.getClientRects && parentElement.getClientRects().length === 0)) {
-                    parentElement = parentElement.parentElement;
+                if (!parentElement) {
+                    cursorRect = range.getBoundingClientRect();
+                } else {
+                    while (!parentElement.getClientRects || (parentElement.getClientRects && parentElement.getClientRects().length === 0)) {
+                        parentElement = parentElement.parentElement;
+                    }
+                    cursorRect = parentElement.getClientRects()[0];
                 }
-                cursorRect = parentElement.getClientRects()[0];
             }
         }
     } else {
         const rects = range.getClientRects(); // 由于长度过长折行，光标在行首时有多个 rects https://github.com/siyuan-note/siyuan/issues/6156
-        cursorRect = rects[rects.length - 1];
+        return {    // 选中多行不应遮挡第一行 https://github.com/siyuan-note/siyuan/issues/7541
+            left: rects[rects.length - 1].left,
+            top: rects[0].top
+        };
     }
 
     return {
@@ -213,7 +238,7 @@ export const getSelectionPosition = (nodeElement: Element, range?: Range) => {
     };
 };
 
-export const getSelectionOffset = (selectElement: Element, editorElement?: Element, range?: Range) => {
+export const getSelectionOffset = (selectElement: Node, editorElement?: Element, range?: Range) => {
     const position = {
         end: 0,
         start: 0,
@@ -331,7 +356,7 @@ export const focusByOffset = (container: Element, start: number, end: number) =>
     const editElement = getContenteditableElement(container);
     if (editElement) {
         container = editElement;
-    } else if (isNotEditBlock(container)) {
+    } else if (isNotEditBlock(container) || container.classList.contains("av")) {
         return focusBlock(container);
     }
     let startNode;
@@ -450,6 +475,12 @@ export const focusByRange = (range: Range) => {
     if (!range) {
         return;
     }
+
+    const startNode = range.startContainer.childNodes[range.startOffset] as HTMLElement;
+    if (startNode && startNode.nodeType !== 3 && ["INPUT", "TEXTAREA"].includes(startNode.tagName)) {
+        startNode.focus();
+        return;
+    }
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
@@ -508,6 +539,17 @@ export const focusBlock = (element: Element, parentElement?: HTMLElement, toStar
             focusSideBlock(element);
             return false;
         }
+    } else if (element.classList.contains("av")) {
+        const avTitleElement = element.querySelector(".av__title");
+        if (avTitleElement) {
+            const range = document.createRange();
+            range.selectNodeContents(avTitleElement);
+            range.collapse();
+            focusByRange(range);
+            return range;
+        } else {
+            return false;
+        }
     }
     let cursorElement;
     if (toStart) {
@@ -535,8 +577,28 @@ export const focusBlock = (element: Element, parentElement?: HTMLElement, toStar
             range = setFirstNodeRange(cursorElement, getEditorRange(cursorElement));
             range.collapse(true);
         } else {
+            let focusHljs = false;
             // 定位到末尾 https://github.com/siyuan-note/siyuan/issues/5982
-            range = setLastNodeRange(cursorElement, getEditorRange(cursorElement));
+            if (cursorElement.classList.contains("hljs")) {
+                // 代码块末尾定位需在 /n 之前 https://github.com/siyuan-note/siyuan/issues/9141，https://github.com/siyuan-note/siyuan/issues/9189
+                let lastNode = cursorElement.lastChild;
+                if (!lastNode) {
+                    // 粘贴 ``` 报错
+                    cursorElement.innerHTML = "\n";
+                    lastNode = cursorElement.lastChild;
+                }
+                if (lastNode.textContent === "" && lastNode.nodeType === 3) {
+                    lastNode = hasPreviousSibling(cursorElement.lastChild) as HTMLElement;
+                }
+                if (lastNode && lastNode.textContent.endsWith("\n")) {
+                    range = getEditorRange(cursorElement);
+                    range.setStart(lastNode, lastNode.textContent.length - 1);
+                    focusHljs = true;
+                }
+            }
+            if (!focusHljs) {
+                range = setLastNodeRange(cursorElement, getEditorRange(cursorElement));
+            }
             range.collapse(false);
         }
         focusByRange(range);

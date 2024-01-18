@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -41,6 +40,11 @@ func CreateBox(name string) (id string, err error) {
 		err = errors.New(Conf.Language(106))
 		return
 	}
+
+	WaitForWritingFiles()
+
+	createDocLock.Lock()
+	defer createDocLock.Unlock()
 
 	id = ast.NewNodeID()
 	boxLocalPath := filepath.Join(util.DataDir, id)
@@ -72,14 +76,17 @@ func RenameBox(boxID, name string) (err error) {
 }
 
 func RemoveBox(boxID string) (err error) {
-	WaitForWritingFiles()
-
 	if util.IsReservedFilename(boxID) {
 		return errors.New(fmt.Sprintf("can not remove [%s] caused by it is a reserved file", boxID))
 	}
 
+	WaitForWritingFiles()
+
+	createDocLock.Lock()
+	defer createDocLock.Unlock()
+
 	localPath := filepath.Join(util.DataDir, boxID)
-	if !gulu.File.IsExist(localPath) {
+	if !filelock.IsExist(localPath) {
 		return
 	}
 	if !gulu.File.IsDir(localPath) {
@@ -115,7 +122,7 @@ func Unmount(boxID string) {
 	WaitForWritingFiles()
 
 	unmount0(boxID)
-	evt := util.NewCmdResult("unmount", 0, util.PushModeBroadcast, 0)
+	evt := util.NewCmdResult("unmount", 0, util.PushModeBroadcast)
 	evt.Data = map[string]interface{}{
 		"box": boxID,
 	}
@@ -123,23 +130,21 @@ func Unmount(boxID string) {
 }
 
 func unmount0(boxID string) {
-	for _, box := range Conf.GetOpenedBoxes() {
-		if box.ID == boxID {
-			boxConf := box.GetConf()
-			boxConf.Closed = true
-			box.SaveConf(boxConf)
-			box.Unindex()
-			debug.FreeOSMemory()
-			return
-		}
+	box := Conf.Box(boxID)
+	if nil == box {
+		return
 	}
+
+	boxConf := box.GetConf()
+	boxConf.Closed = true
+	box.SaveConf(boxConf)
+	box.Unindex()
 }
 
 func Mount(boxID string) (alreadyMount bool, err error) {
 	WaitForWritingFiles()
 
 	localPath := filepath.Join(util.DataDir, boxID)
-
 	var reMountGuide bool
 	if IsUserGuide(boxID) {
 		// 重新挂载帮助文档
@@ -165,14 +170,14 @@ func Mount(boxID string) (alreadyMount bool, err error) {
 			box.SaveConf(boxConf)
 		}
 
-		if Conf.Newbie {
-			Conf.Newbie = false
+		if Conf.OpenHelp {
+			Conf.OpenHelp = false
 			Conf.Save()
 		}
 
 		go func() {
-			time.Sleep(time.Second * 5)
-			util.PushErrMsg(Conf.Language(52), 30000)
+			time.Sleep(time.Second * 3)
+			util.PushErrMsg(Conf.Language(52), 7000)
 
 			// 每次打开帮助文档时自动检查版本更新并提醒 https://github.com/siyuan-note/siyuan/issues/5057
 			time.Sleep(time.Second * 10)
@@ -195,12 +200,34 @@ func Mount(boxID string) (alreadyMount bool, err error) {
 	boxConf.Closed = false
 	box.SaveConf(boxConf)
 
-	box.Index(false)
-	IndexRefs()
+	box.Index()
 	// 缓存根一级的文档树展开
-	ListDocTree(box.ID, "/", Conf.FileTree.Sort)
-	treenode.SaveBlockTree()
+	ListDocTree(box.ID, "/", util.SortModeUnassigned, false, false, Conf.FileTree.MaxListCount)
+	treenode.SaveBlockTree(false)
 	util.ClearPushProgress(100)
+
+	if IsUserGuide(boxID) {
+		go func() {
+			var startID string
+			i := 0
+			for ; i < 70; i++ {
+				time.Sleep(100 * time.Millisecond)
+				guideStartID := map[string]string{
+					"20210808180117-czj9bvb": "20200812220555-lj3enxa",
+					"20211226090932-5lcq56f": "20211226115423-d5z1joq",
+					"20210808180117-6v0mkxr": "20200923234011-ieuun1p",
+				}
+				startID = guideStartID[boxID]
+				if nil != treenode.GetBlockTree(startID) {
+					util.BroadcastByType("main", "openFileById", 0, "", map[string]interface{}{
+						"id": startID,
+					})
+					break
+				}
+			}
+		}()
+	}
+
 	if reMountGuide {
 		return true, nil
 	}

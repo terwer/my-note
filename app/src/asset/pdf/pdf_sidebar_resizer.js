@@ -53,7 +53,8 @@ class PDFSidebarResizer {
    * @type {number}
    */
   get outerContainerWidth() {
-    return (this._outerContainerWidth ||= this.outerContainer.clientWidth);
+    // NOTE
+    return this.outerContainer.clientWidth;
   }
 
   /**
@@ -84,7 +85,8 @@ class PDFSidebarResizer {
    * @private
    */
   _mouseMove(evt) {
-    let width = evt.clientX;
+    // NOTE
+    let width = evt.clientX - this.outerContainer.getBoundingClientRect().left;
     // For sidebar resizing to work correctly in RTL mode, invert the width.
     if (this.isRTL) {
       width = this.outerContainerWidth - width;

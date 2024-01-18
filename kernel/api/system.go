@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 package api
 
 import (
+	"github.com/88250/lute"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,6 +32,63 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func getNetwork(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	maskedConf, err := model.GetMaskedConf()
+	if nil != err {
+		ret.Code = -1
+		ret.Msg = "get conf failed: " + err.Error()
+		return
+	}
+
+	ret.Data = map[string]interface{}{
+		"proxy": maskedConf.System.NetworkProxy,
+	}
+}
+
+func getChangelog(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	data := map[string]interface{}{"show": false, "html": ""}
+	ret.Data = data
+
+	changelogsDir := filepath.Join(util.WorkingDir, "changelogs")
+	if !gulu.File.IsDir(changelogsDir) {
+		return
+	}
+
+	if !model.Conf.ShowChangelog {
+		return
+	}
+
+	changelogPath := filepath.Join(changelogsDir, "v"+util.Ver, "v"+util.Ver+"_"+model.Conf.Lang+".md")
+	if !gulu.File.IsExist(changelogPath) {
+		changelogPath = filepath.Join(changelogsDir, "v"+util.Ver, "v"+util.Ver+".md")
+		if !gulu.File.IsExist(changelogPath) {
+			logging.LogErrorf("changelog not found: %s", changelogPath)
+			return
+		}
+	}
+
+	contentData, err := os.ReadFile(changelogPath)
+	if nil != err {
+		logging.LogErrorf("read changelog failed: %s", err)
+		return
+	}
+
+	model.Conf.ShowChangelog = false
+	luteEngine := lute.New()
+	htmlContent := luteEngine.MarkdownStr("", string(contentData))
+	htmlContent = util.LinkTarget(htmlContent, "")
+
+	data["show"] = true
+	data["html"] = htmlContent
+	ret.Data = data
+}
 
 func getEmojiConf(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
@@ -82,6 +140,10 @@ func getEmojiConf(c *gin.Context) {
 					}
 
 					for _, subCustomEmoji := range subCustomEmojis {
+						if subCustomEmoji.IsDir() {
+							continue
+						}
+
 						name = subCustomEmoji.Name()
 						if strings.HasPrefix(name, ".") {
 							continue
@@ -141,7 +203,6 @@ func exportLog(c *gin.Context) {
 	}
 }
 
-var start = true // 是否是启动
 func getConf(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -153,19 +214,23 @@ func getConf(c *gin.Context) {
 		return
 	}
 
-	ret.Data = map[string]interface{}{
-		"conf":  maskedConf,
-		"start": start,
+	if !maskedConf.Sync.Enabled || (0 == maskedConf.Sync.Provider && !model.IsSubscriber()) {
+		maskedConf.Sync.Stat = model.Conf.Language(53)
 	}
 
-	if start {
-		start = false
+	ret.Data = map[string]interface{}{
+		"conf":  maskedConf,
+		"start": !util.IsUILoaded,
 	}
 }
 
 func setUILayout(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
+
+	if util.ReadOnly {
+		return
+	}
 
 	arg, ok := util.JsonArg(c, ret)
 	if !ok {
@@ -186,7 +251,21 @@ func setUILayout(c *gin.Context) {
 		return
 	}
 
-	model.Conf.UILayout = uiLayout
+	model.Conf.SetUILayout(uiLayout)
+	model.Conf.Save()
+}
+
+func setAPIToken(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	token := arg["token"].(string)
+	model.Conf.Api.Token = token
 	model.Conf.Save()
 }
 
@@ -208,12 +287,29 @@ func setAccessAuthCode(c *gin.Context) {
 	model.Conf.Save()
 
 	session := util.GetSession(c)
-	session.AccessAuthCode = aac
+	workspaceSession := util.GetWorkspaceSession(session)
+	workspaceSession.AccessAuthCode = aac
 	session.Save(c)
 	go func() {
 		time.Sleep(200 * time.Millisecond)
 		util.ReloadUI()
 	}()
+	return
+}
+
+func setFollowSystemLockScreen(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	lockScreenMode := int(arg["lockScreenMode"].(float64))
+
+	model.Conf.System.LockScreenMode = lockScreenMode
+	model.Conf.Save()
 	return
 }
 
@@ -285,23 +381,6 @@ func setNetworkServe(c *gin.Context) {
 	time.Sleep(time.Second * 3)
 }
 
-func setFixedPort(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	fixedPort := arg["fixedPort"].(bool)
-	model.Conf.System.FixedPort = fixedPort
-	model.Conf.Save()
-
-	util.PushMsg(model.Conf.Language(42), 1000*15)
-	time.Sleep(time.Second * 3)
-}
-
 func setGoogleAnalytics(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
@@ -331,6 +410,20 @@ func setUploadErrLog(c *gin.Context) {
 
 	util.PushMsg(model.Conf.Language(42), 1000*15)
 	time.Sleep(time.Second * 3)
+}
+
+func setAutoLaunch(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	autoLaunch := arg["autoLaunch"].(bool)
+	model.Conf.System.AutoLaunch = autoLaunch
+	model.Conf.Save()
 }
 
 func setDownloadInstallPkg(c *gin.Context) {
@@ -366,8 +459,9 @@ func setNetworkProxy(c *gin.Context) {
 	}
 	model.Conf.Save()
 
-	util.PushMsg(model.Conf.Language(42), 1000*15)
-	time.Sleep(time.Second * 3)
+	proxyURL := model.Conf.System.NetworkProxy.String()
+	util.SetNetworkProxy(proxyURL)
+	util.PushMsg(model.Conf.Language(102), 3000)
 }
 
 func addUIProcess(c *gin.Context) {

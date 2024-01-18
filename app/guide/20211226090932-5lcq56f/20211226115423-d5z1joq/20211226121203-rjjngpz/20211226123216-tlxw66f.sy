@@ -5,7 +5,7 @@
 	"Properties": {
 		"id": "20211226123216-tlxw66f",
 		"title": "視窗和分頁",
-		"updated": "20211228143144"
+		"updated": "20230630130211"
 	},
 	"Children": [
 		{
@@ -55,12 +55,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226123228-ueb09c1",
-				"updated": "20211228134922"
+				"updated": "20230630130211"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "除了分畫面作業，分頁也支援拖拽，這樣我們能夠隨心所欲地布置整個界面，在自己最舒服的布局下記錄筆記和整理知識。"
+					"Data": "除了並排顯示，分頁也支援拖拽，這樣我們能夠隨心所欲地布置整個界面，在自己最舒服的佈局下記錄筆記和整理知識。"
 				}
 			]
 		},
@@ -69,7 +69,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226123228-679kzyd",
-				"updated": "20211226145331"
+				"updated": "20230128004525"
 			},
 			"Children": [
 				{
@@ -77,47 +77,26 @@
 					"Data": "如果你正在使用的設備螢幕較小，可以考慮"
 				},
 				{
-					"Type": "NodeBlockRef",
-					"Data": "span",
-					"Children": [
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeOpenParen"
-						},
-						{
-							"Type": "NodeBlockRefID",
-							"Data": "20211226122523-rl8356a"
-						},
-						{
-							"Type": "NodeBlockRefSpace"
-						},
-						{
-							"Type": "NodeBlockRefText",
-							"Data": "通過瀏覽器使用"
-						},
-						{
-							"Type": "NodeCloseParen"
-						},
-						{
-							"Type": "NodeCloseParen"
-						}
-					]
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20211226122523-rl8356a",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "通過瀏覽器使用"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "，這樣就能通過瀏覽器實例進行界面切換。"
+					"Data": "，這樣就能通過瀏覽器實例進行整體界面切換。如果你只需要將分頁轉換為獨立的視窗，可以在分頁上右鍵點擊 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "移動到新窗口"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​，或者將分頁拖拽到當前視窗之外的地方後釋放拖拽，這樣也能將該分頁轉換為獨立的視窗。"
 				}
 			]
-		},
-		{
-			"ID": "20211226124551-w39qoc6",
-			"Type": "NodeParagraph",
-			"Properties": {
-				"id": "20211226124551-w39qoc6",
-				"updated": "20211226124551"
-			}
 		}
 	]
 }

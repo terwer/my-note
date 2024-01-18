@@ -1,6 +1,5 @@
 # Binaries for programs and plugins
 *.exe
-cloc.exe
 *.dll
 *.so
 *.dylib
@@ -8,6 +7,7 @@ cloc.exe
 *.jar
 *.syso
 .DS_Store
+.eslintcache
 app/node_modules
 app/stage/build
 app/build
@@ -35,7 +35,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# package
+# NPM Package
 package-lock.json
 yarn.lock
 

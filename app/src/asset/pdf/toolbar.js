@@ -17,7 +17,6 @@ import {
   animationStarted,
   DEFAULT_SCALE,
   DEFAULT_SCALE_VALUE,
-  docStyle,
   MAX_SCALE,
   MIN_SCALE,
   noContextMenuHandler,
@@ -64,38 +63,36 @@ class Toolbar {
       { element: options.next, eventName: "nextpage" },
       { element: options.zoomIn, eventName: "zoomin" },
       { element: options.zoomOut, eventName: "zoomout" },
-      // NOTE
-      // { element: options.print, eventName: "print" },
-      // { element: options.download, eventName: "download" },
-      // {
-      //   element: options.editorFreeTextButton,
-      //   eventName: "switchannotationeditormode",
-      //   eventDetails: {
-      //     get mode() {
-      //       const { classList } = options.editorFreeTextButton;
-      //       return classList.contains("toggled")
-      //         ? AnnotationEditorType.NONE
-      //         : AnnotationEditorType.FREETEXT;
-      //     },
-      //   },
-      // },
-      // {
-      //   element: options.editorInkButton,
-      //   eventName: "switchannotationeditormode",
-      //   eventDetails: {
-      //     get mode() {
-      //       const { classList } = options.editorInkButton;
-      //       return classList.contains("toggled")
-      //         ? AnnotationEditorType.NONE
-      //         : AnnotationEditorType.INK;
-      //     },
-      //   },
-      // },
+      { element: options.print, eventName: "print" },
+      { element: options.download, eventName: "download" },
+      {
+        element: options.editorFreeTextButton,
+        eventName: "switchannotationeditormode",
+        eventDetails: {
+          get mode() {
+            const { classList } = options.editorFreeTextButton;
+            return classList.contains("toggled")
+              ? AnnotationEditorType.NONE
+              : AnnotationEditorType.FREETEXT;
+          },
+        },
+      },
+      {
+        element: options.editorInkButton,
+        eventName: "switchannotationeditormode",
+        eventDetails: {
+          get mode() {
+            const { classList } = options.editorInkButton;
+            return classList.contains("toggled")
+              ? AnnotationEditorType.NONE
+              : AnnotationEditorType.INK;
+          },
+        },
+      },
     ];
-    // NOTE
-    // if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
-    //   this.buttons.push({ element: options.openFile, eventName: "openfile" });
-    // }
+    if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
+      this.buttons.push({ element: options.openFile, eventName: "openfile" });
+    }
     this.items = {
       numPages: options.numPages,
       pageNumber: options.pageNumber,
@@ -153,13 +150,7 @@ class Toolbar {
     for (const { element, eventName, eventDetails } of this.buttons) {
       element.addEventListener("click", evt => {
         if (eventName !== null) {
-          const details = { source: this };
-          if (eventDetails) {
-            for (const property in eventDetails) {
-              details[property] = eventDetails[property];
-            }
-          }
-          this.eventBus.dispatch(eventName, details);
+          this.eventBus.dispatch(eventName, { source: this, ...eventDetails });
         }
       });
     }
@@ -262,6 +253,7 @@ class Toolbar {
         items.pageNumber.type = "text";
       } else {
         items.pageNumber.type = "number";
+        // NOTE
         items.numPages.textContent =  "/ " + pagesCount;
       }
       items.pageNumber.max = pagesCount;
@@ -269,6 +261,7 @@ class Toolbar {
 
     if (this.hasPageLabels) {
       items.pageNumber.value = this.pageLabel;
+      // NOTE
       items.numPages.textContent = `(${pageNumber} / ${pagesCount})`
     } else {
       items.pageNumber.value = pageNumber;
@@ -318,15 +311,10 @@ class Toolbar {
 
     await animationStarted;
 
-    const style = getComputedStyle(items.scaleSelect),
-      scaleSelectContainerWidth = parseInt(
-        style.getPropertyValue("--scale-select-container-width"),
-        10
-      ),
-      scaleSelectOverflow = parseInt(
-        style.getPropertyValue("--scale-select-overflow"),
-        10
-      );
+    const style = getComputedStyle(items.scaleSelect);
+    const scaleSelectWidth = parseFloat(
+      style.getPropertyValue("--scale-select-width")
+    );
 
     // The temporary canvas is used to measure text length in the DOM.
     const canvas = document.createElement("canvas");
@@ -334,16 +322,19 @@ class Toolbar {
     ctx.font = `${style.fontSize} ${style.fontFamily}`;
 
     let maxWidth = 0;
-    for (const predefinedValue of predefinedValuesPromise) {
+    for (const predefinedValue of await predefinedValuesPromise) {
       const { width } = ctx.measureText(predefinedValue);
       if (width > maxWidth) {
         maxWidth = width;
       }
     }
-    maxWidth += 2 * scaleSelectOverflow;
+    // Account for the icon width, and ensure that there's always some spacing
+    // between the text and the icon.
+    maxWidth += 0.3 * scaleSelectWidth;
 
-    if (maxWidth > scaleSelectContainerWidth) {
-      docStyle.setProperty("--scale-select-container-width", `${maxWidth}px`);
+    if (maxWidth > scaleSelectWidth) {
+      const container = items.scaleSelect.parentNode;
+      container.style.setProperty("--scale-select-width", `${maxWidth}px`);
     }
     // Zeroing the width and height cause Firefox to release graphics resources
     // immediately, which can greatly reduce memory consumption.

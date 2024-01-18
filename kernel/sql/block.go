@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,9 @@ import (
 	"database/sql"
 
 	"github.com/siyuan-note/siyuan/kernel/cache"
+	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/siyuan/kernel/treenode"
+	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 type Block struct {
@@ -46,23 +49,83 @@ type Block struct {
 	Updated  string
 }
 
-func updateRootContent(tx *sql.Tx, content, updated, id string) {
+func updateRootContent(tx *sql.Tx, content, updated, id string) (err error) {
 	stmt := "UPDATE blocks SET content = ?, fcontent = ?, updated = ? WHERE id = ?"
-	if err := execStmtTx(tx, stmt, content, content, updated, id); nil != err {
+	if err = execStmtTx(tx, stmt, content, content, updated, id); nil != err {
 		return
 	}
 	stmt = "UPDATE blocks_fts SET content = ?, fcontent = ?, updated = ? WHERE id = ?"
-	if err := execStmtTx(tx, stmt, content, content, updated, id); nil != err {
+	if err = execStmtTx(tx, stmt, content, content, updated, id); nil != err {
 		return
 	}
-	stmt = "UPDATE blocks_fts_case_insensitive SET content = ?, fcontent = ?, updated = ? WHERE id = ?"
-	if err := execStmtTx(tx, stmt, content, content, updated, id); nil != err {
-		return
+	if !caseSensitive {
+		stmt = "UPDATE blocks_fts_case_insensitive SET content = ?, fcontent = ?, updated = ? WHERE id = ?"
+		if err = execStmtTx(tx, stmt, content, content, updated, id); nil != err {
+			return
+		}
 	}
 	removeBlockCache(id)
 	cache.RemoveBlockIAL(id)
+	return
 }
 
-func InsertBlock(tx *sql.Tx, block *Block, context map[string]interface{}) (err error) {
-	return insertBlocks(tx, []*Block{block}, context)
+func updateBlockContent(tx *sql.Tx, block *Block) (err error) {
+	stmt := "UPDATE blocks SET content = ? WHERE id = ?"
+	if err = execStmtTx(tx, stmt, block.Content, block.ID); nil != err {
+		tx.Rollback()
+		return
+	}
+	stmt = "UPDATE blocks_fts SET content = ? WHERE id = ?"
+	if err = execStmtTx(tx, stmt, block.Content, block.ID); nil != err {
+		tx.Rollback()
+		return
+	}
+	if !caseSensitive {
+		stmt = "UPDATE blocks_fts_case_insensitive SET content = ? WHERE id = ?"
+		if err = execStmtTx(tx, stmt, block.Content, block.ID); nil != err {
+			tx.Rollback()
+			return
+		}
+	}
+
+	putBlockCache(block)
+	return
+}
+
+func indexNode(tx *sql.Tx, id string) (err error) {
+	bt := treenode.GetBlockTree(id)
+	if nil == bt {
+		return
+	}
+
+	luteEngine := util.NewLute()
+	tree, _ := filesys.LoadTree(bt.BoxID, bt.Path, luteEngine)
+	if nil == tree {
+		return
+	}
+
+	node := treenode.GetNodeInTree(tree, id)
+	if nil == node {
+		return
+	}
+
+	content := treenode.NodeStaticContent(node, nil, true, indexAssetPath, true)
+	stmt := "UPDATE blocks SET content = ? WHERE id = ?"
+	if err = execStmtTx(tx, stmt, content, id); nil != err {
+		tx.Rollback()
+		return
+	}
+	stmt = "UPDATE blocks_fts SET content = ? WHERE id = ?"
+	if err = execStmtTx(tx, stmt, content, id); nil != err {
+		tx.Rollback()
+		return
+	}
+	if !caseSensitive {
+		stmt = "UPDATE blocks_fts_case_insensitive SET content = ? WHERE id = ?"
+		if err = execStmtTx(tx, stmt, content, id); nil != err {
+			tx.Rollback()
+			return
+		}
+	}
+	return
 }

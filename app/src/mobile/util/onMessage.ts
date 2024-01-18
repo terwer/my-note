@@ -1,27 +1,34 @@
 import {openMobileFileById} from "../editor";
-import {progressLoading, progressStatus, transactionError} from "../../dialog/processSystem";
+import {processSync, progressLoading, progressStatus, reloadSync, transactionError} from "../../dialog/processSystem";
+import {Constants} from "../../constants";
+import {App} from "../../index";
 
-export const onMessage = (data: IWebSocketData) => {
+export const onMessage = (app: App, data: IWebSocketData) => {
     if (data) {
         switch (data.cmd) {
+            case "syncMergeResult":
+                reloadSync(app, data.data);
+                break;
+            case "setConf":
+                window.siyuan.config = data.data;
+                break;
+            case "readonly":
+                window.siyuan.config.editor.readOnly = data.data;
+                break;
             case"progress":
                 progressLoading(data);
                 break;
             case"syncing":
-                if (document.querySelector("#menuSyncNow")) {
-                    if (data.code === 0) {
-                        document.querySelector("#menuSyncNow svg").classList.add("fn__rotate");
-                    } else {
-                        document.querySelector("#menuSyncNow svg").classList.remove("fn__rotate");
-                    }
+                processSync(data, app.plugins);
+                if (data.code === 1) {
+                    document.getElementById("toolbarSync").classList.add("fn__none");
                 }
                 break;
-            case "create":
-            case "createdailynote":
-                openMobileFileById(data.data.id);
+            case "openFileById":
+                openMobileFileById(app, data.data.id, [Constants.CB_GET_HL]);
                 break;
             case"txerr":
-                transactionError(data);
+                transactionError();
                 break;
             case"statusbar":
                 progressStatus(data);

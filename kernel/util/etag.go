@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -22,6 +22,8 @@ import (
 	"encoding/base64"
 	"io"
 	"os"
+
+	"github.com/siyuan-note/filelock"
 )
 
 // 以下是七牛云 Hash 算法实现 https://github.com/qiniu/qetag/blob/master/qetag.go
@@ -53,11 +55,11 @@ func GetEtagByHandle(f io.Reader, size int64) (etag string, err error) {
 }
 
 func GetEtag(filename string) (etag string, err error) {
-	f, err := os.Open(filename)
+	f, err := filelock.OpenFile(filename, os.O_RDONLY, 0644)
 	if err != nil {
 		return
 	}
-	defer f.Close()
+	defer filelock.CloseFile(f)
 
 	fi, err := f.Stat()
 	if err != nil {

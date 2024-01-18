@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -35,8 +35,8 @@ func AutoSpace(rootID string) (err error) {
 		return
 	}
 
-	util.PushEndlessProgress(Conf.Language(116))
-	defer util.ClearPushProgress(100)
+	util.PushProtyleLoading(rootID, Conf.Language(116))
+	defer util.PushProtyleReload(rootID)
 
 	WaitForWritingFiles()
 
@@ -46,8 +46,6 @@ func AutoSpace(rootID string) (err error) {
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if entering {
 			switch n.Type {
-			case ast.NodeStrong, ast.NodeEmphasis, ast.NodeStrikethrough, ast.NodeUnderline:
-				luteEngine.MergeSameSpan(n)
 			case ast.NodeTextMark:
 				luteEngine.MergeSameTextMark(n)
 			}
@@ -107,5 +105,5 @@ func generateFormatHistory(tree *parse.Tree) {
 		return
 	}
 
-	indexHistoryDir(filepath.Base(historyDir), NewLute())
+	indexHistoryDir(filepath.Base(historyDir), util.NewLute())
 }

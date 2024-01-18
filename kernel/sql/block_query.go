@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ package sql
 import (
 	"bytes"
 	"database/sql"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,10 +27,27 @@ import (
 	"github.com/88250/lute/ast"
 	"github.com/88250/vitess-sqlparser/sqlparser"
 	"github.com/emirpasic/gods/sets/hashset"
+	sqlparser2 "github.com/rqlite/sql"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func QueryEmptyContentEmbedBlocks() (ret []*Block) {
+	stmt := "SELECT * FROM blocks WHERE type = 'query_embed' AND content = ''"
+	rows, err := query(stmt)
+	if nil != err {
+		logging.LogErrorf("sql query [%s] failed: %s", stmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if block := scanBlockRows(rows); nil != block {
+			ret = append(ret, block)
+		}
+	}
+	return
+}
 
 func queryBlockHashes(rootID string) (ret map[string]string) {
 	stmt := "SELECT id, hash FROM blocks WHERE root_id = ?"
@@ -77,25 +95,6 @@ func (block *Block) IsContainerBlock() bool {
 		return true
 	}
 	return false
-}
-
-func IsBlockFolded(id string) (ret bool) {
-	sqlStmt := "SELECT parent_id, ial FROM blocks WHERE id = ? AND type != 'd'"
-	for i := 0; i < 64; i++ {
-		row := queryRow(sqlStmt, id)
-		var pid, ial string
-		if err := row.Scan(&pid, &ial); nil != err {
-			if sql.ErrNoRows != err {
-				logging.LogErrorf("query scan field failed: %s", err)
-			}
-			return
-		}
-		id = pid
-		if strings.Contains(ial, "fold=\"1\"") {
-			return true
-		}
-	}
-	return
 }
 
 func queryBlockChildrenIDs(id string) (ret []string) {
@@ -250,7 +249,11 @@ func queryAliases() (ret []string) {
 func queryDocIDsByTitle(title string, excludeIDs []string) (ret []string) {
 	ret = []string{}
 	notIn := "('" + strings.Join(excludeIDs, "','") + "')"
-	sqlStmt := "SELECT id FROM blocks WHERE type = 'd' AND content = ? AND id NOT IN " + notIn + " LIMIT ?"
+
+	sqlStmt := "SELECT id FROM blocks WHERE type = 'd' AND content LIKE ? AND id NOT IN " + notIn + " LIMIT ?"
+	if caseSensitive {
+		sqlStmt = "SELECT id FROM blocks WHERE type = 'd' AND content = ? AND id NOT IN " + notIn + " LIMIT ?"
+	}
 	rows, err := query(sqlStmt, title, 32)
 	if nil != err {
 		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
@@ -273,8 +276,8 @@ func queryDocIDsByTitle(title string, excludeIDs []string) (ret []string) {
 
 func queryDocTitles() (ret []string) {
 	ret = []string{}
-	sqlStmt := "SELECT content FROM blocks WHERE type = 'd' LIMIT ?"
-	rows, err := query(sqlStmt, 10240)
+	sqlStmt := "SELECT content FROM blocks WHERE type = 'd'"
+	rows, err := query(sqlStmt)
 	if nil != err {
 		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
 		return
@@ -377,7 +380,55 @@ func QueryBookmarkLabels() (ret []string) {
 	return
 }
 
-func Query(stmt string) (ret []map[string]interface{}, err error) {
+func QueryNoLimit(stmt string) (ret []map[string]interface{}, err error) {
+	return queryRawStmt(stmt, math.MaxInt)
+}
+
+func Query(stmt string, limit int) (ret []map[string]interface{}, err error) {
+	// Kernel API `/api/query/sql` support `||` operator https://github.com/siyuan-note/siyuan/issues/9662
+	// 这里为了支持 || 操作符，使用了另一个 sql 解析器，但是这个解析器无法处理 UNION https://github.com/siyuan-note/siyuan/issues/8226
+	// 考虑到 UNION 的使用场景不多，这里还是以支持 || 操作符为主
+	p := sqlparser2.NewParser(strings.NewReader(stmt))
+	parsedStmt2, err := p.ParseStatement()
+	if nil != err {
+		if !strings.Contains(stmt, "||") {
+			// 这个解析器无法处理 || 连接字符串操作符
+			parsedStmt, err2 := sqlparser.Parse(stmt)
+			if nil != err2 {
+				return queryRawStmt(stmt, limit)
+			}
+
+			switch parsedStmt.(type) {
+			case *sqlparser.Select:
+				limitClause := getLimitClause(parsedStmt, limit)
+				slct := parsedStmt.(*sqlparser.Select)
+				slct.Limit = limitClause
+				stmt = sqlparser.String(slct)
+			case *sqlparser.Union:
+				// Kernel API `/api/query/sql` support `UNION` statement https://github.com/siyuan-note/siyuan/issues/8226
+				limitClause := getLimitClause(parsedStmt, limit)
+				union := parsedStmt.(*sqlparser.Union)
+				union.Limit = limitClause
+				stmt = sqlparser.String(union)
+			default:
+				return queryRawStmt(stmt, limit)
+			}
+		} else {
+			return queryRawStmt(stmt, limit)
+		}
+	} else {
+		switch parsedStmt2.(type) {
+		case *sqlparser2.SelectStatement:
+			slct := parsedStmt2.(*sqlparser2.SelectStatement)
+			if nil == slct.LimitExpr {
+				slct.LimitExpr = &sqlparser2.NumberLit{Value: strconv.Itoa(limit)}
+			}
+			stmt = slct.String()
+		default:
+			return queryRawStmt(stmt, limit)
+		}
+	}
+
 	ret = []map[string]interface{}{}
 	rows, err := query(stmt)
 	if nil != err {
@@ -412,11 +463,79 @@ func Query(stmt string) (ret []map[string]interface{}, err error) {
 	return
 }
 
+func getLimitClause(parsedStmt sqlparser.Statement, limit int) (ret *sqlparser.Limit) {
+	switch parsedStmt.(type) {
+	case *sqlparser.Select:
+		slct := parsedStmt.(*sqlparser.Select)
+		if nil != slct.Limit {
+			ret = slct.Limit
+		}
+	case *sqlparser.Union:
+		union := parsedStmt.(*sqlparser.Union)
+		if nil != union.Limit {
+			ret = union.Limit
+		}
+	}
+
+	if nil == ret || nil == ret.Rowcount {
+		ret = &sqlparser.Limit{
+			Rowcount: &sqlparser.SQLVal{
+				Type: sqlparser.IntVal,
+				Val:  []byte(strconv.Itoa(limit)),
+			},
+		}
+	}
+	return
+}
+
+func queryRawStmt(stmt string, limit int) (ret []map[string]interface{}, err error) {
+	rows, err := query(stmt)
+	if nil != err {
+		if strings.Contains(err.Error(), "syntax error") {
+			return
+		}
+		return
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if nil != err || nil == cols {
+		return
+	}
+
+	noLimit := !containsLimitClause(stmt)
+	var count, errCount int
+	for rows.Next() {
+		columns := make([]interface{}, len(cols))
+		columnPointers := make([]interface{}, len(cols))
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		if err = rows.Scan(columnPointers...); nil != err {
+			return
+		}
+
+		m := make(map[string]interface{})
+		for i, colName := range cols {
+			val := columnPointers[i].(*interface{})
+			m[colName] = *val
+		}
+
+		ret = append(ret, m)
+		count++
+		if (noLimit && limit < count) || 0 < errCount {
+			break
+		}
+	}
+	return
+}
+
 func SelectBlocksRawStmtNoParse(stmt string, limit int) (ret []*Block) {
 	return selectBlocksRawStmt(stmt, limit)
 }
 
-func SelectBlocksRawStmt(stmt string, limit int) (ret []*Block) {
+func SelectBlocksRawStmt(stmt string, page, limit int) (ret []*Block) {
 	parsedStmt, err := sqlparser.Parse(stmt)
 	if nil != err {
 		return selectBlocksRawStmt(stmt, limit)
@@ -431,6 +550,26 @@ func SelectBlocksRawStmt(stmt string, limit int) (ret []*Block) {
 					Type: sqlparser.IntVal,
 					Val:  []byte(strconv.Itoa(limit)),
 				},
+			}
+			slct.Limit.Offset = &sqlparser.SQLVal{
+				Type: sqlparser.IntVal,
+				Val:  []byte(strconv.Itoa((page - 1) * limit)),
+			}
+		} else {
+			if nil != slct.Limit.Rowcount && 0 < len(slct.Limit.Rowcount.(*sqlparser.SQLVal).Val) {
+				limit, _ = strconv.Atoi(string(slct.Limit.Rowcount.(*sqlparser.SQLVal).Val))
+				if 0 >= limit {
+					limit = 32
+				}
+			}
+
+			slct.Limit.Rowcount = &sqlparser.SQLVal{
+				Type: sqlparser.IntVal,
+				Val:  []byte(strconv.Itoa(limit)),
+			}
+			slct.Limit.Offset = &sqlparser.SQLVal{
+				Type: sqlparser.IntVal,
+				Val:  []byte(strconv.Itoa((page - 1) * limit)),
 			}
 		}
 
@@ -470,13 +609,19 @@ func selectBlocksRawStmt(stmt string, limit int) (ret []*Block) {
 	}
 	defer rows.Close()
 
-	confLimit := !strings.Contains(strings.ToLower(stmt), " limit ")
+	noLimit := !containsLimitClause(stmt)
+	var count, errCount int
 	for rows.Next() {
+		count++
 		if block := scanBlockRows(rows); nil != block {
 			ret = append(ret, block)
-			if confLimit && limit < len(ret) {
-				break
-			}
+		} else {
+			logging.LogWarnf("raw sql query [%s] failed", stmt)
+			errCount++
+		}
+
+		if (noLimit && limit < count) || 0 < errCount {
+			break
 		}
 	}
 	return
@@ -489,6 +634,7 @@ func scanBlockRows(rows *sql.Rows) (ret *Block) {
 		return
 	}
 	ret = &block
+	putBlockCache(ret)
 	return
 }
 
@@ -501,6 +647,7 @@ func scanBlockRow(row *sql.Row) (ret *Block) {
 		return
 	}
 	ret = &block
+	putBlockCache(ret)
 	return
 }
 
@@ -530,31 +677,15 @@ func GetChildBlocks(parentID, condition string) (ret []*Block) {
 	return
 }
 
-func GetAllChildBlocks(rootID, condition string) (ret []*Block) {
+func GetAllChildBlocks(rootIDs []string, condition string) (ret []*Block) {
 	ret = []*Block{}
-	sqlStmt := "SELECT * FROM blocks AS ref WHERE ref.root_id = ?"
+	sqlStmt := "SELECT * FROM blocks AS ref WHERE ref.root_id IN ('" + strings.Join(rootIDs, "','") + "')"
 	if "" != condition {
 		sqlStmt += " AND " + condition
 	}
-	rows, err := query(sqlStmt, rootID)
+	rows, err := query(sqlStmt)
 	if nil != err {
 		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		if block := scanBlockRows(rows); nil != block {
-			ret = append(ret, block)
-		}
-	}
-	return
-}
-
-func GetRefExistedBlocks() (ret []*Block) {
-	stmt := "SELECT * FROM blocks WHERE markdown LIKE ? OR markdown LIKE ?"
-	rows, err := query(stmt, "%((20%", "%<<20%")
-	if nil != err {
-		logging.LogErrorf("sql query [%s] failed: %s", stmt, err)
 		return
 	}
 	defer rows.Close()
@@ -579,6 +710,38 @@ func GetBlock(id string) (ret *Block) {
 	return
 }
 
+func GetRootUpdated() (ret map[string]string, err error) {
+	rows, err := query("SELECT root_id, updated FROM `blocks` WHERE type = 'd'")
+	if nil != err {
+		logging.LogErrorf("sql query failed: %s", err)
+		return
+	}
+	defer rows.Close()
+
+	ret = map[string]string{}
+	for rows.Next() {
+		var rootID, updated string
+		rows.Scan(&rootID, &updated)
+		ret[rootID] = updated
+	}
+	return
+}
+
+func GetDuplicatedRootIDs(blocksTable string) (ret []string) {
+	rows, err := query("SELECT DISTINCT root_id FROM `" + blocksTable + "` GROUP BY id HAVING COUNT(*) > 1")
+	if nil != err {
+		logging.LogErrorf("sql query failed: %s", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		ret = append(ret, id)
+	}
+	return
+}
+
 func GetAllRootBlocks() (ret []*Block) {
 	stmt := "SELECT * FROM blocks WHERE type = 'd'"
 	rows, err := query(stmt)
@@ -596,11 +759,29 @@ func GetAllRootBlocks() (ret []*Block) {
 }
 
 func GetBlocks(ids []string) (ret []*Block) {
-	length := len(ids)
+	var notHitIDs []string
+	cached := map[string]*Block{}
+	for _, id := range ids {
+		b := getBlockCache(id)
+		if nil != b {
+			cached[id] = b
+		} else {
+			notHitIDs = append(notHitIDs, id)
+		}
+	}
+
+	if 1 > len(notHitIDs) {
+		for _, id := range ids {
+			ret = append(ret, cached[id])
+		}
+		return
+	}
+
+	length := len(notHitIDs)
 	stmtBuilder := bytes.Buffer{}
 	stmtBuilder.WriteString("SELECT * FROM blocks WHERE id IN (")
 	var args []interface{}
-	for i, id := range ids {
+	for i, id := range notHitIDs {
 		args = append(args, id)
 		stmtBuilder.WriteByte('?')
 		if i < length-1 {
@@ -617,9 +798,12 @@ func GetBlocks(ids []string) (ret []*Block) {
 	defer rows.Close()
 	for rows.Next() {
 		if block := scanBlockRows(rows); nil != block {
-			ret = append(ret, block)
 			putBlockCache(block)
+			cached[block.ID] = block
 		}
+	}
+	for _, id := range ids {
+		ret = append(ret, cached[id])
 	}
 	return
 }
@@ -633,10 +817,7 @@ func GetContainerText(container *ast.Node) string {
 			return ast.WalkContinue
 		}
 		switch n.Type {
-		case ast.NodeTagOpenMarker, ast.NodeTagCloseMarker:
-			buf.WriteByte('#')
-		case ast.NodeText, ast.NodeLinkText, ast.NodeFileAnnotationRefText, ast.NodeFootnotesRef,
-			ast.NodeCodeSpanContent, ast.NodeInlineMathContent, ast.NodeCodeBlockCode, ast.NodeMathBlockContent:
+		case ast.NodeText, ast.NodeLinkText, ast.NodeFileAnnotationRefText, ast.NodeCodeBlockCode, ast.NodeMathBlockContent:
 			buf.Write(n.Tokens)
 		case ast.NodeTextMark:
 			buf.WriteString(n.Content())
@@ -654,4 +835,10 @@ func GetContainerText(container *ast.Node) string {
 		return ast.WalkContinue
 	})
 	return buf.String()
+}
+
+func containsLimitClause(stmt string) bool {
+	return strings.Contains(strings.ToLower(stmt), " limit ") ||
+		strings.Contains(strings.ToLower(stmt), "\nlimit ") ||
+		strings.Contains(strings.ToLower(stmt), "\tlimit ")
 }

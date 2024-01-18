@@ -2,7 +2,7 @@ productName: "SiYuan"
 appId: "org.b3log.siyuan"
 asar: false
 compression: "normal"
-copyright: "© 2021 Yunnan Liandi Technology Co., Ltd."
+copyright: "© 2024 Yunnan Liandi Technology Co., Ltd."
 artifactName: "siyuan-${version}-${os}.${ext}"
 extraMetadata:
   main: "electron/main.js"
@@ -21,21 +21,25 @@ mac:
   extendInfo:
     - NSMicrophoneUsageDescription: "This app requires microphone access to record audio."
   entitlementsInherit: "../../entitlements.mas.plist"
+  minimumSystemVersion: "10.15"
   extraResources:
     - from: "kernel-darwin"
       to: "kernel"
   target:
     - target: "dmg"
+      arch: "x64"
 
 extraResources:
-  - from: "appearance/boot"
-    to: "appearance/boot"
-    filter: "!**/{.DS_Store}"
+  - from: "changelogs"
+    to: "changelogs"
   - from: "stage"
     to: "stage"
   - from: "guide"
     to: "guide"
     filter: "!**/{.DS_Store,.git,.gitignore,.idea}"
+  - from: "appearance/boot"
+    to: "appearance/boot"
+    filter: "!**/{.DS_Store}"
   - from: "appearance/icons"
     to: "appearance/icons"
     filter: "!**/{.DS_Store}"
@@ -51,5 +55,8 @@ extraResources:
   - from: "appearance/themes/daylight"
     to: "appearance/themes/daylight"
     filter: "!**/{.DS_Store,custom.css}"
+  - from: "appearance/fonts"
+    to: "appearance/fonts"
+    filter: "!**/{.DS_Store}"
   - from: "pandoc/pandoc-darwin-amd64.zip"
     to: "pandoc.zip"

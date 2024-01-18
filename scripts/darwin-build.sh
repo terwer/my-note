@@ -2,6 +2,9 @@
 
 echo 'Building UI'
 cd app
+pnpm config set electron_mirror=http://npm.taobao.org/mirrors/electron/
+pnpm config set electron_custom_dir 28.1.3
+pnpm i -D electron@latest
 pnpm install && pnpm run build
 cd ..
 

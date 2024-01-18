@@ -1,4 +1,4 @@
-// SiYuan - Build Your Eternal Digital Garden
+// SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
 // This program is free software: you can redistribute it and/or modify
@@ -54,6 +54,8 @@ func NewCommand(cmdStr string, cmdId float64, param map[string]interface{}, sess
 	switch cmdStr {
 	case "closews":
 		ret = &closews{baseCmd}
+	case "ping":
+		ret = &ping{baseCmd}
 	}
 
 	if nil == ret {
@@ -64,11 +66,7 @@ func NewCommand(cmdStr string, cmdId float64, param map[string]interface{}, sess
 	if pushModeParam := param["pushMode"]; nil != pushModeParam {
 		pushMode = util.PushMode(pushModeParam.(float64))
 	}
-	reloadPushMode := util.PushModeSingleSelf
-	if reloadPushModeParam := param["reloadPushMode"]; nil != reloadPushModeParam {
-		reloadPushMode = util.PushMode(reloadPushModeParam.(float64))
-	}
-	baseCmd.PushPayload = util.NewCmdResult(ret.Name(), cmdId, pushMode, reloadPushMode)
+	baseCmd.PushPayload = util.NewCmdResult(ret.Name(), cmdId, pushMode)
 	appId, _ := baseCmd.session.Get("app")
 	baseCmd.PushPayload.AppId = appId.(string)
 	sid, _ := baseCmd.session.Get("id")

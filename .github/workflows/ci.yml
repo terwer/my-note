@@ -1,11 +1,9 @@
-name: CI/CD For SiYuan
+name: CI/CD For my-note
 
 on:
   push:
     tags:
-      - '*-dev*'
-  workflow_dispatch:
-  
+      - 'v*'
 
 jobs:
 
@@ -37,7 +35,7 @@ jobs:
           changelog="${changelog//$'\r'/'%0D'}"
           echo "::set-output name=release_body::$changelog"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
 
       - name: Extract version from package.json
         uses: sergeysova/jq-action@v2
@@ -49,7 +47,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
           release_name: ${{ steps.release_info.outputs.release_version }}
           tag_name: ${{ github.ref }}
@@ -118,9 +116,9 @@ jobs:
       working-directory: ${{ github.workspace }}
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.19
+        go-version: "1.21"
 
     - name: Set up goversioninfo
       run: go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo && go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo
@@ -128,7 +126,6 @@ jobs:
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/kernel
       env:
         GO111MODULE: on
-        GOPROXY: https://goproxy.io
         CGO_ENABLED: 1
         GOOS: ${{ matrix.config.goos }}
         GOPATH: ${{ github.workspace }}/go
@@ -137,10 +134,10 @@ jobs:
     - name: Set up Node
       uses: actions/setup-node@v3
       with:
-        node-version: 16
+        node-version: 18
 
     - name: Install Node pnpm
-      run: npm install -g pnpm
+      run: npm install -g pnpm && pnpm config set registry https://registry.npmmirror.com/ && pnpm config set electron_mirror=https://cdn.npmmirror.com/binaries/electron/ && pnpm config set electron_custom_dir=28.1.3
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app
 
     - name: Install Node Dependencies
@@ -161,22 +158,17 @@ jobs:
       with:
         path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/kernel-linux
 
-    - name: Remove Kernel Directory for Windows 32bit 
-      uses: JesseTG/rm@v1.0.2
-      with:
-        path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/kernel32
-
     - name: Remove Kernel Directory for Windows
       uses: JesseTG/rm@v1.0.2
       with:
         path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/kernel
 
-    - name: Remove Kernel Directory for Mac
+    - name: Remove Kernel Directory for macOS
       uses: JesseTG/rm@v1.0.2
       with:
         path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/kernel-darwin
 
-    - name: Remove Kernel Directory for Mac M1
+    - name: Remove Kernel Directory for macOS ARM64
       uses: JesseTG/rm@v1.0.2
       with:
         path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/kernel-darwin-arm64
@@ -191,7 +183,6 @@ jobs:
       working-directory: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/kernel
       env:
         GO111MODULE: on
-        GOPROXY: https://goproxy.io
         CGO_ENABLED: 1
         GOOS: ${{ matrix.config.goos }}
         GOPATH: ${{ github.workspace }}/go
@@ -204,9 +195,9 @@ jobs:
     - name: Upload Release
       uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_name: siyuan-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
+        asset_name: my-note-${{ needs.create_release.outputs.release_version }}-${{ matrix.config.suffix }}
         asset_path: ${{ github.workspace }}/go/src/github.com/siyuan-note/siyuan/app/build/siyuan-${{ needs.create_release.outputs.version }}-${{ matrix.config.suffix }}
         asset_content_type: application/octet-stream
