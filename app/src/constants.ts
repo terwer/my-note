@@ -6,6 +6,14 @@ declare const NODE_ENV: string;
 const _SIYUAN_VERSION = SIYUAN_VERSION;
 const _NODE_ENV = NODE_ENV;
 
+const getFunctionKey = () => {
+    const fData: { [key: number]: string } = {};
+    for (let i = 1; i <= 32; i++) {
+        fData[i + 111] = "F" + i;
+    }
+    return fData;
+};
+
 export abstract class Constants {
     public static readonly SIYUAN_VERSION: string = _SIYUAN_VERSION;
     public static readonly NODE_ENV: string = _NODE_ENV;
@@ -32,6 +40,7 @@ export abstract class Constants {
     public static readonly SIYUAN_QUIT: string = "siyuan-quit";
     public static readonly SIYUAN_HOTKEY: string = "siyuan-hotkey";
     public static readonly SIYUAN_INIT: string = "siyuan-init";
+    public static readonly SIYUAN_READY_TO_SHOW: string = "siyuan-ready-to-show";
     public static readonly SIYUAN_SEND_WINDOWS: string = "siyuan-send-windows"; // 主窗口和各新窗口之间的通信，{cmd: "closetab"|"lockscreen"|"lockscreenByMode", data: {}})
     public static readonly SIYUAN_SAVE_CLOSE: string = "siyuan-save-close";
     public static readonly SIYUAN_AUTO_LAUNCH: string = "siyuan-auto-launch";
@@ -39,56 +48,107 @@ export abstract class Constants {
     public static readonly SIYUAN_OPEN_WORKSPACE: string = "siyuan-open-workspace";
     public static readonly SIYUAN_OPEN_URL: string = "siyuan-open-url";
     public static readonly SIYUAN_OPEN_WINDOW: string = "siyuan-open-window";
-    public static readonly SIYUAN_OPEN_FOLDER: string = "siyuan-open-folder";
     public static readonly SIYUAN_OPEN_FILE: string = "siyuan-open-file";
 
     public static readonly SIYUAN_EXPORT_PDF: string = "siyuan-export-pdf";
     public static readonly SIYUAN_EXPORT_NEWWINDOW: string = "siyuan-export-newwindow";
 
+    public static readonly SIYUAN_CONTEXT_MENU: string = "siyuan-context-menu";
+    public static readonly SIYUAN_CONFIRM_DIALOG: string = "siyuan-confirm-dialog";
+    public static readonly SIYUAN_ALERT_DIALOG: string = "siyuan-alert-dialog";
+
+    public static readonly SIYUAN_SHOW_WINDOW: string = "siyuan-show-window";
+
     // custom
-    public static readonly CUSTOM_SY_READONLY: string = "custom-sy-readonly";
-    public static readonly CUSTOM_SY_FULLWIDTH: string = "custom-sy-fullwidth";
     public static readonly CUSTOM_REMINDER_WECHAT: string = "custom-reminder-wechat";
     public static readonly CUSTOM_RIFF_DECKS: string = "custom-riff-decks";
+    public static readonly CUSTOM_SY_READONLY: string = "custom-sy-readonly";
+    public static readonly CUSTOM_SY_FULLWIDTH: string = "custom-sy-fullwidth";
+    public static readonly CUSTOM_SY_AV_VIEW: string = "custom-sy-av-view";
+    public static readonly CUSTOM_SY_TITLE_EMPTY: string = "custom-sy-title-empty";
 
     // size
+    public static readonly SIZE_DATABASE_MAZ_SIZE: number = 102400;
+    public static readonly SIZE_UPLOAD_TIP_SIZE: number = 268435456; // 256 M
     public static readonly SIZE_SCROLL_TB: number = 24;
     public static readonly SIZE_SCROLL_STEP: number = 256;
-    public static readonly SIZE_LINK_TEXT_MAX: number = 24;
+    public static readonly SIZE_LINK_TEXT_MAX: number = 64;
     public static readonly SIZE_TOOLBAR_HEIGHT: number = isMobile() ? 0 : 32;
     public static readonly SIZE_GET_MAX = 102400;
     public static readonly SIZE_UNDO = 64;
     public static readonly SIZE_TITLE = 512;
     public static readonly SIZE_EDITOR_WIDTH = 760;
-    public static readonly SIZE_ZOOM = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+    public static readonly SIZE_ZOOM = [
+        {
+            zoom: 0.67,
+            position: {x: 0, y: 2}
+        },
+        {
+            zoom: 0.75,
+            position: {x: 1, y: 4}
+        }, {
+            zoom: 0.8,
+            position: {x: 2, y: 4}
+        }, {
+            zoom: 0.9,
+            position: {x: 5, y: 6}
+        }, {
+            zoom: 1,
+            position: {x: 8, y: 8}
+        }, {
+            zoom: 1.1,
+            position: {x: 12, y: 9}
+        }, {
+            zoom: 1.25,
+            position: {x: 18, y: 12}
+        }, {
+            zoom: 1.5,
+            position: {x: 27, y: 16}
+        }, {
+            zoom: 1.75,
+            position: {x: 36, y: 20}
+        }, {
+            zoom: 2,
+            position: {x: 45, y: 23}
+        }, {
+            zoom: 2.5,
+            position: {x: 63, y: 31}
+        }, {
+            zoom: 3,
+            position: {x: 80, y: 39}
+        }];
 
     // ws callback
     public static readonly CB_MOVE_NOLIST = "cb-move-nolist";
-    public static readonly CB_MOUNT_REMOVE = "cb-mount-remove";
     public static readonly CB_GET_APPEND = "cb-get-append"; // 向下滚动加载
     public static readonly CB_GET_BEFORE = "cb-get-before"; // 向上滚动加载
     public static readonly CB_GET_UNCHANGEID = "cb-get-unchangeid"; // 上下滚动，定位时不修改 blockid
     public static readonly CB_GET_HL = "cb-get-hl"; // 高亮
     public static readonly CB_GET_FOCUS = "cb-get-focus"; // 光标定位
     public static readonly CB_GET_FOCUSFIRST = "cb-get-focusfirst"; // 动态定位到第一个块
-    public static readonly CB_GET_SETID = "cb-get-setid"; // 重置 blockid
+    public static readonly CB_GET_SETID = "cb-get-setid"; // 无折叠大纲点击 重置 blockid
+    public static readonly CB_GET_OUTLINE = "cb-get-outline"; // 大纲点击
     public static readonly CB_GET_ALL = "cb-get-all"; // 获取所有块
     public static readonly CB_GET_BACKLINK = "cb-get-backlink"; // 悬浮窗为传递型需展示上下文
     public static readonly CB_GET_UNUNDO = "cb-get-unundo"; // 不需要记录历史
     public static readonly CB_GET_SCROLL = "cb-get-scroll"; // 滚动到指定位置，用于直接打开文档，必有 rootID
+    public static readonly CB_GET_SEARCH = "cb-get-search"; // 通过搜索打开
     public static readonly CB_GET_CONTEXT = "cb-get-context"; // 包含上下文
     public static readonly CB_GET_ROOTSCROLL = "cb-get-rootscroll"; // 如果为 rootID 就滚动到指定位置，必有 rootID
     public static readonly CB_GET_HTML = "cb-get-html"; // 直接渲染，不需要再 /api/block/getDocInfo，否则搜索表格无法定位
     public static readonly CB_GET_HISTORY = "cb-get-history"; // 历史渲染
+    public static readonly CB_GET_OPENNEW = "cb-get-opennew"; // 编辑器只读后新建文件需为临时解锁状态 & https://github.com/siyuan-note/siyuan/issues/12197
+    public static readonly CB_GET_AV_NO_CREATE = "cb-get-av-no-create"; // 属性视图不自动创建
 
     // localstorage
     public static readonly LOCAL_ZOOM = "local-zoom";
     public static readonly LOCAL_SEARCHDATA = "local-searchdata";
     public static readonly LOCAL_SEARCHKEYS = "local-searchkeys";
     public static readonly LOCAL_SEARCHASSET = "local-searchasset";
+    public static readonly LOCAL_SEARCHUNREF = "local-searchunref";
     public static readonly LOCAL_DOCINFO = "local-docinfo"; // only mobile
     public static readonly LOCAL_DAILYNOTEID = "local-dailynoteid"; // string
-    public static readonly LOCAL_HISTORYNOTEID = "local-historynoteid"; // string
+    public static readonly LOCAL_HISTORY = "local-history";
     public static readonly LOCAL_CODELANG = "local-codelang"; // string
     public static readonly LOCAL_FONTSTYLES = "local-fontstyles";
     public static readonly LOCAL_EXPORTPDF = "local-exportpdf";
@@ -101,10 +161,19 @@ export abstract class Constants {
     public static readonly LOCAL_PLUGINTOPUNPIN = "local-plugintopunpin";
     public static readonly LOCAL_FLASHCARD = "local-flashcard";
     public static readonly LOCAL_FILEPOSITION = "local-fileposition";
+    public static readonly LOCAL_FILESPATHS = "local-filespaths";
     public static readonly LOCAL_DIALOGPOSITION = "local-dialogposition";
     public static readonly LOCAL_SESSION_FIRSTLOAD = "local-session-firstload";
+    public static readonly LOCAL_OUTLINE = "local-outline";
+    public static readonly LOCAL_PLUGIN_DOCKS = "local-plugin-docks";
+    public static readonly LOCAL_IMAGES = "local-images";
+    public static readonly LOCAL_EMOJIS = "local-emojis";
+    public static readonly LOCAL_MOVE_PATH = "local-move-path";
+    public static readonly LOCAL_RECENT_DOCS = "local-recent-docs";
+    public static readonly LOCAL_CLOSED_TABS = "local-closed-tabs";
 
     // dialog
+    public static readonly DIALOG_CONFIRM = "dialog-confirm";
     public static readonly DIALOG_OPENCARD = "dialog-opencard";
     public static readonly DIALOG_MAKECARD = "dialog-makecard";
     public static readonly DIALOG_VIEWCARDS = "dialog-viewcards";
@@ -161,23 +230,102 @@ export abstract class Constants {
     public static readonly DIALOG_OPENWORKSPACE = "dialog-openworkspace"; // 打开工作空间
     public static readonly DIALOG_SAVEWORKSPACE = "dialog-saveworkspace"; // 保存工作空间
 
+    // menu
+    public static readonly MENU_BAR_WORKSPACE = "barWorkspace"; // 顶栏主菜单
+    public static readonly MENU_BAR_PLUGIN = "topBarPlugin"; // 顶栏插件菜单
+    public static readonly MENU_BAR_ZOOM = "barZoom"; // 顶栏缩放菜单
+    public static readonly MENU_BAR_MODE = "barmode"; // 顶栏外观菜单
+    public static readonly MENU_BAR_MORE = "barmore"; // 顶栏更多菜单
+    public static readonly MENU_STATUS_HELP = "statusHelp"; // 状态栏帮助菜单
+    public static readonly MENU_STATUS_BACKGROUND_TASK = "statusBackgroundTask"; // 状态栏后台任务菜单
+    public static readonly MENU_DOCK = "menu-dock"; // 桌面端 dock 图标菜单
+    public static readonly MENU_DOCK_MOBILE = "dockMobileMenu"; // 移动端侧栏插件选项菜单
+
+    public static readonly MENU_BLOCK_SINGLE = "block-single"; // 单选块菜单
+    public static readonly MENU_BLOCK_MULTI = "block-multi"; // 多选块菜单
+    public static readonly MENU_TITLE = "titleMenu"; // 文档块菜单
+    public static readonly MENU_FROM_TITLE_PROTYLE = "title-protyle"; // 在 Protyle 触发的文档块菜单
+    public static readonly MENU_FROM_TITLE_BREADCRUMB = "title-breadcrumb"; // 在面包屑触发的文档块菜单
+    public static readonly MENU_BREADCRUMB_MORE = "breadcrumbMore"; // 面包屑更多菜单
+    public static readonly MENU_BREADCRUMB_MOBILE_PATH = "breadcrumb-mobile-path"; // 移动端面包屑菜单
+
+    public static readonly MENU_DOC_TREE_MORE = "docTreeMore"; // 侧栏文档树右键菜单
+    public static readonly MENU_FROM_DOC_TREE_MORE_NOTEBOOK = "tree-notebook"; // 侧栏文档树右键菜单，单个笔记本
+    public static readonly MENU_FROM_DOC_TREE_MORE_DOC = "tree-doc"; // 侧栏文档树右键菜单，单个文档
+    public static readonly MENU_FROM_DOC_TREE_MORE_ITEMS = "tree-items"; // 侧栏文档树右键菜单，多个文档或笔记本
+    public static readonly MENU_TAG = "tagMenu"; // 侧栏标签菜单
+    public static readonly MENU_BOOKMARK = "bookmarkMenu"; // 侧栏书签菜单
+    public static readonly MENU_OUTLINE_CONTEXT = "outline-context"; // 大纲标题右键菜单
+    public static readonly MENU_OUTLINE_EXPAND_LEVEL = "outline-expand-level"; // 大纲展开层级菜单
+
+    public static readonly MENU_AV_VIEW = "av-view"; // 数据库视图标题菜单
+    public static readonly MENU_AV_HEADER_CELL = "av-header-cell"; // 数据库字段标题菜单
+    public static readonly MENU_AV_HEADER_ADD = "av-header-add"; // 数据库添加字段菜单
+    public static readonly MENU_AV_ADD_FILTER = "av-add-filter"; // 数据库添加筛选条件菜单
+    public static readonly MENU_AV_ADD_SORT = "av-add-sort"; // 数据库添加排序条件菜单
+    public static readonly MENU_AV_COL_OPTION = "av-col-option"; // 数据库单选多选字段的选项编辑菜单
+    public static readonly MENU_AV_COL_FORMAT_NUMBER = "av-col-format-number"; // 数据库数字字段格式化菜单
+    public static readonly MENU_AV_GROUP_DATE = "avGroupDate"; // 数据库日期字段分组菜单的日期菜单
+    public static readonly MENU_AV_GROUP_SORT = "avGroupSort"; // 数据库日期字段分组菜单的排序菜单
+    public static readonly MENU_AV_ASSET_EDIT = "av-asset-edit"; // 数据库资源字段链接或资源文件菜单
+    public static readonly MENU_AV_CALC = "av-calc"; // 数据库计算菜单
+    public static readonly MENU_AV_PAGE_SIZE = "av-page-size"; // 数据库条目数菜单
+
+    public static readonly MENU_SEARCH_MORE = "searchMore"; // 搜索更多菜单
+    public static readonly MENU_SEARCH_METHOD = "searchMethod"; // 搜索方式菜单
+    public static readonly MENU_SEARCH_ASSET_MORE = "searchAssetMore"; // 资源文件搜索更多菜单
+    public static readonly MENU_SEARCH_ASSET_METHOD = "searchAssetMethod"; // 资源文件搜索方式菜单
+    public static readonly MENU_SEARCH_UNREF_MORE = "searchUnRefMore"; // 列出引用失效的块的更多菜单
+    public static readonly MENU_SEARCH_HISTORY = "search-history"; // 搜索历史菜单
+    public static readonly MENU_SEARCH_REPLACE_HISTORY = "search-replace-history"; // 替换历史菜单
+    public static readonly MENU_SEARCH_ASSET_HISTORY = "search-asset-history"; // 资源文件搜索历史菜单
+    public static readonly MENU_MOVE_PATH_HISTORY = "move-path-history"; // 移动文档窗口搜索历史菜单
+    public static readonly MENU_CALLOUT_SELECT = "callout-select"; // 提示选择菜单
+
+    public static readonly MENU_BACKGROUND_ASSET = "background-asset"; // 资源文件选择器菜单
+    public static readonly MENU_AI = "ai"; // 块 AI 菜单
+    public static readonly MENU_TAB = "tab"; // 页签右键菜单
+    public static readonly MENU_TAB_LIST = "tabList"; // 页签切换菜单
+
+    public static readonly MENU_INLINE_CONTEXT = "inline-context"; // 文本右键菜单
+    public static readonly MENU_INLINE_IMG = "inline-img"; // 图片元素菜单
+    public static readonly MENU_INLINE_FILE_ANNOTATION_REF = "inline-file-annotation-ref"; // PDF 标注元素菜单
+    public static readonly MENU_INLINE_REF = "inline-block-ref"; // 块引用元素菜单
+    public static readonly MENU_INLINE_A = "inline-a"; // 超链接元素菜单
+    public static readonly MENU_INLINE_TAG = "inline-tag"; // 行级标签元素菜单
+    public static readonly MENU_INLINE_MATH = "inline-math"; // 行级公式元素菜单
+
     // timeout
+    public static readonly TIMEOUT_OPENDIALOG = 50;
     public static readonly TIMEOUT_DBLCLICK = 190;
+    public static readonly TIMEOUT_RESIZE = 200;
     public static readonly TIMEOUT_INPUT = 256;
     public static readonly TIMEOUT_LOAD = 300;
     public static readonly TIMEOUT_TRANSITION = 300;
     public static readonly TIMEOUT_COUNT = 1000;
 
     // id
-    public static readonly HELP_PATH = {
-        zh_CN: "20210808180117-czj9bvb",
-        zh_CHT: "20211226090932-5lcq56f",
+    public static readonly HELP_PATH: { [key: string]: string } = {
+        ar_SA: "20210808180117-6v0mkxr",
+        de_DE: "20210808180117-6v0mkxr",
         en_US: "20210808180117-6v0mkxr",
+        es_ES: "20210808180117-6v0mkxr",
         fr_FR: "20210808180117-6v0mkxr",
+        he_IL: "20210808180117-6v0mkxr",
+        it_IT: "20210808180117-6v0mkxr",
+        ja_JP: "20240530133126-axarxgx",
+        ko_KR: "20210808180117-6v0mkxr",
+        pl_PL: "20210808180117-6v0mkxr",
+        pt_BR: "20210808180117-6v0mkxr",
+        ru_RU: "20210808180117-6v0mkxr",
+        sk_SK: "20210808180117-6v0mkxr",
+        tr_TR: "20210808180117-6v0mkxr",
+        zh_CHT: "20211226090932-5lcq56f",
+        zh_CN: "20210808180117-czj9bvb",
     };
     public static readonly QUICK_DECK_ID = "20230218211946-2kw8jgx";
 
-    public static readonly KEYCODELIST: { [key: number]: string } = {
+    public static KEYCODELIST: { [key: number]: string } = Object.assign(getFunctionKey(), {
         8: "⌫",
         9: "⇥",
         13: "↩",
@@ -253,18 +401,6 @@ export abstract class Constants {
         109: "-",
         110: ".",
         111: "/",
-        112: "F1",
-        113: "F2",
-        114: "F3",
-        115: "F4",
-        116: "F5",
-        117: "F6",
-        118: "F7",
-        119: "F8",
-        120: "F9",
-        121: "F10",
-        122: "F11",
-        123: "F12",
         144: "NumLock",
         145: "ScrollLock",
         182: "MyComputer",
@@ -280,12 +416,13 @@ export abstract class Constants {
         220: "\\",
         221: "]",
         222: "'",
-    };
+    });
     // 冲突不使用 "⌘S/Q"
     // "⌘", "⇧", "⌥", "⌃"
     // "⌘A", "⌘X", "⌘C", "⌘V", "⌘-", "⌘=", "⌘0", "⇧⌘V", "⌘/", "⇧↑", "⇧↓", "⇧→", "⇧←", "⇧⇥", "⌃D", "⇧⌘→", "⇧⌘←",
-    // "⌘Home", "⌘End", "⇧↩", "↩", "PageUp", "PageDown", "⌫", "⌦" 不可自定义
-    public static readonly SIYUAN_KEYMAP: IKeymap = {
+    // "⌘Home", "⌘End", "⇧↩", "↩", "PageUp", "PageDown", "⌫", "⌦", "Escape" 不可自定义
+    // "⌥↩" 写死，但可自定义
+    public static readonly SIYUAN_KEYMAP: Config.IKeymap = {
         general: {
             mainMenu: {default: "⌥\\", custom: "⌥\\"},
             commandPanel: {default: "⌥⇧P", custom: "⌥⇧P"},
@@ -301,16 +438,16 @@ export abstract class Constants {
             stickSearch: {default: "⇧⌘F", custom: "⇧⌘F"},
             replace: {default: "⌘R", custom: "⌘R"},
             closeTab: {default: "⌘W", custom: "⌘W"},
-            fileTree: {default: "⌥1", custom: "⌥1"},
-            outline: {default: "⌥2", custom: "⌥2"},
-            bookmark: {default: "⌥3", custom: "⌥3"},
-            tag: {default: "⌥4", custom: "⌥4"},
-            dailyNote: {default: "⌥5", custom: "⌥5"},
-            inbox: {default: "⌥6", custom: "⌥6"},
-            backlinks: {default: "⌥7", custom: "⌥7"},
-            graphView: {default: "⌥8", custom: "⌥8"},
-            globalGraph: {default: "⌥9", custom: "⌥9"},
-            riffCard: {default: "⌥0", custom: "⌥0"},
+            fileTree: {default: "⌃1", custom: "⌃1"},
+            outline: {default: "⌃2", custom: "⌃2"},
+            bookmark: {default: "⌃3", custom: "⌃3"},
+            tag: {default: "⌃4", custom: "⌃4"},
+            dailyNote: {default: "⌃5", custom: "⌃5"},
+            inbox: {default: "⌃6", custom: "⌃6"},
+            backlinks: {default: "⌃7", custom: "⌃7"},
+            graphView: {default: "⌃8", custom: "⌃8"},
+            globalGraph: {default: "⌃9", custom: "⌃9"},
+            riffCard: {default: "⌃0", custom: "⌃0"},
             config: {default: "⌥P", custom: "⌥P"},
             dataHistory: {default: "⌥H", custom: "⌥H"},
             toggleWin: {default: "⌥M", custom: "⌥M"},
@@ -329,6 +466,7 @@ export abstract class Constants {
             goToTabPrev: {default: "⇧⌘[", custom: "⇧⌘["},
             goToEditTabNext: {default: "⌃⇥", custom: "⌃⇥"},
             goToEditTabPrev: {default: "⌃⇧⇥", custom: "⌃⇧⇥"},
+            recentClosed: {default: "⇧⌘T", custom: "⇧⌘T"},
             move: {default: "", custom: ""},
             selectOpen1: {default: "", custom: ""},
             toggleDock: {default: "", custom: ""},
@@ -342,24 +480,15 @@ export abstract class Constants {
             closeLeft: {default: "", custom: ""},
             closeRight: {default: "", custom: ""},
             tabToWindow: {default: "", custom: ""},
+            addToDatabase: {default: "", custom: ""},
+            unsplit: {default: "", custom: ""},
+            unsplitAll: {default: "", custom: ""},
         },
         editor: {
             general: {
                 duplicate: {default: "⌘D", custom: "⌘D"},
                 expandDown: {default: "⌥⇧↓", custom: "⌥⇧↓"},
                 expandUp: {default: "⌥⇧↑", custom: "⌥⇧↑"},
-                copyPlainText: {default: "", custom: ""},
-                copyID: {default: "", custom: ""},
-                copyProtocolInMd: {default: "", custom: ""},
-                netImg2LocalAsset: {default: "", custom: ""},
-                netAssets2LocalAssets: {default: "", custom: ""},
-                optimizeTypography: {default: "", custom: ""},
-                hLayout: {default: "", custom: ""},
-                vLayout: {default: "", custom: ""},
-                refPopover: {default: "", custom: ""},
-                copyText: {default: "", custom: ""},
-                exitFocus: {default: "", custom: ""},
-                switchReadonly: {default: "", custom: ""},
                 expand: {default: "⌘↓", custom: "⌘↓"},
                 collapse: {default: "⌘↑", custom: "⌘↑"},
                 insertBottom: {default: "⌥⌘.", custom: "⌥⌘."},
@@ -374,7 +503,7 @@ export abstract class Constants {
                 copyBlockEmbed: {default: "⇧⌘E", custom: "⇧⌘E"},
                 copyHPath: {default: "⇧⌘P", custom: "⇧⌘P"},
                 undo: {default: "⌘Z", custom: "⌘Z"},
-                redo: {default: "⌘Y", custom: "⌘Y"},
+                redo: {default: "⇧⌘Z", custom: "⇧⌘Z"},
                 rename: {default: "F2", custom: "F2"},
                 newNameFile: {default: "F3", custom: "F3"},
                 newContentFile: {default: "F4", custom: "F4"},
@@ -393,8 +522,29 @@ export abstract class Constants {
                 insertBefore: {default: "⇧⌘B", custom: "⇧⌘B"},
                 insertAfter: {default: "⇧⌘A", custom: "⇧⌘A"},
                 jumpToParentNext: {default: "⇧⌘N", custom: "⇧⌘N"},
+                jumpToParentPrev: {default: "⇧⌘M", custom: "⇧⌘M"},
+                jumpToParent: {default: "⇧⌘J", custom: "⇧⌘J"},
                 moveToUp: {default: "⇧⌘↑", custom: "⇧⌘↑"},
                 moveToDown: {default: "⇧⌘↓", custom: "⇧⌘↓"},
+                duplicateCompletely: {default: "", custom: ""},
+                copyPlainText: {default: "", custom: ""},
+                copyID: {default: "", custom: ""},
+                copyProtocolInMd: {default: "", custom: ""},
+                netImg2LocalAsset: {default: "", custom: ""},
+                netAssets2LocalAssets: {default: "", custom: ""},
+                optimizeTypography: {default: "", custom: ""},
+                hLayout: {default: "", custom: ""},
+                vLayout: {default: "", custom: ""},
+                refPopover: {default: "", custom: ""},
+                copyText: {default: "", custom: ""},
+                exitFocus: {default: "", custom: ""},
+                ai: {default: "", custom: ""},
+                switchReadonly: {default: "", custom: ""},
+                switchAdjust: {default: "", custom: ""},
+                rtl: {default: "", custom: ""},
+                ltr: {default: "", custom: ""},
+                aiWriting: {default: "", custom: ""},
+                openInNewTab: {default: "", custom: ""},
             },
             insert: {
                 appearance: {default: "⌥⌘X", custom: "⌥⌘X"},
@@ -414,8 +564,11 @@ export abstract class Constants {
                 "inline-code": {default: "⌘G", custom: "⌘G"},
                 link: {default: "⌘K", custom: "⌘K"},
                 check: {default: "⌘L", custom: "⌘L"},
+                "ordered-list": {default: "", custom: ""},
+                list: {default: "", custom: ""},
                 table: {default: "⌘O", custom: "⌘O"},
                 code: {default: "⇧⌘K", custom: "⇧⌘K"},
+                quote: {default: "", custom: ""},
                 clearInline: {default: "⌘\\", custom: "⌘\\"},
             },
             heading: {
@@ -433,10 +586,10 @@ export abstract class Constants {
                 checkToggle: {default: "⌘↩", custom: "⌘↩"},
             },
             table: {
-                insertRowAbove: {default: "⇧⌘T", custom: "⇧⌘T"},
-                insertRowBelow: {default: "⇧⌘D", custom: "⇧⌘D"},
-                insertColumnLeft: {default: "⇧⌘L", custom: "⇧⌘L"},
-                insertColumnRight: {default: "⇧⌘R", custom: "⇧⌘R"},
+                insertRowAbove: {default: "", custom: ""},
+                insertRowBelow: {default: "", custom: ""},
+                insertColumnLeft: {default: "", custom: ""},
+                insertColumnRight: {default: "", custom: ""},
                 moveToUp: {default: "⌥⌘T", custom: "⌥⌘T"},
                 moveToDown: {default: "⌥⌘B", custom: "⌥⌘B"},
                 moveToLeft: {default: "⌥⌘L", custom: "⌥⌘L"},
@@ -448,7 +601,7 @@ export abstract class Constants {
         plugin: {},
     };
 
-    public static readonly SIYUAN_EMPTY_LAYOUT: Record<string, unknown> = {
+    public static readonly SIYUAN_EMPTY_LAYOUT: Config.IUiLayout = {
         hideDock: false,
         layout: {
             "direction": "tb",
@@ -479,7 +632,13 @@ export abstract class Constants {
                     "size": "auto",
                     "type": "center",
                     "instance": "Layout",
-                    "children": [{"instance": "Wnd", "children": [{"instance": "Tab", "children": []}]}]
+                    "children": [{
+                        "instance": "Wnd",
+                        "children": [{
+                            "instance": "Tab",
+                            "children": []
+                        }]
+                    }]
                 }, {
                     "direction": "tb",
                     "size": "0px",
@@ -520,13 +679,13 @@ export abstract class Constants {
             data: [
                 [{
                     type: "file",
-                    size: {width: 227, height: 0},
+                    size: {width: 232, height: 0},
                     show: true,
                     icon: "iconFiles",
                     hotkeyLangId: "fileTree",
                 }, {
                     type: "outline",
-                    size: {width: 227, height: 0},
+                    size: {width: 232, height: 0},
                     show: false,
                     icon: "iconAlignCenter",
                     hotkeyLangId: "outline",
@@ -538,13 +697,13 @@ export abstract class Constants {
                     hotkeyLangId: "inbox",
                 }], [{
                     type: "bookmark",
-                    size: {width: 227, height: 0},
+                    size: {width: 232, height: 0},
                     show: false,
                     icon: "iconBookmark",
                     hotkeyLangId: "bookmark",
                 }, {
                     type: "tag",
-                    size: {width: 227, height: 0},
+                    size: {width: 232, height: 0},
                     show: false,
                     icon: "iconTags",
                     hotkeyLangId: "tag",
@@ -577,21 +736,21 @@ export abstract class Constants {
         }
     };
 
-    public static readonly SIYUAN_DEFAULT_REPLACETYPES: {
-        [key: string]: boolean;
-    } = {
+    public static readonly SIYUAN_DEFAULT_REPLACETYPES: Required<Config.IUILayoutTabSearchConfigReplaceTypes> = {
         "text": true,
         "imgText": true,
         "imgTitle": true,
-        "imgSrc": false,
+        "imgSrc": true,
         "aText": true,
         "aTitle": true,
-        "aHref": false,
-        "code": false,
+        "aHref": true,
+        "code": true,
         "em": true,
         "strong": true,
-        "inlineMath": false,
+        "inlineMath": true,
         "inlineMemo": true,
+        "blockRef": true,
+        "fileAnnotationRef": true,
         "kbd": true,
         "mark": true,
         "s": true,
@@ -600,9 +759,9 @@ export abstract class Constants {
         "tag": true,
         "u": true,
         "docTitle": true,
-        "codeBlock": false,
-        "mathBlock": false,
-        "htmlBlock": false
+        "codeBlock": true,
+        "mathBlock": true,
+        "htmlBlock": true
     };
 
     // image
@@ -613,61 +772,107 @@ export abstract class Constants {
 <path fill="#ffdd4e" d="M15.396 8.403l11.659 15.921c0.401 0.579 0.432 1.317 0.081 1.924-0.361 0.594-1.005 0.985-1.741 0.985-0.008 0-0.017-0-0.025-0h-9.344l-0.63-18.83z"></path>
 <path fill="#ffd00f" d="M13.868 6.478c0 0.946 0.767 1.712 1.712 1.712s1.712-0.767 1.712-1.712v0c0-0.945-0.766-1.712-1.712-1.712s-1.712 0.766-1.712 1.712v0zM28.577 10.818c0 0.945 0.766 1.712 1.712 1.712s1.712-0.766 1.712-1.712v0c0-0.945-0.766-1.712-1.712-1.712s-1.712 0.766-1.712 1.712v0zM0 10.822c0 0.945 0.766 1.712 1.712 1.712s1.712-0.766 1.712-1.712v0c0-0.945-0.766-1.712-1.712-1.712s-1.712 0.766-1.712 1.712v0z"></path>
 </svg>`;
-    public static readonly SIYUAN_IMAGE_FILE: string = "1f4c4";
-    public static readonly SIYUAN_IMAGE_NOTE: string = "1f5c3";
-    public static readonly SIYUAN_IMAGE_FOLDER: string = "1f4d1";
 
     // assets
-    public static readonly SIYUAN_ASSETS_IMAGE: string[] = [".apng", ".ico", ".cur", ".jpg", ".jpe", ".jpeg", ".jfif", ".pjp", ".pjpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif"];
-    public static readonly SIYUAN_ASSETS_AUDIO: string[] = [".mp3", ".wav", ".ogg", ".m4a"];
+    public static readonly SIYUAN_ASSETS_IMAGE: string[] = [".apng", ".ico", ".cur", ".jpg", ".jpe", ".jpeg", ".jfif", ".pjp", ".pjpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif", ".tiff", ".tif"];
+    public static readonly SIYUAN_ASSETS_AUDIO: string[] = [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"];
     public static readonly SIYUAN_ASSETS_VIDEO: string[] = [".mov", ".weba", ".mkv", ".mp4", ".webm"];
-    public static readonly SIYUAN_ASSETS_EXTS: string[] = [".pdf"].concat(Constants.SIYUAN_ASSETS_IMAGE).concat(Constants.SIYUAN_ASSETS_AUDIO).concat(Constants.SIYUAN_ASSETS_VIDEO);
+    public static readonly SIYUAN_ASSETS_EXTS: string[] = [".pdf"].concat(Constants.SIYUAN_ASSETS_IMAGE, Constants.SIYUAN_ASSETS_AUDIO, Constants.SIYUAN_ASSETS_VIDEO);
     public static readonly SIYUAN_ASSETS_SEARCH: string[] = [".txt", ".md", ".markdown", ".docx", ".xlsx", ".pptx", ".pdf", ".json", ".log", ".sql", ".html", ".xml", ".java", ".h", ".c",
         ".cpp", ".go", ".rs", ".swift", ".kt", ".py", ".php", ".js", ".css", ".ts", ".sh", ".bat", ".cmd", ".ini", ".yaml",
-        ".rst", ".adoc", ".textile", ".opml", ".org", ".wiki", ".epub"];
+        ".rst", ".adoc", ".textile", ".opml", ".org", ".wiki", ".epub", ".cs"];
 
     // protyle
     public static readonly SIYUAN_CONFIG_APPEARANCE_DARK_CODE: string[] = ["a11y-dark", "agate", "an-old-hope", "androidstudio",
-        "arta", "atom-one-dark", "atom-one-dark-reasonable", "base16/3024", "base16/apathy", "base16/apprentice", "base16/ashes", "base16/atelier-cave", "base16/atelier-dune",
-        "base16/atelier-estuary", "base16/atelier-forest", "base16/atelier-heath", "base16/atelier-lakeside", "base16/atelier-plateau", "base16/atelier-savanna", "base16/atelier-seaside", "base16/atelier-sulphurpool",
-        "base16/atlas", "base16/bespin", "base16/black-metal", "base16/black-metal-bathory", "base16/black-metal-burzum", "base16/black-metal-dark-funeral", "base16/black-metal-gorgoroth", "base16/black-metal-immortal", "base16/black-metal-khold", "base16/black-metal-marduk", "base16/black-metal-mayhem", "base16/black-metal-nile", "base16/black-metal-venom", "base16/brewer", "base16/bright", "base16/brogrammer",
-        "base16/brush-trees-dark", "base16/chalk", "base16/circus", "base16/classic-dark", "base16/codeschool", "base16/colors", "base16/danqing", "base16/darcula", "base16/dark-violet",
-        "base16/darkmoss", "base16/darktooth", "base16/decaf", "base16/default-dark", "base16/dracula", "base16/edge-dark", "base16/eighties", "base16/embers", "base16/equilibrium-dark",
-        "base16/equilibrium-gray-dark", "base16/espresso", "base16/eva", "base16/eva-dim", "base16/flat", "base16/framer", "base16/gigavolt", "base16/google-dark", "base16/grayscale-dark", "base16/green-screen", "base16/gruvbox-dark-hard", "base16/gruvbox-dark-medium",
-        "base16/gruvbox-dark-pale", "base16/gruvbox-dark-soft", "base16/hardcore", "base16/harmonic16-dark", "base16/heetch-dark", "base16/helios", "base16/hopscotch", "base16/horizon-dark", "base16/humanoid-dark", "base16/ia-dark", "base16/icy-dark", "base16/ir-black", "base16/isotope",
-        "base16/kimber", "base16/london-tube", "base16/macintosh", "base16/marrakesh", "base16/materia", "base16/material", "base16/material-darker", "base16/material-palenight", "base16/material-vivid",
-        "base16/mellow-purple", "base16/mocha", "base16/monokai", "base16/nebula", "base16/nord", "base16/nova", "base16/ocean", "base16/oceanicnext", "base16/onedark", "base16/outrun-dark",
-        "base16/papercolor-dark", "base16/paraiso", "base16/pasque", "base16/phd", "base16/pico", "base16/pop", "base16/porple", "base16/qualia", "base16/railscasts", "base16/rebecca",
-        "base16/ros-pine", "base16/ros-pine-moon", "base16/sandcastle", "base16/seti-ui", "base16/silk-dark", "base16/snazzy", "base16/solar-flare", "base16/solarized-dark", "base16/spacemacs", "base16/summercamp", "base16/summerfruit-dark",
-        "base16/synth-midnight-terminal-dark", "base16/tango", "base16/tender", "base16/tomorrow-night", "base16/twilight", "base16/unikitty-dark", "base16/vulcan",
-        "base16/windows-10", "base16/windows-95", "base16/windows-high-contrast", "base16/windows-nt", "base16/woodland", "base16/xcode-dusk", "base16/zenburn", "codepen-embed", "dark",
-        "devibeans", "far", "felipec", "github-dark", "github-dark-dimmed", "gml", "gradient-dark", "hybrid", "ir-black", "isbl-editor-dark", "kimbie-dark", "lioshi",
-        "monokai", "monokai-sublime", "night-owl", "nnfx-dark", "nord", "obsidian", "panda-syntax-dark", "paraiso-dark", "pojoaque", "qtcreator-dark", "rainbow", "shades-of-purple", "srcery", "stackoverflow-dark",
-        "sunburst", "tomorrow-night-blue", "tomorrow-night-bright", "tokyo-night-dark", "vs2015", "xt256"
+        "arta", "atom-one-dark", "atom-one-dark-reasonable", "base16/3024", "base16/apathy", "base16/apprentice", "base16/ashes",
+        "base16/atelier-cave", "base16/atelier-dune", "base16/atelier-estuary", "base16/atelier-forest", "base16/atelier-heath",
+        "base16/atelier-lakeside", "base16/atelier-plateau", "base16/atelier-savanna", "base16/atelier-seaside", "base16/atelier-sulphurpool",
+        "base16/atlas", "base16/bespin", "base16/black-metal", "base16/black-metal-bathory", "base16/black-metal-burzum",
+        "base16/black-metal-dark-funeral", "base16/black-metal-gorgoroth", "base16/black-metal-immortal", "base16/black-metal-khold",
+        "base16/black-metal-marduk", "base16/black-metal-mayhem", "base16/black-metal-nile", "base16/black-metal-venom",
+        "base16/brewer", "base16/bright", "base16/brogrammer", "base16/brush-trees-dark", "base16/chalk", "base16/circus",
+        "base16/classic-dark", "base16/codeschool", "base16/colors", "base16/danqing", "base16/darcula", "base16/dark-violet",
+        "base16/darkmoss", "base16/darktooth", "base16/decaf", "base16/default-dark", "base16/dracula", "base16/edge-dark",
+        "base16/eighties", "base16/embers", "base16/equilibrium-dark", "base16/equilibrium-gray-dark", "base16/espresso",
+        "base16/eva", "base16/eva-dim", "base16/flat", "base16/framer", "base16/gigavolt", "base16/google-dark", "base16/grayscale-dark",
+        "base16/green-screen", "base16/gruvbox-dark-hard", "base16/gruvbox-dark-medium", "base16/gruvbox-dark-pale", "base16/gruvbox-dark-soft",
+        "base16/hardcore", "base16/harmonic16-dark", "base16/heetch-dark", "base16/helios", "base16/hopscotch", "base16/horizon-dark",
+        "base16/humanoid-dark", "base16/ia-dark", "base16/icy-dark", "base16/ir-black", "base16/isotope", "base16/kimber",
+        "base16/london-tube", "base16/macintosh", "base16/marrakesh", "base16/materia", "base16/material", "base16/material-darker",
+        "base16/material-palenight", "base16/material-vivid", "base16/mellow-purple", "base16/mocha", "base16/monokai",
+        "base16/nebula", "base16/nord", "base16/nova", "base16/ocean", "base16/oceanicnext", "base16/onedark", "base16/outrun-dark",
+        "base16/papercolor-dark", "base16/paraiso", "base16/pasque", "base16/phd", "base16/pico", "base16/pop", "base16/porple",
+        "base16/qualia", "base16/railscasts", "base16/rebecca", "base16/ros-pine", "base16/ros-pine-moon", "base16/sandcastle",
+        "base16/seti-ui", "base16/silk-dark", "base16/snazzy", "base16/solar-flare", "base16/solarized-dark", "base16/spacemacs",
+        "base16/summercamp", "base16/summerfruit-dark", "base16/synth-midnight-terminal-dark", "base16/tango", "base16/tender",
+        "base16/tomorrow-night", "base16/twilight", "base16/unikitty-dark", "base16/vulcan", "base16/windows-10", "base16/windows-95",
+        "base16/windows-high-contrast", "base16/windows-nt", "base16/woodland", "base16/xcode-dusk", "base16/zenburn", "codepen-embed",
+        "cybertopia-cherry", "cybertopia-dimmer", "cybertopia-icecap", "cybertopia-saturated", "dark", "devibeans", "far",
+        "felipec", "github-dark", "github-dark-dimmed", "gml", "gradient-dark", "hybrid", "ir-black", "isbl-editor-dark",
+        "kimbie-dark", "lioshi", "monokai", "monokai-sublime", "night-owl", "nnfx-dark", "nord", "obsidian", "panda-syntax-dark",
+        "paraiso-dark", "pojoaque", "qtcreator-dark", "rainbow", "rose-pine", "rose-pine-moon", "shades-of-purple", "srcery",
+        "stackoverflow-dark", "sunburst", "tomorrow-night-blue", "tomorrow-night-bright", "tokyo-night-dark", "vs2015", "xt256"
     ];
     public static readonly SIYUAN_CONFIG_APPEARANCE_LIGHT_CODE: string[] = ["ant-design",
-        "a11y-light", "arduino-light", "ascetic", "atom-one-light", "base16/atelier-cave-light",
-        "base16/atelier-dune-light", "base16/atelier-estuary-light", "base16/atelier-forest-light", "base16/atelier-heath-light",
-        "base16/atelier-lakeside-light", "base16/atelier-plateau-light", "base16/atelier-savanna-light", "base16/atelier-seaside-light", "base16/atelier-sulphurpool-light", "base16/brush-trees",
-        "base16/classic-light", "base16/cupcake", "base16/cupertino", "base16/default-light", "base16/dirtysea", "base16/edge-light", "base16/equilibrium-gray-light", "base16/equilibrium-light",
-        "base16/fruit-soda", "base16/github", "base16/google-light", "base16/grayscale-light", "base16/gruvbox-light-hard", "base16/gruvbox-light-medium", "base16/gruvbox-light-soft",
-        "base16/harmonic16-light", "base16/heetch-light", "base16/humanoid-light", "base16/horizon-light", "base16/ia-light", "base16/material-lighter", "base16/mexico-light",
-        "base16/one-light", "base16/papercolor-light", "base16/ros-pine-dawn", "base16/sagelight", "base16/shapeshifter",
-        "base16/silk-light", "base16/solar-flare-light", "base16/solarized-light", "base16/summerfruit-light", "base16/synth-midnight-terminal-light", "base16/tomorrow",
-        "base16/unikitty-light", "base16/windows-10-light", "base16/windows-95-light", "base16/windows-high-contrast-light", "brown-paper", "base16/windows-nt-light",
-        "color-brewer", "docco", "foundation", "github", "googlecode", "gradient-light", "grayscale", "idea", "intellij-light", "isbl-editor-light", "kimbie-light",
-        "lightfair", "magula", "mono-blue", "nnfx-light", "panda-syntax-light", "paraiso-light", "purebasic", "qtcreator-light", "routeros", "school-book",
-        "stackoverflow-light", "tokyo-night-light", "vs", "xcode", "default"];
+        "1c-light", "a11y-light", "arduino-light", "ascetic", "atom-one-light", "base16/atelier-cave-light", "base16/atelier-dune-light",
+        "base16/atelier-estuary-light", "base16/atelier-forest-light", "base16/atelier-heath-light", "base16/atelier-lakeside-light",
+        "base16/atelier-plateau-light", "base16/atelier-savanna-light", "base16/atelier-seaside-light", "base16/atelier-sulphurpool-light",
+        "base16/brush-trees", "base16/classic-light", "base16/cupcake", "base16/cupertino", "base16/default-light", "base16/dirtysea",
+        "base16/edge-light", "base16/equilibrium-gray-light", "base16/equilibrium-light", "base16/fruit-soda", "base16/github",
+        "base16/google-light", "base16/grayscale-light", "base16/gruvbox-light-hard", "base16/gruvbox-light-medium",
+        "base16/gruvbox-light-soft", "base16/harmonic16-light", "base16/heetch-light", "base16/humanoid-light", "base16/horizon-light",
+        "base16/ia-light", "base16/material-lighter", "base16/mexico-light", "base16/one-light", "base16/papercolor-light",
+        "base16/ros-pine-dawn", "base16/sagelight", "base16/shapeshifter", "base16/silk-light", "base16/solar-flare-light",
+        "base16/solarized-light", "base16/summerfruit-light", "base16/synth-midnight-terminal-light", "base16/tomorrow",
+        "base16/unikitty-light", "base16/windows-10-light", "base16/windows-95-light", "base16/windows-high-contrast-light",
+        "brown-paper", "base16/windows-nt-light", "color-brewer", "docco", "foundation", "github", "googlecode", "gradient-light",
+        "grayscale", "idea", "intellij-light", "isbl-editor-light", "kimbie-light", "lightfair", "magula", "mono-blue",
+        "nnfx-light", "panda-syntax-light", "paraiso-light", "purebasic", "qtcreator-light", "rose-pine-dawn", "routeros",
+        "school-book", "stackoverflow-light", "tokyo-night-light", "vs", "xcode", "default"];
     public static readonly ZWSP: string = "\u200b";
     public static readonly INLINE_TYPE: string[] = ["block-ref", "kbd", "text", "file-annotation-ref", "a", "strong", "em", "u", "s", "mark", "sup", "sub", "tag", "code", "inline-math", "inline-memo", "clear"];
     public static readonly BLOCK_HINT_KEYS: string[] = ["((", "[[", "（（", "【【"];
     public static readonly BLOCK_HINT_CLOSE_KEYS: IObject = {"((": "))", "[[": "]]", "（（": "））", "【【": "】】"};
     // common: "bash", "c", "csharp", "cpp", "css", "diff", "go", "xml", "json", "java", "javascript", "kotlin", "less", "lua", "makefile", "markdown", "objectivec", "php", "php-template", "perl", "plaintext", "python", "python-repl", "r", "ruby", "rust", "scss", "sql", "shell", "swift", "ini", "typescript", "vbnet", "yaml", "properties", "1c", "armasm", "avrasm", "actionscript", "ada", "angelscript", "accesslog", "apache", "applescript", "arcade", "arduino", "asciidoc", "aspectj", "abnf", "autohotkey", "autoit", "awk", "basic", "bnf", "dos", "brainfuck", "cal", "cmake", "csp", "cos", "capnproto", "ceylon", "clean", "clojure", "clojure-repl", "coffeescript", "coq", "crystal", "d", "dns", "dart", "delphi", "dts", "django", "dockerfile", "dust", "erb", "elixir", "elm", "erlang", "erlang-repl", "excel", "ebnf", "fsharp", "fix", "flix", "fortran", "gcode", "gams", "gauss", "glsl", "gml", "gherkin", "golo", "gradle", "groovy", "haml", "hsp", "http", "handlebars", "haskell", "haxe", "hy", "irpf90", "isbl", "inform7", "x86asm", "jboss-cli", "julia", "julia-repl", "ldif", "llvm", "lsl", "latex", "lasso", "leaf", "lisp", "livecodeserver", "livescript", "mel", "mipsasm", "matlab", "maxima", "mercury", "axapta", "routeros", "mizar", "mojolicious", "monkey", "moonscript", "n1ql", "nsis", "nestedtext", "nginx", "nim", "nix", "node-repl", "ocaml", "openscad", "ruleslanguage", "oxygene", "pf", "parser3", "pony", "pgsql", "powershell", "processing", "prolog", "protobuf", "puppet", "purebasic", "profile", "q", "qml", "reasonml", "rib", "rsl", "roboconf", "sas", "sml", "sqf", "step21", "scala", "scheme", "scilab", "smali", "smalltalk", "stan", "stata", "stylus", "subunit", "tp", "taggerscript", "tcl", "tap", "thrift", "twig", "vbscript", "vbscript-html", "vhdl", "vala", "verilog", "vim", "wasm", "mathematica", "wren", "xl", "xquery", "zephir", "crmsh", "dsconfig", "graphql",
-    // third: "yul", "solidity", "abap", "hlsl", "gdscript"
+    // third: "yul", "solidity", "abap", "hlsl", "gdscript", "moonbit", "mlir"
     public static readonly ALIAS_CODE_LANGUAGES: string[] = [
-        "js", "ts", "html", "toml", "c#", "bat",
+        "js", "ts", "html", "toml", "c#", "bat"
     ];
-
-    // Google Analytics 事件
-    public static readonly ANALYTICS_EVT_ON_GET_CONFIG: string = "siyuan.onGetConfig";
+    public static readonly SIYUAN_RENDER_CODE_LANGUAGES: string[] = [
+        "abc", "plantuml", "mermaid", "flowchart", "echarts", "mindmap", "graphviz", "math"
+    ];
+    public static readonly PROTYLE_TOOLBAR: string[] = isMobile() ? [
+        "block-ref",
+        "a",
+        "|",
+        "text",
+        "strong",
+        "em",
+        "u",
+        "clear",
+        "|",
+        "code",
+        "tag",
+        "inline-math",
+        "inline-memo",
+    ] : [
+        "block-ref",
+        "a",
+        "|",
+        "text",
+        "strong",
+        "em",
+        "u",
+        "s",
+        "mark",
+        "sup",
+        "sub",
+        "clear",
+        "|",
+        "code",
+        "kbd",
+        "tag",
+        "inline-math",
+        "inline-memo",
+    ];
 }

@@ -18,20 +18,19 @@ package search
 
 import (
 	"fmt"
-	"github.com/88250/gulu"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/88250/gulu"
 	"github.com/88250/lute/lex"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 func MarkText(text string, keyword string, beforeLen int, caseSensitive bool) (pos int, marked string) {
 	if "" == keyword {
-		return -1, util.EscapeHTML(text)
+		return -1, text
 	}
-	text = util.EscapeHTML(text)
 	keywords := SplitKeyword(keyword)
 	marked = EncloseHighlighting(text, keywords, "<mark>", "</mark>", caseSensitive, false)
 
@@ -86,7 +85,9 @@ func EncloseHighlighting(text string, keywords []string, openMark, closeMark str
 	if caseSensitive {
 		ic = "(?)"
 	}
-	re := ic + "("
+
+	var re strings.Builder
+	re.WriteString(ic + "(")
 	for i, k := range keywords {
 		if "" == k {
 			continue
@@ -96,29 +97,38 @@ func EncloseHighlighting(text string, keywords []string, openMark, closeMark str
 		if splitWords {
 			wordBoundary = lex.IsASCIILetterNums(gulu.Str.ToBytes(k)) // Improve virtual reference split words https://github.com/siyuan-note/siyuan/issues/7833
 		}
-		k = regexp.QuoteMeta(k)
-		re += "("
+		k = regexp.QuoteMeta(util.EscapeHTML(k))
+		re.WriteString("(")
 		if wordBoundary {
-			re += "\\b"
+			re.WriteString("\\b")
 		}
-		re += k
+		re.WriteString(k)
 		if wordBoundary {
-			re += "\\b"
+			re.WriteString("\\b")
 		}
-		re += ")"
+		re.WriteString(")")
 		if i < len(keywords)-1 {
-			re += "|"
+			re.WriteString("|")
 		}
 	}
-	re += ")"
-	ret = text
+	re.WriteString(")")
 
-	if reg, err := regexp.Compile(re); nil == err {
-		ret = reg.ReplaceAllStringFunc(text, func(s string) string { return openMark + s + closeMark })
+	ret = util.EscapeHTML(text)
+
+	ret = strings.ReplaceAll(ret, "&#34;", "\ue000")
+	ret = strings.ReplaceAll(ret, "&lt;", "\ue001")
+	ret = strings.ReplaceAll(ret, "&gt;", "\ue002")
+	ret = strings.ReplaceAll(ret, "&#39;", "\ue003")
+	if reg, err := regexp.Compile(re.String()); err == nil {
+		ret = reg.ReplaceAllStringFunc(ret, func(s string) string { return openMark + s + closeMark })
 	}
+	ret = strings.ReplaceAll(ret, "\ue000", "&#34;")
+	ret = strings.ReplaceAll(ret, "\ue001", "&lt;")
+	ret = strings.ReplaceAll(ret, "\ue002", "&gt;")
+	ret = strings.ReplaceAll(ret, "\ue003", "&#39;")
 
 	// 搜索结果预览包含转义符问题 Search results preview contains escape character issue https://github.com/siyuan-note/siyuan/issues/9790
-	ret = strings.ReplaceAll(ret, "\\<span", "\\\\<span ")
+	ret = strings.ReplaceAll(ret, "\\<span", "\\\\<span")
 	return
 }
 

@@ -1,6 +1,6 @@
 {
 	"ID": "20200825162036-4dx365o",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"icon": "1f4f0",
@@ -8,7 +8,7 @@
 		"title": "排版元素",
 		"title-img": "background-color: hsl(2, 57%, 40%);background-image: repeating-linear-gradient(transparent, transparent 50px, rgba(0,0,0,.4) 50px, rgba(0,0,0,.4) 53px, transparent 53px, transparent 63px, rgba(0,0,0,.4) 63px, rgba(0,0,0,.4) 66px, transparent 66px, transparent 116px, rgba(0,0,0,.5) 116px, rgba(0,0,0,.5) 166px, rgba(255,255,255,.2) 166px, rgba(255,255,255,.2) 169px, rgba(0,0,0,.5) 169px, rgba(0,0,0,.5) 179px, rgba(255,255,255,.2) 179px, rgba(255,255,255,.2) 182px, rgba(0,0,0,.5) 182px, rgba(0,0,0,.5) 232px, transparent 232px),repeating-linear-gradient(270deg, transparent, transparent 50px, rgba(0,0,0,.4) 50px, rgba(0,0,0,.4) 53px, transparent 53px, transparent 63px, rgba(0,0,0,.4) 63px, rgba(0,0,0,.4) 66px, transparent 66px, transparent 116px, rgba(0,0,0,.5) 116px, rgba(0,0,0,.5) 166px, rgba(255,255,255,.2) 166px, rgba(255,255,255,.2) 169px, rgba(0,0,0,.5) 169px, rgba(0,0,0,.5) 179px, rgba(255,255,255,.2) 179px, rgba(255,255,255,.2) 182px, rgba(0,0,0,.5) 182px, rgba(0,0,0,.5) 232px, transparent 232px),repeating-linear-gradient(125deg, transparent, transparent 2px, rgba(0,0,0,.2) 2px, rgba(0,0,0,.2) 3px, transparent 3px, transparent 5px, rgba(0,0,0,.2) 5px);",
 		"type": "doc",
-		"updated": "20230820185054"
+		"updated": "20251211094029"
 	},
 	"Children": [
 		{
@@ -17,7 +17,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210604182832-nm3hapx",
-				"updated": "20220916194920"
+				"updated": "20240702222051"
 			},
 			"Children": [
 				{
@@ -32,7 +32,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20210104091228-ttcj9nm",
-				"updated": "20220918174723"
+				"updated": "20240702222051"
 			},
 			"Children": [
 				{
@@ -44,7 +44,7 @@
 					},
 					"Properties": {
 						"id": "20210604220521-7pujuf7",
-						"updated": "20211205000246"
+						"updated": "20240416105849"
 					},
 					"Children": [
 						{
@@ -52,7 +52,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20210604220521-6t4tsb3",
-								"updated": "20211205000246"
+								"updated": "20240416105849"
 							},
 							"Children": [
 								{
@@ -60,7 +60,7 @@
 									"TextMarkType": "block-ref",
 									"TextMarkBlockRefID": "20200812220555-lj3enxa",
 									"TextMarkBlockRefSubtype": "s",
-									"TextMarkTextContent": "请从这里开始"
+									"TextMarkTextContent": "块引用"
 								}
 							]
 						}
@@ -75,7 +75,7 @@
 					},
 					"Properties": {
 						"id": "20210104091228-56d6mjx",
-						"updated": "20220115193517"
+						"updated": "20240506230804"
 					},
 					"Children": [
 						{
@@ -83,14 +83,14 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20210201202130-jhxwimm",
-								"updated": "20220115193517"
+								"updated": "20240506230804"
 							},
 							"Children": [
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "a",
 									"TextMarkAHref": "https://ld246.com",
-									"TextMarkTextContent": "超级链接"
+									"TextMarkTextContent": "超链接"
 								}
 							]
 						}
@@ -105,7 +105,7 @@
 					},
 					"Properties": {
 						"id": "20220916195046-bdzv6fy",
-						"updated": "20210604222204"
+						"updated": "20240702222051"
 					},
 					"Children": [
 						{
@@ -141,15 +141,16 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20210604222158-w17nnmy",
-								"updated": "20210604222204"
+								"updated": "20240702222051"
 							},
 							"Children": [
 								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
 									"Type": "NodeImage",
 									"Data": "span",
-									"Properties": {
-										"style": "display: block;"
-									},
 									"Children": [
 										{
 											"Type": "NodeBang"
@@ -176,12 +177,8 @@
 									]
 								},
 								{
-									"Type": "NodeKramdownSpanIAL",
-									"Data": "{: style=\"display: block;\"}"
-								},
-								{
 									"Type": "NodeText",
-									"Data": "\n"
+									"Data": "​"
 								}
 							]
 						}
@@ -503,8 +500,7 @@
 									"TextMarkInlineMathContent": "a^2 + b^2 = \\color{red}c^2"
 								},
 								{
-									"Type": "NodeText",
-									"Data": "\n"
+									"Type": "NodeText"
 								}
 							]
 						}
@@ -1827,7 +1823,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210604182634-xswb2hw",
-				"updated": "20211120101257"
+				"updated": "20251209210844"
 			},
 			"Children": [
 				{
@@ -1841,7 +1837,7 @@
 			"Type": "NodeBlockquote",
 			"Properties": {
 				"id": "20210604223030-6gapuyv",
-				"updated": "20210604223045"
+				"updated": "20251209210836"
 			},
 			"Children": [
 				{
@@ -1859,6 +1855,156 @@
 						{
 							"Type": "NodeText",
 							"Data": "注意不是内容块引用，而是引述块（Blockquote）。"
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251209210844-rap5wy6",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20251209210844-rap5wy6",
+				"updated": "20251211094029"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "提示块"
+				}
+			]
+		},
+		{
+			"ID": "20251211093951-xtkv05z",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211093951-xtkv05z",
+				"updated": "20251211094016"
+			},
+			"CalloutType": "NOTE",
+			"CalloutTitle": "Note",
+			"CalloutIcon": "✏️",
+			"Children": [
+				{
+					"ID": "20251211093951-ywyj5yp",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211093951-ywyj5yp",
+						"updated": "20251211094016"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "突出显示即使快速浏览也应注意的信息。"
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211093951-olg8lvt",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211093951-olg8lvt",
+				"updated": "20251211094019"
+			},
+			"CalloutType": "TIP",
+			"CalloutTitle": "Tip",
+			"CalloutIcon": "💡",
+			"Children": [
+				{
+					"ID": "20251211093951-nny14nk",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211093951-nny14nk",
+						"updated": "20251211094019"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "可选信息，有助于更顺利地完成任务。"
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211093951-k74y9ge",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211093951-k74y9ge",
+				"updated": "20251211094024"
+			},
+			"CalloutType": "IMPORTANT",
+			"CalloutTitle": "Important",
+			"CalloutIcon": "❗",
+			"Children": [
+				{
+					"ID": "20251211093951-8rjh25b",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211093951-8rjh25b",
+						"updated": "20251211094024"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "成功完成任务所必需的关键信息。"
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211093951-580y2vk",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211093951-580y2vk",
+				"updated": "20251211094029"
+			},
+			"CalloutType": "WARNING",
+			"CalloutTitle": "Warning",
+			"CalloutIcon": "⚠️",
+			"Children": [
+				{
+					"ID": "20251211093951-l5o9hoe",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211093951-l5o9hoe",
+						"updated": "20251211094029"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "由于存在潜在风险，此重要内容需要立即关注。"
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211093951-fe1g5ac",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211093951-fe1g5ac",
+				"updated": "20251211093951"
+			},
+			"CalloutType": "CAUTION",
+			"CalloutTitle": "Caution",
+			"CalloutIcon": "🚨",
+			"Children": [
+				{
+					"ID": "20251211093951-ppbnywx",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211093951-ppbnywx",
+						"updated": "20251211093951"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "某项操作可能带来的负面后果。"
 						}
 					]
 				}
@@ -2272,7 +2418,7 @@
 			"Data": "\u003cdiv\u003e\n\u003cruby\u003e\n你\u003crt\u003enǐ\u003c/rt\u003e\n　好\u003crt\u003e　hǎo\u003c/rt\u003e\n　世\u003crt\u003e　shì\u003c/rt\u003e\n　界\u003crt\u003e　jiè\u003c/rt\u003e\n\u003c/ruby\u003e\u003cbr\u003e\nHello World\n\u003c/div\u003e",
 			"Properties": {
 				"id": "20220312004517-f6i1k8m",
-				"updated": "20220828102447"
+				"updated": "20240427230559"
 			}
 		},
 		{
@@ -2280,93 +2426,23 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220312122055-qsltja9",
-				"updated": "20220312122518"
+				"updated": "20240427230913"
 			},
 			"Children": [
 				{
+					"Type": "NodeText",
+					"Data": "更多细节请参考 "
+				},
+				{
 					"Type": "NodeTextMark",
-					"TextMarkType": "tag",
-					"TextMarkTextContent": "注意"
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20240427230507-yeaxqbs",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "HTML 块注意"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "："
-				}
-			]
-		},
-		{
-			"ID": "20220828102305-kv9o4nz",
-			"Type": "NodeList",
-			"ListData": {},
-			"Properties": {
-				"id": "20220828102305-kv9o4nz",
-				"updated": "20220828102421"
-			},
-			"Children": [
-				{
-					"ID": "20220828102306-gt8j7lc",
-					"Type": "NodeListItem",
-					"ListData": {
-						"BulletChar": 42,
-						"Marker": "Kg=="
-					},
-					"Properties": {
-						"id": "20220828102306-gt8j7lc",
-						"updated": "20220828102306"
-					},
-					"Children": [
-						{
-							"ID": "20220828102306-4yswrhi",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20220828102306-4yswrhi",
-								"updated": "20220828102306"
-							},
-							"Children": [
-								{
-									"Type": "NodeText",
-									"Data": "使用 HTML 块时不会对其中的代码进行安全过滤，请确认代码安全后再使用，以免遭遇跨站脚本攻击（XSS）"
-								}
-							]
-						}
-					]
-				},
-				{
-					"ID": "20220828102307-hhuecb8",
-					"Type": "NodeListItem",
-					"ListData": {
-						"BulletChar": 42,
-						"Marker": "Kg=="
-					},
-					"Properties": {
-						"id": "20220828102307-hhuecb8",
-						"updated": "20220828102421"
-					},
-					"Children": [
-						{
-							"ID": "20220828102307-t8ssvfi",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20220828102307-t8ssvfi",
-								"updated": "20220828102421"
-							},
-							"Children": [
-								{
-									"Type": "NodeText",
-									"Data": "因为 Markdown 规范对 HTML 块解析规则较为复杂，建议使用 "
-								},
-								{
-									"Type": "NodeTextMark",
-									"TextMarkType": "code",
-									"TextMarkTextContent": "\u0026lt;div\u0026gt;\u0026lt;/div\u0026gt;"
-								},
-								{
-									"Type": "NodeText",
-									"Data": " 包裹 HTML 代码并去掉空行"
-								}
-							]
-						}
-					]
+					"Data": "。"
 				}
 			]
 		},
@@ -3347,36 +3423,67 @@
 			"ID": "20210104091228-0oun8c9",
 			"Type": "NodeCodeBlock",
 			"IsFencedCodeBlock": true,
-			"CodeBlockFenceChar": 96,
-			"CodeBlockFenceLen": 3,
-			"CodeBlockOpenFence": "YGBg",
-			"CodeBlockInfo": "YWJj",
-			"CodeBlockCloseFence": "YGBg",
 			"Properties": {
-				"id": "20210104091228-0oun8c9"
+				"id": "20210104091228-0oun8c9",
+				"updated": "20240429095835"
 			},
 			"Children": [
 				{
 					"Type": "NodeCodeBlockFenceOpenMarker",
-					"Data": "```",
-					"CodeBlockFenceLen": 3
+					"Data": "```"
 				},
 				{
 					"Type": "NodeCodeBlockFenceInfoMarker",
 					"CodeBlockInfo": "YWJj"
 				},
 				{
-					"ID": "20220307091943-mjfyhoz",
 					"Type": "NodeCodeBlockCode",
-					"Data": "X: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:\"Em\"EEE E2G|\"C7\"_B2A G2F|\"Em\"EEE E2G|\\\n\"C7\"_B2A \"B7\"=B3|\"Em\"EEE E2G|\n\"C7\"_B2A G2F|\"Em\"GFE \"D (Bm7)\"F2D|\\\n1\"Em\"E3-E3:|2\"Em\"E3-E2B|:\"Em\"e2e gfe|\n\"G\"g2ab3|\"Em\"gfeg2e|\"D\"fedB2A|\"Em\"e2e gfe|\\\n\"G\"g2ab3|\"Em\"gfe\"D\"f2d|\"Em\"e3-e3:|\n",
-					"Properties": {
-						"id": "20220307091943-mjfyhoz"
-					}
+					"Data": "%%params {tablature: [{instrument: \u0026quot;violin\u0026quot;}]}\nX: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:\u0026quot;Em\u0026quot;EEE E2G|\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;EEE E2G|\\\n\u0026quot;C7\u0026quot;_B2A \u0026quot;B7\u0026quot;=B3|\u0026quot;Em\u0026quot;EEE E2G|\n\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;GFE \u0026quot;D (Bm7)\u0026quot;F2D|\\\n1\u0026quot;Em\u0026quot;E3-E3:|2\u0026quot;Em\u0026quot;E3-E2B|:\u0026quot;Em\u0026quot;e2e gfe|\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfeg2e|\u0026quot;D\u0026quot;fedB2A|\u0026quot;Em\u0026quot;e2e gfe|\\\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfe\u0026quot;D\u0026quot;f2d|\u0026quot;Em\u0026quot;e3-e3:|"
 				},
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
-					"Data": "```",
-					"CodeBlockFenceLen": 3
+					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20240429095203-fhtjw9t",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20240429095203-fhtjw9t",
+				"updated": "20240429095843"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "可在首行加入 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "%%params JSON"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ ，使 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "JSON"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 作为 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "renderAbc options"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 的参数。"
 				}
 			]
 		},
@@ -3400,7 +3507,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210104091228-ifv0j64",
-				"updated": "20210415200607"
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3419,7 +3526,8 @@
 			"CodeBlockInfo": "Z3JhcGh2aXo=",
 			"CodeBlockCloseFence": "YGBg",
 			"Properties": {
-				"id": "20210104091228-ww5nb3p"
+				"id": "20210104091228-ww5nb3p",
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3451,7 +3559,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211213122048-2s8m4r5",
-				"updated": "20211213122133"
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3476,7 +3584,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210104091228-tw1nmmg",
-				"updated": "20210415200608"
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3495,7 +3603,8 @@
 			"CodeBlockInfo": "Zmxvd2NoYXJ0",
 			"CodeBlockCloseFence": "YGBg",
 			"Properties": {
-				"id": "20210104091228-mh7dtd0"
+				"id": "20210104091228-mh7dtd0",
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3527,7 +3636,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211213122136-j3etina",
-				"updated": "20211213122329"
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3552,7 +3661,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210201202204-gljrabr",
-				"updated": "20210415200621"
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3567,7 +3676,7 @@
 			"IsFencedCodeBlock": true,
 			"Properties": {
 				"id": "20210201202302-5lfweuz",
-				"updated": "20210201202302"
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{
@@ -3597,7 +3706,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211213122332-wozw982",
-				"updated": "20211213122432"
+				"updated": "20240429095322"
 			},
 			"Children": [
 				{

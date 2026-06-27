@@ -22,54 +22,51 @@ import (
 	"strings"
 
 	"github.com/siyuan-note/logging"
-	"github.com/siyuan-note/siyuan/kernel/search"
+	"github.com/siyuan-note/siyuan/kernel/bazaar"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func SearchWidget(keyword string) (ret []*Block) {
-	ret = []*Block{}
-	widgets := filepath.Join(util.DataDir, "widgets")
-	entries, err := os.ReadDir(widgets)
-	if nil != err {
-		logging.LogErrorf("read dir [%s] failed: %s", widgets, err)
+// WidgetSearchResult 描述了挂件搜索结果。
+type WidgetSearchResult struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+}
+
+func SearchWidget(keyword string) (ret []*WidgetSearchResult) {
+	ret = []*WidgetSearchResult{}
+	widgetsDirPath := filepath.Join(util.DataDir, "widgets")
+	widgetsDir, err := os.ReadDir(widgetsDirPath)
+	if err != nil {
+		logging.LogErrorf("read dir [%s] failed: %s", widgetsDirPath, err)
 		return
 	}
 
-	k := strings.ToLower(keyword)
-	for _, entry := range entries {
-		if !util.IsDirRegularOrSymlink(entry) {
+	var widgets []*bazaar.Package
+	for _, dir := range widgetsDir {
+		if !util.IsDirRegularOrSymlink(dir) {
+			continue
+		}
+		dirName := dir.Name()
+		if strings.HasPrefix(dirName, ".") {
 			continue
 		}
 
-		isWidgetDir := false
-		subEntries, readErr := os.ReadDir(filepath.Join(widgets, entry.Name()))
-		if nil != readErr {
-			logging.LogWarnf("read dir [%s] failed: %s", filepath.Join(widgets, entry.Name()), readErr)
-			continue
-		}
-		for _, subEntry := range subEntries {
-			if !subEntry.IsDir() && "widget.json" == subEntry.Name() {
-				isWidgetDir = true
-				break
-			}
-		}
-		if !isWidgetDir {
+		widget, _ := bazaar.ParsePackageJSON(filepath.Join(widgetsDirPath, dirName, "widget.json"))
+		if nil == widget {
 			continue
 		}
 
-		name := strings.ToLower(entry.Name())
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-
-		if strings.Contains(name, k) {
-			name = entry.Name()
-			if "" != keyword {
-				_, name = search.MarkText(entry.Name(), keyword, 32, Conf.Search.CaseSensitive)
-			}
-			b := &Block{Content: name}
-			ret = append(ret, b)
-		}
+		widgets = append(widgets, widget)
 	}
+
+	widgets = bazaar.FilterPackages(widgets, keyword)
+	for _, widget := range widgets {
+		b := &WidgetSearchResult{
+			Name:    bazaar.GetPreferredLocaleString(widget.DisplayName, widget.Name),
+			Content: widget.Name,
+		}
+		ret = append(ret, b)
+	}
+
 	return
 }

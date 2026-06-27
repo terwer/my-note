@@ -16,13 +16,14 @@ import {Tag} from "./dock/Tag";
 import {Search} from "../search";
 import {Custom} from "./dock/Custom";
 import {newCardModel} from "../card/newCardTab";
-import {updateHotkeyTip} from "../protyle/util/compatibility";
+import {isIPad, updateHotkeyTip} from "../protyle/util/compatibility";
 import {openSearch} from "../search/spread";
 import {openRecentDocs} from "../business/openRecentDocs";
 import {openHistory} from "../history/history";
 import {newFile} from "../util/newFile";
 import {mountHelp, newNotebook} from "../util/mount";
 import {Constants} from "../constants";
+import {fetchPost} from "../util/fetch";
 
 export const getActiveTab = (wndActive = true) => {
     const activeTabElement = document.querySelector(".layout__wnd--active .item--focus");
@@ -53,11 +54,20 @@ export const switchTabByIndex = (index: number) => {
         } else if (index === -2) {
             // 上一个
             indexElement = activeDockIcoElement.previousElementSibling;
+            if (!indexElement) {
+                indexElement = activeDockIcoElement.parentElement.lastElementChild;
+                if (indexElement.classList.contains("dock__item--pin")) {
+                    indexElement = indexElement.previousElementSibling;
+                }
+            }
         } else if (index === -3) {
             // 下一个
             indexElement = activeDockIcoElement.nextElementSibling;
+            if (!indexElement || indexElement.classList.contains("dock__item--pin")) {
+                indexElement = activeDockIcoElement.parentElement.firstElementChild;
+            }
         }
-        const type = indexElement?.getAttribute("data-type");
+        const type = indexElement?.getAttribute("data-type") as TDock;
         if (type) {
             getDockByType(type)?.toggleModel(type, true, false);
         }
@@ -72,9 +82,15 @@ export const switchTabByIndex = (index: number) => {
         } else if (index === -2) {
             // 上一个
             indexElement = tab.headElement.previousElementSibling;
+            if (!indexElement) {
+                indexElement = tab.headElement.parentElement.lastElementChild;
+            }
         } else if (index === -3) {
             // 下一个
             indexElement = tab.headElement.nextElementSibling;
+            if (!indexElement) {
+                indexElement = tab.headElement.parentElement.firstElementChild;
+            }
         }
         if (indexElement) {
             tab.parent.switchTab(indexElement as HTMLElement, true);
@@ -108,7 +124,11 @@ export const resizeTabs = (isSaveLayout = true) => {
             });
         });
         models.search.forEach(item => {
-            item.edit.resize();
+            if (item.element.querySelector("#searchUnRefPanel").classList.contains("fn__none")) {
+                item.editors.edit.resize();
+            } else {
+                item.editors.unRefEdit.resize();
+            }
         });
         models.custom.forEach(item => {
             if (item.resize) {
@@ -123,7 +143,7 @@ export const resizeTabs = (isSaveLayout = true) => {
     }, 200);
 };
 
-export const getDockByType = (type: string) => {
+export const getDockByType = (type: TDock | string) => {
     if (!window.siyuan.layout.leftDock) {
         return undefined;
     }
@@ -140,42 +160,44 @@ export const getDockByType = (type: string) => {
 
 export const newCenterEmptyTab = (app: App) => {
     return new Tab({
-        panel: `<div class="layout__empty b3-list">
-    <div class="${!window.siyuan.config.readonly ? " fn__none" : ""}">
-        <div class="config-about__logo">
-            <img src="/stage/icon.png">
-            ${window.siyuan.languages.siyuanNote}
+        panel: `<div class="layout__empty">
+        <div class="${!window.siyuan.config.readonly ? " fn__none" : ""}">
+            <div class="config-about__logo">
+                <img src="/stage/icon.png">
+                ${window.siyuan.languages.siyuanNote}
+            </div>
+            <div class="b3-label__text">${window.siyuan.languages.slogan}</div>
         </div>
-        <div class="b3-label__text">${window.siyuan.languages.slogan}</div>
-    </div>
-    <div class="fn__hr"></div>
-    <div class="b3-list-item" id="editorEmptySearch">
-        <svg class="b3-list-item__graphic"><use xlink:href="#iconSearch"></use></svg>
-        <span>${window.siyuan.languages.search}</span>
-        <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.globalSearch.custom)}</span>
-    </div>
-    <div id="editorEmptyRecent" class="b3-list-item">
-        <svg class="b3-list-item__graphic"><use xlink:href="#iconList"></use></svg>
-        <span>${window.siyuan.languages.recentDocs}</span>
-        <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.recentDocs.custom)}</span>
-    </div>
-    <div id="editorEmptyHistory" class="b3-list-item${window.siyuan.config.readonly ? " fn__none" : ""}">
-        <svg class="b3-list-item__graphic"><use xlink:href="#iconHistory"></use></svg>
-        <span>${window.siyuan.languages.dataHistory}</span>
-        <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.dataHistory.custom)}</span>
-    </div>
-    <div class="b3-list-item${window.siyuan.config.readonly ? " fn__none" : ""}" id="editorEmptyFile">
-        <svg class="b3-list-item__graphic"><use xlink:href="#iconFile"></use></svg>
-        <span>${window.siyuan.languages.newFile}</span>
-        <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.newFile.custom)}</span>
-    </div>
-    <div class="b3-list-item${window.siyuan.config.readonly ? " fn__none" : ""}" id="editorEmptyNewNotebook">
-        <svg class="b3-list-item__graphic"><use xlink:href="#iconFilesRoot"></use></svg>
-        <span>${window.siyuan.languages.newNotebook}</span>
-    </div>
-    <div class="b3-list-item" id="editorEmptyHelp">
-        <svg class="b3-list-item__graphic"><use xlink:href="#iconHelp"></use></svg>
-        <span>${window.siyuan.languages.help}</span>
+        <div class="fn__hr"></div>
+    <div class="b3-list" style="margin: 0 auto">
+        <div class="b3-list-item" id="editorEmptySearch">
+            <svg class="b3-list-item__graphic"><use xlink:href="#iconSearch"></use></svg>
+            <span>${window.siyuan.languages.search}</span>
+            <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.globalSearch.custom)}</span>
+        </div>
+        <div id="editorEmptyRecent" class="b3-list-item">
+            <svg class="b3-list-item__graphic"><use xlink:href="#iconList"></use></svg>
+            <span>${window.siyuan.languages.recentDocs}</span>
+            <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.recentDocs.custom)}</span>
+        </div>
+        <div id="editorEmptyHistory" class="b3-list-item${window.siyuan.config.readonly ? " fn__none" : ""}">
+            <svg class="b3-list-item__graphic"><use xlink:href="#iconHistory"></use></svg>
+            <span>${window.siyuan.languages.dataHistory}</span>
+            <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.dataHistory.custom)}</span>
+        </div>
+        <div class="b3-list-item${window.siyuan.config.readonly ? " fn__none" : ""}" id="editorEmptyFile">
+            <svg class="b3-list-item__graphic"><use xlink:href="#iconFile"></use></svg>
+            <span>${window.siyuan.languages.newFile}</span>
+            <span class="b3-list-item__meta">${updateHotkeyTip(window.siyuan.config.keymap.general.newFile.custom)}</span>
+        </div>
+        <div class="b3-list-item${window.siyuan.config.readonly ? " fn__none" : ""}" id="editorEmptyNewNotebook">
+            <svg class="b3-list-item__graphic"><use xlink:href="#iconFilesRoot"></use></svg>
+            <span>${window.siyuan.languages.newNotebook}</span>
+        </div>
+        <div class="b3-list-item${(isIPad() || window.siyuan.config.readonly) ? " fn__none" : ""}" id="editorEmptyHelp">
+            <svg class="b3-list-item__graphic"><use xlink:href="#iconHelp"></use></svg>
+            <span>${window.siyuan.languages.userGuide}</span>
+        </div>
     </div>
 </div>`,
         callback(tab: Tab) {
@@ -234,11 +256,34 @@ export const copyTab = (app: App, tab: Tab) => {
         callback(newTab: Tab) {
             let model: Model;
             if (tab.model instanceof Editor) {
+                const newAction: TProtyleAction[] = [];
+                // https://github.com/siyuan-note/siyuan/issues/12132
+                tab.model.editor.protyle.block.action.forEach(item => {
+                    if (item !== Constants.CB_GET_APPEND && item !== Constants.CB_GET_BEFORE && item !== Constants.CB_GET_HTML) {
+                        newAction.push(item);
+                    }
+                });
                 model = new Editor({
                     app,
                     tab: newTab,
                     blockId: tab.model.editor.protyle.block.id,
-                    rootId: tab.model.editor.protyle.block.rootID
+                    rootId: tab.model.editor.protyle.block.rootID,
+                    // https://github.com/siyuan-note/siyuan/issues/12150
+                    action: newAction,
+                    afterInitProtyle(editor) {
+                        // https://github.com/siyuan-note/siyuan/issues/13851
+                        if (tab.model instanceof Editor) {
+                            const copyResizeTopElement = tab.model.editor.protyle.wysiwyg.element.querySelector("[data-resize-top]");
+                            if (copyResizeTopElement) {
+                                const newElement = editor.protyle.wysiwyg.element.querySelector(`[data-node-id="${copyResizeTopElement.getAttribute("data-node-id")}"]`);
+                                if (newElement) {
+                                    editor.protyle.observerLoad?.disconnect();
+                                    newElement.scrollIntoView();
+                                    editor.protyle.contentElement.scrollTop += parseInt(copyResizeTopElement.getAttribute("data-resize-top"));
+                                }
+                            }
+                        }
+                    }
                 });
             } else if (tab.model instanceof Asset) {
                 model = new Asset({
@@ -315,29 +360,55 @@ export const copyTab = (app: App, tab: Tab) => {
     });
 };
 
-export const closeTabByType = async (tab: Tab, type: "closeOthers" | "closeAll" | "other", tabs?: Tab[]) => {
+const getRootID = (item: Tab) => {
+    if (item.model instanceof Editor) {
+        return item.model.editor.protyle.block.rootID;
+    } else if (!item.model) {
+        const initTab = item.headElement.getAttribute("data-initdata");
+        if (initTab) {
+            try {
+                const initTabData = JSON.parse(initTab);
+                if (initTabData && initTabData.instance === "Editor" && initTabData.rootId) {
+                    return initTabData.rootId;
+                }
+            } catch (e) {
+                console.warn("Failed to parse tab init data:", e);
+            }
+        }
+    }
+};
+
+export const closeTabByType = (tab: Tab, type: "closeOthers" | "closeAll" | "other", tabs?: Tab[]) => {
+    const rootIDs: string[] = [];
     if (type === "closeOthers") {
         for (let index = 0; index < tab.parent.children.length; index++) {
-            if (tab.parent.children[index].id !== tab.id && !tab.parent.children[index].headElement.classList.contains("item--pin")) {
-                await tab.parent.children[index].parent.removeTab(tab.parent.children[index].id, true, false);
+            const item = tab.parent.children[index];
+            if (item.id !== tab.id && !item.headElement.classList.contains("item--pin")) {
+                rootIDs.push(getRootID(item));
+                item.parent.removeTab(item.id, true, false);
                 index--;
             }
         }
     } else if (type === "closeAll") {
         for (let index = 0; index < tab.parent.children.length; index++) {
-            if (!tab.parent.children[index].headElement.classList.contains("item--pin")) {
-                await tab.parent.children[index].parent.removeTab(tab.parent.children[index].id, true);
+            const item = tab.parent.children[index];
+            if (!item.headElement.classList.contains("item--pin")) {
+                rootIDs.push(getRootID(item));
+                item.parent.removeTab(item.id, true);
                 index--;
             }
         }
     } else if (tabs.length > 0) {
         for (let index = 0; index < tabs.length; index++) {
             if (!tabs[index].headElement.classList.contains("item--pin")) {
-                await tabs[index].parent.removeTab(tabs[index].id);
+                tabs[index].parent.removeTab(tabs[index].id);
             }
         }
     }
-
+    // 批量更新文档关闭时间
+    if (rootIDs.length > 0) {
+        fetchPost("/api/storage/batchUpdateRecentDocCloseTime", {rootIDs});
+    }
     if (tab.headElement.parentElement && !tab.headElement.parentElement.querySelector(".item--focus")) {
         tab.parent.switchTab(tab.headElement, true);
     } else if (tab.parent.children.length > 0) {

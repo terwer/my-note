@@ -1,12 +1,12 @@
 {
 	"ID": "20201210103036-1x3vm8t",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"id": "20201210103036-1x3vm8t",
 		"title": "文档块和标题块的转换",
 		"type": "doc",
-		"updated": "20211223192452"
+		"updated": "20241214173542"
 	},
 	"Children": [
 		{
@@ -135,7 +135,8 @@
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20210104090801-tojy8es"
+				"id": "20210104090801-tojy8es",
+				"updated": "20241214173542"
 			},
 			"Children": [
 				{
@@ -152,12 +153,13 @@
 			"ID": "20210104090801-q0rn7el",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20210104090801-q0rn7el"
+				"id": "20210104090801-q0rn7el",
+				"updated": "20241214173542"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "在文档树上，选择需要转换为标题块的文档，然后将其拖拽到编辑器页签中需要插入的位置。这里有两种情况："
+					"Data": "在文档树上选择需要转换为标题块的文档，然后按住 Alt 键将其拖拽到编辑器页签中需要插入的位置。这里有两种情况："
 				}
 			]
 		},
@@ -441,7 +443,8 @@
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20210104090801-s48mpeu"
+				"id": "20210104090801-s48mpeu",
+				"updated": "20241018104534"
 			},
 			"Children": [
 				{
@@ -458,50 +461,31 @@
 			"ID": "20210104090801-9kyqggg",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20210104090801-9kyqggg"
+				"id": "20210104090801-9kyqggg",
+				"updated": "20241018104534"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "在编辑器页签中选择需要转换的标题块，按住该标题块标识图标，然后将其拖拽到文档树需要放置的文件夹中。如果需要放置到笔记本根文件夹上，就将标题块标识图标拖动到顶层的笔记本图标这一行上。"
-				}
-			]
-		},
-		{
-			"ID": "20210104090801-z3yxgmt",
-			"Type": "NodeParagraph",
-			"Properties": {
-				"id": "20210104090801-z3yxgmt"
-			},
-			"Children": [
-				{
-					"Type": "NodeText",
-					"Data": "标题块转换为文档块后："
+					"Data": "在编辑器页签中选择需要转换的标题块，按住该标题块的块标，然后就可以将其拖拽到文档树上转换了，标题块转换为文档块后："
 				}
 			]
 		},
 		{
 			"ID": "20210104090801-2clqrmr",
 			"Type": "NodeList",
-			"ListData": {
-				"BulletChar": 42,
-				"Padding": 2,
-				"Marker": "Kg==",
-				"Num": -1
-			},
+			"ListData": {},
 			"Properties": {
-				"id": "20210104090801-2clqrmr"
+				"id": "20210104090801-2clqrmr",
+				"updated": "20240415092415"
 			},
 			"Children": [
 				{
 					"ID": "20210104090801-u88ud0z",
 					"Type": "NodeListItem",
-					"Data": "*",
 					"ListData": {
 						"BulletChar": 42,
-						"Padding": 2,
-						"Marker": "Kg==",
-						"Num": -1
+						"Marker": "Kg=="
 					},
 					"Properties": {
 						"id": "20210104090801-u88ud0z"
@@ -525,74 +509,122 @@
 				{
 					"ID": "20210104090801-yg8oign",
 					"Type": "NodeListItem",
-					"Data": "*",
 					"ListData": {
-						"Tight": true,
 						"BulletChar": 42,
-						"Padding": 2,
-						"Marker": "Kg==",
-						"Num": -1
+						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20210104090801-yg8oign"
+						"id": "20210104090801-yg8oign",
+						"updated": "20240415092415"
 					},
 					"Children": [
 						{
 							"ID": "20210302223313-g1q27b1",
 							"Type": "NodeParagraph",
 							"Properties": {
-								"id": "20210302223313-g1q27b1"
+								"id": "20210302223313-g1q27b1",
+								"updated": "20240415092415"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "原标题块下如果有子标题，则会按照这些子标题中最大的层级作为新文档中一级标题，其余子标题会根据相对层级进行调整"
+									"Data": "原标题块下如果有子标题，则会按照这些子标题中最大的层级作为新文档中二级标题，其余子标题会根据相对层级进行调整，比如原标题块下包含了三、四、五级子标题，则转换为文档块后会将这些子标题转换为二、三、四级标题"
 								}
 							]
-						},
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20241018104519-pb6ln2k",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20241018104519-pb6ln2k",
+				"updated": "20241018104519"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "将列表项块转换为文档块"
+				}
+			]
+		},
+		{
+			"ID": "20241018104519-a4rvy3v",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20241018104519-a4rvy3v",
+				"updated": "20241018104519"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "除了将标题块转换为文档块，还可以将列表项块转换为文档块（是列表项块，不是列表块），按住该列表项块的块标，然后就可以将其拖拽到文档树上转换了，列表项块转换为文档块后："
+				}
+			]
+		},
+		{
+			"ID": "20241018104519-kr24kek",
+			"Type": "NodeList",
+			"ListData": {},
+			"Properties": {
+				"id": "20241018104519-kr24kek",
+				"updated": "20241018104519"
+			},
+			"Children": [
+				{
+					"ID": "20241018104519-1kegugk",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20241018104519-1kegugk",
+						"updated": "20241018104519"
+					},
+					"Children": [
 						{
-							"ID": "20210104090801-p8uc6ob",
-							"Type": "NodeList",
-							"ListData": {
-								"Tight": true,
-								"BulletChar": 42,
-								"Padding": 2,
-								"Marker": "Kg==",
-								"Num": -1
-							},
+							"ID": "20241018104519-cb7isjy",
+							"Type": "NodeParagraph",
 							"Properties": {
-								"id": "20210104090801-p8uc6ob"
+								"id": "20241018104519-cb7isjy",
+								"updated": "20241018104519"
 							},
 							"Children": [
 								{
-									"ID": "20210104090801-q88ezjk",
-									"Type": "NodeListItem",
-									"Data": "*",
-									"ListData": {
-										"Tight": true,
-										"BulletChar": 42,
-										"Padding": 2,
-										"Marker": "Kg==",
-										"Num": -1
-									},
-									"Properties": {
-										"id": "20210104090801-q88ezjk"
-									},
-									"Children": [
-										{
-											"ID": "20210302223313-6qh35f3",
-											"Type": "NodeParagraph",
-											"Properties": {
-												"id": "20210302223313-6qh35f3"
-											},
-											"Children": [
-												{
-													"Type": "NodeText",
-													"Data": "比如原标题块下包含了三、四、五级子标题，则转换为文档块后会将这些子标题转换为一、二、三级标题"
-												}
-											]
-										}
-									]
+									"Type": "NodeText",
+									"Data": "列表项块的首个子块的内容将变为文档名"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20241018104519-y2qhagm",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20241018104519-y2qhagm",
+						"updated": "20241018104519"
+					},
+					"Children": [
+						{
+							"ID": "20241018104519-nfdaro6",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20241018104519-nfdaro6",
+								"updated": "20241018104519"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "列表项块的子块保持原样"
 								}
 							]
 						}

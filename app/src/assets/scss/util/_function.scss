@@ -1,10 +1,16 @@
+@use "mixin";
+
 .fn {
-  &__hidescrollbar::-webkit-scrollbar {
-    display: none;
+  &__hidescrollbar {
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    overflow: auto;
   }
 
   &__ellipsis {
-    @include text-clamp(1);
+    @include mixin.text-clamp(1);
     display: block; // 集市挂件名称过长遮挡星标 https://github.com/siyuan-note/siyuan/issues/4782
   }
 
@@ -15,6 +21,12 @@
 
     &--small {
       width: 4px;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    &--5 {
+      width: 5px;
       display: inline-block;
       flex-shrink: 0;
     }
@@ -46,9 +58,9 @@
 
     &-1 {
       flex: 1;
-      min-width: 0.1px;
+      min-width: .1px;
       overflow: auto;
-      min-height: 0.1px;
+      min-height: .1px;
     }
 
     &-column {
@@ -70,6 +82,10 @@
     cursor: pointer;
   }
 
+  &__grab {
+    cursor: grab;
+  }
+
   &__none {
     display: none !important;
   }
@@ -85,10 +101,6 @@
     &:hover {
       color: var(--b3-theme-on-background);
     }
-  }
-
-  &__displayblock {
-    display: block;
   }
 
   &__block {
@@ -116,7 +128,7 @@
     width: 100%;
     bottom: 0;
     align-content: center;
-    z-index: 1;
+    z-index: 3; // 需大于 database table view
     align-items: center;
 
     &--top {
@@ -125,7 +137,7 @@
   }
 
   &__code {
-    padding: 0.2em 0.4em;
+    padding: .2em .4em;
     margin: 0;
     font-size: 85%;
     border-radius: var(--b3-border-radius);
@@ -136,8 +148,40 @@
     background-color: var(--b3-protyle-code-background);
   }
 
+  &__kbd {
+    padding: 2px 4px;
+    font: 75% var(--b3-font-family-kbd);
+    line-height: 1;
+    color: var(--b3-theme-on-surface);
+    vertical-align: middle;
+    background-color: var(--b3-theme-surface);
+    border: solid 1px var(--b3-theme-surface-lighter);
+    border-radius: var(--b3-border-radius);
+    box-shadow: inset 0 -1px 0 var(--b3-theme-surface-lighter);
+  }
+
   &__list {
     padding-left: 2em;
+  }
+
+  &__progress {
+    height: 4px;
+    border-radius: var(--b3-border-radius);
+    overflow: hidden;
+    background-color: #fff;
+    width: 64px;
+    align-self: center;
+    margin: 0 8px 0 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+
+    & > div {
+      background-color: var(--b3-theme-primary-light);
+      height: 4px;
+      background-image: linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent);
+      animation: stripMove 450ms linear infinite;
+      background-size: 50px 50px;
+    }
   }
 }
 

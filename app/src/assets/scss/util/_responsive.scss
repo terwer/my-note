@@ -12,6 +12,14 @@
         .b3-list-item__graphic {
           padding-right: 5px;
         }
+
+        .config__tab-hr {
+          margin: 0 0 4px 0;
+        }
+
+        .config__tab-title {
+          height: 25px;
+        }
       }
 
       .config-query label {
@@ -22,12 +30,6 @@
       .config-account {
         flex-direction: column;
         min-height: 100%;
-      }
-    }
-
-    &__tab-container {
-      .b3-card__info--left {
-        display: none;
       }
     }
 
@@ -69,13 +71,24 @@
     &__panel {
       flex-direction: column;
 
-      & > .b3-list,
-      & > .history__diff {
+      & > .fn__flex-column {
+        min-height: auto;
+        border-radius: var(--b3-border-radius-b);
+      }
+
+      & > .history__side {
         height: 40%;
         overflow: auto;
         padding-bottom: 8px;
-        width: auto;
+        width: auto !important;
+        border-bottom: 1px solid var(--b3-border-color);
       }
     }
+  }
+
+  .export-img__space {
+    flex: auto;
+    height: 8px;
+    width: 100%;
   }
 }

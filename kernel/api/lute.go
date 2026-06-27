@@ -18,11 +18,11 @@ package api
 
 import (
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"strings"
 
 	"github.com/88250/gulu"
+	"github.com/88250/lute"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
 	"github.com/88250/lute/render"
@@ -44,7 +44,35 @@ func copyStdMarkdown(c *gin.Context) {
 	}
 
 	id := arg["id"].(string)
-	ret.Data = model.ExportStdMarkdown(id)
+	assetsDestSpace2Underscore := false
+	if nil != arg["assetsDestSpace2Underscore"] {
+		assetsDestSpace2Underscore = arg["assetsDestSpace2Underscore"].(bool)
+	}
+
+	fillCSSVar := false
+	if nil != arg["fillCSSVar"] {
+		fillCSSVar = arg["fillCSSVar"].(bool)
+	}
+
+	adjustHeadingLevel := false
+	if nil != arg["adjustHeadingLevel"] {
+		adjustHeadingLevel = arg["adjustHeadingLevel"].(bool)
+	}
+
+	imgTag := false
+	if nil != arg["imgTag"] {
+		imgTag = arg["imgTag"].(bool)
+	}
+
+	markdownContent := model.ExportStdMarkdown(id, assetsDestSpace2Underscore, fillCSSVar, adjustHeadingLevel, imgTag)
+	if model.IsReadOnlyRoleContext(c) {
+		bt := treenode.GetBlockTree(id)
+		if bt != nil {
+			publishAccess := model.GetPublishAccess()
+			markdownContent = model.FilterContentByPublishAccess(c, publishAccess, bt.BoxID, bt.Path, markdownContent, true)
+		}
+	}
+	ret.Data = markdownContent
 }
 
 func html2BlockDOM(c *gin.Context) {
@@ -56,23 +84,27 @@ func html2BlockDOM(c *gin.Context) {
 		return
 	}
 
-	dom := arg["dom"].(string)
-	markdown, err := model.HTML2Markdown(dom)
-	if nil != err {
+	var dom string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("dom", &dom, true, false)) {
+		return
+	}
+	luteEngine := util.NewLute()
+	luteEngine.SetHTMLTag2TextMark(true)
+	luteEngine.SetHTML2MarkdownAttrs([]string{"alias", "memo", "bookmark", "custom-*"})
+	tree, _ := model.HTML2Tree(dom, luteEngine)
+	if nil == tree {
 		ret.Data = "Failed to convert"
 		return
 	}
 
-	luteEngine := util.NewLute()
 	var unlinks []*ast.Node
-	tree := parse.Parse("", []byte(markdown), luteEngine.ParseOptions)
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if !entering {
 			return ast.WalkContinue
 		}
 
 		if ast.NodeListItem == n.Type && nil == n.FirstChild {
-			newNode := treenode.NewParagraph()
+			newNode := treenode.NewParagraph("")
 			n.AppendChild(newNode)
 			n.SetIALAttr("updated", util.TimeFromID(newNode.ID))
 			return ast.WalkSkipChildren
@@ -96,7 +128,7 @@ func html2BlockDOM(c *gin.Context) {
 				row := head.FirstChild
 				if nil != row.FirstChild && nil == row.FirstChild.Next {
 					cell := row.FirstChild
-					p := treenode.NewParagraph()
+					p := treenode.NewParagraph("")
 					var contents []*ast.Node
 					for c := cell.FirstChild; nil != c; c = c.Next {
 						contents = append(contents, c)
@@ -126,18 +158,7 @@ func html2BlockDOM(c *gin.Context) {
 			if strings.HasPrefix(localPath, "http") {
 				return ast.WalkContinue
 			}
-
-			localPath = strings.TrimPrefix(localPath, "file://")
-			if gulu.OS.IsWindows() {
-				localPath = strings.TrimPrefix(localPath, "/")
-			}
-
-			unescaped, _ := url.PathUnescape(localPath)
-			if unescaped != localPath {
-				// `Convert network images/assets to local` supports URL-encoded local file names https://github.com/siyuan-note/siyuan/issues/9929
-				localPath = unescaped
-			}
-
+			localPath = util.FileURLToLocalPath(localPath)
 			if !filepath.IsAbs(localPath) {
 				// Kernel crash when copy-pasting from some browsers https://github.com/siyuan-note/siyuan/issues/9203
 				return ast.WalkContinue
@@ -146,12 +167,17 @@ func html2BlockDOM(c *gin.Context) {
 				return ast.WalkContinue
 			}
 
+			if util.IsSensitivePath(localPath) {
+				logging.LogWarnf("skip copying asset [%s] due to sensitive path", localPath)
+				return ast.WalkContinue
+			}
+
 			name := filepath.Base(localPath)
 			ext := filepath.Ext(name)
 			name = name[0 : len(name)-len(ext)]
 			name = name + "-" + ast.NewNodeID() + ext
 			targetPath := filepath.Join(util.DataDir, "assets", name)
-			if err = filelock.Copy(localPath, targetPath); nil != err {
+			if err := filelock.Copy(localPath, targetPath); err != nil {
 				logging.LogErrorf("copy asset from [%s] to [%s] failed: %s", localPath, targetPath, err)
 				return ast.WalkStop
 			}
@@ -160,10 +186,17 @@ func html2BlockDOM(c *gin.Context) {
 		})
 	}
 
-	// 复制带超链接的图片无法保存到本地 https://github.com/siyuan-note/siyuan/issues/5993
-	parse.NestedInlines2FlattedSpans(tree, false)
+	parse.TextMarks2Inlines(tree) // 先将 TextMark 转换为 Inlines https://github.com/siyuan-note/siyuan/issues/13056
+	parse.NestedInlines2FlattedSpansHybrid(tree, false)
 
-	renderer := render.NewProtyleRenderer(tree, luteEngine.RenderOptions)
+	md, err := lute.FormatNodeSync(tree.Root, luteEngine.ParseOptions, luteEngine.RenderOptions)
+	if nil != err {
+		ret.Data = "Failed to convert"
+		return
+	}
+
+	tree = parse.Parse("", []byte(md), luteEngine.ParseOptions)
+	renderer := render.NewProtyleRenderer(tree, luteEngine.RenderOptions, luteEngine.ParseOptions)
 	output := renderer.Render()
 	ret.Data = gulu.Str.FromBytes(output)
 }
@@ -177,11 +210,14 @@ func spinBlockDOM(c *gin.Context) {
 		return
 	}
 
-	dom := arg["dom"].(string)
+	var dom string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("dom", &dom, true, false)) {
+		return
+	}
 	luteEngine := model.NewLute()
 
 	dom = luteEngine.SpinBlockDOM(dom)
-	ret.Data = map[string]interface{}{
+	ret.Data = map[string]any{
 		"dom": dom,
 	}
 }

@@ -1,12 +1,13 @@
 {
 	"ID": "20230405172236-pg3l9eu",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"icon": "1f680",
 		"id": "20230405172236-pg3l9eu",
 		"title": "Performance Optimization",
-		"updated": "20231014100732"
+		"type": "doc",
+		"updated": "20250825114750"
 	},
 	"Children": [
 		{
@@ -378,7 +379,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20230405172238-v4hbjbe",
-				"updated": "20230405172238"
+				"updated": "20250825114750"
 			},
 			"Children": [
 				{
@@ -530,7 +531,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20230405172238-udux4az",
-				"updated": "20230406155736"
+				"updated": "20240420104851"
 			},
 			"Children": [
 				{
@@ -570,7 +571,7 @@
 					},
 					"Properties": {
 						"id": "20230405172238-vzn3127",
-						"updated": "20230405172505"
+						"updated": "20240420104851"
 					},
 					"Children": [
 						{
@@ -578,7 +579,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230405172238-jpeu5bm",
-								"updated": "20230405172505"
+								"updated": "20240420104851"
 							},
 							"Children": [
 								{
@@ -592,7 +593,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​​, especially for scenarios with many formula blocks, code blocks or chart blocks"
+									"Data": "​, especially for scenarios with many formula blocks, code blocks or chart blocks. There is no specific optimal value for this parameter, please refer to your experience after adjustment"
 								}
 							]
 						}
@@ -634,6 +635,62 @@
 							]
 						}
 					]
+				}
+			]
+		},
+		{
+			"ID": "20250825114750-j9t49j2",
+			"Type": "NodeHeading",
+			"HeadingLevel": 3,
+			"Properties": {
+				"id": "20250825114750-j9t49j2",
+				"updated": "20250825114750"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Optimizing the Index"
+				}
+			]
+		},
+		{
+			"ID": "20250825114750-qtm8i82",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20250825114750-qtm8i82",
+				"updated": "20250825114750"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "It is recommended to regularly optimize the index by going to "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Settings"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "About"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Optimize Index"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​."
 				}
 			]
 		}

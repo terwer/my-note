@@ -2,13 +2,13 @@ import {Tab} from "../layout/Tab";
 import {Protyle} from "../protyle";
 import {Model} from "../layout/Model";
 import {setPadding} from "../protyle/ui/initUI";
-import {getAllModels} from "../layout/getAll";
 /// #if !BROWSER
 import {setModelsHash} from "../window/setHeader";
 /// #endif
 import {countBlockWord} from "../layout/status";
 import {App} from "../index";
-import {resize} from "../protyle/util/resize";
+import {fullscreen} from "../protyle/breadcrumb/action";
+import {fetchPost} from "../util/fetch";
 
 export class Editor extends Model {
     public element: HTMLElement;
@@ -21,7 +21,9 @@ export class Editor extends Model {
         blockId: string,
         rootId: string,
         mode?: TEditorMode,
-        action?: string[],
+        action?: TProtyleAction[],
+        afterInitProtyle?: (editor: Protyle) => void,
+        scrollPosition?: ScrollLogicalPosition
     }) {
         super({
             app: options.app,
@@ -33,13 +35,17 @@ export class Editor extends Model {
         this.headElement = options.tab.headElement;
         this.element = options.tab.panelElement;
         this.initProtyle(options);
+        // 当文档第一次加载到页签时更新 openAt 时间
+        fetchPost("/api/storage/updateRecentDocOpenTime", {rootID: options.rootId});
     }
 
     private initProtyle(options: {
         blockId: string,
-        action?: string[]
+        action?: TProtyleAction[]
         rootId: string,
         mode?: TEditorMode,
+        scrollPosition?: ScrollLogicalPosition,
+        afterInitProtyle?: (editor: Protyle) => void,
     }) {
         this.editor = new Protyle(this.app, this.element, {
             action: options.action || [],
@@ -52,21 +58,19 @@ export class Editor extends Model {
                 scroll: true,
             },
             typewriterMode: true,
+            scrollPosition: options.scrollPosition,
             after: (editor) => {
                 if (window.siyuan.editorIsFullscreen) {
-                    editor.protyle.element.classList.add("fullscreen");
+                    fullscreen(editor.protyle.element);
                     setPadding(editor.protyle);
-                    getAllModels().editor.forEach(item => {
-                        if (!editor.protyle.element.isSameNode(item.element) && item.element.classList.contains("fullscreen")) {
-                            item.element.classList.remove("fullscreen");
-                            resize(item.editor.protyle);
-                        }
-                    });
                 }
                 countBlockWord([], editor.protyle.block.rootID);
                 /// #if !BROWSER
                 setModelsHash();
                 /// #endif
+                if (options.afterInitProtyle) {
+                    options.afterInitProtyle(editor);
+                }
             },
         });
         // 需在 after 回调之前，否则不会聚焦 https://github.com/siyuan-note/siyuan/issues/5303

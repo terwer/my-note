@@ -31,6 +31,7 @@ func flushTransaction(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
 
+	model.FlushTxQueue()
 	sql.FlushQueue()
 }
 
@@ -43,9 +44,12 @@ func SQL(c *gin.Context) {
 		return
 	}
 
-	stmt := arg["stmt"].(string)
+	var stmt string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("stmt", &stmt, true, true)) {
+		return
+	}
 	result, err := sql.Query(stmt, model.Conf.Search.Limit)
-	if nil != err {
+	if err != nil {
 		ret.Code = 1
 		ret.Msg = err.Error()
 		return

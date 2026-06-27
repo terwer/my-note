@@ -1,33 +1,57 @@
-FROM node:21 as NODE_BUILD
-WORKDIR /go/src/github.com/siyuan-note/siyuan/
-ADD . /go/src/github.com/siyuan-note/siyuan/
-RUN cd app && npm install -g pnpm && pnpm install && pnpm run build
+FROM --platform=$BUILDPLATFORM node:21 AS node-build
 
-FROM golang:alpine as GO_BUILD
-WORKDIR /go/src/github.com/siyuan-note/siyuan/
-COPY --from=NODE_BUILD /go/src/github.com/siyuan-note/siyuan/ /go/src/github.com/siyuan-note/siyuan/
-ENV GO111MODULE=on
-ENV CGO_ENABLED=1
-RUN apk add --no-cache gcc musl-dev && \
-    cd kernel && go build --tags fts5 -v -ldflags "-s -w -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod" && \
-    mkdir /opt/siyuan/ && \
-    mv /go/src/github.com/siyuan-note/siyuan/app/appearance/ /opt/siyuan/ && \
-    mv /go/src/github.com/siyuan-note/siyuan/app/stage/ /opt/siyuan/ && \
-    mv /go/src/github.com/siyuan-note/siyuan/app/guide/ /opt/siyuan/ && \
-    mv /go/src/github.com/siyuan-note/siyuan/app/changelogs/ /opt/siyuan/ && \
-    mv /go/src/github.com/siyuan-note/siyuan/kernel/kernel /opt/siyuan/ && \
-    find /opt/siyuan/ -name .git | xargs rm -rf
+ARG NPM_REGISTRY=
+
+WORKDIR /app
+ADD app/package.json app/pnpm* app/.npmrc .
+
+RUN <<EORUN
+#!/bin/bash -e
+corepack enable
+corepack install --global $(node -e 'console.log(require("./package.json").packageManager)')
+npm config set registry ${NPM_REGISTRY}
+pnpm install --silent
+EORUN
+
+ADD app/ .
+RUN <<EORUN
+#!/bin/bash -e
+pnpm run build
+mkdir /artifacts
+mv appearance stage guide changelogs /artifacts/
+EORUN
+
+FROM golang:1.25-alpine AS go-build
+
+RUN <<EORUN
+#!/bin/sh -e
+apk add --no-cache gcc musl-dev
+go env -w GO111MODULE=on
+go env -w CGO_ENABLED=1
+EORUN
+
+WORKDIR /kernel
+ADD kernel/go.* .
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg \
+    go mod download
+
+ADD kernel/ .
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg \
+    go build -tags fts5 -v -ldflags "-s -w"
 
 FROM alpine:latest
 LABEL maintainer="Liang Ding<845765@qq.com>"
 
-WORKDIR /opt/siyuan/
-COPY --from=GO_BUILD /opt/siyuan/ /opt/siyuan/
-RUN addgroup --gid 1000 siyuan && adduser --uid 1000 --ingroup siyuan --disabled-password siyuan && apk add --no-cache ca-certificates tzdata && chown -R siyuan:siyuan /opt/siyuan/
+RUN apk add --no-cache ca-certificates tzdata su-exec
 
 ENV TZ=Asia/Shanghai
+ENV HOME=/home/siyuan
 ENV RUN_IN_CONTAINER=true
 EXPOSE 6806
 
-USER siyuan
-ENTRYPOINT ["/opt/siyuan/kernel"]
+WORKDIR /opt/siyuan/
+COPY --from=go-build --chmod=755 /kernel/kernel /kernel/entrypoint.sh .
+COPY --from=node-build /artifacts .
+
+ENTRYPOINT ["/opt/siyuan/entrypoint.sh"]
+CMD ["/opt/siyuan/kernel"]

@@ -38,24 +38,35 @@ func performTransactions(c *gin.Context) {
 		return
 	}
 
-	trans := arg["transactions"]
-	data, err := gulu.JSON.MarshalJSON(trans)
-	if nil != err {
-		ret.Code = -1
-		ret.Msg = "parses request failed"
+	var trans []any
+	var reqID float64
+	var app, session string
+	if !util.ParseJsonArgs(arg, ret,
+		util.BindJsonArg("transactions", &trans, true, true),
+		util.BindJsonArg("reqId", &reqID, true, false),
+		util.BindJsonArg("app", &app, false, false),
+		util.BindJsonArg("session", &session, false, false),
+	) {
 		return
 	}
 
 	if !util.IsBooted() {
 		ret.Code = -1
 		ret.Msg = fmt.Sprintf(model.Conf.Language(74), int(util.GetBootProgress()))
-		ret.Data = map[string]interface{}{"closeTimeout": 5000}
+		ret.Data = map[string]any{"closeTimeout": 5000}
 		return
 	}
 
-	timestamp := int64(arg["reqId"].(float64))
+	data, err := gulu.JSON.MarshalJSON(trans)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = "parses request failed"
+		return
+	}
+
+	timestamp := int64(reqID)
 	var transactions []*model.Transaction
-	if err = gulu.JSON.UnmarshalJSON(data, &transactions); nil != err {
+	if err = gulu.JSON.UnmarshalJSON(data, &transactions); err != nil {
 		ret.Code = -1
 		ret.Msg = "parses request failed"
 		return
@@ -68,21 +79,22 @@ func performTransactions(c *gin.Context) {
 
 	ret.Data = transactions
 
-	app := arg["app"].(string)
-	session := arg["session"].(string)
-	if model.IsFoldHeading(&transactions) || model.IsUnfoldHeading(&transactions) {
-		model.WaitForWritingFiles()
-	}
 	pushTransactions(app, session, transactions)
 
-	elapsed := time.Now().Sub(start).Milliseconds()
+	if model.IsMoveOutlineHeading(&transactions) {
+		if retData := transactions[0].DoOperations[0].RetData; nil != retData {
+			util.PushReloadDoc(retData.(string))
+		}
+	}
+
+	elapsed := time.Since(start).Milliseconds()
 	c.Header("Server-Timing", fmt.Sprintf("total;dur=%d", elapsed))
 }
 
 func pushTransactions(app, session string, transactions []*model.Transaction) {
 	pushMode := util.PushModeBroadcastExcludeSelf
 	if 0 < len(transactions) && 0 < len(transactions[0].DoOperations) {
-		model.WaitForWritingFiles() // 等待文件写入完成，后续渲染才能读取到最新的数据
+		model.FlushTxQueue() // 等待文件写入完成，后续渲染才能读取到最新的数据
 
 		action := transactions[0].DoOperations[0].Action
 		isAttrViewTx := strings.Contains(strings.ToLower(action), "attrview")
@@ -95,6 +107,16 @@ func pushTransactions(app, session string, transactions []*model.Transaction) {
 	evt.AppId = app
 	evt.SessionId = session
 	evt.Data = transactions
+
+	var rootIDs []string
+	for _, tx := range transactions {
+		rootIDs = append(rootIDs, tx.GetChangedRootIDs()...)
+	}
+	rootIDs = gulu.Str.RemoveDuplicatedElem(rootIDs)
+	evt.Context = map[string]any{
+		"rootIDs": rootIDs,
+	}
+
 	for _, tx := range transactions {
 		tx.WaitForCommit()
 	}

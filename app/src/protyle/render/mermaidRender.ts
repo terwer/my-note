@@ -1,81 +1,116 @@
 import {addScript} from "../util/addScript";
 import {Constants} from "../../constants";
-import {hasClosestByAttribute} from "../util/hasClosest";
+import {hasClosestByAttribute, hasClosestByClassName} from "../util/hasClosest";
+import {genIconHTML} from "./util";
 
 export const mermaidRender = (element: Element, cdn = Constants.PROTYLE_CDN) => {
-    let mermaidElements: Element[] = [];
-    if (element.getAttribute("data-subtype") === "mermaid") {
-        // 编辑器内代码块编辑渲染
+    let mermaidElements: Element[] | NodeListOf<Element> = [];
+    if (element.getAttribute("data-subtype") === "mermaid" && element.getAttribute("data-render") !== "true") {
         mermaidElements = [element];
     } else {
-        mermaidElements = Array.from(element.querySelectorAll('[data-subtype="mermaid"]'));
+        mermaidElements = element.querySelectorAll('[data-subtype="mermaid"]:not([data-render="true"])');
     }
     if (mermaidElements.length === 0) {
         return;
     }
-    addScript(`${cdn}/js/mermaid/mermaid.min.js?v=10.3.0`, "protyleMermaidScript").then(() => {
-        const config: any = {
-            securityLevel: "loose", // 升级后无 https://github.com/siyuan-note/siyuan/issues/3587，可使用该选项
-            altFontFamily: "sans-serif",
-            fontFamily: "sans-serif",
-            startOnLoad: false,
-            flowchart: {
-                htmlLabels: true,
-                useMaxWidth: !0
-            },
-            sequence: {
-                useMaxWidth: true,
-                diagramMarginX: 8,
-                diagramMarginY: 8,
-                boxMargin: 8,
-                showSequenceNumbers: true // Mermaid 时序图增加序号 https://github.com/siyuan-note/siyuan/pull/6992 https://mermaid.js.org/syntax/sequenceDiagram.html#sequencenumbers
-            },
-            gantt: {
-                leftPadding: 75,
-                rightPadding: 20
+    addScript(`${cdn}/js/mermaid/mermaid.min.js?v=11.13.0`, "protyleMermaidScript").then(() => {
+        addScript(`${cdn}/js/mermaid/mermaid-zenuml.min.js?v=0.2.2`, "protyleMermaidZenumlScript").then(async () => {
+            await window.mermaid.registerExternalDiagrams([window.zenuml]);
+            window.mermaid.registerIconPacks([
+                {
+                    name: "logos",
+                    loader: () =>
+                        fetch(`${cdn}/js/mermaid/icons.json?v=11.11.0`).then((res) => res.json()),
+                },
+            ]);
+            const config: any = {
+                securityLevel: "loose", // 升级后无 https://github.com/siyuan-note/siyuan/issues/3587，可使用该选项
+                altFontFamily: "sans-serif",
+                fontFamily: "sans-serif",
+                startOnLoad: false,
+                flowchart: {
+                    htmlLabels: true,
+                    useMaxWidth: !0
+                },
+                sequence: {
+                    useMaxWidth: true,
+                    diagramMarginX: 8,
+                    diagramMarginY: 8,
+                    boxMargin: 8,
+                    showSequenceNumbers: true // Mermaid 时序图增加序号 https://github.com/siyuan-note/siyuan/pull/6992 https://mermaid.js.org/syntax/sequenceDiagram.html#sequencenumbers
+                },
+                gantt: {
+                    leftPadding: 75,
+                    rightPadding: 20
+                }
+            };
+            if (window.siyuan.config.appearance.mode === 1) {
+                config.theme = "dark";
             }
-        };
-        if (window.siyuan.config.appearance.mode === 1) {
-            config.theme = "dark";
-        }
-        window.mermaid.initialize(config);
-        if (mermaidElements[0].firstElementChild.clientWidth === 0) {
-            const hideElement = hasClosestByAttribute(mermaidElements[0], "fold", "1");
-            if (!hideElement) {
-                return;
-            }
-            const observer = new MutationObserver(() => {
-                initMermaid(mermaidElements);
-                observer.disconnect();
+            window.mermaid.initialize(config);
+            const hideElements: Element[] = [];
+            const normalElements: Element[] = [];
+            mermaidElements.forEach(item => {
+                if (item.firstElementChild.clientWidth === 0) {
+                    hideElements.push(item);
+                } else {
+                    normalElements.push(item);
+                }
             });
-            observer.observe(hideElement, {attributeFilter: ["fold"]});
-        } else {
-            initMermaid(mermaidElements);
-        }
+            if (hideElements.length > 0) {
+                const observer = new MutationObserver(() => {
+                    initMermaid(hideElements);
+                    observer.disconnect();
+                });
+                hideElements.forEach(item => {
+                    const hideElement = hasClosestByAttribute(item, "fold", "1");
+                    if (hideElement) {
+                        observer.observe(hideElement, {attributeFilter: ["fold"]});
+                    } else {
+                        const cardElement = hasClosestByClassName(item, "card__block", true);
+                        if (cardElement) {
+                            observer.observe(cardElement, {attributeFilter: ["class"]});
+                        }
+                    }
+                });
+            }
+            initMermaid(normalElements);
+        });
     });
 };
 
 const initMermaid = (mermaidElements: Element[]) => {
-    mermaidElements.forEach((item, index) => {
+    const wysiswgElement = hasClosestByClassName(mermaidElements[0], "protyle-wysiwyg", true);
+    mermaidElements.forEach(async (item: HTMLElement) => {
         if (item.getAttribute("data-render") === "true") {
             return;
         }
+        item.setAttribute("data-render", "true");
         if (!item.firstElementChild.classList.contains("protyle-icons")) {
-            item.insertAdjacentHTML("afterbegin", `<div class="protyle-icons">
-    <span aria-label="${window.siyuan.languages.edit}" class="b3-tooltips__sw b3-tooltips protyle-icon protyle-icon--first protyle-action__edit"><svg><use xlink:href="#iconEdit"></use></svg></span>
-    <span aria-label="${window.siyuan.languages.more}" class="b3-tooltips__sw b3-tooltips protyle-icon protyle-action__menu protyle-icon--last"><svg><use xlink:href="#iconMore"></use></svg></span>
-</div>`);
+            item.insertAdjacentHTML("afterbegin", genIconHTML(wysiswgElement));
         }
         const renderElement = item.firstElementChild.nextElementSibling as HTMLElement;
-        renderElement.removeAttribute("data-processed");
-        renderElement.textContent = Lute.UnEscapeHTMLStr(item.getAttribute("data-content"));
-        setTimeout(() => {
-            window.mermaid.init(undefined, renderElement);
-        }, Constants.TIMEOUT_LOAD * index);
-        item.setAttribute("data-render", "true");
-        renderElement.setAttribute("contenteditable", "false");
-        if (!item.textContent.endsWith(Constants.ZWSP)) {
-            item.insertAdjacentHTML("beforeend", `<span style="position: absolute">${Constants.ZWSP}</span>`);
+        if (!item.getAttribute("data-content")) {
+            renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span>`;
+            return;
+        }
+        const id = "mermaid" + Lute.NewNodeID();
+        try {
+            renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span><div contenteditable="false"><span id="${id}"></span></div>`;
+            const mermaidData = await window.mermaid.render(id, Lute.UnEscapeHTMLStr(item.getAttribute("data-content")));
+            let svg = mermaidData.svg.replace(/(href|src|xlink:href)\s*=\s*["']\\\\/gi, (match, p1) => `${p1}="about:blank"`);
+            svg = window.DOMPurify.sanitize(svg, {
+                USE_PROFILES: { svg: true, svgFilters: true },
+                ADD_TAGS: ["foreignObject", "use", "style"],
+                    ADD_ATTR: ["dominant-baseline", "xlink:href", "href"], // 保留对齐和链接属性
+                    // 必须添加此项，否则 foreignObject 里的 HTML 内容会被清空
+                    HTML_INTEGRATION_POINTS: { foreignobject: true }
+            });
+            renderElement.lastElementChild.innerHTML = svg;
+        } catch (e) {
+            const errorElement = document.querySelector("#" + id);
+            renderElement.lastElementChild.innerHTML = `${errorElement.outerHTML}<div class="fn__hr"></div><div class="ft__error">${e.message.replace(/\n/, "<br>")}</div>`;
+            errorElement.parentElement.remove();
         }
     });
 };

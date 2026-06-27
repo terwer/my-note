@@ -34,12 +34,15 @@ func netAssets2LocalAssets(c *gin.Context) {
 		return
 	}
 
-	id := arg["id"].(string)
-	err := model.NetAssets2LocalAssets(id)
-	if nil != err {
+	var id string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("id", &id, true, true)) {
+		return
+	}
+	err := model.NetAssets2LocalAssets(id, false, "")
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
-		ret.Data = map[string]interface{}{"closeTimeout": 5000}
+		ret.Data = map[string]any{"closeTimeout": 5000}
 		return
 	}
 }
@@ -53,16 +56,18 @@ func netImg2LocalAssets(c *gin.Context) {
 		return
 	}
 
-	id := arg["id"].(string)
-	var url string
-	if urlArg := arg["url"]; nil != urlArg {
-		url = urlArg.(string)
+	var id, url string
+	if !util.ParseJsonArgs(arg, ret,
+		util.BindJsonArg("id", &id, true, true),
+		util.BindJsonArg("url", &url, false, false),
+	) {
+		return
 	}
-	err := model.NetImg2LocalAssets(id, url)
-	if nil != err {
+	err := model.NetAssets2LocalAssets(id, true, url)
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
-		ret.Data = map[string]interface{}{"closeTimeout": 5000}
+		ret.Data = map[string]any{"closeTimeout": 5000}
 		return
 	}
 }
@@ -76,12 +81,15 @@ func autoSpace(c *gin.Context) {
 		return
 	}
 
-	id := arg["id"].(string)
+	var id string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("id", &id, true, true)) {
+		return
+	}
 	err := model.AutoSpace(id)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
-		ret.Data = map[string]interface{}{"closeTimeout": 5000}
+		ret.Data = map[string]any{"closeTimeout": 5000}
 		return
 	}
 }

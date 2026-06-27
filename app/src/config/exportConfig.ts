@@ -3,11 +3,14 @@ import {fetchPost} from "../util/fetch";
 import {afterExport} from "../protyle/export/util";
 import {ipcRenderer} from "electron";
 import * as path from "path";
+import {exportLayout} from "../layout/util";
 /// #endif
 import {isBrowser} from "../util/functions";
 import {showMessage} from "../dialog/message";
-import {showFileInFolder} from "../util/pathName";
+import {useShell} from "../util/pathName";
 import {Constants} from "../constants";
+import {openByMobile} from "../protyle/util/compatibility";
+import {exitSiYuan} from "../dialog/processSystem";
 
 export const exportConfig = {
     element: undefined as Element,
@@ -35,6 +38,38 @@ export const exportConfig = {
     </div>
     <span class="fn__space"></span>
     <input class="b3-switch fn__flex-center" id="markdownYFM" type="checkbox"${window.siyuan.config.export.markdownYFM ? " checked" : ""}/>
+</label>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.removeAssetsID}
+        <div class="b3-label__text">${window.siyuan.languages.removeAssetsIDTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" id="removeAssetsID" type="checkbox"${window.siyuan.config.export.removeAssetsID ? " checked" : ""}/>
+</label>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.export31}
+        <div class="b3-label__text">${window.siyuan.languages.export32}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" id="inlineMemo" type="checkbox"${window.siyuan.config.export.inlineMemo ? " checked" : ""}/>
+</label>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.includeSubDocs}
+        <div class="b3-label__text">${window.siyuan.languages.includeSubDocsTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" id="includeSubDocs" type="checkbox"${window.siyuan.config.export.includeSubDocs ? " checked" : ""}/>
+</label>
+<label class="fn__flex b3-label">
+    <div class="fn__flex-1">
+        ${window.siyuan.languages.includeRelatedDocs}
+        <div class="b3-label__text">${window.siyuan.languages.includeRelatedDocsTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <input class="b3-switch fn__flex-center" id="includeRelatedDocs" type="checkbox"${window.siyuan.config.export.includeRelatedDocs ? " checked" : ""}/>
 </label>
 <div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
@@ -88,21 +123,17 @@ export const exportConfig = {
     <textarea class="b3-text-field fn__block" id="pdfWatermarkDesc"></textarea>
 </div>
 <div class="b3-label config__item">
-    ${window.siyuan.languages.export9}
+    ${window.siyuan.languages.export30}
     <div class="b3-label__text">${window.siyuan.languages.export28}</div>
     <div class="fn__hr"></div>
     <input class="b3-text-field fn__block" id="imageWatermarkStr">
     <div class="fn__hr"></div>
-    <div class="b3-label__text">${window.siyuan.languages.export29}</div>
+    <div class="b3-label__text">    
+        ${window.siyuan.languages.export29}<br>
+        ${window.siyuan.languages.export10}
+    </div>
     <div class="fn__hr"></div>
     <textarea class="b3-text-field fn__block" id="imageWatermarkDesc"></textarea>
-</div>
-<div class="fn__flex b3-label config__item">
-    <div class="fn__flex-1">
-        ${window.siyuan.languages.export25}
-        <div class="b3-label__text">${window.siyuan.languages.export26}</div>
-    </div>
-    <input class="b3-text-field fn__flex-center fn__size200" id="docxTemplate" placeholder="F:\\template.docx">
 </div>
 <div class="fn__flex b3-label config__item">
     <div class="fn__flex-1">
@@ -134,6 +165,12 @@ export const exportConfig = {
     <span class="fn__space"></span>
     <button class="b3-button b3-button--outline fn__flex-center fn__size200" id="pandocBin"><svg><use xlink:href="#iconSettings"></use></svg>${window.siyuan.languages.config}</button>
 </div>
+<div class="b3-label config__item${isBrowser() ? " fn__none" : ""}">
+    ${window.siyuan.languages.export25}
+    <div class="b3-label__text">${window.siyuan.languages.export26}</div>
+    <div class="fn__hr"></div>
+    <textarea class="b3-text-field fn__block" id="pandocParams"></textarea>
+</div>
 <div class="fn__flex b3-label config__item">
     <div class="fn__flex-1 fn__flex-center">
         ${window.siyuan.languages.export} Data
@@ -154,10 +191,31 @@ export const exportConfig = {
         <input id="importData" class="b3-form__upload" type="file">
         <svg><use xlink:href="#iconDownload"></use></svg>${window.siyuan.languages.import}
     </button>
+</div>
+<div class="fn__flex b3-label config__item">
+    <div class="fn__flex-1 fn__flex-center">
+        ${window.siyuan.languages.exportConf}
+        <div class="b3-label__text">${window.siyuan.languages.exportConfTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <button class="b3-button b3-button--outline fn__flex-center fn__size200" id="exportConf">
+        <svg><use xlink:href="#iconUpload"></use></svg>${window.siyuan.languages.export}
+    </button>
+</div>
+<div class="fn__flex b3-label config__item">
+    <div class="fn__flex-1 fn__flex-center">
+        ${window.siyuan.languages.importConf}
+        <div class="b3-label__text">${window.siyuan.languages.importConfTip}</div>
+    </div>
+    <span class="fn__space"></span>
+    <button class="b3-button b3-button--outline fn__flex-center fn__size200" style="position: relative">
+        <input id="importConf" class="b3-form__upload" type="file">
+        <svg><use xlink:href="#iconDownload"></use></svg>${window.siyuan.languages.import}
+    </button>
 </div>`;
     },
     bindEvent: () => {
-        (exportConfig.element.querySelector("#docxTemplate") as HTMLInputElement).value = window.siyuan.config.export.docxTemplate;
+        (exportConfig.element.querySelector("#pandocParams") as HTMLInputElement).value = window.siyuan.config.export.pandocParams;
         (exportConfig.element.querySelector("#pdfFooter") as HTMLInputElement).value = window.siyuan.config.export.pdfFooter;
         (exportConfig.element.querySelector("#pdfWatermarkStr") as HTMLInputElement).value = window.siyuan.config.export.pdfWatermarkStr;
         (exportConfig.element.querySelector("#pdfWatermarkDesc") as HTMLInputElement).value = window.siyuan.config.export.pdfWatermarkDesc;
@@ -172,7 +230,11 @@ export const exportConfig = {
             fetchPost("/api/setting/setExport", {
                 paragraphBeginningSpace: (exportConfig.element.querySelector("#paragraphBeginningSpace") as HTMLInputElement).checked,
                 addTitle: (exportConfig.element.querySelector("#addTitle") as HTMLInputElement).checked,
+                removeAssetsID: (exportConfig.element.querySelector("#removeAssetsID") as HTMLInputElement).checked,
                 markdownYFM: (exportConfig.element.querySelector("#markdownYFM") as HTMLInputElement).checked,
+                inlineMemo: (exportConfig.element.querySelector("#inlineMemo") as HTMLInputElement).checked,
+                includeSubDocs: (exportConfig.element.querySelector("#includeSubDocs") as HTMLInputElement).checked,
+                includeRelatedDocs: (exportConfig.element.querySelector("#includeRelatedDocs") as HTMLInputElement).checked,
                 blockRefMode: parseInt((exportConfig.element.querySelector("#blockRefMode") as HTMLSelectElement).value, 10),
                 blockEmbedMode: parseInt((exportConfig.element.querySelector("#blockEmbedMode") as HTMLSelectElement).value, 10),
                 fileAnnotationRefMode: parseInt((exportConfig.element.querySelector("#fileAnnotationRefMode") as HTMLSelectElement).value, 10),
@@ -181,7 +243,7 @@ export const exportConfig = {
                 pdfWatermarkDesc: (exportConfig.element.querySelector("#pdfWatermarkDesc") as HTMLInputElement).value,
                 imageWatermarkStr: (exportConfig.element.querySelector("#imageWatermarkStr") as HTMLInputElement).value,
                 imageWatermarkDesc: (exportConfig.element.querySelector("#imageWatermarkDesc") as HTMLInputElement).value,
-                docxTemplate: (exportConfig.element.querySelector("#docxTemplate") as HTMLInputElement).value,
+                pandocParams: (exportConfig.element.querySelector("#pandocParams") as HTMLInputElement).value,
                 blockRefTextLeft: (exportConfig.element.querySelector("#blockRefTextLeft") as HTMLInputElement).value,
                 blockRefTextRight: (exportConfig.element.querySelector("#blockRefTextRight") as HTMLInputElement).value,
                 tagOpenMarker: (exportConfig.element.querySelector("#tagOpenMarker") as HTMLInputElement).value,
@@ -204,6 +266,27 @@ export const exportConfig = {
                     formData.append("file", event.target.files[0]);
                     fetchPost("/api/import/importData", formData);
                 });
+            } else if (item.id === "importConf") {
+                item.addEventListener("change", (event: InputEvent & { target: HTMLInputElement }) => {
+                    const formData = new FormData();
+                    formData.append("file", event.target.files[0]);
+                    fetchPost("/api/system/importConf", formData, response => {
+                        if (response.code !== 0) {
+                            showMessage(response.msg);
+                            return;
+                        }
+
+                        showMessage(window.siyuan.languages.imported);
+                        /// #if MOBILE
+                        exitSiYuan();
+                        /// #else
+                        exportLayout({
+                            errorExit: true,
+                            cb: exitSiYuan
+                        });
+                        /// #endif
+                    });
+                });
             } else {
                 item.addEventListener("change", () => {
                     setexprt();
@@ -213,7 +296,7 @@ export const exportConfig = {
         exportConfig.element.querySelector("#exportData").addEventListener("click", async () => {
             /// #if BROWSER
             fetchPost("/api/export/exportData", {}, response => {
-                window.location.href = response.data.zip;
+                openByMobile(response.data.zip);
             });
             /// #else
             const result = await ipcRenderer.invoke(Constants.SIYUAN_GET, {
@@ -232,10 +315,15 @@ export const exportConfig = {
             });
             /// #endif
         });
+        exportConfig.element.querySelector("#exportConf").addEventListener("click", async () => {
+            fetchPost("/api/system/exportConf", {}, response => {
+                openByMobile(response.data.zip);
+            });
+        });
         /// #if !BROWSER
         pandocBinPathElement.addEventListener("click", () => {
             if (window.siyuan.config.export.pandocBin) {
-                showFileInFolder(window.siyuan.config.export.pandocBin);
+                useShell("showItemInFolder", window.siyuan.config.export.pandocBin);
             }
         });
         const pandocBinElement = exportConfig.element.querySelector("#pandocBin") as HTMLInputElement;
@@ -253,7 +341,7 @@ export const exportConfig = {
         });
         /// #endif
     },
-    onSetexport: (data: IExport) => {
+    onSetexport: (data: Config.IExport) => {
         window.siyuan.config.export = data;
     }
 };

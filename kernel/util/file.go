@@ -20,20 +20,92 @@ import (
 	"bytes"
 	"io"
 	"io/fs"
+	"mime"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
+	"github.com/gabriel-vasile/mimetype"
+	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 )
 
+func GetFilePathsByExts(dirPath string, exts []string) (ret []string) {
+	filelock.Walk(dirPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			logging.LogErrorf("get file paths by ext failed: %s", err)
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		for _, ext := range exts {
+			if strings.HasSuffix(path, ext) {
+				ret = append(ret, path)
+				break
+			}
+		}
+		return nil
+	})
+	return
+}
+
+func GetUniqueFilename(filePath string) string {
+	if !gulu.File.IsExist(filePath) {
+		return filePath
+	}
+
+	ext := filepath.Ext(filePath)
+	base := strings.TrimSuffix(filepath.Base(filePath), ext)
+	dir := filepath.Dir(filePath)
+	i := 1
+	for {
+		newPath := filepath.Join(dir, base+" ("+strconv.Itoa(i)+")"+ext)
+		if !gulu.File.IsExist(newPath) {
+			return newPath
+		}
+		i++
+	}
+}
+
+func GetMimeTypeByExt(filePath string) (ret string) {
+	ret = mime.TypeByExtension(filepath.Ext(filePath))
+	if "" == ret {
+		if m, ok := GetMimeTypeByPath(filePath); ok {
+			ret = m.String()
+		}
+	}
+	return
+}
+
+func GetMimeTypeByPath(filePath string) (m *mimetype.MIME, ok bool) {
+	f, err := filelock.OpenFile(filePath, os.O_RDONLY, 0644)
+	if err != nil {
+		logging.LogErrorf("open file [%s] failed: %s", filePath, err)
+		return
+	}
+	defer filelock.CloseFile(f)
+
+	m, err = mimetype.DetectReader(f)
+	if nil != err {
+		logging.LogWarnf("detect file [%s] mimetype failed: %v", filePath, err)
+		return
+	}
+	ok = true
+	return
+}
+
 func IsSymlinkPath(absPath string) bool {
 	fi, err := os.Lstat(absPath)
-	if nil != err {
+	if err != nil {
 		return false
 	}
 	return 0 != fi.Mode()&os.ModeSymlink
@@ -45,7 +117,7 @@ func IsEmptyDir(p string) bool {
 	}
 
 	files, err := os.ReadDir(p)
-	if nil != err {
+	if err != nil {
 		return false
 	}
 	return 1 > len(files)
@@ -65,7 +137,7 @@ func IsPathRegularDirOrSymlinkDir(path string) bool {
 		return false
 	}
 
-	if nil != err {
+	if err != nil {
 		return false
 	}
 
@@ -73,7 +145,7 @@ func IsPathRegularDirOrSymlinkDir(path string) bool {
 }
 
 func RemoveID(name string) string {
-	ext := path.Ext(name)
+	ext := Ext(name)
 	name = strings.TrimSuffix(name, ext)
 	if 23 < len(name) {
 		if id := name[len(name)-22:]; ast.IsNodeIDPattern(id) {
@@ -83,12 +155,36 @@ func RemoveID(name string) string {
 	return name + ext
 }
 
-func AssetName(name string) string {
+var commonSuffixes = []string{
+	".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".tif", ".tiff",
+	".txt", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".md", ".rtf",
+	".zip", ".rar", ".7z", ".tar", ".gz", ".bz2",
+	".mp3", ".wav", ".aac", ".flac", ".ogg", ".m4a",
+	".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv",
+	".exe", ".bat", ".sh", ".app",
+	".js", ".ts", ".html", ".css", ".go", ".py", ".java", ".c", ".cpp", ".json", ".xml", ".yaml", ".toml",
+	".sql", ".db", ".sqlite", ".csv",
+	".iso", ".dmg", ".apk", ".bin",
+}
+
+func IsCommonExt(ext string) bool {
+	return strings.HasPrefix(ext, ".") && gulu.Str.Contains(strings.ToLower(ext), commonSuffixes)
+}
+
+func Ext(name string) (ret string) {
+	ret = path.Ext(name)
+	if "." == ret {
+		ret = ""
+	}
+	return
+}
+
+func AssetName(name, newID string) string {
 	_, id := LastID(name)
-	ext := path.Ext(name)
+	ext := Ext(name)
 	name = name[0 : len(name)-len(ext)]
 	if !ast.IsNodeIDPattern(id) {
-		id = ast.NewNodeID()
+		id = newID
 		name = name + "-" + id + ext
 	} else {
 		if !ast.IsNodeIDPattern(name) {
@@ -102,7 +198,7 @@ func AssetName(name string) string {
 
 func LastID(p string) (name, id string) {
 	name = path.Base(p)
-	ext := path.Ext(name)
+	ext := Ext(name)
 	id = strings.TrimSuffix(name, ext)
 	if 22 < len(id) {
 		id = id[len(id)-22:]
@@ -110,11 +206,20 @@ func LastID(p string) (name, id string) {
 	return
 }
 
-func IsCorruptedSYData(data []byte) bool {
-	if 64 > len(data) || '{' != data[0] {
-		return true
+func IsValidUploadFileName(name string) bool {
+	return name == FilterUploadFileName(name)
+}
+
+func FilterUploadEmojiFileName(name string) string {
+	if strings.HasPrefix(name, "api/icon/") {
+		// 忽略动态图标 https://github.com/siyuan-note/siyuan/issues/15139
+		return name
 	}
-	return false
+
+	name = strings.ReplaceAll(name, "/", "_@slash@_")
+	name = FilterUploadFileName(name)
+	name = strings.ReplaceAll(name, "_@slash@_", "/")
+	return name
 }
 
 func FilterUploadFileName(name string) string {
@@ -136,6 +241,7 @@ func FilterUploadFileName(name string) string {
 	ret = strings.ReplaceAll(ret, "#", "")
 	ret = strings.ReplaceAll(ret, "%", "")
 	ret = strings.ReplaceAll(ret, "$", "")
+	ret = strings.ReplaceAll(ret, ";", "")
 	ret = TruncateLenFileName(ret)
 	return ret
 }
@@ -143,19 +249,45 @@ func FilterUploadFileName(name string) string {
 func TruncateLenFileName(name string) (ret string) {
 	// 插入资源文件时文件名长度最大限制 189 字节 https://github.com/siyuan-note/siyuan/issues/7099
 	ext := filepath.Ext(name)
+	extLen := len(ext)
 	var byteCount int
 	truncated := false
 	buf := bytes.Buffer{}
+	maxLen := 189 - extLen
+	var pdfAnnoPngPart string
+	if ".png" == ext {
+		// PNG 图片可能是 PDF 标注的截图，包含页面和旋转角度（name--P1--270-id.png），所以允许的长度更短一些
+		// https://github.com/siyuan-note/siyuan/pull/16714#issuecomment-3737987302
+
+		pdfAnnoPngPattern := "-{0,1}P{0,1}[0-9]{0,4}-{0,1}[0-9]{1,3}-[0-9]{14}-[0-9a-zA-Z]{7}\\.png$"
+		regx := regexp.MustCompile(pdfAnnoPngPattern)
+		pdfAnnoPngPart = regx.FindString(name)
+		if "" != pdfAnnoPngPart {
+			maxLen -= len(pdfAnnoPngPart) + len(".png")
+			name = strings.TrimSuffix(name, pdfAnnoPngPart)
+		}
+	}
+
+	// 深入理解计算机系统原书第3版彩色扫描 -- 美兰德尔 E_布莱恩特Randal,E_·Bryant,等 龚奕利,贺莲 -- 计算机科学丛书, 3rd, 2016 -- 机械工业出版社123-P57-90-20260113113402-prc0u4k.png
+
 	for _, r := range name {
 		byteCount += utf8.RuneLen(r)
-		if 189-len(ext) < byteCount {
+		if maxLen < byteCount {
 			truncated = true
 			break
 		}
 		buf.WriteRune(r)
 	}
 	if truncated {
-		buf.WriteString(ext)
+		if "" != pdfAnnoPngPart {
+			buf.WriteString(pdfAnnoPngPart)
+		} else {
+			buf.WriteString(ext)
+		}
+	} else {
+		if "" != pdfAnnoPngPart {
+			buf.WriteString(pdfAnnoPngPart)
+		}
 	}
 	ret = buf.String()
 	return
@@ -172,76 +304,69 @@ func FilterFilePath(p string) (ret string) {
 }
 
 func FilterFileName(name string) string {
-	name = strings.ReplaceAll(name, "\\", "")
-	name = strings.ReplaceAll(name, "/", "")
-	name = strings.ReplaceAll(name, ":", "")
-	name = strings.ReplaceAll(name, "*", "")
-	name = strings.ReplaceAll(name, "?", "")
-	name = strings.ReplaceAll(name, "\"", "")
-	name = strings.ReplaceAll(name, "'", "")
-	name = strings.ReplaceAll(name, "<", "")
-	name = strings.ReplaceAll(name, ">", "")
-	name = strings.ReplaceAll(name, "|", "")
+	name = strings.ReplaceAll(name, "\\", "_")
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, ":", "_")
+	name = strings.ReplaceAll(name, "*", "_")
+	name = strings.ReplaceAll(name, "?", "_")
+	name = strings.ReplaceAll(name, "\"", "_")
+	name = strings.ReplaceAll(name, "'", "_")
+	name = strings.ReplaceAll(name, "<", "_")
+	name = strings.ReplaceAll(name, ">", "_")
+	name = strings.ReplaceAll(name, "|", "_")
+	name = RemoveInvalid(name) // Remove invisible characters from file names when uploading assets https://github.com/siyuan-note/siyuan/issues/11683
 	name = strings.TrimSpace(name)
+	name = strings.TrimSuffix(name, ".")
 	return name
 }
 
-func IsSubPath(absPath, toCheckPath string) bool {
-	if 1 > len(absPath) || 1 > len(toCheckPath) {
-		return false
-	}
-	if absPath == toCheckPath { // 相同路径时不认为是子路径
-		return false
-	}
-
-	if gulu.OS.IsWindows() {
-		if filepath.IsAbs(absPath) && filepath.IsAbs(toCheckPath) {
-			if strings.ToLower(absPath)[0] != strings.ToLower(toCheckPath)[0] {
-				// 不在一个盘
-				return false
-			}
-		}
-	}
-
-	up := ".." + string(os.PathSeparator)
-	rel, err := filepath.Rel(absPath, toCheckPath)
-	if err != nil {
-		return false
-	}
-	if !strings.HasPrefix(rel, up) && rel != ".." {
-		return true
-	}
-	return false
+func IsCompressibleAssetImage(p string) bool {
+	lowerName := strings.ToLower(p)
+	return strings.HasPrefix(lowerName, "assets/") &&
+		(strings.HasSuffix(lowerName, ".png") || strings.HasSuffix(lowerName, ".jpg") || strings.HasSuffix(lowerName, ".jpeg"))
 }
 
 func SizeOfDirectory(path string) (size int64, err error) {
-	err = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
-		if nil != err {
+	err = filelock.Walk(path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
 			return err
 		}
+
+		info, err := d.Info()
+		if err != nil {
+			logging.LogErrorf("size of dir [%s] failed: %s", path, err)
+			return err
+		}
+
 		if !info.IsDir() {
-			s := info.Size()
-			size += s
+			size += info.Size()
 		} else {
 			size += 4096
 		}
 		return nil
 	})
-	if nil != err {
+	if err != nil {
 		logging.LogErrorf("size of dir [%s] failed: %s", path, err)
 	}
 	return
 }
 
 func DataSize() (dataSize, assetsSize int64) {
-	filepath.Walk(DataDir, func(path string, info os.FileInfo, err error) error {
-		if nil != err {
+	filelock.Walk(DataDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
 			if os.IsNotExist(err) {
 				return nil
 			}
 			logging.LogErrorf("size of data failed: %s", err)
 			return io.EOF
 		}
+
+		info, err := d.Info()
+		if err != nil {
+			logging.LogErrorf("size of data failed: %s", err)
+			return nil
+		}
+
 		if !info.IsDir() {
 			s := info.Size()
 			dataSize += s
@@ -274,7 +399,7 @@ func IsReservedFilename(baseName string) bool {
 	return "assets" == baseName || "templates" == baseName || "widgets" == baseName || "emojis" == baseName || ".siyuan" == baseName || strings.HasPrefix(baseName, ".")
 }
 
-func WalkWithSymlinks(root string, fn filepath.WalkFunc) error {
+func WalkWithSymlinks(root string, fn fs.WalkDirFunc) error {
 	// 感谢 https://github.com/edwardrf/symwalk/blob/main/symwalk.go
 
 	rr, err := filepath.EvalSymlinks(root) // Find real base if there is any symlinks in the path
@@ -283,26 +408,30 @@ func WalkWithSymlinks(root string, fn filepath.WalkFunc) error {
 	}
 
 	visitedDirs := make(map[string]struct{})
-	return filepath.Walk(rr, getWalkFn(visitedDirs, fn))
+	return filelock.Walk(rr, getWalkFn(visitedDirs, fn))
 }
 
-func getWalkFn(visitedDirs map[string]struct{}, fn filepath.WalkFunc) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
+func getWalkFn(visitedDirs map[string]struct{}, fn fs.WalkDirFunc) fs.WalkDirFunc {
+	return func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return fn(path, info, err)
+			return fn(path, d, err)
 		}
 
-		if info.IsDir() {
+		if d.IsDir() {
 			if _, ok := visitedDirs[path]; ok {
 				return filepath.SkipDir
 			}
 			visitedDirs[path] = struct{}{}
 		}
 
-		if err := fn(path, info, err); err != nil {
+		if err := fn(path, d, err); err != nil {
 			return err
 		}
 
+		info, err := d.Info()
+		if nil != err {
+			return err
+		}
 		if info.Mode()&os.ModeSymlink == 0 {
 			return nil
 		}
@@ -319,7 +448,7 @@ func getWalkFn(visitedDirs map[string]struct{}, fn filepath.WalkFunc) filepath.W
 		}
 
 		if ri.IsDir() {
-			return filepath.Walk(rp, getWalkFn(visitedDirs, fn))
+			return filelock.Walk(rp, getWalkFn(visitedDirs, fn))
 		}
 
 		return nil

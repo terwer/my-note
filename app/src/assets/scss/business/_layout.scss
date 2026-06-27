@@ -2,12 +2,10 @@
   overflow-y: hidden; // https://github.com/siyuan-note/siyuan/issues/6706
 
   &__wnd--active .layout-tab-bar .item--focus {
-    &:after {
-      background-color: var(--b3-theme-primary);
-    }
+    color: var(--b3-theme-on-background);
 
-    & > .item__text {
-      color: var(--b3-theme-on-background);
+    &::after {
+      background-color: var(--b3-theme-primary);
     }
   }
 
@@ -18,7 +16,7 @@
   &__dockl,
   &__dockr,
   &__dockb {
-    transition: var(--b3-width-transition);
+    transition: var(--b3-width-transition), height .2s cubic-bezier(0, 0, .2, 1) 0ms;
     flex-shrink: 0;
   }
 
@@ -44,7 +42,7 @@
 
     &.layout__dockr {
       border: 1px solid var(--b3-border-color);
-      box-shadow: -8px 0px 24px rgb(140 149 159 / 20%);
+      box-shadow: -8px 0 24px rgb(140 149 159 / 20%);
       border-right: 0;
       border-radius: var(--b3-border-radius-b) 0 0 var(--b3-border-radius-b);
       overflow: hidden;
@@ -93,7 +91,7 @@
   }
 
   &__tab--active {
-    .b3-list--background .b3-list-item--focus {
+    .b3-list--background li.b3-list-item--focus {
       background-color: var(--b3-theme-primary-lightest);
     }
 
@@ -109,13 +107,13 @@
     height: 6px;
     width: 100%;
     position: relative;
-    z-index: 2;
+    z-index: 4; // 需大于 #sidebarContainer https://github.com/siyuan-note/siyuan/issues/11759
 
-    &:hover:after {
+    &:hover::after {
       background-color: var(--b3-scroll-color);
     }
 
-    &:after {
+    &::after {
       content: "";
       width: 100%;
       height: .5px;
@@ -133,7 +131,7 @@
       margin: 0 -6px 0 0;
       height: auto;
 
-      &:after {
+      &::after {
         top: 0;
         width: .5px;
         left: 0;
@@ -150,10 +148,9 @@
     width: 100%;
     background-color: var(--b3-theme-background);
     align-items: center;
-    min-width: 204px;
+    overflow: auto;
 
     .b3-list-item {
-      width: 204px;
       white-space: nowrap;
       font-size: 17px;
       color: var(--b3-theme-on-surface);
@@ -182,8 +179,6 @@
         background-color: var(--b3-theme-primary-lightest);
         position: absolute;
         z-index: 100;
-        height: 100%;
-        width: 100%;
         transition: var(--b3-transition);
       }
     }
@@ -221,17 +216,18 @@
         max-width: 186px;
         flex-shrink: 0;
         overflow: hidden;
+        color: var(--b3-theme-on-surface);
 
         &--full {
           max-width: none;
           flex: 1;
 
-          &.item--focus:after {
+          &.item--focus::after {
             background-color: var(--b3-theme-primary);
           }
         }
 
-        &:hover:not(.item--focus):not(.item--readonly) .item__text {
+        &:hover:not(.item--focus):not(.item--readonly) {
           color: var(--b3-theme-on-background);
         }
 
@@ -243,6 +239,7 @@
         }
 
         &--readonly {
+          cursor: default;
           padding-left: 13px;
           padding-right: 8px;
           max-width: none;
@@ -268,7 +265,7 @@
           }
         }
 
-        &--focus:after {
+        &--focus::after {
           content: "";
           width: 100%;
           height: 3px;
@@ -294,7 +291,6 @@
             float: left;
             height: 18px;
             width: 18px;
-            border-radius: var(--b3-border-radius);
             margin-top: 1px;
           }
         }
@@ -310,7 +306,6 @@
         &__text {
           text-align: center;
           -webkit-font-smoothing: subpixel-antialiased;
-          color: var(--b3-theme-on-surface);
           transition: var(--b3-transition);
           padding: 0 8px;
           white-space: nowrap;
@@ -368,9 +363,14 @@
     border-top: .5px solid var(--b3-border-color);
   }
 
+  &__items {
+    min-height: 26px;
+    min-width: 26px;
+  }
+
   svg {
     height: 14px;
-    width: 14px;
+    width: 15.5px;
   }
 
   &--vertical {
@@ -380,12 +380,12 @@
     padding: 0;
 
     .dock__item {
-      &[data-index="0"]:after {
+      &[data-index="0"]::after {
         top: -32px;
         bottom: auto;
       }
 
-      &[data-index="1"]:after {
+      &[data-index="1"]::after {
         bottom: 100%;
       }
     }
@@ -397,20 +397,21 @@
     display: flex;
     border-radius: var(--b3-border-radius);
     margin: 7px;
+    cursor: pointer;
 
     &--pin {
       opacity: 0;
       transition: var(--b3-transition);
     }
 
-    &:hover,
+    &:hover:not(.dock__item--activefocus),
     &--active {
       background-color: var(--b3-theme-background-light);
     }
 
     &--activefocus {
-      color: var(--b3-theme-on-primary) !important;
-      background-color: var(--b3-theme-primary) !important;
+      color: var(--b3-theme-on-primary);
+      background-color: var(--b3-theme-primary);
     }
   }
 }

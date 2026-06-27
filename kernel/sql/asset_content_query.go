@@ -27,13 +27,13 @@ import (
 	"github.com/siyuan-note/logging"
 )
 
-func QueryAssetContentNoLimit(stmt string) (ret []map[string]interface{}, err error) {
+func QueryAssetContentNoLimit(stmt string) (ret []map[string]any, err error) {
 	return queryAssetContentRawStmt(stmt, math.MaxInt)
 }
 
-func queryAssetContentRawStmt(stmt string, limit int) (ret []map[string]interface{}, err error) {
+func queryAssetContentRawStmt(stmt string, limit int) (ret []map[string]any, err error) {
 	rows, err := queryAssetContent(stmt)
-	if nil != err {
+	if err != nil {
 		if strings.Contains(err.Error(), "syntax error") {
 			return
 		}
@@ -42,32 +42,32 @@ func queryAssetContentRawStmt(stmt string, limit int) (ret []map[string]interfac
 	defer rows.Close()
 
 	cols, err := rows.Columns()
-	if nil != err || nil == cols {
+	if err != nil || nil == cols {
 		return
 	}
 
 	noLimit := !containsLimitClause(stmt)
-	var count, errCount int
+	var count int
 	for rows.Next() {
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
+		columns := make([]any, len(cols))
+		columnPointers := make([]any, len(cols))
 		for i := range columns {
 			columnPointers[i] = &columns[i]
 		}
 
-		if err = rows.Scan(columnPointers...); nil != err {
+		if err = rows.Scan(columnPointers...); err != nil {
 			return
 		}
 
-		m := make(map[string]interface{})
+		m := make(map[string]any)
 		for i, colName := range cols {
-			val := columnPointers[i].(*interface{})
+			val := columnPointers[i].(*any)
 			m[colName] = *val
 		}
 
 		ret = append(ret, m)
 		count++
-		if (noLimit && limit < count) || 0 < errCount {
+		if noLimit && limit < count {
 			break
 		}
 	}
@@ -76,7 +76,7 @@ func queryAssetContentRawStmt(stmt string, limit int) (ret []map[string]interfac
 
 func SelectAssetContentsRawStmt(stmt string, page, limit int) (ret []*AssetContent) {
 	parsedStmt, err := sqlparser.Parse(stmt)
-	if nil != err {
+	if err != nil {
 		return selectAssetContentsRawStmt(stmt, limit)
 	}
 
@@ -122,7 +122,7 @@ func SelectAssetContentsRawStmt(stmt string, page, limit int) (ret []*AssetConte
 	stmt = strings.ReplaceAll(stmt, "\\\\*", "\\*")
 	stmt = strings.ReplaceAll(stmt, "from dual", "")
 	rows, err := queryAssetContent(stmt)
-	if nil != err {
+	if err != nil {
 		if strings.Contains(err.Error(), "syntax error") {
 			return
 		}
@@ -144,7 +144,7 @@ func SelectAssetContentsRawStmtNoParse(stmt string, limit int) (ret []*AssetCont
 
 func selectAssetContentsRawStmt(stmt string, limit int) (ret []*AssetContent) {
 	rows, err := queryAssetContent(stmt)
-	if nil != err {
+	if err != nil {
 		if strings.Contains(err.Error(), "syntax error") {
 			return
 		}
@@ -172,7 +172,7 @@ func selectAssetContentsRawStmt(stmt string, limit int) (ret []*AssetContent) {
 
 func scanAssetContentRows(rows *sql.Rows) (ret *AssetContent) {
 	var ac AssetContent
-	if err := rows.Scan(&ac.ID, &ac.Name, &ac.Ext, &ac.Path, &ac.Size, &ac.Updated, &ac.Content); nil != err {
+	if err := rows.Scan(&ac.ID, &ac.Name, &ac.Ext, &ac.Path, &ac.Size, &ac.Updated, &ac.Content); err != nil {
 		logging.LogErrorf("query scan field failed: %s\n%s", err, logging.ShortStack())
 		return
 	}
@@ -180,10 +180,13 @@ func scanAssetContentRows(rows *sql.Rows) (ret *AssetContent) {
 	return
 }
 
-func queryAssetContent(query string, args ...interface{}) (*sql.Rows, error) {
+func queryAssetContent(query string, args ...any) (*sql.Rows, error) {
 	query = strings.TrimSpace(query)
 	if "" == query {
 		return nil, errors.New("statement is empty")
+	}
+	if nil == assetContentDB {
+		return nil, errors.New("database is nil")
 	}
 	return assetContentDB.Query(query, args...)
 }

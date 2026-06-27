@@ -19,12 +19,44 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
 	"github.com/siyuan-note/siyuan/kernel/model"
+	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func getNotebookInfo(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	var boxID string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("notebook", &boxID, true, true)) {
+		return
+	}
+	if util.InvalidIDPattern(boxID, ret) {
+		return
+	}
+
+	box := model.Conf.Box(boxID)
+	if nil == box {
+		ret.Code = -1
+		ret.Msg = "notebook [" + boxID + "] not found"
+		return
+	}
+
+	boxInfo := box.GetInfo()
+	ret.Data = map[string]any{
+		"boxInfo": boxInfo,
+	}
+}
 
 func setNotebookIcon(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
@@ -35,8 +67,13 @@ func setNotebookIcon(c *gin.Context) {
 		return
 	}
 
-	boxID := arg["notebook"].(string)
-	icon := arg["icon"].(string)
+	var boxID, icon string
+	if !util.ParseJsonArgs(arg, ret,
+		util.BindJsonArg("notebook", &boxID, true, true),
+		util.BindJsonArg("icon", &icon, true, false),
+	) {
+		return
+	}
 	model.SetBoxIcon(boxID, icon)
 }
 
@@ -49,7 +86,7 @@ func changeSortNotebook(c *gin.Context) {
 		return
 	}
 
-	idsArg := arg["notebooks"].([]interface{})
+	idsArg := arg["notebooks"].([]any)
 	var ids []string
 	for _, p := range idsArg {
 		ids = append(ids, p.(string))
@@ -66,22 +103,26 @@ func renameNotebook(c *gin.Context) {
 		return
 	}
 
-	notebook := arg["notebook"].(string)
+	var notebook, name string
+	if !util.ParseJsonArgs(arg, ret,
+		util.BindJsonArg("notebook", &notebook, true, true),
+		util.BindJsonArg("name", &name, true, false),
+	) {
+		return
+	}
 	if util.InvalidIDPattern(notebook, ret) {
 		return
 	}
-
-	name := arg["name"].(string)
 	err := model.RenameBox(notebook, name)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
-		ret.Data = map[string]interface{}{"closeTimeout": 5000}
+		ret.Data = map[string]any{"closeTimeout": 5000}
 		return
 	}
 
 	evt := util.NewCmdResult("renamenotebook", 0, util.PushModeBroadcast)
-	evt.Data = map[string]interface{}{
+	evt.Data = map[string]any{
 		"box":  notebook,
 		"name": name,
 	}
@@ -97,32 +138,32 @@ func removeNotebook(c *gin.Context) {
 		return
 	}
 
-	notebook := arg["notebook"].(string)
+	var notebook string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("notebook", &notebook, true, true)) {
+		return
+	}
 	if util.InvalidIDPattern(notebook, ret) {
 		return
 	}
 
 	if util.ReadOnly && !model.IsUserGuide(notebook) {
-		result := util.NewResult()
-		result.Code = -1
-		result.Msg = model.Conf.Language(34)
-		result.Data = map[string]interface{}{"closeTimeout": 5000}
-		c.JSON(200, result)
+		ret.Code = -1
+		ret.Msg = model.Conf.Language(34)
+		ret.Data = map[string]any{"closeTimeout": 5000}
 		return
 	}
 
 	err := model.RemoveBox(notebook)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
-	evt := util.NewCmdResult("unmount", 0, util.PushModeBroadcast)
-	evt.Data = map[string]interface{}{
+	evt := util.NewCmdResult("removeBox", 0, util.PushModeBroadcast)
+	evt.Data = map[string]any{
 		"box": notebook,
 	}
-	evt.Callback = arg["callback"]
 	util.PushEvent(evt)
 }
 
@@ -135,16 +176,19 @@ func createNotebook(c *gin.Context) {
 		return
 	}
 
-	name := arg["name"].(string)
+	var name string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("name", &name, true, false)) {
+		return
+	}
 	id, err := model.CreateBox(name)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
 	existed, err := model.Mount(id)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -157,12 +201,12 @@ func createNotebook(c *gin.Context) {
 		return
 	}
 
-	ret.Data = map[string]interface{}{
+	ret.Data = map[string]any{
 		"notebook": box,
 	}
 
 	evt := util.NewCmdResult("createnotebook", 0, util.PushModeBroadcast)
-	evt.Data = map[string]interface{}{
+	evt.Data = map[string]any{
 		"box":     box,
 		"existed": existed,
 	}
@@ -178,24 +222,36 @@ func openNotebook(c *gin.Context) {
 		return
 	}
 
-	notebook := arg["notebook"].(string)
+	var notebook string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("notebook", &notebook, true, true)) {
+		return
+	}
 	if util.InvalidIDPattern(notebook, ret) {
 		return
 	}
 
-	if util.ReadOnly && !model.IsUserGuide(notebook) {
-		result := util.NewResult()
-		result.Code = -1
-		result.Msg = model.Conf.Language(34)
-		result.Data = map[string]interface{}{"closeTimeout": 5000}
-		c.JSON(200, result)
+	isUserGuide := model.IsUserGuide(notebook)
+	if util.ReadOnly && !isUserGuide {
+		ret.Code = -1
+		ret.Msg = model.Conf.Language(34)
+		ret.Data = map[string]any{"closeTimeout": 5000}
+		return
+	}
+
+	if isUserGuide && util.ContainerIOS == util.Container {
+		// iOS 端不再支持打开用户指南，请参考桌面端用户指南
+		// 用户指南中包含了付费相关内容，无法通过商店上架审核
+		// Opening the user guide is no longer supported on iOS https://github.com/siyuan-note/siyuan/issues/11492
+		ret.Code = -1
+		ret.Msg = model.Conf.Language(215)
+		ret.Data = map[string]any{"closeTimeout": 7000}
 		return
 	}
 
 	msgId := util.PushMsg(model.Conf.Language(45), 1000*60*15)
 	defer util.PushClearMsg(msgId)
 	existed, err := model.Mount(notebook)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -209,12 +265,40 @@ func openNotebook(c *gin.Context) {
 	}
 
 	evt := util.NewCmdResult("mount", 0, util.PushModeBroadcast)
-	evt.Data = map[string]interface{}{
+	evt.Data = map[string]any{
 		"box":     box,
 		"existed": existed,
 	}
-	evt.Callback = arg["callback"]
 	util.PushEvent(evt)
+
+	if isUserGuide {
+		appArg := arg["app"]
+		app := ""
+		if nil != appArg {
+			app = appArg.(string)
+		}
+
+		go func() {
+			var startID string
+			i := 0
+			for ; i < 70; i++ {
+				time.Sleep(100 * time.Millisecond)
+				guideStartID := map[string]string{
+					"20210808180117-czj9bvb": "20200812220555-lj3enxa",
+					"20211226090932-5lcq56f": "20211226115423-d5z1joq",
+					"20210808180117-6v0mkxr": "20200923234011-ieuun1p",
+					"20240530133126-axarxgx": "20240530101000-4qitucx",
+				}
+				startID = guideStartID[notebook]
+				if treenode.ExistBlockTree(startID) {
+					util.BroadcastByTypeAndApp("main", app, "openFileById", 0, "", map[string]any{
+						"id": startID,
+					})
+					break
+				}
+			}
+		}()
+	}
 }
 
 func closeNotebook(c *gin.Context) {
@@ -254,7 +338,7 @@ func getNotebookConf(c *gin.Context) {
 		return
 	}
 
-	ret.Data = map[string]interface{}{
+	ret.Data = map[string]any{
 		"box":  box.ID,
 		"name": box.Name,
 		"conf": box.GetConf(),
@@ -283,27 +367,27 @@ func setNotebookConf(c *gin.Context) {
 	}
 
 	param, err := gulu.JSON.MarshalJSON(arg["conf"])
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
 	boxConf := box.GetConf()
-	if err = gulu.JSON.UnmarshalJSON(param, boxConf); nil != err {
+	if err = gulu.JSON.UnmarshalJSON(param, boxConf); err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
-	boxConf.RefCreateSavePath = strings.TrimSpace(boxConf.RefCreateSavePath)
+	boxConf.RefCreateSavePath = util.TrimSpaceInPath(boxConf.RefCreateSavePath)
 	if "" != boxConf.RefCreateSavePath {
 		if !strings.HasSuffix(boxConf.RefCreateSavePath, "/") {
 			boxConf.RefCreateSavePath += "/"
 		}
 	}
 
-	boxConf.DailyNoteSavePath = strings.TrimSpace(boxConf.DailyNoteSavePath)
+	boxConf.DailyNoteSavePath = util.TrimSpaceInPath(boxConf.DailyNoteSavePath)
 	if "" != boxConf.DailyNoteSavePath {
 		if !strings.HasPrefix(boxConf.DailyNoteSavePath, "/") {
 			boxConf.DailyNoteSavePath = "/" + boxConf.DailyNoteSavePath
@@ -315,7 +399,7 @@ func setNotebookConf(c *gin.Context) {
 		return
 	}
 
-	boxConf.DailyNoteTemplatePath = strings.TrimSpace(boxConf.DailyNoteTemplatePath)
+	boxConf.DailyNoteTemplatePath = util.TrimSpaceInPath(boxConf.DailyNoteTemplatePath)
 	if "" != boxConf.DailyNoteTemplatePath {
 		if !strings.HasSuffix(boxConf.DailyNoteTemplatePath, ".md") {
 			boxConf.DailyNoteTemplatePath += ".md"
@@ -325,10 +409,7 @@ func setNotebookConf(c *gin.Context) {
 		}
 	}
 
-	boxConf.DocCreateSavePath = strings.TrimSpace(boxConf.DocCreateSavePath)
-	if "../" == boxConf.DocCreateSavePath {
-		boxConf.DocCreateSavePath = "../Untitled"
-	}
+	boxConf.DocCreateSavePath = util.TrimSpaceInPath(boxConf.DocCreateSavePath)
 
 	box.SaveConf(boxConf)
 	ret.Data = boxConf
@@ -341,8 +422,8 @@ func lsNotebooks(c *gin.Context) {
 	flashcard := false
 
 	// 兼容旧版接口，不能直接使用 util.JsonArg()
-	arg := map[string]interface{}{}
-	if err := c.ShouldBindJSON(&arg); nil == err {
+	arg := map[string]any{}
+	if err := c.ShouldBindJSON(&arg); err == nil {
 		if arg["flashcard"] != nil {
 			flashcard = arg["flashcard"].(bool)
 		}
@@ -354,12 +435,37 @@ func lsNotebooks(c *gin.Context) {
 	} else {
 		var err error
 		notebooks, err = model.ListNotebooks()
-		if nil != err {
+		if err != nil {
 			return
+		}
+		if model.IsReadOnlyRoleContext(c) {
+			publishAccess := model.GetPublishAccess()
+			tempNotebooks := []*model.Box{}
+			for _, notebook := range notebooks {
+				// 筛除关闭的笔记本
+				if notebook.Closed {
+					continue
+				}
+				// 筛除发布不可见的笔记本
+				invisible := false
+				for _, item := range publishAccess {
+					if item.ID == notebook.ID {
+						if !item.Visible {
+							invisible = true
+						}
+						break
+					}
+				}
+				if invisible {
+					continue
+				}
+				tempNotebooks = append(tempNotebooks, notebook)
+			}
+			notebooks = tempNotebooks
 		}
 	}
 
-	ret.Data = map[string]interface{}{
+	ret.Data = map[string]any{
 		"notebooks": notebooks,
 	}
 }

@@ -1,28 +1,28 @@
 import {addScript} from "../util/addScript";
 import {Constants} from "../../constants";
 import {focusByOffset} from "../util/selection";
-import {setCodeTheme} from "../../util/assets";
-import {hasClosestByClassName} from "../util/hasClosest";
+import {setCodeTheme} from "./util";
+import {escapeHtml} from "../../util/escape";
 
-export const highlightRender = (element: Element, cdn = Constants.PROTYLE_CDN) => {
+export const highlightRender = (element: Element, cdn = Constants.PROTYLE_CDN, zoom = 1) => {
     let codeElements: NodeListOf<Element>;
     let isPreview = false;
     if (element.classList.contains("code-block")) {
         // 编辑器内代码块编辑渲染
-        codeElements = element.querySelectorAll("[spellcheck]");
+        codeElements = element.querySelectorAll(".hljs");
     } else {
         if (element.classList.contains("item__readme")) {
             // bazaar reademe
             codeElements = element.querySelectorAll("pre code");
             codeElements.forEach(item => {
-                item.parentElement.setAttribute("lineNumber", "false");
+                item.parentElement.setAttribute("linenumber", "false");
             });
         } else if (element.classList.contains("b3-typography")) {
             // preview & export html markdown
             codeElements = element.querySelectorAll(".code-block code");
             isPreview = true;
         } else {
-            codeElements = element.querySelectorAll(".code-block [spellcheck]");
+            codeElements = element.querySelectorAll(".code-block .hljs");
         }
     }
     if (codeElements.length === 0) {
@@ -31,16 +31,17 @@ export const highlightRender = (element: Element, cdn = Constants.PROTYLE_CDN) =
 
     setCodeTheme(cdn);
 
-    addScript(`${cdn}/js/highlight.js/highlight.min.js?v=11.7.0`, "protyleHljsScript").then(() => {
-        addScript(`${cdn}/js/highlight.js/third-languages.js?v=1.0.1`, "protyleHljsThirdScript").then(() => {
+    addScript(`${cdn}/js/highlight.js/highlight.min.js?v=11.11.1`, "protyleHljsScript").then(() => {
+        addScript(`${cdn}/js/highlight.js/third-languages.js?v=2.0.1`, "protyleHljsThirdScript").then(() => {
             codeElements.forEach((block: HTMLElement) => {
+                if (block.getAttribute("data-render") === "true") {
+                    return;
+                }
+                block.setAttribute("data-render", "true");
                 const iconElements = block.parentElement.querySelectorAll(".protyle-icon");
                 if (iconElements.length === 2) {
                     iconElements[0].setAttribute("aria-label", window.siyuan.languages.copy);
                     iconElements[1].setAttribute("aria-label", window.siyuan.languages.more);
-                }
-                if (block.getAttribute("data-render") === "true") {
-                    return;
                 }
                 const wbrElement = block.querySelector("wbr");
                 let startIndex = 0;
@@ -70,48 +71,40 @@ export const highlightRender = (element: Element, cdn = Constants.PROTYLE_CDN) =
                     language = "plaintext";
                 }
                 block.classList.add("hljs");
-                block.setAttribute("data-render", "true");
                 const autoEnter = block.parentElement.getAttribute("linewrap");
                 const ligatures = block.parentElement.getAttribute("ligatures");
                 const lineNumber = block.parentElement.getAttribute("linenumber");
+                const hljsElement = block.lastElementChild ? block.lastElementChild as HTMLElement : block;
                 if (autoEnter === "true" || (autoEnter !== "false" && window.siyuan.config.editor.codeLineWrap)) {
-                    block.style.setProperty("white-space", "pre-wrap");
-                    block.style.setProperty("word-break", "break-all");
+                    hljsElement.style.setProperty("white-space", "pre-wrap");
+                    hljsElement.style.setProperty("word-break", "break-word");
                 } else {
                     // https://ld246.com/article/1684031600711 该属性会导致有 tab 后光标跳至末尾，目前无解
-                    block.style.setProperty("white-space", "pre");
-                    block.style.setProperty("word-break", "initial");
+                    hljsElement.style.setProperty("white-space", "pre");
+                    hljsElement.style.setProperty("word-break", "initial");
                 }
                 if (ligatures === "true" || (ligatures !== "false" && window.siyuan.config.editor.codeLigatures)) {
-                    block.style.fontVariantLigatures = "normal";
+                    hljsElement.style.fontVariantLigatures = "normal";
                 } else {
-                    block.style.fontVariantLigatures = "none";
+                    hljsElement.style.fontVariantLigatures = "none";
                 }
-                const languageElement = block.parentElement.querySelector(".protyle-action__language") as HTMLElement;
-                if (!isPreview && (lineNumber === "true" || (lineNumber !== "false" && window.siyuan.config.editor.codeSyntaxHighlightLineNum))) {
-                    // 需要先添加 class 以防止抖动 https://ld246.com/article/1648116585443
-                    block.classList.add("protyle-linenumber");
-                    lineNumberRender(block);
-                    if (languageElement) {
-                        languageElement.style.marginLeft = "3.6em";
-                    }
-                } else if (block.nextElementSibling?.classList.contains("protyle-linenumber__rows")) {
-                    block.classList.remove("protyle-linenumber");
-                    block.nextElementSibling.remove();
-                    if (languageElement) {
-                        languageElement.style.marginLeft = "";
-                    }
-                }
-                // 搜索定位
-                const layoutElement = hasClosestByClassName(block, "search__layout", true);
-                if (layoutElement && block.parentElement.getAttribute("data-node-id") === layoutElement.querySelector("#searchList > .b3-list-item--focus")?.getAttribute("data-node-id")) {
-                    const matchElement = block.querySelector('span[data-type="search-mark"]');
-                    if (matchElement) {
-                        matchElement.scrollIntoView();
+                const codeText = hljsElement.textContent;
+                if (block.firstElementChild) {
+                    if (!isPreview && (lineNumber === "true" || (lineNumber !== "false" && window.siyuan.config.editor.codeSyntaxHighlightLineNum))) {
+                        // 需要先添加 class 以防止抖动 https://ld246.com/article/1648116585443
+                        block.firstElementChild.className = "protyle-linenumber__rows";
+                        block.firstElementChild.setAttribute("contenteditable", "false");
+                        lineNumberRender(block, zoom);
+                        block.style.display = "";
+                    } else {
+                        block.firstElementChild.className = "fn__none";
+                        block.firstElementChild.innerHTML = "";
+                        hljsElement.style.paddingLeft = "";
+                        block.style.display = "block";
                     }
                 }
-                block.innerHTML = window.hljs.highlight(
-                    block.textContent + (block.textContent.endsWith("\n") ? "" : "\n"), // https://github.com/siyuan-note/siyuan/issues/4609
+                hljsElement.innerHTML = window.hljs.highlight(
+                    codeText + (codeText.endsWith("\n") ? "" : "\n"), // https://github.com/siyuan-note/siyuan/issues/4609
                     {
                         language,
                         ignoreIllegals: true
@@ -124,42 +117,68 @@ export const highlightRender = (element: Element, cdn = Constants.PROTYLE_CDN) =
     });
 };
 
-export const lineNumberRender = (block: HTMLElement) => {
-    if (block.parentElement.getAttribute("lineNumber") === "false") {
+export const lineNumberRender = (hljsElement: HTMLElement, zoom = 1) => {
+    const lineNumber = hljsElement.parentElement.getAttribute("lineNumber");
+    if (lineNumber === "false") {
         return;
     }
-    block.classList.add("protyle-linenumber");
+    if (!window.siyuan.config.editor.codeSyntaxHighlightLineNum && lineNumber !== "true") {
+        return;
+    }
+    const codeElement = hljsElement.lastElementChild as HTMLElement;
+    if (hljsElement.firstElementChild.clientHeight === codeElement.clientHeight && codeElement.style.wordBreak !== "break-word") {
+        return;
+    }
     // clientHeight 总是取的整数
-    block.parentElement.style.lineHeight = `${((parseInt(block.parentElement.style.fontSize) || window.siyuan.config.editor.fontSize) * 1.625 * 0.85).toFixed(0)}px`;
-    const lineNumberTemp = document.createElement("div");
-    lineNumberTemp.className = "hljs protyle-linenumber";
-    lineNumberTemp.setAttribute("style", `box-sizing: border-box;width: calc(100% - 3.6em);position: absolute;padding-top:0 !important;padding-bottom:0 !important;min-height:auto !important;white-space:${block.style.whiteSpace};word-break:${block.style.wordBreak};font-variant-ligatures:${block.style.fontVariantLigatures};`);
-    lineNumberTemp.setAttribute("contenteditable", "true");
-    block.insertAdjacentElement("afterend", lineNumberTemp);
-
-    let lineNumberHTML = "";
-    const lineList = block.textContent.split(/\r\n|\r|\n|\u2028|\u2029/g);
+    hljsElement.parentElement.style.lineHeight = `${((parseInt(hljsElement.parentElement.style.fontSize) || window.siyuan.config.editor.fontSize) * 1.625 * 0.85).toFixed(0)}px`;
+    const lineList = codeElement.textContent.split(/\r\n|\r|\n|\u2028|\u2029/g);
     if (lineList[lineList.length - 1] === "" && lineList.length > 1) {
         lineList.pop();
     }
-    const isWrap = block.style.wordBreak === "break-all";
-    lineList.map((line) => {
-        let lineHeight = "";
-        if (isWrap) {
-            lineNumberTemp.textContent = line || "\n";
-            // 不能使用 lineNumberTemp.getBoundingClientRect().height.toFixed(1) 否则
-            // windows 需等待字体下载完成再计算，否则导致不换行，高度计算错误
-            // https://github.com/siyuan-note/siyuan/issues/9029
-            // https://github.com/siyuan-note/siyuan/issues/9140
-            lineHeight = ` style="height:${lineNumberTemp.clientHeight}px;"`;
-        }
-        lineNumberHTML += `<span${lineHeight}></span>`;
-    });
+    hljsElement.firstElementChild.innerHTML = `<span>${lineList.length}</span>`;
+    codeElement.style.paddingLeft = `${hljsElement.firstElementChild.clientWidth + 16}px`;
+    let lineNumberHTML = "";
+    if (codeElement.style.wordBreak === "break-word") {
+        // 代码块开启了换行
+        const codeElementStyle = window.getComputedStyle(codeElement);
+        const lineNumberTemp = document.createElement("div");
+        lineNumberTemp.className = "hljs";
+        // 不能使用 codeElement.clientWidth，被忽略小数点导致宽度不一致
+        // 需要手动复制字体样式 https://ld246.com/article/1762527296449
+        lineNumberTemp.innerHTML = `<div contenteditable="true" style="padding-left:${codeElement.style.paddingLeft};
+width: ${codeElement.getBoundingClientRect().width / zoom}px;
+white-space:${codeElementStyle.whiteSpace};
+word-break:${codeElementStyle.wordBreak};
+font-variant-ligatures:${codeElementStyle.fontVariantLigatures};
+font-family:${codeElementStyle.fontFamily};
+font-size:${codeElementStyle.fontSize};
+line-height:${codeElementStyle.lineHeight};
+font-weight:${codeElementStyle.fontWeight};
+padding-right:0;max-height: none;box-sizing: border-box;position: absolute;padding-top:0 !important;padding-bottom:0 !important;min-height:auto !important;"></div>`;
+        lineNumberTemp.firstElementChild.innerHTML = lineList.map(line =>
+            `<div>${line.trim() ? escapeHtml(line) : "&nbsp;" }</div>`
+        ).join("");
+        hljsElement.insertAdjacentElement("afterend", lineNumberTemp);
 
-    lineNumberTemp.remove();
-    if (block.nextElementSibling?.classList.contains("protyle-linenumber__rows")) {
-        block.nextElementSibling.innerHTML = lineNumberHTML;
+        const childNodes = lineNumberTemp.firstElementChild.children;
+        for (let i = 0; i < childNodes.length; i++) {
+            lineNumberHTML += `<span style="height:${childNodes[i].clientHeight}px"></span>`;
+        }
+        lineNumberTemp.remove();
     } else {
-        block.insertAdjacentHTML("afterend", `<span contenteditable="false" class="protyle-linenumber__rows">${lineNumberHTML}</span>`);
+        lineNumberHTML = "<span></span>".repeat(lineList.length);
+    }
+    hljsElement.firstElementChild.innerHTML = lineNumberHTML;
+    // https://github.com/siyuan-note/siyuan/issues/12726
+    if (hljsElement.scrollHeight > hljsElement.clientHeight) {
+        if (getSelection().rangeCount > 0) {
+            const range = getSelection().getRangeAt(0);
+            if (hljsElement.contains(range.startContainer)) {
+                const brElement = document.createElement("br");
+                range.insertNode(brElement);
+                brElement.scrollIntoView({block: "nearest"});
+                brElement.remove();
+            }
+        }
     }
 };

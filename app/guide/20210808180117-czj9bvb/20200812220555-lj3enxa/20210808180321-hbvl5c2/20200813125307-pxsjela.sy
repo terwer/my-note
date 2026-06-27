@@ -1,12 +1,12 @@
 {
 	"ID": "20200813125307-pxsjela",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"id": "20200813125307-pxsjela",
 		"title": "导入和导出",
 		"type": "doc",
-		"updated": "20220511190018"
+		"updated": "20250115151440"
 	},
 	"Children": [
 		{
@@ -72,7 +72,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 的图片语法（本地相对路径），则思源会将 "
+					"Data": "​ 的图片语法（本地相对路径），则思源会将 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -81,7 +81,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 转换为"
+					"Data": "​ 转换为"
 				},
 				{
 					"Type": "NodeTextMark",
@@ -101,7 +101,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 则不会转换，因为 "
+					"Data": "​ 则不会转换，因为 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -110,7 +110,84 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 开头的路径文件属于隐藏文件，思源不会进行处理。"
+					"Data": "​ 开头的路径文件属于隐藏文件，思源不会进行处理。"
+				}
+			]
+		},
+		{
+			"ID": "20240426184018-e8mz594",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20240426184018-e8mz594",
+				"updated": "20240426184237"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "如果需要识别一些扩展语法（比如 上标 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "^foo^"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、下标 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "~foo~"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、标签 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "#foo"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 和公式 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "$foo$"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 等），请打开 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "设置"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "编辑器"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Markdown 语法"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 相关开关。"
 				}
 			]
 		},
@@ -120,7 +197,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20220511184340-6w8o7kg",
-				"updated": "20220511184359"
+				"updated": "20250115150830"
 			},
 			"Children": [
 				{
@@ -134,7 +211,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220511184359-mea18d0",
-				"updated": "20220511184938"
+				"updated": "20250115150830"
 			},
 			"Children": [
 				{
@@ -144,11 +221,11 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "设置 "
+					"TextMarkTextContent": "设置"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "- "
+					"Data": "​ - "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -157,7 +234,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "、移动端右侧栏 "
+					"Data": "​、移动端右侧栏 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -166,7 +243,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 中可以进行数据导入和导出。这里的导出会将 "
+					"Data": "​ 中可以进行数据导入和导出。这里的导出会将 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -175,7 +252,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 文件夹完整复制并打包为 zip 压缩包。"
+					"Data": "​ 文件夹完整复制并打包为 zip 压缩包。"
 				}
 			]
 		},
@@ -326,7 +403,8 @@
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20201229120428-9k34lga"
+				"id": "20201229120428-9k34lga",
+				"updated": "20250115151439"
 			},
 			"Children": [
 				{
@@ -344,7 +422,8 @@
 			"Type": "NodeHeading",
 			"HeadingLevel": 3,
 			"Properties": {
-				"id": "20210120154937-u6g9q4l"
+				"id": "20210120154937-u6g9q4l",
+				"updated": "20250115151439"
 			},
 			"Children": [
 				{
@@ -362,7 +441,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20201229120428-uk4lxtt",
-				"updated": "20220317223050"
+				"updated": "20250115151037"
 			},
 			"Children": [
 				{
@@ -372,11 +451,20 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "Ctrl+C"
+					"TextMarkTextContent": "Ctrl"
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 即可，剪切板中是标准 Markdown 文本。"
+					"Data": "​+"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "C"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 即可，剪切板中是标准 Markdown 文本。"
 				}
 			]
 		},
@@ -385,7 +473,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220317223052-qrqe13g",
-				"updated": "20220317224423"
+				"updated": "20250115151439"
 			},
 			"Children": [
 				{
@@ -395,11 +483,11 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "..."
+					"TextMarkTextContent": "︙"
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 菜单中的 "
+					"Data": "​ 菜单中的 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -408,7 +496,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 切换到 "
+					"Data": "​ 切换到 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -417,7 +505,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 后再进行复制。"
+					"Data": "​ 后再进行复制。"
 				}
 			]
 		},
@@ -426,7 +514,8 @@
 			"Type": "NodeHeading",
 			"HeadingLevel": 3,
 			"Properties": {
-				"id": "20210120154948-gl0hxz6"
+				"id": "20210120154948-gl0hxz6",
+				"updated": "20250115151440"
 			},
 			"Children": [
 				{
@@ -444,7 +533,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20201229120428-ysyvyt4",
-				"updated": "20220317224436"
+				"updated": "20250115151440"
 			},
 			"Children": [
 				{
@@ -458,16 +547,16 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 或者编辑器页签右上角的 "
+					"Data": "​ 或者编辑器页签右上角的 "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "..."
+					"TextMarkTextContent": "︙"
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 菜单中选择 "
+					"Data": "​ 菜单中选择 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -476,7 +565,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "："
+					"Data": "​："
 				}
 			]
 		},

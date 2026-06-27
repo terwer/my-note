@@ -1,6 +1,9 @@
+@use "../util/function";
+
 @font-face {
   font-family: 'JetBrainsMono-Regular';
-  src: url(../fonts/JetBrainsMono-1.0.3/JetBrainsMono-Regular.woff) format('woff');
+  /*! /* webpackIgnore: true */
+  src: url(../../../appearance/fonts/JetBrainsMono-2.304/JetBrainsMono-Regular.woff2) format('woff2');
 }
 
 .b3-typography,
@@ -8,20 +11,18 @@
   font-variant-ligatures: no-common-ligatures;
   display: flex;
   flex-direction: column;
+  font-size: var(--b3-font-size-editor);
   font-family: var(--b3-font-family-protyle);
 
   img {
     max-width: 100%;
     margin: 0 auto;
-
-    &.emoji {
-      cursor: auto;
-      max-width: none;
-      vertical-align: sub; // text-top windows 不兼容
-    }
   }
 
-  p,
+  // 需显示 p 的使用范围 https://github.com/siyuan-note/siyuan/issues/11670
+  li > p,
+  & > p,
+  blockquote > p,
   [data-node-id] {
     line-height: 1.625;
     padding: 4px;
@@ -33,15 +34,6 @@
     border: 0;
   }
 
-  iframe {
-    border: 1px solid var(--b3-theme-surface-lighter);
-    width: 765px;
-    box-sizing: border-box;
-    height: 256px;
-    max-width: 100%;
-    vertical-align: bottom;
-  }
-
   span[data-type~="sup"],
   span[data-type~="sub"] {
     position: relative;
@@ -51,14 +43,15 @@
   }
 
   span[data-type~="sup"] {
-    top: -0.5em;
+    top: -.5em;
   }
 
   span[data-type~="sub"] {
-    bottom: -0.25em;
+    bottom: -.25em;
   }
 
   em,
+  a[data-type~="em"],
   span[data-type~="em"] {
     font-style: italic;
     color: var(--b3-protyle-inline-em-color);
@@ -71,17 +64,52 @@
   }
 
   strong,
+  a[data-type~="strong"],
   span[data-type~="strong"] {
     font-weight: bold;
     color: var(--b3-protyle-inline-strong-color);
   }
 
   span[data-type~="inline-math"] {
+    direction: ltr;
     user-select: text;
     display: inline;
+    // https://github.com/siyuan-note/siyuan/issues/17211
+    &:after {
+      content: '‎';
+    }
     // https://github.com/siyuan-note/siyuan/issues/3081 test $\begin{bmatrix}   a & b \\c & d \\   e & f\end{bmatrix}$ test
     // https://ld246.com/article/1626937851892 <u>test $\mu_p$ test</u>
     // https://ld246.com/article/1636204769623  test $\rightarrow$ test
+  }
+
+  kbd,
+  span[data-type~="kbd"] {
+    padding: 2px 4px;
+    font: 75% var(--b3-font-family-kbd);
+    line-height: 1;
+    color: var(--b3-theme-on-surface);
+    vertical-align: middle;
+    background-color: var(--b3-theme-surface);
+    border: solid 1px var(--b3-theme-surface-lighter);
+    border-radius: var(--b3-border-radius);
+    box-shadow: inset 0 -1px 0 var(--b3-theme-surface-lighter);
+  }
+
+  u {
+    text-decoration: none;
+    border-bottom: 1px solid;
+  }
+
+  u,
+  span[data-type~="u"] {
+    border-bottom: 1px solid;
+    color: var(--b3-protyle-inline-u-color);
+  }
+
+  span[data-type~="inline-memo"] {
+    background-color: var(--b3-card-info-background);
+    border-bottom: 2px solid var(--b3-card-info-color);
   }
 
   mark,
@@ -95,69 +123,164 @@
     }
   }
 
-  kbd,
-  span[data-type~="kbd"] {
-    padding: 2px 4px;
-    font: 75% Consolas, "Liberation Mono", Menlo, Courier, monospace, var(--b3-font-family);
-    line-height: 1;
-    color: var(--b3-theme-on-surface);
-    vertical-align: middle;
-    background-color: var(--b3-theme-surface);
-    border: solid 1px var(--b3-theme-surface-lighter);
-    border-radius: var(--b3-border-radius);
-    box-shadow: inset 0 -1px 0 var(--b3-theme-surface-lighter);
-  }
-
-  u {
-    text-decoration: none;
-  }
-
-  u,
-  span[data-type~="u"] {
-    border-bottom: 1px solid;
-  }
-
-  span[data-type~="inline-memo"] {
-    background-color: var(--b3-card-info-background);
-    border-bottom: 2px solid var(--b3-card-info-color);
+  blockquote {
+    position: relative;
   }
 
   blockquote,
   .bq {
-    padding: 4px;
+    &::before {
+      content: '';
+      background-color: var(--b3-theme-surface-lighter);
+      width: .25em;
+      border-radius: var(--b3-border-radius);
+      position: absolute;
+      left: 2px;
+      top: 6px;
+      bottom: 6px;
+    }
+
+    padding-left: calc(0.25em + 6px);
     color: var(--b3-theme-on-surface);
-    border-left: 0.25em solid var(--b3-theme-surface-lighter);
-    background-color: var(--b3-list-hover);
-    margin: 4px 0;
+    background-color: var(--b3-bq-background);
+    display: flex;
+    flex-direction: column;
   }
 
-  .h1,
+  .callout {
+    position: relative;
+
+    &::before {
+      content: '';
+      width: .25em;
+      border-radius: var(--b3-border-radius);
+      position: absolute;
+      left: 2px;
+      top: 6px;
+      bottom: 6px;
+    }
+
+    padding-left: calc(0.25em + 6px);
+    color: var(--b3-theme-on-surface);
+    background-color: var(--b3-bq-background);
+    display: flex;
+    flex-direction: column;
+
+    // NOTE
+    &::before {
+      background-color: var(--b3-callout-note);
+    }
+
+    .callout-info {
+      color: var(--b3-callout-note);
+    }
+
+    .callout-icon:empty {
+      display: none;
+    }
+
+    &[data-subtype="WARNING"] {
+      &::before {
+        background-color: var(--b3-callout-warning);
+      }
+
+      .callout-info {
+        color: var(--b3-callout-warning);
+      }
+    }
+
+    &[data-subtype="TIP"] {
+      &::before {
+        background-color: var(--b3-callout-tip);
+      }
+
+      .callout-info {
+        color: var(--b3-callout-tip);
+      }
+    }
+
+    &[data-subtype="IMPORTANT"] {
+      &::before {
+        background-color: var(--b3-callout-important);
+      }
+
+      .callout-info {
+        color: var(--b3-callout-important);
+      }
+    }
+
+    &[data-subtype="CAUTION"] {
+      &::before {
+        background-color: var(--b3-callout-caution);
+      }
+
+      .callout-info {
+        color: var(--b3-callout-caution);
+      }
+    }
+
+    &-info {
+      display: flex;
+      align-items: center;
+      user-select: none;
+    }
+
+    &-icon {
+      width: 1.2em;
+      display: flex;
+      text-align: center;
+      height: 1.2em;
+      line-height: 1.2em;
+      padding: 4px;
+      border-radius: var(--b3-border-radius);
+    }
+
+    &-img {
+      height: 1.2em;
+      width: 100%;
+    }
+
+    &-title {
+      margin-left: 4px;
+      font-weight: 500;
+      font-size: 114%;
+      opacity: .86;
+      transition: var(--b3-color-transition);
+    }
+  }
+
   h1,
-  .h2,
   h2,
-  .h3,
   h3,
-  .h4,
   h4,
-  .h5,
   h5,
-  .h6,
   h6 {
     padding: 4px;
-    margin: 4px 0;
-    font-weight: 600;
-    line-height: 1.25;
+    margin: 2px 0;
   }
 
   .h1,
-  h1 {
-    padding: 0.3em 4px;
+  .h2,
+  .h3,
+  .h4,
+  .h5,
+  .h6,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+  }
+
+  h1,
+  .h1 {
     font-size: 1.75em;
   }
 
-  .h2,
-  h2 {
-    padding: 0.3em 4px;
+  h2,
+  .h2 {
     font-size: 1.55em;
   }
 
@@ -208,13 +331,12 @@
     border-spacing: 0;
     width: max-content;
 
-    tr:nth-child(2n) td {
-      background-color: var(--b3-theme-background);
+    tr:nth-child(even) td {
+      background-color: var(--b3-table-even-background);
     }
 
     td,
     th {
-      background-color: var(--b3-theme-surface);
       padding: 4px 8px;
       border: 1px solid var(--b3-theme-surface-lighter);
       box-sizing: border-box;
@@ -254,20 +376,23 @@
     display: inline-block !important;
     position: absolute !important;
     width: 1px !important;
-    right: 0 !important;
+    left: 0 !important;
     outline: 0 !important;
     background: 0 0 !important;
     text-decoration: initial !important;
     text-shadow: initial !important;
     color: var(--b3-theme-background);
+    font-size: 12px !important;
+    overflow: hidden !important;
   }
 
-  .code-block {
-    position: relative;
-    padding: 0;
-    margin: 1em 0;
-    display: flex;
-    flex-direction: row-reverse;
+  pre.code-block {
+    border-radius: var(--b3-border-radius);
+  }
+
+  .code-block:not(pre) {
+    margin: 2px 0;
+    box-sizing: border-box;
 
     .protyle-action {
       left: 4px;
@@ -281,10 +406,14 @@
         font-size: 85%;
         color: var(--b3-theme-on-surface);
         margin-top: -4px;
+        align-self: center;
+        margin-left: 1em;
+        opacity: 0;
+        transition: var(--b3-transition);
+        line-height: calc(1.625 / 0.85);
       }
 
-      .protyle-icon,
-      .protyle-action__language {
+      .protyle-icon {
         opacity: 0;
         transition: var(--b3-transition);
       }
@@ -294,31 +423,32 @@
     &:hover .protyle-action__language {
       opacity: .86;
     }
-
-    &[linenumber="true"] .protyle-action__language {
-      margin-left: 3.6em;
-    }
   }
 
   .hljs {
-    border-radius: var(--b3-border-radius);
-    padding: 1.6em 4px;
     font-size: 85%;
     overflow: auto;
     font-family: var(--b3-font-family-code);
     min-height: 22px !important;
     overflow-x: overlay;
     tab-size: 4;
+    background-color: transparent;
+  }
+
+  div.hljs {
+    padding: 2em 1em 1.6em;
     flex: 1;
+    display: flex;
+    position: relative;
   }
 
   [data-subtype="echarts"],
   [data-subtype="mindmap"] {
     z-index: 1;
+    height: 420px;
 
     & > div:not(.protyle-icons):not(.protyle-attr) {
       overflow: hidden;
-      height: 420px;
     }
   }
 
@@ -333,7 +463,7 @@
       display: flex;
       align-items: baseline; // https://ld246.com/article/1645933216334
 
-      &:before {
+      &::before {
         content: "";
         flex: 1;
       }
@@ -347,7 +477,9 @@
   }
 
   .katex {
-    font-size: 113%;
+    // https://github.com/siyuan-note/siyuan/issues/10251
+    // https://github.com/siyuan-note/siyuan/issues/10321
+    // https://github.com/siyuan-note/siyuan/issues/10346
     line-height: normal; // https://ld246.com/article/1649890278771
 
     .mathnormal {
@@ -358,14 +490,10 @@
   [data-subtype="graphviz"] {
     text-align: center;
 
-    & > [contenteditable="false"] svg {
+    [contenteditable="false"] svg {
       border-radius: var(--b3-border-radius);
-
-      /* 由于会覆盖颜色，先移除看看有没有副作用 https://github.com/siyuan-note/siyuan/issues/7735
-      polygon {
-        fill: var(--b3-theme-on-primary);
-      }
-      */
+      max-width: 100%; // https://github.com/siyuan-note/siyuan/issues/11181
+      height: 100%; // https://github.com/siyuan-note/siyuan/issues/13852
     }
   }
 
@@ -384,11 +512,38 @@
     text-align: center;
   }
 
-  [data-subtype="mermaid"] {
+  [data-type="NodeIFrame"] {
+    height: 256px;
+  }
+
+  [data-type="NodeIFrame"],
+  [data-type="NodeWidget"] {
+    width: 100%;
+    max-width: 100%;
+
+    .iframe-content {
+      position: relative;
+      height: 100%;
+      width: 100%;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 1px solid var(--b3-theme-surface-lighter);
+      box-sizing: border-box;
+      max-width: 100%;
+      min-height: 100%;
+      max-height: 100%;
+    }
+  }
+
+  [data-subtype="flowchart"] > [spin="1"],
+  [data-subtype="plantuml"] > [spin="1"],
+  [data-subtype="mermaid"] > [spin="1"] {
+    // 不能加到上一级，否则属性会跟随滚动
     overflow: auto;
-    // https://github.com/siyuan-note/siyuan/issues/10186
-    min-height: 32px;
-    display: table;
+    line-height: initial;
   }
 
   [data-subtype="plantuml"] img {
@@ -409,27 +564,49 @@
     vertical-align: top; // https://ld246.com/article/1647522074722
     margin: 0 auto;
     max-width: 100%;
-    user-select: none;
+    word-break: keep-all;
+    white-space: nowrap;
+
+    & > span:nth-child(1),
+    & > span:nth-child(3) {
+      width: 4px;
+      display: inline-block;
+    }
 
     & > span:nth-child(2) {
-      max-width: calc(100% - 10px);
+      max-width: calc(100% - 8px);
       position: relative;
       display: inline-block;
       min-width: 22px;
+
+      &[style^=width] img {
+        width: 100%;
+      }
     }
 
     .protyle-action__title {
-      width: 100%;
-      display: block;
+      display: flex;
       font-size: 85%;
       color: var(--b3-theme-on-surface);
+      word-break: break-word;
+      white-space: break-spaces;
+      line-height: normal;
+      padding: 4px 0;
+
+      & > span {
+        flex-grow: 1;
+        width: 0;
+      }
     }
   }
 
   .iframe {
     text-align: center;
-    padding: 4px;
-    margin: 4px 0;
+
+    iframe {
+      width: 100%;
+      max-width: 100%;
+    }
   }
 }
 
@@ -459,6 +636,20 @@
 
   table {
     margin: 1em 0;
+
+    &[style*="direction: rtl"]:not([style*="text-align: left"]),
+    &[style*="text-align: right"] {
+      margin-left: auto;
+    }
+
+    &[style*="text-align: center"] {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    &[style*="direction: ltr"]:not([style*="text-align: right"]) {
+      margin-left: initial;
+    }
   }
 
   div[data-subtype="math"] {
@@ -481,6 +672,10 @@
     right: 4px;
     top: 4px;
     display: flex;
+
+    &--show {
+      opacity: .86;
+    }
   }
 
   &-icon {
@@ -531,37 +726,33 @@
     }
   }
 
-  &-linenumber {
-    border-top-left-radius: 0 !important;
-    border-bottom-left-radius: 0 !important;
+  &-linenumber__rows {
+    pointer-events: none;
+    user-select: none;
+    counter-reset: linenumber;
+    font-size: 85%;
+    font-family: var(--b3-font-family-code);
+    text-align: right;
+    position: absolute;
 
-    &__rows {
+    & > span {
       pointer-events: none;
-      user-select: none;
-      counter-reset: linenumber;
-      font-size: 85%;
-      background-color: var(--b3-theme-surface);
-      padding: 1.6em 4px;
-      box-sizing: border-box;
-      border-radius: var(--b3-border-radius) 0 0 var(--b3-border-radius);
-      width: 3.6em;
-      font-family: var(--b3-font-family-code);
+      display: block;
+      color: var(--b3-theme-on-surface);
 
-      & > span {
-        pointer-events: none;
+      &:not(:empty)::before {
+        content: "";
+      }
+
+      &::before {
+        counter-increment: linenumber;
+        content: counter(linenumber);
         display: block;
-
-        &::before {
-          counter-increment: linenumber;
-          content: counter(linenumber);
-          color: var(--b3-theme-on-surface);
-          display: block;
-          text-align: right;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          direction: rtl;
-        }
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        direction: rtl;
       }
     }
   }
@@ -593,7 +784,7 @@
 
   &-task {
     list-style: none !important;
-    word-break: break-all;
+    word-break: break-word;
     position: relative;
 
     &--done > div[data-node-id].p {
@@ -624,4 +815,11 @@
   background-color: var(--b3-theme-surface);
   z-index: 304;
   padding: 4px;
+}
+
+.emoji {
+  width: 1.25em;
+  cursor: auto;
+  max-width: none;
+  vertical-align: sub; // text-top windows 不兼容
 }

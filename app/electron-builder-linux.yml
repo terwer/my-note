@@ -2,7 +2,7 @@ productName: "SiYuan"
 appId: "org.b3log.siyuan"
 asar: false
 compression: "normal"
-copyright: "© 2024 Yunnan Liandi Technology Co., Ltd."
+copyright: "© 2020-present Yunnan Liandi Technology Co., Ltd."
 artifactName: "siyuan-${version}-${os}.${ext}"
 extraMetadata:
   main: "electron/main.js"
@@ -10,19 +10,30 @@ directories:
   output: "build"
 files:
   - "electron"
+afterPack: "./scripts/afterPack.js"
 extraFiles:
   - from: "../LICENSE"
     to: "LICENSE"
 
 linux:
-  icon: "src/assets/icon.png"
+  icon: "src/assets/icon.icns"
   category: "Utility"
+  executableName: "siyuan"
+  desktop: {
+    entry: {
+      Name: "SiYuan",
+      Comment: "Refactor your thinking",
+      Type: "Application",
+      Categories: "Utility;"
+    }
+  }
   extraResources:
     - from: "kernel-linux"
       to: "kernel"
   target:
     - target: "tar.gz"
     - target: "AppImage"
+    - target: "deb"
 
 extraResources:
   - from: "changelogs"
@@ -55,3 +66,6 @@ extraResources:
     filter: "!**/{.DS_Store}"
   - from: "pandoc/pandoc-linux-amd64.zip"
     to: "pandoc.zip"
+  - from: "pandoc/pandoc-resources"
+    to: "pandoc-resources"
+    filter: "!**/{.DS_Store}"

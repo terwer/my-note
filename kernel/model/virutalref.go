@@ -26,18 +26,21 @@ import (
 	"github.com/88250/gulu"
 	"github.com/88250/lute"
 	"github.com/88250/lute/ast"
+	"github.com/88250/lute/editor"
 	"github.com/88250/lute/parse"
 	"github.com/ClarkThan/ahocorasick"
 	"github.com/dgraph-io/ristretto"
 	"github.com/siyuan-note/siyuan/kernel/search"
 	"github.com/siyuan-note/siyuan/kernel/sql"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
+	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 // virtualBlockRefCache 用于保存块关联的虚拟引用关键字。
 // 改进打开虚拟引用后加载文档的性能 https://github.com/siyuan-note/siyuan/issues/7378
 var virtualBlockRefCache, _ = ristretto.NewCache(&ristretto.Config{
-	NumCounters: 102400,
+	NumCounters: 100000,
 	MaxCost:     10240,
 	BufferItems: 64,
 })
@@ -51,7 +54,8 @@ func getBlockVirtualRefKeywords(root *ast.Node) (ret []string) {
 				return ast.WalkContinue
 			}
 
-			content := treenode.NodeStaticContent(n, nil, false, false, false)
+			content := sql.NodeStaticContent(n, nil, false, false, false)
+			content = strings.ReplaceAll(content, editor.Zwsp, "")
 			buf.WriteString(content)
 			return ast.WalkContinue
 		})
@@ -99,32 +103,72 @@ func putBlockVirtualRefKeywords(blockContent string, root *ast.Node) (ret []stri
 }
 
 func CacheVirtualBlockRefJob() {
-	virtualBlockRefCache.Del("virtual_ref")
 	if !Conf.Editor.VirtualBlockRef {
 		return
 	}
-
-	keywords := sql.QueryVirtualRefKeywords(Conf.Search.VirtualRefName, Conf.Search.VirtualRefAlias, Conf.Search.VirtualRefAnchor, Conf.Search.VirtualRefDoc)
-	virtualBlockRefCache.Set("virtual_ref", keywords, 1)
+	task.AppendTask(task.CacheVirtualBlockRef, ResetVirtualBlockRefCache)
 }
 
 func ResetVirtualBlockRefCache() {
 	virtualBlockRefCache.Clear()
-	CacheVirtualBlockRefJob()
+	if !Conf.Editor.VirtualBlockRef {
+		return
+	}
+
+	searchIgnoreLines := getSearchIgnoreLines()
+	refSearchIgnoreLines := getRefSearchIgnoreLines()
+	keywords := sql.QueryVirtualRefKeywords(Conf.Search.VirtualRefName, Conf.Search.VirtualRefAlias, Conf.Search.VirtualRefAnchor, Conf.Search.VirtualRefDoc, searchIgnoreLines, refSearchIgnoreLines)
+	virtualBlockRefCache.Set("virtual_ref", keywords, 1)
+}
+
+// addNewKeywords 将新关键字添加到虚拟引用关键字列表中，如果不存在则追加，保留空白字符
+func addNewKeywords(keywordsStr string, newKeywords []string) string {
+	keywordsStr = strings.TrimSpace(keywordsStr)
+	if 0 == len(newKeywords) {
+		return keywordsStr
+	}
+
+	var builder strings.Builder
+	if "" != keywordsStr {
+		if !strings.HasSuffix(keywordsStr, "\\,") {
+			keywordsStr = strings.TrimSuffix(keywordsStr, ",")
+		}
+		builder.WriteString(keywordsStr)
+		builder.WriteString(",")
+	}
+
+	keywords := gulu.Str.RemoveDuplicatedElem(parseKeywords(keywordsStr))
+	newKeywords = gulu.Str.RemoveDuplicatedElem(newKeywords)
+	allKeys := make(map[string]bool)
+
+	// 添加新关键字
+	for _, keyword := range newKeywords {
+		keywordTrimmed := strings.TrimSpace(keyword)
+		if "" == keywordTrimmed {
+			continue
+		}
+		if gulu.Str.Contains(keywordTrimmed, keywords) {
+			// 剔除已存在的关键字
+			continue
+		}
+		if _, value := allKeys[keywordTrimmed]; value {
+			// 剔除重复的关键字
+			continue
+		}
+		allKeys[keywordTrimmed] = true
+		builder.WriteString(strings.ReplaceAll(keyword, ",", "\\,")) // 字符串切片转换为字符串，需要转义逗号
+		builder.WriteString(",")
+	}
+
+	return strings.TrimSuffix(builder.String(), ",")
 }
 
 func AddVirtualBlockRefInclude(keyword []string) {
 	if 1 > len(keyword) {
 		return
 	}
-
-	include := strings.ReplaceAll(Conf.Editor.VirtualBlockRefInclude, "\\,", "__comma@sep__")
-	includes := strings.Split(include, ",")
-	includes = append(includes, keyword...)
-	includes = gulu.Str.RemoveDuplicatedElem(includes)
-	Conf.Editor.VirtualBlockRefInclude = strings.Join(includes, ",")
+	Conf.Editor.VirtualBlockRefInclude = addNewKeywords(Conf.Editor.VirtualBlockRefInclude, keyword)
 	Conf.Save()
-
 	ResetVirtualBlockRefCache()
 }
 
@@ -132,19 +176,13 @@ func AddVirtualBlockRefExclude(keyword []string) {
 	if 1 > len(keyword) {
 		return
 	}
-
-	exclude := strings.ReplaceAll(Conf.Editor.VirtualBlockRefExclude, "\\,", "__comma@sep__")
-	excludes := strings.Split(exclude, ",")
-	excludes = append(excludes, keyword...)
-	excludes = gulu.Str.RemoveDuplicatedElem(excludes)
-	Conf.Editor.VirtualBlockRefExclude = strings.Join(excludes, ",")
+	Conf.Editor.VirtualBlockRefExclude = addNewKeywords(Conf.Editor.VirtualBlockRefExclude, keyword)
 	Conf.Save()
-
 	ResetVirtualBlockRefCache()
 }
 
 func processVirtualRef(n *ast.Node, unlinks *[]*ast.Node, virtualBlockRefKeywords []string, refCount map[string]int, luteEngine *lute.Lute) bool {
-	if !Conf.Editor.VirtualBlockRef {
+	if !Conf.Editor.VirtualBlockRef || 1 > len(virtualBlockRefKeywords) {
 		return false
 	}
 
@@ -153,16 +191,19 @@ func processVirtualRef(n *ast.Node, unlinks *[]*ast.Node, virtualBlockRefKeyword
 	}
 
 	parentBlock := treenode.ParentBlock(n)
-	if nil == parentBlock || 0 < refCount[parentBlock.ID] {
+	if nil == parentBlock {
 		return false
 	}
 
-	if 1 > len(virtualBlockRefKeywords) {
-		return false
+	if 0 < refCount[parentBlock.ID] {
+		// 如果块被引用过，则将其自身的文本排除在虚拟引用关键字之外
+		// Referenced blocks support rendering virtual references https://github.com/siyuan-note/siyuan/issues/10960
+		parentText := getNodeRefText(parentBlock)
+		virtualBlockRefKeywords = gulu.Str.RemoveElem(virtualBlockRefKeywords, parentText)
 	}
 
 	content := string(n.Tokens)
-	tmp := gulu.Str.RemoveInvisible(content)
+	tmp := util.RemoveInvalid(content)
 	tmp = strings.TrimSpace(tmp)
 	if "" == tmp {
 		return false
@@ -187,8 +228,6 @@ func processVirtualRef(n *ast.Node, unlinks *[]*ast.Node, virtualBlockRefKeyword
 			}
 		}
 
-		// Wrong parsing virtual reference with `\` before it https://github.com/siyuan-note/siyuan/issues/7821
-		newContent = strings.ReplaceAll(newContent, "\\"+search.GetMarkSpanStart(search.VirtualBlockRefDataType), "\\\\"+search.GetMarkSpanStart(search.VirtualBlockRefDataType))
 		n.Tokens = []byte(newContent)
 		linkTree := parse.Inline("", n.Tokens, luteEngine.ParseOptions)
 		var children []*ast.Node
@@ -204,6 +243,30 @@ func processVirtualRef(n *ast.Node, unlinks *[]*ast.Node, virtualBlockRefKeyword
 	return false
 }
 
+// parseKeywords 将字符串转换为关键字切片，并剔除前后的空白字符
+func parseKeywords(keywordsStr string) (keywords []string) {
+	keywords = []string{}
+	keywordsStr = strings.TrimSpace(keywordsStr)
+	if "" == keywordsStr {
+		return
+	}
+	// 先处理转义的逗号
+	keywordsStr = strings.ReplaceAll(keywordsStr, "\\,", "__comma@sep__")
+	// 再将连续或单个换行符替换为一个逗号，避免把 `\\\n` 转换为 `\,`
+	keywordsStr = util.ReplaceNewline(keywordsStr, ",")
+	// 按逗号分隔
+	for part := range strings.SplitSeq(keywordsStr, ",") {
+		part = strings.TrimSpace(part) // 剔除前后的空白字符
+		if "" == part {
+			continue
+		}
+		// 恢复转义的逗号
+		part = strings.ReplaceAll(part, "__comma@sep__", ",")
+		keywords = append(keywords, part)
+	}
+	return
+}
+
 func getVirtualRefKeywords(root *ast.Node) (ret []string) {
 	if !Conf.Editor.VirtualBlockRef {
 		return
@@ -213,25 +276,16 @@ func getVirtualRefKeywords(root *ast.Node) (ret []string) {
 		ret = val.([]string)
 	}
 
-	if "" != strings.TrimSpace(Conf.Editor.VirtualBlockRefInclude) {
-		include := strings.ReplaceAll(Conf.Editor.VirtualBlockRefInclude, "\\,", "__comma@sep__")
-		includes := strings.Split(include, ",")
-		var tmp []string
-		for _, e := range includes {
-			e = strings.ReplaceAll(e, "__comma@sep__", ",")
-			tmp = append(tmp, e)
-		}
-		includes = tmp
+	includes := parseKeywords(Conf.Editor.VirtualBlockRefInclude)
+	if 0 < len(includes) {
 		ret = append(ret, includes...)
 		ret = gulu.Str.RemoveDuplicatedElem(ret)
 	}
 
-	if "" != strings.TrimSpace(Conf.Editor.VirtualBlockRefExclude) {
-		exclude := strings.ReplaceAll(Conf.Editor.VirtualBlockRefExclude, "\\,", "__comma@sep__")
-		excludes := strings.Split(exclude, ",")
+	excludes := parseKeywords(Conf.Editor.VirtualBlockRefExclude)
+	if 0 < len(excludes) {
 		var tmp, regexps []string
 		for _, e := range excludes {
-			e = strings.ReplaceAll(e, "__comma@sep__", ",")
 			if strings.HasPrefix(e, "/") && strings.HasSuffix(e, "/") {
 				regexps = append(regexps, e[1:len(e)-1])
 			} else {
@@ -243,11 +297,15 @@ func getVirtualRefKeywords(root *ast.Node) (ret []string) {
 		if 0 < len(regexps) {
 			tmp = nil
 			for _, str := range ret {
+				matchExclude := false
 				for _, re := range regexps {
-					if ok, regErr := regexp.MatchString(re, str); !ok && nil == regErr {
-						tmp = append(tmp, str)
+					if ok, _ := regexp.MatchString(re, str); ok {
+						matchExclude = true
 						break
 					}
+				}
+				if !matchExclude {
+					tmp = append(tmp, str)
 				}
 			}
 			ret = tmp
@@ -275,7 +333,7 @@ func prepareMarkKeywords(keywords []string) (ret []string) {
 	ret = gulu.Str.RemoveDuplicatedElem(keywords)
 	var tmp []string
 	for _, k := range ret {
-		if "" != k {
+		if "" != k && "*" != k { // 提及和虚引排除 * Ignore `*` back mentions and virtual references https://github.com/siyuan-note/siyuan/issues/10873
 			tmp = append(tmp, k)
 		}
 	}

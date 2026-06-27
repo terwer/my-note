@@ -7,13 +7,14 @@ import * as fs from "fs";
 import * as path from "path";
 import {afterExport} from "../protyle/export/util";
 import {onWindowsMsg} from "../window/onWindowsMsg";
+import {initNativeDialogOverride} from "../protyle/util/compatibility";
 /// #endif
 import {Constants} from "../constants";
 import {appearance} from "../config/appearance";
 import {fetchPost, fetchSyncPost} from "../util/fetch";
-import {addGA, initAssets, setInlineStyle} from "../util/assets";
+import {initAssets, setInlineStyle} from "../util/assets";
 import {renderSnippet} from "../config/util/snippets";
-import {openFile, openFileById} from "../editor/util";
+import {openFile} from "../editor/util";
 import {exitSiYuan} from "../dialog/processSystem";
 import {isWindow} from "../util/functions";
 import {initStatus} from "../layout/status";
@@ -22,93 +23,17 @@ import {replaceLocalPath} from "../editor/rename";
 import {setTabPosition} from "../window/setHeader";
 import {initBar} from "../layout/topBar";
 import {openChangelog} from "./openChangelog";
-import {getIdFromSYProtocol, isSYProtocol} from "../util/pathName";
 import {App} from "../index";
 import {initWindowEvent} from "./globalEvent/event";
 import {sendGlobalShortcut} from "./globalEvent/keydown";
 import {closeWindow} from "../window/closeWin";
-import {checkFold} from "../util/noRelyPCFunction";
-
-const matchKeymap = (keymap: Record<string, IKeymapItem>, key1: "general" | "editor", key2?: "general" | "insert" | "heading" | "list" | "table") => {
-    if (key1 === "general") {
-        if (!window.siyuan.config.keymap[key1]) {
-            window.siyuan.config.keymap[key1] = keymap;
-            return false;
-        }
-    } else {
-        if (!window.siyuan.config.keymap[key1]) {
-            window.siyuan.config.keymap[key1] = JSON.parse(JSON.stringify(Constants.SIYUAN_KEYMAP.editor));
-            return false;
-        }
-        if (!window.siyuan.config.keymap[key1][key2]) {
-            window.siyuan.config.keymap[key1][key2] = keymap;
-            return false;
-        }
-    }
-    let match = true;
-    Object.keys(keymap).forEach(key => {
-        if (key1 === "general") {
-            if (!window.siyuan.config.keymap[key1][key] || window.siyuan.config.keymap[key1][key].default !== keymap[key].default) {
-                match = false;
-                window.siyuan.config.keymap[key1][key] = keymap[key];
-            }
-        } else {
-            if (!window.siyuan.config.keymap[key1][key2][key] || window.siyuan.config.keymap[key1][key2][key].default !== keymap[key].default) {
-                match = false;
-                window.siyuan.config.keymap[key1][key2][key] = keymap[key];
-            }
-        }
-    });
-    return match;
-};
-
-const hasKeymap = (keymap: Record<string, IKeymapItem>, key1: "general" | "editor", key2?: "general" | "insert" | "heading" | "list" | "table") => {
-    let match = true;
-    if (key1 === "editor") {
-        if (Object.keys(window.siyuan.config.keymap[key1][key2]).length !== Object.keys(Constants.SIYUAN_KEYMAP[key1][key2]).length) {
-            Object.keys(window.siyuan.config.keymap[key1][key2]).forEach(item => {
-                if (!Constants.SIYUAN_KEYMAP[key1][key2][item]) {
-                    match = false;
-                    delete window.siyuan.config.keymap[key1][key2][item];
-                }
-            });
-        }
-    } else {
-        if (Object.keys(window.siyuan.config.keymap[key1]).length !== Object.keys(Constants.SIYUAN_KEYMAP[key1]).length) {
-            Object.keys(window.siyuan.config.keymap[key1]).forEach(item => {
-                if (!Constants.SIYUAN_KEYMAP[key1][item]) {
-                    match = false;
-                    delete window.siyuan.config.keymap[key1][item];
-                }
-            });
-        }
-    }
-    return match;
-};
+import {correctHotkey} from "./globalEvent/commonHotkey";
+import {recordBeforeResizeTop} from "../protyle/util/resize";
+import {processSYLink} from "../editor/openLink";
+import {getAllEditor} from "../layout/getAll";
 
 export const onGetConfig = (isStart: boolean, app: App) => {
-    const matchKeymap1 = matchKeymap(Constants.SIYUAN_KEYMAP.general, "general");
-    const matchKeymap2 = matchKeymap(Constants.SIYUAN_KEYMAP.editor.general, "editor", "general");
-    const matchKeymap3 = matchKeymap(Constants.SIYUAN_KEYMAP.editor.insert, "editor", "insert");
-    const matchKeymap4 = matchKeymap(Constants.SIYUAN_KEYMAP.editor.heading, "editor", "heading");
-    const matchKeymap5 = matchKeymap(Constants.SIYUAN_KEYMAP.editor.list, "editor", "list");
-    const matchKeymap6 = matchKeymap(Constants.SIYUAN_KEYMAP.editor.table, "editor", "table");
-
-    const hasKeymap1 = hasKeymap(Constants.SIYUAN_KEYMAP.general, "general");
-    const hasKeymap2 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.general, "editor", "general");
-    const hasKeymap3 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.insert, "editor", "insert");
-    const hasKeymap4 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.heading, "editor", "heading");
-    const hasKeymap5 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.list, "editor", "list");
-    const hasKeymap6 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.table, "editor", "table");
-    if (!window.siyuan.config.readonly &&
-        (!matchKeymap1 || !matchKeymap2 || !matchKeymap3 || !matchKeymap4 || !matchKeymap5 || !matchKeymap6 ||
-            !hasKeymap1 || !hasKeymap2 || !hasKeymap3 || !hasKeymap4 || !hasKeymap5 || !hasKeymap6)) {
-        fetchPost("/api/setting/setKeymap", {
-            data: window.siyuan.config.keymap
-        }, () => {
-            sendGlobalShortcut(app);
-        });
-    }
+    correctHotkey(app);
     /// #if !BROWSER
     ipcRenderer.invoke(Constants.SIYUAN_INIT, {
         languages: window.siyuan.languages["_trayMenu"],
@@ -116,6 +41,11 @@ export const onGetConfig = (isStart: boolean, app: App) => {
         port: location.port
     });
     webFrame.setZoomFactor(window.siyuan.storage[Constants.LOCAL_ZOOM]);
+    ipcRenderer.send(Constants.SIYUAN_CMD, {
+        cmd: "setTrafficLightPosition",
+        zoom: window.siyuan.storage[Constants.LOCAL_ZOOM],
+        position: Constants.SIZE_ZOOM.find((item) => item.zoom === window.siyuan.storage[Constants.LOCAL_ZOOM]).position
+    });
     /// #endif
     if (!window.siyuan.config.uiLayout || (window.siyuan.config.uiLayout && !window.siyuan.config.uiLayout.left)) {
         window.siyuan.config.uiLayout = Constants.SIYUAN_EMPTY_LAYOUT;
@@ -139,44 +69,48 @@ export const onGetConfig = (isStart: boolean, app: App) => {
     initBar(app);
     initStatus();
     initWindow(app);
-    appearance.onSetappearance(window.siyuan.config.appearance);
+    /// #if !BROWSER
+    initNativeDialogOverride();
+    /// #endif
+    appearance.onSetAppearance(window.siyuan.config.appearance);
     initAssets();
     setInlineStyle();
     renderSnippet();
     let resizeTimeout = 0;
+    let firstResize = true;
     window.addEventListener("resize", () => {
+        if (firstResize) {
+            recordBeforeResizeTop();
+            firstResize = false;
+        }
         window.clearTimeout(resizeTimeout);
         resizeTimeout = window.setTimeout(() => {
             adjustLayout();
             resizeTabs();
             resizeTopBar();
-        }, 200);
+            window.siyuan.menus.menu.resetPosition();
+            firstResize = true;
+            if (getSelection().rangeCount > 0) {
+                const range = getSelection().getRangeAt(0);
+                getAllEditor().forEach(item => {
+                    if (item.protyle.wysiwyg.element.contains(range.startContainer)) {
+                        item.protyle.toolbar.render(item.protyle, range);
+                    }
+                });
+            }
+            window.siyuan.dialogs.forEach(item => {
+                item.resize();
+            });
+        }, Constants.TIMEOUT_RESIZE);
     });
-    addGA();
-};
-
-const winOnMaxRestore = async () => {
-    /// #if !BROWSER
-    const maxBtnElement = document.getElementById("maxWindow");
-    const restoreBtnElement = document.getElementById("restoreWindow");
-    const isFullScreen = await ipcRenderer.invoke(Constants.SIYUAN_GET, {
-        cmd: "isFullScreen",
-    });
-    const isMaximized = await ipcRenderer.invoke(Constants.SIYUAN_GET, {
-        cmd: "isMaximized",
-    });
-    if (isMaximized || isFullScreen) {
-        restoreBtnElement.style.display = "flex";
-        maxBtnElement.style.display = "none";
-    } else {
-        restoreBtnElement.style.display = "none";
-        maxBtnElement.style.display = "flex";
-    }
-    /// #endif
 };
 
 export const initWindow = async (app: App) => {
     /// #if !BROWSER
+    ipcRenderer.send(Constants.SIYUAN_CMD, {
+        cmd: "setSpellCheckerLanguages",
+        languages: window.siyuan.config.editor.spellcheckLanguages
+    });
     const winOnClose = (close = false) => {
         exportLayout({
             cb() {
@@ -197,7 +131,7 @@ export const initWindow = async (app: App) => {
         });
     };
 
-    ipcRenderer.send(Constants.SIYUAN_EVENT, "onEvent");
+    ipcRenderer.send(Constants.SIYUAN_EVENT);
     ipcRenderer.on(Constants.SIYUAN_EVENT, (event, cmd) => {
         if (cmd === "focus") {
             // 由于 https://github.com/siyuan-note/siyuan/issues/10060 和新版 electron 应用切出再切进会保持光标，故移除 focus
@@ -208,105 +142,34 @@ export const initWindow = async (app: App) => {
         } else if (cmd === "blur") {
             document.body.classList.add("body--blur");
         } else if (cmd === "enter-full-screen") {
+            document.body.classList.add("body--fullscreen");
             if ("darwin" === window.siyuan.config.system.os) {
                 if (isWindow()) {
                     setTabPosition();
-                } else {
-                    document.getElementById("toolbar").style.paddingLeft = "0";
                 }
-            } else {
-                winOnMaxRestore();
             }
         } else if (cmd === "leave-full-screen") {
+            document.body.classList.remove("body--fullscreen");
             if ("darwin" === window.siyuan.config.system.os) {
                 if (isWindow()) {
                     setTabPosition();
-                } else {
-                    document.getElementById("toolbar").setAttribute("style", "");
                 }
-            } else {
-                winOnMaxRestore();
             }
         } else if (cmd === "maximize") {
-            winOnMaxRestore();
+            document.body.classList.add("body--maximize");
         } else if (cmd === "unmaximize") {
-            winOnMaxRestore();
+            document.body.classList.remove("body--maximize");
         }
     });
     if (!isWindow()) {
         ipcRenderer.on(Constants.SIYUAN_OPEN_URL, (event, url) => {
-            let urlObj: URL;
-            try {
-                urlObj = new URL(url);
-                if (urlObj.protocol !== "siyuan:") {
-                    return;
-                }
-            } catch (error) {
-                return;
-            }
-            if (urlObj && urlObj.pathname.startsWith("//plugins/")) {
-                const pluginNameType = urlObj.pathname.replace("//plugins/", "");
-                if (!pluginNameType) {
-                    return;
-                }
-                app.plugins.find(plugin => {
-                    if (pluginNameType.startsWith(plugin.name)) {
-                        // siyuan://plugins/plugin-name/foo?bar=baz
-                        plugin.eventBus.emit("open-siyuan-url-plugin", {url});
-
-                        // https://github.com/siyuan-note/siyuan/pull/9256
-                        if (pluginNameType.split("/")[0] !== plugin.name) {
-                            // siyuan://plugins/plugin-samplecustom_tab?title=自定义页签&icon=iconFace&data={"text": "This is the custom plugin tab I opened via protocol."}
-                            let data = urlObj.searchParams.get("data");
-                            try {
-                                data = JSON.parse(data || "{}");
-                            } catch (e) {
-                                console.log("Error open plugin tab with protocol:", e);
-                            }
-                            openFile({
-                                app,
-                                custom: {
-                                    title: urlObj.searchParams.get("title"),
-                                    icon: urlObj.searchParams.get("icon"),
-                                    data,
-                                    id: pluginNameType
-                                },
-                            });
-                        }
-                        return true;
-                    }
-                });
-                return;
-            }
-            if (urlObj && isSYProtocol(url)) {
-                const id = getIdFromSYProtocol(url);
-                const focus = urlObj.searchParams.get("focus") === "1";
-                fetchPost("/api/block/checkBlockExist", {id}, existResponse => {
-                    if (existResponse.data) {
-                        checkFold(id, (zoomIn) => {
-                            openFileById({
-                                app,
-                                id,
-                                action: (zoomIn || focus) ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS, Constants.CB_GET_CONTEXT, Constants.CB_GET_ROOTSCROLL],
-                                zoomIn: zoomIn || focus
-                            });
-                        });
-                        ipcRenderer.send(Constants.SIYUAN_CMD, "show");
-                    }
-                    app.plugins.forEach(plugin => {
-                        plugin.eventBus.emit("open-siyuan-url-block", {
-                            url,
-                            id,
-                            focus,
-                            exist: existResponse.data,
-                        });
-                    });
-                });
-                return;
-            }
+            processSYLink(app, url);
         });
     }
     ipcRenderer.on(Constants.SIYUAN_OPEN_FILE, (event, data) => {
+        if (!data.app) {
+            data.app = app;
+        }
         openFile(data);
     });
     ipcRenderer.on(Constants.SIYUAN_SAVE_CLOSE, (event, close) => {
@@ -317,7 +180,7 @@ export const initWindow = async (app: App) => {
         }
     });
     ipcRenderer.on(Constants.SIYUAN_SEND_WINDOWS, (e, ipcData: IWebSocketData) => {
-        onWindowsMsg(ipcData);
+        onWindowsMsg(ipcData, app);
     });
     ipcRenderer.on(Constants.SIYUAN_HOTKEY, (e, data) => {
         let matchCommand = false;
@@ -343,12 +206,13 @@ export const initWindow = async (app: App) => {
             watermark: ipcData.watermark,
             landscape: ipcData.pdfOptions.landscape,
             marginType: ipcData.pdfOptions.marginType,
-            pageSize: ipcData.pdfOptions.pageSize,
+            pageSize: ipcData.pageSize,
             scale: ipcData.pdfOptions.scale,
             marginTop: ipcData.pdfOptions.margins.top,
             marginRight: ipcData.pdfOptions.margins.right,
             marginBottom: ipcData.pdfOptions.margins.bottom,
             marginLeft: ipcData.pdfOptions.margins.left,
+            paged: ipcData.paged,
         };
         setStorageVal(Constants.LOCAL_EXPORTPDF, window.siyuan.storage[Constants.LOCAL_EXPORTPDF]);
         try {
@@ -356,7 +220,7 @@ export const initWindow = async (app: App) => {
                 const response = await fetchSyncPost("/api/template/renderSprig", {template: window.siyuan.config.export.pdfFooter});
                 ipcData.pdfOptions.displayHeaderFooter = true;
                 ipcData.pdfOptions.headerTemplate = "<span></span>";
-                ipcData.pdfOptions.footerTemplate = `<div style="text-align:center;width:100%;font-size:8px;line-height:12px;">
+                ipcData.pdfOptions.footerTemplate = `<div style="text-align:center;width:100%;font-size:10px;line-height:12px;">
 ${response.data.replace("%pages", "<span class=totalPages></span>").replace("%page", "<span class=pageNumber></span>")}
 </div>`;
             }
@@ -365,14 +229,17 @@ ${response.data.replace("%pages", "<span class=totalPages></span>").replace("%pa
                 pdfOptions: ipcData.pdfOptions,
                 webContentsId: ipcData.webContentsId
             });
+            const savePath = ipcData.filePaths[0];
+            let pdfFilePath = path.join(savePath, replaceLocalPath(ipcData.rootTitle) + ".pdf");
+            const responseUnique = await fetchSyncPost("/api/file/getUniqueFilename", {path: pdfFilePath});
+            pdfFilePath = responseUnique.data.path;
             fetchPost("/api/export/exportHTML", {
                 id: ipcData.rootId,
                 pdf: true,
                 removeAssets: ipcData.removeAssets,
                 merge: ipcData.mergeSubdocs,
-                savePath: ipcData.filePaths[0]
+                savePath,
             }, () => {
-                const pdfFilePath = path.join(ipcData.filePaths[0], replaceLocalPath(ipcData.rootTitle) + ".pdf");
                 fs.writeFileSync(pdfFilePath, pdfData);
                 ipcRenderer.send(Constants.SIYUAN_CMD, {cmd: "destroy", webContentsId: ipcData.webContentsId});
                 fetchPost("/api/export/processPDF", {
@@ -381,44 +248,54 @@ ${response.data.replace("%pages", "<span class=totalPages></span>").replace("%pa
                     path: pdfFilePath,
                     removeAssets: ipcData.removeAssets,
                     watermark: ipcData.watermark
-                }, () => {
+                }, async () => {
                     afterExport(pdfFilePath, msgId);
                     if (ipcData.removeAssets) {
                         const removePromise = (dir: string) => {
                             return new Promise(function (resolve) {
-                                //先读文件夹
                                 fs.stat(dir, function (err, stat) {
-                                    if (stat) {
-                                        if (stat.isDirectory()) {
-                                            fs.readdir(dir, function (err, files) {
-                                                files = files.map(file => path.join(dir, file)); // a/b  a/m
-                                                Promise.all(files.map(file => removePromise(file))).then(function () {
-                                                    fs.rmdir(dir, resolve);
-                                                });
+                                    if (!stat) {
+                                        return;
+                                    }
+
+                                    if (stat.isDirectory()) {
+                                        fs.readdir(dir, function (err, files) {
+                                            files = files.map(file => path.join(dir, file)); // a/b  a/m
+                                            Promise.all(files.map(file => removePromise(file))).then(function () {
+                                                fs.rm(dir, resolve);
                                             });
-                                        } else {
-                                            fs.unlink(dir, resolve);
-                                        }
+                                        });
+                                    } else {
+                                        fs.unlink(dir, resolve);
                                     }
                                 });
                             });
                         };
-                        removePromise(path.join(ipcData.filePaths[0], "assets"));
+
+                        const assetsDir = path.join(savePath, "assets");
+                        await removePromise(assetsDir);
+                        if (1 > fs.readdirSync(assetsDir).length) {
+                            fs.rmdirSync(assetsDir);
+                        }
                     }
                 });
             });
         } catch (e) {
-            showMessage("Export PDF failed: " + e, 0, "error", msgId);
+            console.error(e);
+            showMessage(window.siyuan.languages.exportPDFLowMemory, 0, "error", msgId);
             ipcRenderer.send(Constants.SIYUAN_CMD, {cmd: "destroy", webContentsId: ipcData.webContentsId});
         }
         ipcRenderer.send(Constants.SIYUAN_CMD, {cmd: "hide", webContentsId: ipcData.webContentsId});
     });
 
     if (isWindow()) {
+        const isAlwaysOnTop = await ipcRenderer.invoke(Constants.SIYUAN_GET, {
+            cmd: "isAlwaysOnTop",
+        });
         document.body.insertAdjacentHTML("beforeend", `<div class="toolbar__window">
-<div class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages.pin}" id="pinWindow">
+<div class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages[isAlwaysOnTop ? "unpin" : "pin"]}" id="pinWindow">
     <svg>
-        <use xlink:href="#iconPin"></use>
+        <use xlink:href="#icon${isAlwaysOnTop ? "Unpin" : "Pin"}"></use>
     </svg>
 </div></div>`);
         const pinElement = document.getElementById("pinWindow");
@@ -434,6 +311,20 @@ ${response.data.replace("%pages", "<span class=totalPages></span>").replace("%pa
             }
         });
     }
+
+    const isFullScreen = await ipcRenderer.invoke(Constants.SIYUAN_GET, {
+        cmd: "isFullScreen",
+    });
+    if (isFullScreen) {
+        document.body.classList.add("body--fullscreen");
+    }
+    const isMaximized = await ipcRenderer.invoke(Constants.SIYUAN_GET, {
+        cmd: "isMaximized",
+    });
+    if (isMaximized) {
+        document.body.classList.add("body--maximize");
+    }
+
     if ("darwin" !== window.siyuan.config.system.os) {
         document.body.classList.add("body--win32");
 
@@ -473,7 +364,6 @@ ${response.data.replace("%pages", "<span class=totalPages></span>").replace("%pa
             ipcRenderer.send(Constants.SIYUAN_CMD, "maximize");
         });
 
-        winOnMaxRestore();
         const minBtnElement = document.getElementById("minWindow");
         const closeBtnElement = document.getElementById("closeWindow");
         minBtnElement.addEventListener("click", () => {
@@ -489,14 +379,6 @@ ${response.data.replace("%pages", "<span class=totalPages></span>").replace("%pa
                 winOnClose();
             }
         });
-    } else {
-        const toolbarElement = document.getElementById("toolbar");
-        const isFullScreen = await ipcRenderer.invoke(Constants.SIYUAN_GET, {
-            cmd: "isFullScreen",
-        });
-        if (isFullScreen && !isWindow()) {
-            toolbarElement.style.paddingLeft = "0";
-        }
     }
     /// #else
     if (!isWindow()) {

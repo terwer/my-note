@@ -2,6 +2,7 @@ import {Constants} from "../constants";
 import {genItemPanel} from "./index";
 import {keymap} from "./keymap";
 import {App} from "../index";
+import {isPhablet} from "../protyle/util/compatibility";
 
 const getLang = (keys: string[]) => {
     const langArray: string[] = [];
@@ -20,14 +21,23 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
             "historyRetentionDays", "historyRetentionDaysTip", "clearHistory", "katexMacros", "katexMacrosTip",
             "editReadonly", "editReadonlyTip", "embedBlockBreadcrumb", "embedBlockBreadcrumbTip", "outlineOutdentTip",
             "outdent", "floatWindowMode", "floatWindowModeTip", "justify", "justifyTip", "rtl", "rtlTip", "spellcheck",
-            "spellcheckTip", "backlinkExpand", "backlinkExpandTip", "onlySearchForDoc", "onlySearchForDocTip",
-            "dynamicLoadBlocks", "dynamicLoadBlocksTip", "fontSizeScrollZoom", "fontSizeScrollZoomTip"
+            "spellcheckTip", "backlinkExpand", "backlinkExpandTip", "backmentionExpand", "backmentionExpandTip",
+            "onlySearchForDoc", "onlySearchForDocTip", "dynamicLoadBlocks", "dynamicLoadBlocksTip", "fontSizeScrollZoom", "fontSizeScrollZoomTip",
+            "listItemDotNumberClickFocus", "listItemDotNumberClickFocusTip", "editorMarkdownInlineAsterisk", "editorMarkdownInlineUnderscore",
+            "editorMarkdownInlineSup", "editorMarkdownInlineSupTip", "editorMarkdownInlineSub", "editorMarkdownInlineSubTip",
+            "editorMarkdownInlineTag", "editorMarkdownInlineTagTip", "editorMarkdownInlineMath", "editorMarkdownInlineMathTip",
+            "editorMarkdownInlineStrikethrough", "editorMarkdownInlineStrikethroughTip", "editorMarkdownInlineMark", "editorMarkdownInlineMarkTip",
+            "allowHTMLBLockScript", "allowHTMLBLockScriptTip", "floatWindowDelay", "floatWindowDelayTip",
+            "backlinkContainChildren", "backlinkContainChildrenTip", "allowSVGScript", "allowSVGScriptTip",
+            "pasteURLAutoConvert", "pasteURLAutoConvertTip"
         ]),
 
         // 文档树
         getLang(["selectOpen", "tabLimit", "fileTree", "fileTree2", "fileTree3", "fileTree4", "fileTree5",
             "fileTree6", "fileTree7", "fileTree8", "fileTree9", "fileTree10", "fileTree12", "fileTree13", "fileTree15",
-            "fileTree16", "fileTree17", "fileTree21"]),
+            "fileTree16", "fileTree17", "fileTree18", "fileTree19", "fileTree20", "fileTree21", "fileTree22", "fileTree23",
+            "fileTree24", "fileTree25", "recentDocsMaxListCount", "recentDocsMaxListCountTip", "noSplitScreenWhenOpenTab",
+            "noSplitScreenWhenOpenTabTip"]),
 
         // 闪卡
         getLang(["riffCard", "flashcardNewCardLimit", "flashcardNewCardLimitTip", "flashcardReviewCardLimit",
@@ -35,24 +45,26 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
             "flashcardSuperBlock", "flashcardHeading", "flashcardDeck", "flashcardDeckTip",
             "flashcardFSRSParamRequestRetention", "flashcardFSRSParamRequestRetentionTip",
             "flashcardFSRSParamMaximumInterval", "flashcardFSRSParamMaximumIntervalTip", "flashcardFSRSParamWeights",
-            "flashcardFSRSParamWeightsTip"]),
+            "flashcardFSRSParamWeightsTip", "reviewMode", "reviewModeTip"]),
 
         // AI
         ["AI"].concat(getLang(["ai", "apiTimeout", "apiTimeoutTip", "apiMaxTokens", "apiMaxTokensTip", "apiKey",
-            "apiKeyTip", "apiProxy", "apiProxyTip", "apiBaseURL", "apiBaseURLTip"])),
+            "apiKeyTip", "apiProxy", "apiProxyTip", "apiBaseURL", "apiBaseURLTip", "apiUserAgentTip", "apiVersion", "apiVersionTip",
+            "apiProvider", "apiProviderTip", "apiTemperature", "apiTemperatureTip", "apiMaxContexts", "apiMaxContextsTip"])),
 
-        // 图片
+        // 资源
         getLang(["assets", "unreferencedAssets", "missingAssets"]),
 
         // 导出
-        getLang(["paragraphBeginningSpace", "md4", "export", "export1", "export2", "export5", "export9", "export11",
+        getLang(["paragraphBeginningSpace", "md4", "export", "export1", "export2", "export5", "export11",
             "export13", "export14", "export15", "export19", "export20", "ref", "blockEmbed", "export17", "export18",
-            "export23", "export24", "export25", "export26", "export27", "export28", "export29"]),
+            "export23", "export24", "export25", "export26", "export27", "export28", "export29", "removeAssetsID", "removeAssetsIDTip",
+            "includeSubDocs", "includeSubDocsTip", "includeRelatedDocs", "includeRelatedDocsTip"]),
 
         // 外观
         getLang(["language", "language1", "appearance", "appearance1", "appearance2", "appearance3", "appearance4",
             "appearance5", "appearance6", "appearance8", "appearance9", "appearance10", "appearance11", "appearance16",
-            "appearance17", "resetLayout", "reset", "icon", "themeLight", "themeDark", "close", "themeOS", "theme",
+            "appearance17", "appearance18", "resetLayout", "reset", "icon", "themeLight", "themeDark", "close", "themeOS", "theme",
             "theme2", "theme11", "theme12", "customEmoji", "customEmojiTip", "refresh"]),
 
         // 集市
@@ -72,29 +84,37 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
             .concat(Object.keys(Constants.SIYUAN_KEYMAP.editor.list))
             .concat(Object.keys(Constants.SIYUAN_KEYMAP.editor.table))),
 
-        // 云端
-        getLang(["cloudStorage", "trafficStat", "sync", "backup", "cdn", "total", "sizeLimit", "cloudBackup",
-            "cloudBackupTip", "updatePath", "cloudSync", "upload", "download", "syncMode", "syncModeTip",
-            "generateConflictDoc", "generateConflictDocTip", "syncProvider", "syncProviderTip",
-            "syncMode1", "syncMode2", "reposTip", "openSyncTip1", "openSyncTip2", "cloudSyncDir", "config"]),
-
         // 账号
         getLang(["accountTip", "accountName", "password", "captcha", "forgetPassword", "login", "register",
             "twoFactorCaptcha", "account1", "account2", "account5"]),
 
+        // 云端
+        getLang(["cloudStorage", "trafficStat", "sync", "backup", "cdn", "total", "sizeLimit", "cloudBackup",
+            "cloudBackupTip", "updatePath", "cloudSync", "upload", "download", "syncMode", "syncModeTip",
+            "generateConflictDoc", "generateConflictDocTip", "syncProvider", "syncProviderTip",
+            "syncMode1", "syncMode2", "reposTip", "openSyncTip1", "openSyncTip2", "cloudSyncDir", "cloudSyncDirTip", "config"]),
+
+        // 发布
+        getLang(["publishService", "publishServiceTip", "publishServicePort", "publishServicePortTip",
+            "publishServiceAddresses", "publishServiceAddressesTip", "publishServiceAuth", "publishServiceAuthTip",
+            "publishServiceAuthAccounts", "publishServiceAuthAccountsTip"]),
+
         // 关于
         getLang(["autoLaunch", "autoLaunchTip", "about", "about1", "about2", "about3", "about4", "about5", "about6",
-            "about7", "about8", "about9", "about10", "about11", "about12", "about13", "about14", "about17", "config",
+            "about7", "about8", "about11", "about12", "about13", "about14", "about17", "config",
             "dataRepoKey", "dataRepoKeyTip1", "dataRepoKeyTip2", "slogan", "currentVer", "checkUpdate", "updatePath",
             "systemLog", "importKey", "genKey", "genKeyByPW", "copyKey", "resetRepo", "systemLogTip", "export",
             "downloadLatestVer", "safeQuit", "directConnection", "siyuanNote", "key", "password", "copied", "resetRepoTip",
             "autoDownloadUpdatePkg", "autoDownloadUpdatePkgTip", "networkProxy", "keyPlaceholder", "initRepoKeyTip",
-            "googleAnalytics", "googleAnalyticsTip"]),
+            "dataRepoPurge", "dataRepoPurgeTip", "dataRepoAutoPurgeIndexRetentionDays", "dataRepoAutoPurgeRetentionIndexesDaily",
+            "vacuumDataIndex", "vacuumDataIndexTip", "clearTempFiles", "clearTempFilesTip", "rebuildDataIndex", "rebuildDataIndexTip"]),
     ];
     const inputElement = element.querySelector(".b3-form__icon input") as HTMLInputElement;
-    /// #if !BROWSER
-    inputElement.focus();
-    /// #endif
+    if (!isPhablet()) {
+        inputElement.focus();
+    } else {
+        (document.activeElement as HTMLElement)?.blur();
+    }
     const updateTab = () => {
         const indexList: number[] = [];
         const inputValue = inputElement.value;
@@ -131,6 +151,33 @@ export const initConfigSearch = (element: HTMLElement, app: App) => {
                     searchElement.value = inputValue;
                     searchKeymapElement.value = "";
                     keymap.search(searchElement.value, searchKeymapElement.value);
+                } else if (type === "search") {
+                    panelElement.querySelectorAll(`.config__tab-container[data-name="${type}"] .b3-label`).forEach((itemElement: HTMLElement) => {
+                        let showItemElement = false;
+                        let showItemParent = false;
+                        const itemText = itemElement.firstElementChild.textContent.toLowerCase();
+                        if (itemText.indexOf(inputValue.toLowerCase()) > -1 || inputValue.toLowerCase().indexOf(itemText) > -1) {
+                            showItemParent = true;
+                        }
+                        itemElement.querySelectorAll(".fn__flex-1").forEach(labelItem => {
+                            if (!labelItem.parentElement.classList.contains("fn__none")) {
+                                const text = labelItem.textContent.toLowerCase();
+                                if (text.indexOf(inputValue.toLowerCase()) > -1 || inputValue.toLowerCase().indexOf(text) > -1 || showItemParent) {
+                                    labelItem.parentElement.style.display = "";
+                                    showItemElement = true;
+                                } else {
+                                    labelItem.parentElement.style.display = "none";
+                                }
+                            }
+                        });
+                        if (!itemElement.classList.contains("fn__none")) {
+                            if (showItemElement) {
+                                itemElement.style.display = "";
+                            } else {
+                                itemElement.style.display = "none";
+                            }
+                        }
+                    });
                 } else {
                     panelElement.querySelectorAll(`.config__tab-container[data-name="${type}"] .b3-label`).forEach((itemElement: HTMLElement) => {
                         if (!itemElement.classList.contains("fn__none")) {

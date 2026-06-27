@@ -21,211 +21,225 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/88250/gulu"
-	"github.com/fsnotify/fsnotify"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/bazaar"
+	"github.com/siyuan-note/siyuan/kernel/conf"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 func InitAppearance() {
 	util.SetBootDetails("Initializing appearance...")
-	if err := os.Mkdir(util.AppearancePath, 0755); nil != err && !os.IsExist(err) {
+	if err := os.Mkdir(util.AppearancePath, 0755); err != nil && !os.IsExist(err) {
 		logging.LogErrorf("create appearance folder [%s] failed: %s", util.AppearancePath, err)
 		util.ReportFileSysFatalError(err)
 		return
 	}
 
-	unloadThemes()
 	from := filepath.Join(util.WorkingDir, "appearance")
-	if err := filelock.Copy(from, util.AppearancePath); nil != err {
+	if err := filelock.Copy(from, util.AppearancePath); err != nil {
 		logging.LogErrorf("copy appearance resources from [%s] to [%s] failed: %s", from, util.AppearancePath, err)
 		util.ReportFileSysFatalError(err)
 		return
 	}
-	loadThemes()
 
-	if !gulu.Str.Contains(Conf.Appearance.ThemeDark, Conf.Appearance.DarkThemes) {
+	LoadThemes()
+	LoadIcons()
+
+	Conf.m.Lock()
+	if !containTheme(Conf.Appearance.ThemeDark, Conf.Appearance.DarkThemes) {
 		Conf.Appearance.ThemeDark = "midnight"
 		Conf.Appearance.ThemeJS = false
 	}
-	if !gulu.Str.Contains(Conf.Appearance.ThemeLight, Conf.Appearance.LightThemes) {
+	if !containTheme(Conf.Appearance.ThemeLight, Conf.Appearance.LightThemes) {
 		Conf.Appearance.ThemeLight = "daylight"
 		Conf.Appearance.ThemeJS = false
 	}
-
-	loadIcons()
 	if !gulu.Str.Contains(Conf.Appearance.Icon, Conf.Appearance.Icons) {
 		Conf.Appearance.Icon = "material"
 	}
+	Conf.m.Unlock()
 
 	Conf.Save()
+
+	util.InitEmojiChars()
 }
 
-var themeWatchers = sync.Map{} // [string]*fsnotify.Watcher{}
+func SetIcon(icon string) error {
+	Conf.m.Lock()
+	defer Conf.m.Unlock()
 
-func closeThemeWatchers() {
-	themeWatchers.Range(func(key, value interface{}) bool {
-		if err := value.(*fsnotify.Watcher).Close(); nil != err {
-			logging.LogErrorf("close file watcher failed: %s", err)
+	if !gulu.Str.Contains(icon, Conf.Appearance.Icons) {
+		return fmt.Errorf("icon [%s] not exists or not available", icon)
+	}
+	Conf.Appearance.Icon = icon
+	return nil
+}
+
+func SetTheme(theme string, modes []int, appearanceMode string) error {
+	Conf.m.Lock()
+	defer Conf.m.Unlock()
+
+	if theme != "" {
+		for _, mode := range modes {
+			switch mode {
+			case 0:
+				if !containTheme(theme, Conf.Appearance.LightThemes) {
+					return fmt.Errorf("theme [%s] not exists or not available for light mode", theme)
+				}
+				Conf.Appearance.ThemeLight = theme
+			case 1:
+				if !containTheme(theme, Conf.Appearance.DarkThemes) {
+					return fmt.Errorf("theme [%s] not exists or not available for dark mode", theme)
+				}
+				Conf.Appearance.ThemeDark = theme
+			}
 		}
-		return true
-	})
-}
-
-func unloadThemes() {
-	if !util.IsPathRegularDirOrSymlinkDir(util.ThemesPath) {
-		return
 	}
 
-	themeDirs, err := os.ReadDir(util.ThemesPath)
-	if nil != err {
-		logging.LogErrorf("read appearance themes folder failed: %s", err)
-		return
-	}
-
-	for _, themeDir := range themeDirs {
-		if !util.IsDirRegularOrSymlink(themeDir) {
-			continue
+	if appearanceMode != "" {
+		switch appearanceMode {
+		case "light":
+			Conf.Appearance.ModeOS = false
+			Conf.Appearance.Mode = 0
+		case "dark":
+			Conf.Appearance.ModeOS = false
+			Conf.Appearance.Mode = 1
+		case "system":
+			Conf.Appearance.ModeOS = true
+		default:
+			return fmt.Errorf("invalid appearance mode: %s", appearanceMode)
 		}
-		unwatchTheme(filepath.Join(util.ThemesPath, themeDir.Name()))
 	}
+	return nil
 }
 
-func loadThemes() {
+func containTheme(name string, themes []*conf.AppearanceTheme) bool {
+	for _, t := range themes {
+		if t.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func LoadThemes() {
 	themeDirs, err := os.ReadDir(util.ThemesPath)
-	if nil != err {
+	if err != nil {
 		logging.LogErrorf("read appearance themes folder failed: %s", err)
 		util.ReportFileSysFatalError(err)
 		return
 	}
 
-	Conf.Appearance.DarkThemes = nil
-	Conf.Appearance.LightThemes = nil
+	var darkThemes, lightThemes []*conf.AppearanceTheme
+	var daylightTheme, midnightTheme *conf.AppearanceTheme
+	var themeVer string
+	var themeJS bool
+	mode := Conf.Appearance.Mode
+	themeLight := Conf.Appearance.ThemeLight
+	themeDark := Conf.Appearance.ThemeDark
 	for _, themeDir := range themeDirs {
 		if !util.IsDirRegularOrSymlink(themeDir) {
 			continue
 		}
 		name := themeDir.Name()
-		themeConf, parseErr := bazaar.ThemeJSON(name)
+		themeConf, parseErr := bazaar.ParsePackageJSON(filepath.Join(util.ThemesPath, name, "theme.json"))
 		if nil != parseErr || nil == themeConf {
 			continue
 		}
 
-		modes := themeConf.Modes
+		var modes []string
+		if nil != themeConf.Modes {
+			modes = *themeConf.Modes
+		}
 		for _, mode := range modes {
+			t := &conf.AppearanceTheme{Name: name}
+			if isBuiltInTheme(name) {
+				t.Label = name + Conf.Language(281)
+			} else {
+				t.Label = name
+				if len(themeConf.DisplayName) > 0 {
+					v := strings.TrimSpace(themeConf.DisplayName[util.Lang])
+					if "" == v {
+						v = strings.TrimSpace(themeConf.DisplayName["default"])
+					}
+					if "" != v && name != v {
+						t.Label = v + " (" + name + ")"
+					}
+				}
+			}
+
+			if "midnight" == name {
+				midnightTheme = t
+				continue
+			} else if "daylight" == name {
+				daylightTheme = t
+				continue
+			}
+
 			if "dark" == mode {
-				Conf.Appearance.DarkThemes = append(Conf.Appearance.DarkThemes, name)
+				darkThemes = append(darkThemes, t)
 			} else if "light" == mode {
-				Conf.Appearance.LightThemes = append(Conf.Appearance.LightThemes, name)
+				lightThemes = append(lightThemes, t)
 			}
 		}
 
-		if 0 == Conf.Appearance.Mode {
-			if Conf.Appearance.ThemeLight == name {
-				Conf.Appearance.ThemeVer = themeConf.Version
-				Conf.Appearance.ThemeJS = gulu.File.IsExist(filepath.Join(util.ThemesPath, name, "theme.js"))
+		if 0 == mode {
+			if themeLight == name {
+				themeVer = themeConf.Version
+				themeJS = gulu.File.IsExist(filepath.Join(util.ThemesPath, name, "theme.js"))
 			}
 		} else {
-			if Conf.Appearance.ThemeDark == name {
-				Conf.Appearance.ThemeVer = themeConf.Version
-				Conf.Appearance.ThemeJS = gulu.File.IsExist(filepath.Join(util.ThemesPath, name, "theme.js"))
+			if themeDark == name {
+				themeVer = themeConf.Version
+				themeJS = gulu.File.IsExist(filepath.Join(util.ThemesPath, name, "theme.js"))
 			}
 		}
-
-		go watchTheme(filepath.Join(util.ThemesPath, name))
 	}
+
+	lightThemes = append([]*conf.AppearanceTheme{daylightTheme}, lightThemes...)
+	darkThemes = append([]*conf.AppearanceTheme{midnightTheme}, darkThemes...)
+
+	Conf.m.Lock()
+	Conf.Appearance.DarkThemes = darkThemes
+	Conf.Appearance.LightThemes = lightThemes
+	Conf.Appearance.ThemeVer = themeVer
+	Conf.Appearance.ThemeJS = themeJS
+	Conf.m.Unlock()
 }
 
-func loadIcons() {
+func LoadIcons() {
 	iconDirs, err := os.ReadDir(util.IconsPath)
-	if nil != err {
+	if err != nil {
 		logging.LogErrorf("read appearance icons folder failed: %s", err)
 		util.ReportFileSysFatalError(err)
 		return
 	}
 
-	Conf.Appearance.Icons = nil
+	var icons []string
+	var iconVer string
+	currentIcon := Conf.Appearance.Icon
 	for _, iconDir := range iconDirs {
 		if !util.IsDirRegularOrSymlink(iconDir) {
 			continue
 		}
 		name := iconDir.Name()
-		iconConf, err := bazaar.IconJSON(name)
-		if nil != err || nil == iconConf {
+		iconConf, err := bazaar.ParsePackageJSON(filepath.Join(util.IconsPath, name, "icon.json"))
+		if err != nil || nil == iconConf {
 			continue
 		}
-		Conf.Appearance.Icons = append(Conf.Appearance.Icons, name)
-		if Conf.Appearance.Icon == name {
-			Conf.Appearance.IconVer = iconConf.Version
+		icons = append(icons, name)
+		if currentIcon == name {
+			iconVer = iconConf.Version
 		}
 	}
-}
-
-func unwatchTheme(folder string) {
-	val, _ := themeWatchers.Load(folder)
-	if nil != val {
-		themeWatcher := val.(*fsnotify.Watcher)
-		themeWatcher.Close()
-	}
-}
-
-func watchTheme(folder string) {
-	val, _ := themeWatchers.Load(folder)
-	var themeWatcher *fsnotify.Watcher
-	if nil != val {
-		themeWatcher = val.(*fsnotify.Watcher)
-		themeWatcher.Close()
-	}
-
-	var err error
-	if themeWatcher, err = fsnotify.NewWatcher(); nil != err {
-		logging.LogErrorf("add theme file watcher for folder [%s] failed: %s", folder, err)
-		return
-	}
-	themeWatchers.Store(folder, themeWatcher)
-
-	done := make(chan bool)
-	go func() {
-		for {
-			select {
-			case event, ok := <-themeWatcher.Events:
-				if !ok {
-					return
-				}
-
-				//logging.LogInfof(event.String())
-				if event.Op&fsnotify.Write == fsnotify.Write && (strings.HasSuffix(event.Name, "theme.css")) {
-					var themeName string
-					if themeName = isCurrentUseTheme(event.Name); "" == themeName {
-						break
-					}
-
-					if strings.HasSuffix(event.Name, "theme.css") {
-						util.BroadcastByType("main", "refreshtheme", 0, "", map[string]interface{}{
-							"theme": "/appearance/themes/" + themeName + "/theme.css?" + fmt.Sprintf("%d", time.Now().Unix()),
-						})
-						break
-					}
-				}
-			case err, ok := <-themeWatcher.Errors:
-				if !ok {
-					return
-				}
-				logging.LogErrorf("watch theme file failed: %s", err)
-			}
-		}
-	}()
-
-	//logging.LogInfof("add file watcher [%s]", folder)
-	if err := themeWatcher.Add(folder); err != nil {
-		logging.LogErrorf("add theme files watcher for folder [%s] failed: %s", folder, err)
-	}
-	<-done
+	Conf.m.Lock()
+	Conf.Appearance.Icons = icons
+	Conf.Appearance.IconVer = iconVer
+	Conf.m.Unlock()
 }
 
 func isCurrentUseTheme(themePath string) string {
@@ -240,4 +254,23 @@ func isCurrentUseTheme(themePath string) string {
 		}
 	}
 	return ""
+}
+
+func broadcastRefreshThemeIfCurrent(themeCssPath string) {
+	if !strings.HasSuffix(themeCssPath, "theme.css") {
+		return
+	}
+	// 只处理主题根目录中的 theme.css
+	themeDir := filepath.Clean(filepath.Dir(themeCssPath))
+	themesRoot := filepath.Clean(util.ThemesPath)
+	if themeDir != filepath.Join(themesRoot, filepath.Base(themeDir)) {
+		return
+	}
+	themeName := isCurrentUseTheme(themeCssPath)
+	if themeName == "" {
+		return
+	}
+	util.BroadcastByType("main", "refreshtheme", 0, "", map[string]any{
+		"theme": "/appearance/themes/" + themeName + "/theme.css?" + fmt.Sprintf("%d", time.Now().Unix()),
+	})
 }

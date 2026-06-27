@@ -10,19 +10,25 @@ import {isMobile} from "../util/functions";
 import {App} from "../index";
 import {pathPosix} from "../util/pathName";
 import {renderAssetsPreview} from "../asset/renderAssets";
+import {resizeSide} from "./resizeSide";
+import {confirmDialog} from "../dialog/confirmDialog";
 
-const genItem = (data: [], data2?: { title: string, fileID: string }[]) => {
+const genItem = (data: [], data2?: { title: string, fileID: string }[], hasUndo = true) => {
     if (!data || data.length === 0) {
         return `<li style="padding-left: 40px;" class="b3-list--empty">${window.siyuan.languages.emptyContent}</li>`;
     }
     let html = "";
-    data.forEach((item: { title: string, fileID: string, path: string, hSize: string }, index) => {
+    data.forEach((item: { title: string, fileID: string, path: string, hSize: string, updated: number }, index) => {
         let id2 = "";
         if (data2) {
             id2 = `data-id2="${data2[index].fileID}"`;
         }
-        html += `<li style="padding-left: 40px;" class="b3-list-item" ${id2} data-id="${item.fileID}">
+        html += `<li style="padding-left: 40px;" class="b3-list-item b3-list-item--hide-action" ${id2} data-created="${item.updated}" data-id="${item.fileID}">
     <span class="b3-list-item__text" title="${escapeAttr(item.path)} ${item.hSize}">${escapeHtml(item.title)}</span>
+    <span class="fn__space"></span>
+    <span class="b3-list-item__action ariaLabel${hasUndo ? "" : " fn__none"}" data-type="rollback" data-position="6south" aria-label="${window.siyuan.languages.rollback}">
+        <svg><use xlink:href="#iconUndo"></use></svg>
+    </span>
 </li>`;
     });
     return html;
@@ -31,7 +37,7 @@ const genItem = (data: [], data2?: { title: string, fileID: string }[]) => {
 let leftEditor: Protyle;
 let rightEditor: Protyle;
 const renderCompare = (app: App, element: HTMLElement) => {
-    const listElement = hasClosestByClassName(element, "history__diff");
+    const listElement = hasClosestByClassName(element, "history__side");
     if (!listElement) {
         return;
     }
@@ -39,8 +45,9 @@ const renderCompare = (app: App, element: HTMLElement) => {
     if (!dialogContainerElement) {
         return;
     }
-    const leftElement = listElement.nextElementSibling.firstElementChild;
-    const rightElement = listElement.nextElementSibling.lastElementChild;
+    const editorsElement = dialogContainerElement.querySelector('[data-type="editors"]');
+    const leftElement = editorsElement.firstElementChild;
+    const rightElement = editorsElement.lastElementChild;
     if (!leftEditor) {
         leftEditor = new Protyle(app, leftElement.lastElementChild as HTMLElement, {
             blockId: "",
@@ -50,7 +57,6 @@ const renderCompare = (app: App, element: HTMLElement) => {
             action: [Constants.CB_GET_HISTORY],
             render: {
                 background: false,
-                title: false,
                 gutter: false,
                 breadcrumb: false,
                 breadcrumbDocName: false,
@@ -66,7 +72,6 @@ const renderCompare = (app: App, element: HTMLElement) => {
             },
             render: {
                 background: false,
-                title: false,
                 gutter: false,
                 breadcrumb: false,
                 breadcrumbDocName: false,
@@ -76,16 +81,17 @@ const renderCompare = (app: App, element: HTMLElement) => {
         disabledProtyle(rightEditor.protyle);
     }
 
-    fetchPost("/api/repo/openRepoSnapshotDoc", {id: element.getAttribute("data-id")}, (response) => {
+    fetchPost("/api/repo/openRepoSnapshotFile", {id: element.getAttribute("data-id")}, (response) => {
         leftElement.classList.remove("fn__none");
         const textElement = leftElement.querySelector("textarea");
         const type = pathPosix().extname(response.data.content).toLowerCase();
+        const titleElement = leftElement.querySelector(".protyle-title__input");
         if (Constants.SIYUAN_ASSETS_IMAGE.concat(Constants.SIYUAN_ASSETS_AUDIO).concat(Constants.SIYUAN_ASSETS_VIDEO).includes(type)) {
             textElement.previousElementSibling.innerHTML = renderAssetsPreview(response.data.content);
             textElement.previousElementSibling.classList.remove("fn__none");
             textElement.classList.add("fn__none");
             leftElement.lastElementChild.classList.add("fn__none");
-        } else if (response.data.isProtyleDoc) {
+        } else if (response.data.displayInText) {
             textElement.value = response.data.content;
             textElement.classList.remove("fn__none");
             leftElement.lastElementChild.classList.add("fn__none");
@@ -94,27 +100,29 @@ const renderCompare = (app: App, element: HTMLElement) => {
             textElement.classList.add("fn__none");
             leftElement.lastElementChild.classList.remove("fn__none");
             textElement.previousElementSibling.classList.add("fn__none");
-            leftEditor.protyle.options.history.snapshot = dialogContainerElement.querySelector(".b3-dialog__header code").getAttribute("data-snapshot");
+            leftEditor.protyle.options.history.snapshot = dialogContainerElement.querySelectorAll(".b3-dialog__header code")[element.parentElement.getAttribute("data-type") === "update" ? 1 : 0].getAttribute("data-snapshot");
             onGet({
                 data: response,
                 protyle: leftEditor.protyle,
                 action: [Constants.CB_GET_HISTORY, Constants.CB_GET_HTML],
             });
         }
+        titleElement.textContent = response.data.title;
         leftElement.querySelector(".history__date").textContent = dayjs(response.data.updated).format("YYYY-MM-DD HH:mm");
     });
     const id2 = element.getAttribute("data-id2");
     if (id2) {
         rightElement.classList.remove("fn__none");
-        fetchPost("/api/repo/openRepoSnapshotDoc", {id: id2}, (response) => {
+        fetchPost("/api/repo/openRepoSnapshotFile", {id: id2}, (response) => {
             const textElement = rightElement.querySelector("textarea");
             const type = pathPosix().extname(response.data.content).toLowerCase();
+            const titleElement = rightElement.querySelector(".protyle-title__input");
             if (Constants.SIYUAN_ASSETS_IMAGE.concat(Constants.SIYUAN_ASSETS_AUDIO).concat(Constants.SIYUAN_ASSETS_VIDEO).includes(type)) {
                 textElement.previousElementSibling.innerHTML = renderAssetsPreview(response.data.content);
                 textElement.previousElementSibling.classList.remove("fn__none");
                 textElement.classList.add("fn__none");
                 rightElement.lastElementChild.classList.add("fn__none");
-            } else if (response.data.isProtyleDoc) {
+            } else if (response.data.displayInText) {
                 textElement.value = response.data.content;
                 textElement.classList.remove("fn__none");
                 rightElement.lastElementChild.classList.add("fn__none");
@@ -130,6 +138,7 @@ const renderCompare = (app: App, element: HTMLElement) => {
                     action: [Constants.CB_GET_HISTORY, Constants.CB_GET_HTML],
                 });
             }
+            titleElement.textContent = response.data.title;
             rightElement.querySelector(".history__date").textContent = dayjs(response.data.updated).format("YYYY-MM-DD HH:mm");
         });
     } else {
@@ -156,6 +165,7 @@ export const showDiff = (app: App, data: { id: string, time: string }[]) => {
         content: "",
         width: isMobile() ? "92vw" : "90vw",
         height: "80vh",
+        containerClassName: "b3-dialog__container--theme",
         destroyCallback() {
             leftEditor = undefined;
             rightEditor = undefined;
@@ -164,7 +174,7 @@ export const showDiff = (app: App, data: { id: string, time: string }[]) => {
     dialog.element.setAttribute("data-key", Constants.DIALOG_HISTORYCOMPARE);
     dialog.element.addEventListener("click", (event) => {
         if (typeof event.detail === "string") {
-            renderCompare(app, dialog.element.querySelector(".history__diff .b3-list-item--focus"));
+            renderCompare(app, dialog.element.querySelector(".history__side .b3-list-item--focus"));
             event.stopPropagation();
             event.preventDefault();
             return;
@@ -181,7 +191,7 @@ export const showDiff = (app: App, data: { id: string, time: string }[]) => {
                 if (target.classList.contains("b3-list-item--focus")) {
                     return;
                 }
-                dialog.element.querySelector(".history__diff .b3-list-item--focus")?.classList.remove("b3-list-item--focus");
+                dialog.element.querySelector(".history__side .b3-list-item--focus")?.classList.remove("b3-list-item--focus");
                 target.classList.add("b3-list-item--focus");
                 renderCompare(app, target);
                 event.preventDefault();
@@ -198,11 +208,21 @@ export const showDiff = (app: App, data: { id: string, time: string }[]) => {
                 event.preventDefault();
                 event.stopPropagation();
                 break;
+            } else if (target.getAttribute("data-type") == "rollback") {
+                confirmDialog("⚠️ " + window.siyuan.languages.rollback,
+                    window.siyuan.languages.rollbackConfirm.replace("${name}", target.parentElement.textContent).replace("${time}", dayjs(parseInt(target.parentElement.dataset.created)).format("YYYY-MM-DD HH:mm:ss")),
+                    () => {
+                        fetchPost("/api/repo/rollbackRepoSnapshotFile", {id: target.parentElement.dataset.id});
+                    });
+                event.preventDefault();
+                event.stopPropagation();
+                break;
             }
             target = target.parentElement;
         }
     });
     genHTML(left, right, dialog, "left");
+    (document.activeElement as HTMLElement)?.blur();
 };
 
 const genHTML = (left: string, right: string, dialog: Dialog, direct: string) => {
@@ -225,7 +245,7 @@ const genHTML = (left: string, right: string, dialog: Dialog, direct: string) =>
     <span class="fn__flex-1"></span>
 </div>`;
         headElement.nextElementSibling.innerHTML = `<div class="fn__flex history__panel" style="height: 100%">
-    <div class="history__diff">
+    <div class="history__side" ${isMobile() ? "" : `style="width: ${window.siyuan.storage[Constants.LOCAL_HISTORY].sideDiffWidth}"`}>
         <ul class="b3-list b3-list--background">
             <li class="b3-list-item">
                 <span class="b3-list-item__toggle b3-list-item__toggle--hl">
@@ -244,7 +264,7 @@ const genHTML = (left: string, right: string, dialog: Dialog, direct: string) =>
                 <span style="padding-left: 4px" class="b3-list-item__text">${window.siyuan.languages.addAttr}</span>
                 <span class="counter${response.data.addsLeft.length === 0 ? " fn__none" : ""}">${response.data.addsLeft.length}</span>
             </li>
-            <ul class="fn__none">${genItem(response.data.addsLeft)}</ul>
+            <ul class="fn__none" data-type="update">${genItem(response.data.addsLeft, undefined, false)}</ul>
         </ul>
         <ul class="b3-list b3-list--background">
             <li class="b3-list-item">
@@ -257,20 +277,24 @@ const genHTML = (left: string, right: string, dialog: Dialog, direct: string) =>
             <ul class="fn__none">${genItem(response.data.removesRight)}</ul>
         </ul>
     </div>
-    <div class="fn__flex-1 fn__flex">
+    <div class="history__resize"></div>
+    <div class="fn__flex-1 fn__flex" data-type="editors">
         <div class="fn__none fn__flex-1 fn__flex-column">
             <div class="history__date">${dayjs(response.data.left.created).format("YYYY-MM-DD HH:mm")}</div>
+            <div class="protyle-title__input ft__center ft__breakword">${response.data.left.title}</div>
             <div class="ft__center"></div>
             <textarea class="history__text fn__none fn__flex-1" readonly></textarea>
             <div class="fn__flex-1"></div>
         </div>
         <div class="fn__none fn__flex-1 fn__flex-column" style="border-left: 1px solid var(--b3-border-color);">
-            <div class="history__date">${dayjs(response.data.right.created).format("YYYY-MM-DD HH:mm")}</div>
+            <div class="history__date">${response.data.right.title} ${dayjs(response.data.right.created).format("YYYY-MM-DD HH:mm")}</div>
+            <div class="protyle-title__input ft__center ft__breakword">${response.data.right.title}</div>
             <div class="ft__center"></div>
             <textarea class="history__text fn__none fn__flex-1" readonly></textarea>
             <div class="fn__flex-1"></div>
         </div>
     </div>
 </div>`;
+        resizeSide(dialog.element.querySelector(".history__resize"), dialog.element.querySelector(".history__side"), "sideDiffWidth");
     });
 };

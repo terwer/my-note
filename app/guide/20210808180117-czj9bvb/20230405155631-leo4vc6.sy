@@ -1,12 +1,13 @@
 {
 	"ID": "20230405155631-leo4vc6",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"icon": "1f680",
 		"id": "20230405155631-leo4vc6",
 		"title": "性能优化",
-		"updated": "20231014100210"
+		"type": "doc",
+		"updated": "20250825114628"
 	},
 	"Children": [
 		{
@@ -374,7 +375,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20230405171407-ltaakx8",
-				"updated": "20230405171419"
+				"updated": "20250825114421"
 			},
 			"Children": [
 				{
@@ -526,7 +527,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20230405171539-llfg8mm",
-				"updated": "20230406155719"
+				"updated": "20240420104842"
 			},
 			"Children": [
 				{
@@ -566,7 +567,7 @@
 					},
 					"Properties": {
 						"id": "20230405171028-7xg5r4d",
-						"updated": "20230405171758"
+						"updated": "20240420104842"
 					},
 					"Children": [
 						{
@@ -574,7 +575,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230405171028-dbqll81",
-								"updated": "20230405171758"
+								"updated": "20240420104842"
 							},
 							"Children": [
 								{
@@ -588,7 +589,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​​，特别是对于公式块、代码块或图表块较多的使用场景"
+									"Data": "​，特别是对于公式块、代码块或图表块较多的使用场景。这个参数没有具体的最佳数值，请以调整后感受为准"
 								}
 							]
 						}
@@ -630,6 +631,62 @@
 							]
 						}
 					]
+				}
+			]
+		},
+		{
+			"ID": "20250825114421-fq73tbi",
+			"Type": "NodeHeading",
+			"HeadingLevel": 3,
+			"Properties": {
+				"id": "20250825114421-fq73tbi",
+				"updated": "20250825114628"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "优化索引"
+				}
+			]
+		},
+		{
+			"ID": "20250825114436-jm8dekc",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20250825114436-jm8dekc",
+				"updated": "20250825114628"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "建议定期执行优化索引 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "设置"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "关于"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "优化索引"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​。"
 				}
 			]
 		}

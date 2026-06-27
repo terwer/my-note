@@ -1,3 +1,5 @@
+@use "../util/mixin";
+
 .graph {
   display: flex;
   flex-direction: column;
@@ -17,7 +19,7 @@
     overflow: auto;
     box-sizing: border-box;
     z-index: 1;
-    opacity: 0.9;
+    opacity: .9;
     border-left: 1px solid var(--b3-border-color);
 
     label {
@@ -56,24 +58,8 @@
       padding: 4px 8px;
       color: var(--b3-theme-on-surface);
       max-width: 10vw;
-      word-break: break-all;
-    }
-  }
-
-  &__loading {
-    height: 8px;
-    background: var(--b3-theme-background);
-    position: absolute;
-    width: 80%;
-    left: 10%;
-    top: 50%;
-    z-index: 1;
-
-    div {
-      background: var(--b3-theme-primary);
-      width: 0;
-      height: 8px;
-      transition: var(--b3-transition);
+      white-space: break-spaces;
+      @include mixin.text-clamp(3);
     }
   }
 }

@@ -29,11 +29,24 @@ func getRecentDocs(c *gin.Context) {
 	ret := gulu.Ret.NewResult()
 	defer c.JSON(http.StatusOK, ret)
 
-	data, err := model.GetRecentDocs()
-	if nil != err {
+	var sortBy string
+	arg := map[string]any{}
+	// 兼容旧版接口，不能直接使用 util.JsonArg()
+	if err := c.ShouldBindJSON(&arg); err == nil {
+		if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("sortBy", &sortBy, false, false)) {
+			return
+		}
+	}
+
+	data, err := model.GetRecentDocs(sortBy)
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
+	}
+	if model.IsReadOnlyRoleContext(c) {
+		publishAccess := model.GetPublishAccess()
+		data = model.FilterRecentDocsByPublishAccess(c, publishAccess, data)
 	}
 	ret.Data = data
 }
@@ -49,7 +62,7 @@ func removeCriterion(c *gin.Context) {
 
 	name := arg["name"].(string)
 	err := model.RemoveCriterion(name)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -66,21 +79,21 @@ func setCriterion(c *gin.Context) {
 	}
 
 	param, err := gulu.JSON.MarshalJSON(arg["criterion"])
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
 	criterion := &model.Criterion{}
-	if err = gulu.JSON.UnmarshalJSON(param, criterion); nil != err {
+	if err = gulu.JSON.UnmarshalJSON(param, criterion); err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
 	err = model.SetCriterion(criterion)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -105,13 +118,13 @@ func removeLocalStorageVals(c *gin.Context) {
 	}
 
 	var keys []string
-	keysArg := arg["keys"].([]interface{})
+	keysArg := arg["keys"].([]any)
 	for _, key := range keysArg {
 		keys = append(keys, key.(string))
 	}
 
 	err := model.RemoveLocalStorageVals(keys)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -120,7 +133,7 @@ func removeLocalStorageVals(c *gin.Context) {
 	app := arg["app"].(string)
 	evt := util.NewCmdResult("removeLocalStorageVals", 0, util.PushModeBroadcastMainExcludeSelfApp)
 	evt.AppId = app
-	evt.Data = map[string]interface{}{"keys": keys}
+	evt.Data = map[string]any{"keys": keys}
 	util.PushEvent(evt)
 }
 
@@ -134,9 +147,9 @@ func setLocalStorageVal(c *gin.Context) {
 	}
 
 	key := arg["key"].(string)
-	val := arg["val"].(interface{})
+	val := arg["val"].(any)
 	err := model.SetLocalStorageVal(key, val)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -145,7 +158,7 @@ func setLocalStorageVal(c *gin.Context) {
 	app := arg["app"].(string)
 	evt := util.NewCmdResult("setLocalStorageVal", 0, util.PushModeBroadcastMainExcludeSelfApp)
 	evt.AppId = app
-	evt.Data = map[string]interface{}{"key": key, "val": val}
+	evt.Data = map[string]any{"key": key, "val": val}
 	util.PushEvent(evt)
 }
 
@@ -158,19 +171,13 @@ func setLocalStorage(c *gin.Context) {
 		return
 	}
 
-	val := arg["val"].(interface{})
+	val := arg["val"].(any)
 	err := model.SetLocalStorage(val)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
-
-	app := arg["app"].(string)
-	evt := util.NewCmdResult("setLocalStorage", 0, util.PushModeBroadcastMainExcludeSelfApp)
-	evt.AppId = app
-	evt.Data = val
-	util.PushEvent(evt)
 }
 
 func getLocalStorage(c *gin.Context) {
@@ -178,5 +185,154 @@ func getLocalStorage(c *gin.Context) {
 	defer c.JSON(http.StatusOK, ret)
 
 	data := model.GetLocalStorage()
+	if model.IsReadOnlyRoleContext(c) {
+		publishAccess := model.GetPublishAccess()
+		data = model.FilterLocalStorageByPublishAccess(publishAccess, data)
+	}
 	ret.Data = data
+}
+
+func getOutlineStorage(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	docID := arg["docID"].(string)
+	data, err := model.GetOutlineStorage(docID)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+	ret.Data = data
+}
+
+func setOutlineStorage(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	docID := arg["docID"].(string)
+	val := arg["val"].(any)
+	err := model.SetOutlineStorage(docID, val)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func removeOutlineStorage(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	docID := arg["docID"].(string)
+	err := model.RemoveOutlineStorage(docID)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func updateRecentDocViewTime(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	if nil == arg["rootID"] {
+		return
+	}
+
+	rootID := arg["rootID"].(string)
+	err := model.UpdateRecentDocViewTime(rootID)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func updateRecentDocOpenTime(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	if nil == arg["rootID"] {
+		return
+	}
+
+	rootID := arg["rootID"].(string)
+	err := model.UpdateRecentDocOpenTime(rootID)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func updateRecentDocCloseTime(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	rootID, ok := arg["rootID"].(string)
+	if !ok || rootID == "" {
+		return
+	}
+
+	err := model.UpdateRecentDocCloseTime(rootID)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
+}
+
+func batchUpdateRecentDocCloseTime(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	rootIDsArg := arg["rootIDs"].([]any)
+	var rootIDs []string
+	for _, id := range rootIDsArg {
+		rootIDs = append(rootIDs, id.(string))
+	}
+
+	err := model.BatchUpdateRecentDocCloseTime(rootIDs)
+	if err != nil {
+		ret.Code = -1
+		ret.Msg = err.Error()
+		return
+	}
 }

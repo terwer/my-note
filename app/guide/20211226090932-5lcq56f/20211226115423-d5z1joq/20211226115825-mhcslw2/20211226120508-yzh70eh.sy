@@ -1,11 +1,12 @@
 {
 	"ID": "20211226120508-yzh70eh",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"id": "20211226120508-yzh70eh",
 		"title": "嵌入內容塊",
-		"updated": "20211228141618"
+		"type": "doc",
+		"updated": "20240731204705"
 	},
 	"Children": [
 		{
@@ -371,7 +372,8 @@
 			"Type": "NodeBlockQueryEmbed",
 			"Properties": {
 				"id": "20211226120744-om182d6",
-				"updated": "20211225234425"
+				"style": "height: 149px;",
+				"updated": "20240508085352"
 			},
 			"Children": [
 				{
@@ -382,7 +384,7 @@
 				},
 				{
 					"Type": "NodeBlockQueryEmbedScript",
-					"Data": "SELECT * FROM blocks WHERE content LIKE '%在思源中%' AND content LIKE '%核心概念%' AND hpath NOT LIKE '%嵌入內容塊%'"
+					"Data": "SELECT * FROM blocks WHERE content LIKE '%在思源中%' AND content LIKE '%核心概念%' AND type = 'p' AND hpath NOT LIKE '%嵌入內容塊%'"
 				},
 				{
 					"Type": "NodeCloseBrace"
@@ -398,7 +400,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20211226120744-jsi9w11",
-				"updated": "20211226130358"
+				"updated": "20240731204705"
 			},
 			"Children": [
 				{
@@ -412,12 +414,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120744-4akirlb",
-				"updated": "20211226160327"
+				"updated": "20240731204705"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "查詢同時包含標簽 "
+					"Data": "查詢包含標簽 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -426,7 +428,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 和 "
+					"Data": "​ 或 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -435,7 +437,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 的段落塊："
+					"Data": "​ 的段落塊："
 				}
 			]
 		},

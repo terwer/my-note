@@ -27,29 +27,42 @@ import (
 	"github.com/siyuan-note/logging"
 )
 
-func ChatGPT(msg string, contextMsgs []string, c *openai.Client, model string, maxTokens, timeout int) (ret string, stop bool, err error) {
+func ChatGPT(msg string, contextMsgs []string, c *openai.Client, model string, maxTokens int, temperature float64, timeout int) (ret string, stop bool, err error) {
 	var reqMsgs []openai.ChatCompletionMessage
 
 	for _, ctxMsg := range contextMsgs {
+		if "" == ctxMsg {
+			continue
+		}
+
 		reqMsgs = append(reqMsgs, openai.ChatCompletionMessage{
 			Role:    "user",
 			Content: ctxMsg,
 		})
 	}
-	reqMsgs = append(reqMsgs, openai.ChatCompletionMessage{
-		Role:    "user",
-		Content: msg,
-	})
+
+	if "" != msg {
+		reqMsgs = append(reqMsgs, openai.ChatCompletionMessage{
+			Role:    "user",
+			Content: msg,
+		})
+	}
+
+	if 1 > len(reqMsgs) {
+		stop = true
+		return
+	}
 
 	req := openai.ChatCompletionRequest{
-		Model:     model,
-		MaxTokens: maxTokens,
-		Messages:  reqMsgs,
+		Model:               model,
+		MaxCompletionTokens: maxTokens,
+		Temperature:         float32(temperature),
+		Messages:            reqMsgs,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 	resp, err := c.CreateChatCompletion(ctx, req)
-	if nil != err {
+	if err != nil {
 		PushErrMsg("Requesting failed, please check kernel log for more details", 3000)
 		logging.LogErrorf("create chat completion failed: %s", err)
 		stop = true
@@ -75,17 +88,37 @@ func ChatGPT(msg string, contextMsgs []string, c *openai.Client, model string, m
 	return
 }
 
-func NewOpenAIClient(apiKey, apiProxy, apiBaseURL string) *openai.Client {
+func NewOpenAIClient(apiKey, apiProxy, apiBaseURL, apiUserAgent, apiVersion, apiProvider string) *openai.Client {
 	config := openai.DefaultConfig(apiKey)
-	if "" != apiProxy {
-		proxyUrl, err := url.Parse(apiProxy)
-		if nil != err {
-			logging.LogErrorf("OpenAI API proxy failed: %v", err)
-		} else {
-			config.HTTPClient = &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
-		}
+	if "Azure" == apiProvider {
+		config = openai.DefaultAzureConfig(apiKey, apiBaseURL)
+		config.APIVersion = apiVersion
 	}
 
+	transport := &http.Transport{}
+	if "" != apiProxy {
+		proxyUrl, err := url.Parse(apiProxy)
+		if err != nil {
+			logging.LogErrorf("OpenAI API proxy failed: %v", err)
+		} else {
+			transport.Proxy = http.ProxyURL(proxyUrl)
+		}
+	}
+	config.HTTPClient = &http.Client{Transport: newAddHeaderTransport(transport, apiUserAgent)}
 	config.BaseURL = apiBaseURL
 	return openai.NewClientWithConfig(config)
+}
+
+type AddHeaderTransport struct {
+	RoundTripper http.RoundTripper
+	UserAgent    string
+}
+
+func (adt *AddHeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Add("User-Agent", adt.UserAgent)
+	return adt.RoundTripper.RoundTrip(req)
+}
+
+func newAddHeaderTransport(transport *http.Transport, userAgent string) *AddHeaderTransport {
+	return &AddHeaderTransport{RoundTripper: transport, UserAgent: userAgent}
 }

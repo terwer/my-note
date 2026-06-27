@@ -40,6 +40,12 @@ func ChatGPTWithAction(ids []string, action string) (ret string) {
 		return
 	}
 
+	if "Clear context" == action {
+		// AI clear context action https://github.com/siyuan-note/siyuan/issues/10255
+		cachedContextMsg = nil
+		return
+	}
+
 	msg := getBlocksContent(ids)
 	ret = chatGPTWithAction(msg, action, false)
 	return
@@ -48,8 +54,14 @@ func ChatGPTWithAction(ids []string, action string) (ret string) {
 var cachedContextMsg []string
 
 func chatGPT(msg string, cloud bool) (ret string) {
+	if "Clear context" == msg {
+		// AI clear context action https://github.com/siyuan-note/siyuan/issues/10255
+		cachedContextMsg = nil
+		return
+	}
+
 	ret, retCtxMsgs, err := chatGPTContinueWrite(msg, cachedContextMsg, cloud)
-	if nil != err {
+	if err != nil {
 		return
 	}
 	cachedContextMsg = append(cachedContextMsg, retCtxMsgs...)
@@ -62,7 +74,7 @@ func chatGPTWithAction(msg string, action string, cloud bool) (ret string) {
 		msg = action + ":\n\n" + msg
 	}
 	ret, _, err := chatGPTContinueWrite(msg, nil, cloud)
-	if nil != err {
+	if err != nil {
 		return
 	}
 	return
@@ -72,19 +84,19 @@ func chatGPTContinueWrite(msg string, contextMsgs []string, cloud bool) (ret str
 	util.PushEndlessProgress("Requesting...")
 	defer util.ClearPushProgress(100)
 
-	if 7 < len(contextMsgs) {
-		contextMsgs = contextMsgs[len(contextMsgs)-7:]
+	if Conf.AI.OpenAI.APIMaxContexts < len(contextMsgs) {
+		contextMsgs = contextMsgs[len(contextMsgs)-Conf.AI.OpenAI.APIMaxContexts:]
 	}
 
 	var gpt GPT
 	if cloud {
 		gpt = &CloudGPT{}
 	} else {
-		gpt = &OpenAIGPT{c: util.NewOpenAIClient(Conf.AI.OpenAI.APIKey, Conf.AI.OpenAI.APIProxy, Conf.AI.OpenAI.APIBaseURL)}
+		gpt = &OpenAIGPT{c: util.NewOpenAIClient(Conf.AI.OpenAI.APIKey, Conf.AI.OpenAI.APIProxy, Conf.AI.OpenAI.APIBaseURL, Conf.AI.OpenAI.APIUserAgent, Conf.AI.OpenAI.APIVersion, Conf.AI.OpenAI.APIProvider)}
 	}
 
 	buf := &bytes.Buffer{}
-	for i := 0; i < 7; i++ {
+	for i := 0; i < Conf.AI.OpenAI.APIMaxContexts; i++ {
 		part, stop, chatErr := gpt.chat(msg, contextMsgs)
 		buf.WriteString(part)
 
@@ -97,7 +109,9 @@ func chatGPTContinueWrite(msg string, contextMsgs []string, cloud bool) (ret str
 
 	ret = buf.String()
 	ret = strings.TrimSpace(ret)
-	retContextMsgs = append(retContextMsgs, msg, ret)
+	if "" != ret {
+		retContextMsgs = append(retContextMsgs, msg, ret)
+	}
 	return
 }
 
@@ -120,7 +134,7 @@ func getBlocksContent(ids []string) string {
 
 		var tree *parse.Tree
 		if tree = trees[bt.RootID]; nil == tree {
-			tree, _ = loadTreeByBlockID(bt.RootID)
+			tree, _ = LoadTreeByBlockID(bt.RootID)
 			if nil == tree {
 				continue
 			}
@@ -158,7 +172,7 @@ type OpenAIGPT struct {
 }
 
 func (gpt *OpenAIGPT) chat(msg string, contextMsgs []string) (partRet string, stop bool, err error) {
-	return util.ChatGPT(msg, contextMsgs, gpt.c, Conf.AI.OpenAI.APIModel, Conf.AI.OpenAI.APIMaxTokens, Conf.AI.OpenAI.APITimeout)
+	return util.ChatGPT(msg, contextMsgs, gpt.c, Conf.AI.OpenAI.APIModel, Conf.AI.OpenAI.APIMaxTokens, Conf.AI.OpenAI.APITemperature, Conf.AI.OpenAI.APITimeout)
 }
 
 type CloudGPT struct {

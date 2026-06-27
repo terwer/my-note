@@ -1,6 +1,6 @@
 {
 	"ID": "20200922101913-d5yitmq",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"id": "20200922101913-d5yitmq",
@@ -1044,8 +1044,7 @@
 													]
 												},
 												{
-													"Type": "NodeText",
-													"Data": "\n"
+													"Type": "NodeText"
 												}
 											]
 										}
@@ -1104,8 +1103,7 @@
 													]
 												},
 												{
-													"Type": "NodeText",
-													"Data": "\n"
+													"Type": "NodeText"
 												}
 											]
 										}

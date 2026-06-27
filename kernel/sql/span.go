@@ -25,6 +25,18 @@ import (
 	"github.com/siyuan-note/logging"
 )
 
+func escapeLikePattern(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r == '%' || r == '_' || r == '\\' {
+			b.WriteRune('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 type Span struct {
 	ID       string
 	BlockID  string
@@ -39,7 +51,7 @@ type Span struct {
 
 func SelectSpansRawStmt(stmt string, limit int) (ret []*Span) {
 	parsedStmt, err := sqlparser.Parse(stmt)
-	if nil != err {
+	if err != nil {
 		//logging.LogErrorf("select [%s] failed: %s", stmt, err)
 		return
 	}
@@ -65,7 +77,7 @@ func SelectSpansRawStmt(stmt string, limit int) (ret []*Span) {
 	stmt = strings.ReplaceAll(stmt, "\\\\*", "\\*")
 	stmt = strings.ReplaceAll(stmt, "from dual", "")
 	rows, err := query(stmt)
-	if nil != err {
+	if err != nil {
 		if strings.Contains(err.Error(), "syntax error") {
 			return
 		}
@@ -81,9 +93,16 @@ func SelectSpansRawStmt(stmt string, limit int) (ret []*Span) {
 }
 
 func QueryTagSpansByLabel(label string) (ret []*Span) {
-	stmt := "SELECT * FROM spans WHERE type LIKE '%tag%' AND content LIKE '%" + label + "%' GROUP BY block_id"
-	rows, err := query(stmt)
-	if nil != err {
+	var stmt string
+	var args []any
+	if "" != label {
+		stmt = "SELECT * FROM spans WHERE type LIKE '%tag%' AND content LIKE ? ESCAPE '\\' GROUP BY block_id"
+		args = append(args, "%"+escapeLikePattern(label)+"%")
+	} else {
+		stmt = "SELECT * FROM spans WHERE type LIKE '%tag%' AND content = '' GROUP BY block_id"
+	}
+	rows, err := query(stmt, args...)
+	if err != nil {
 		logging.LogErrorf("sql query failed: %s", err)
 		return
 	}
@@ -96,10 +115,22 @@ func QueryTagSpansByLabel(label string) (ret []*Span) {
 }
 
 func QueryTagSpansByKeyword(keyword string, limit int) (ret []*Span) {
-	stmt := "SELECT * FROM spans WHERE type LIKE '%tag%' AND content LIKE '%" + keyword + "%' GROUP BY markdown"
-	stmt += " LIMIT " + strconv.Itoa(limit)
-	rows, err := query(stmt)
-	if nil != err {
+	// 标签搜索支持空格分隔关键字 Tag search supports space-separated keywords https://github.com/siyuan-note/siyuan/issues/14580
+	keywords := strings.Fields(keyword)
+	var stmt string
+	var args []any
+	if len(keywords) == 0 {
+		stmt = "SELECT * FROM spans WHERE type LIKE '%tag%' AND content != '' GROUP BY markdown LIMIT " + strconv.Itoa(limit)
+	} else {
+		var likes []string
+		for _, k := range keywords {
+			likes = append(likes, "content LIKE ? ESCAPE '\\'")
+			args = append(args, "%"+escapeLikePattern(k)+"%")
+		}
+		stmt = "SELECT * FROM spans WHERE type LIKE '%tag%' AND (" + strings.Join(likes, " AND ") + ") GROUP BY markdown LIMIT " + strconv.Itoa(limit)
+	}
+	rows, err := query(stmt, args...)
+	if err != nil {
 		logging.LogErrorf("sql query failed: %s", err)
 		return
 	}
@@ -113,11 +144,13 @@ func QueryTagSpansByKeyword(keyword string, limit int) (ret []*Span) {
 
 func QueryTagSpans(p string) (ret []*Span) {
 	stmt := "SELECT * FROM spans WHERE type LIKE '%tag%'"
+	var args []any
 	if "" != p {
-		stmt += " AND path = '" + p + "'"
+		stmt += " AND path = ?"
+		args = append(args, p)
 	}
-	rows, err := query(stmt)
-	if nil != err {
+	rows, err := query(stmt, args...)
+	if err != nil {
 		logging.LogErrorf("sql query failed: %s", err)
 		return
 	}
@@ -131,7 +164,7 @@ func QueryTagSpans(p string) (ret []*Span) {
 
 func scanSpanRows(rows *sql.Rows) (ret *Span) {
 	var span Span
-	if err := rows.Scan(&span.ID, &span.BlockID, &span.RootID, &span.Box, &span.Path, &span.Content, &span.Markdown, &span.Type, &span.IAL); nil != err {
+	if err := rows.Scan(&span.ID, &span.BlockID, &span.RootID, &span.Box, &span.Path, &span.Content, &span.Markdown, &span.Type, &span.IAL); err != nil {
 		logging.LogErrorf("query scan field failed: %s", err)
 		return
 	}

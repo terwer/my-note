@@ -4,40 +4,38 @@ import {hasClosestByClassName} from "../util/hasClosest";
 import {genIconHTML} from "./util";
 
 export const mindmapRender = (element: Element, cdn = Constants.PROTYLE_CDN) => {
-    let mindmapElements: Element[] = [];
-    if (element.getAttribute("data-subtype") === "mindmap") {
-        // 编辑器内代码块编辑渲染
+    let mindmapElements: Element[] | NodeListOf<Element> = [];
+    if (element.getAttribute("data-subtype") === "mindmap" && element.getAttribute("data-render") !== "true") {
         mindmapElements = [element];
     } else {
-        mindmapElements = Array.from(element.querySelectorAll('[data-subtype="mindmap"]'));
+        mindmapElements = element.querySelectorAll('[data-subtype="mindmap"]:not([data-render="true"])');
     }
     if (mindmapElements.length === 0) {
         return;
     }
     addScript(`${cdn}/js/echarts/echarts.min.js?v=0.0.0`, "protyleEchartsScript").then(() => {
+        const wysiswgElement = hasClosestByClassName(element, "protyle-wysiwyg", true);
         let width: number = undefined;
-        if (mindmapElements[0].firstElementChild.clientWidth === 0) {
-            const tabElement = hasClosestByClassName(mindmapElements[0], "layout-tab-container", true);
-            if (tabElement) {
-                Array.from(tabElement.children).find(item => {
-                    if (item.classList.contains("protyle") && !item.classList.contains("fn__none") && item.querySelector(".protyle-wysiwyg").firstElementChild) {
-                        width = item.querySelector(".protyle-wysiwyg").firstElementChild.clientWidth;
-                        return true;
-                    }
-                });
-            }
+        if (wysiswgElement && wysiswgElement.clientWidth > 0 && mindmapElements[0].firstElementChild.clientWidth === 0 && wysiswgElement.firstElementChild) {
+            width = wysiswgElement.firstElementChild.clientWidth;
         }
         mindmapElements.forEach((e: HTMLDivElement) => {
-            if (e.getAttribute("data-render") === "true") {
-                return;
-            }
+            e.setAttribute("data-render", "true");
             if (!e.firstElementChild.classList.contains("protyle-icons")) {
-                e.insertAdjacentHTML("afterbegin", genIconHTML());
+                e.insertAdjacentHTML("afterbegin", genIconHTML(wysiswgElement));
             }
             const renderElement = e.firstElementChild.nextElementSibling as HTMLElement;
+            if (!e.getAttribute("data-content")) {
+                renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span>`;
+                return;
+            }
             try {
-                renderElement.style.height = e.style.height;
-                window.echarts.init(renderElement, window.siyuan.config.appearance.mode === 1 ? "dark" : undefined, {
+                if (!renderElement.lastElementChild || renderElement.childElementCount === 1) {
+                    renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span><div style="height:${e.style.height || "420px"}" contenteditable="false"></div>`;
+                } else {
+                    renderElement.lastElementChild.classList.remove("ft__error");
+                }
+                window.echarts.init(renderElement.lastElementChild, window.siyuan.config.appearance.mode === 1 ? "dark" : undefined, {
                     width,
                 }).setOption({
                     series: [
@@ -64,7 +62,6 @@ export const mindmapRender = (element: Element, cdn = Constants.PROTYLE_CDN) => 
                                 width: 1,
                             },
                             roam: true,
-                            // @ts-ignores
                             symbol: (value: number, params: { data?: { children?: string } }) => {
                                 if (params?.data?.children) {
                                     return "circle";
@@ -81,14 +78,9 @@ export const mindmapRender = (element: Element, cdn = Constants.PROTYLE_CDN) => 
                     },
                     backgroundColor: "transparent",
                 });
-                e.setAttribute("data-render", "true");
-                if (!renderElement.textContent.endsWith(Constants.ZWSP)) {
-                    renderElement.firstElementChild.insertAdjacentText("beforeend", Constants.ZWSP);
-                }
-                renderElement.classList.remove("ft__error");
             } catch (error) {
-                renderElement.classList.add("ft__error");
-                renderElement.innerHTML = `Mindmap render error: <br>${error}`;
+                window.echarts.dispose(renderElement.lastElementChild);
+                renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span><div class="ft__error" style="height:${e.style.height || "420px"}" contenteditable="false">Mindmap render error: <br>${error}</div>`;
             }
         });
     });

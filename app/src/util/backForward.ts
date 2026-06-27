@@ -1,8 +1,8 @@
-import {hasClosestBlock, hasClosestByAttribute} from "../protyle/util/hasClosest";
+import {hasClosestBlock, isInEmbedBlock} from "../protyle/util/hasClosest";
 import {getContenteditableElement} from "../protyle/wysiwyg/getBlock";
 import {focusByOffset, focusByRange, getSelectionOffset} from "../protyle/util/selection";
 import {hideElements} from "../protyle/ui/hideElements";
-import {fetchSyncPost} from "./fetch";
+import {fetchPost, fetchSyncPost} from "./fetch";
 import {Constants} from "../constants";
 import {Wnd} from "../layout/Wnd";
 import {getInstanceById, getWndByLayout} from "../layout/util";
@@ -14,6 +14,7 @@ import {showMessage} from "../dialog/message";
 import {saveScroll} from "../protyle/scroll/saveScroll";
 import {getAllModels} from "../layout/getAll";
 import {App} from "../index";
+import {onGet} from "../protyle/util/onGet";
 
 let forwardStack: IBackStack[] = [];
 let previousIsBack = false;
@@ -47,7 +48,7 @@ const focusStack = async (app: App, stack: IBackStack) => {
                 title: info.data.rootTitle,
                 docIcon: info.data.rootIcon,
                 callback(tab) {
-                    const scrollAttr = saveScroll(stack.protyle, true);
+                    const scrollAttr = saveScroll(stack.protyle, true) as IScrollAttr;
                     scrollAttr.rootId = stack.protyle.block.rootID;
                     scrollAttr.focusId = stack.id;
                     scrollAttr.focusStart = stack.position.start;
@@ -56,9 +57,10 @@ const focusStack = async (app: App, stack: IBackStack) => {
                     const editor = new Editor({
                         app: app,
                         tab,
-                        blockId: stack.zoomId || stack.protyle.block.rootID,
+                        blockId: stack.zoomId || stack.id || stack.protyle.block.rootID,
                         rootId: stack.protyle.block.rootID,
-                        action: stack.zoomId ? [Constants.CB_GET_FOCUS, Constants.CB_GET_ALL] : [Constants.CB_GET_FOCUS]
+                        action: stack.zoomId ? [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL, Constants.CB_GET_ALL, Constants.CB_GET_UNUNDO] :
+                            [Constants.CB_GET_FOCUS, Constants.CB_GET_SCROLL, Constants.CB_GET_UNUNDO]
                     });
                     tab.addModel(editor);
                 }
@@ -96,13 +98,13 @@ const focusStack = async (app: App, stack: IBackStack) => {
                 focusByOffset(protyle.title.editElement, stack.position.start, stack.position.end);
             } else {
                 Array.from(protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${stack.id}"]`)).find((item: HTMLElement) => {
-                    if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed")) {
+                    if (!isInEmbedBlock(item)) {
                         blockElement = item;
                         return true;
                     }
                 });
                 focusByOffset(getContenteditableElement(blockElement), stack.position.start, stack.position.end);
-                scrollCenter(protyle, blockElement);
+                scrollCenter(protyle);
             }
             return true;
         } else {
@@ -114,14 +116,13 @@ const focusStack = async (app: App, stack: IBackStack) => {
         if (stack.protyle.title.editElement.getBoundingClientRect().height === 0) {
             // 切换 tab
             stack.protyle.model.parent.parent.switchTab(stack.protyle.model.parent.headElement);
-            // 需要更新 range，否则 resize 中 `保持光标位置不变` 会导致光标跳动
             stack.protyle.toolbar.range = undefined;
         }
         focusByOffset(stack.protyle.title.editElement, stack.position.start, stack.position.end);
         return true;
     }
     Array.from(stack.protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${stack.id}"]`)).find((item: HTMLElement) => {
-        if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed")) {
+        if (!isInEmbedBlock(item)) {
             blockElement = item;
             return true;
         }
@@ -135,7 +136,7 @@ const focusStack = async (app: App, stack: IBackStack) => {
             stack.protyle.model.parent.parent.switchTab(stack.protyle.model.parent.headElement);
         }
         focusByOffset(getContenteditableElement(blockElement), stack.position.start, stack.position.end);
-        scrollCenter(stack.protyle, blockElement);
+        scrollCenter(stack.protyle);
         getAllModels().outline.forEach(item => {
             if (item.blockId === stack.protyle.block.rootID) {
                 item.setCurrent(blockElement);
@@ -143,7 +144,6 @@ const focusStack = async (app: App, stack: IBackStack) => {
         });
         return true;
     }
-    // 缩放
     if (stack.protyle.element.parentElement) {
         const response = await fetchSyncPost("/api/block/checkBlockExist", {id: stack.id});
         if (!response.data) {
@@ -153,13 +153,47 @@ const focusStack = async (app: App, stack: IBackStack) => {
             }
             return false;
         }
+        // 动态加载导致内容移除 https://github.com/siyuan-note/siyuan/issues/10692
+        if (!blockElement && !stack.zoomId && !stack.protyle.scroll.element.classList.contains("fn__none")) {
+            fetchPost("/api/filetree/getDoc", {
+                id: stack.id,
+                mode: 3,
+                size: window.siyuan.config.editor.dynamicLoadBlocks,
+            }, getResponse => {
+                onGet({
+                    data: getResponse,
+                    protyle: stack.protyle,
+                    afterCB() {
+                        Array.from(stack.protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${stack.id}"]`)).find((item: HTMLElement) => {
+                            if (!isInEmbedBlock(item)) {
+                                blockElement = item;
+                                return true;
+                            }
+                        });
+                        if (!blockElement) {
+                            return;
+                        }
+                        getAllModels().outline.forEach(item => {
+                            if (item.blockId === stack.protyle.block.rootID) {
+                                item.setCurrent(blockElement);
+                            }
+                        });
+                        focusByOffset(getContenteditableElement(blockElement), stack.position.start, stack.position.end);
+                        scrollCenter(stack.protyle);
+                    }
+                });
+            });
+            return true;
+        }
+
+        // 缩放
         zoomOut({
             protyle: stack.protyle,
             id: stack.zoomId || stack.protyle.block.rootID,
             isPushBack: false,
             callback: () => {
                 Array.from(stack.protyle.wysiwyg.element.querySelectorAll(`[data-node-id="${stack.id}"]`)).find((item: HTMLElement) => {
-                    if (!hasClosestByAttribute(item, "data-type", "NodeBlockQueryEmbed")) {
+                    if (!isInEmbedBlock(item)) {
                         blockElement = item;
                         return true;
                     }
@@ -173,7 +207,7 @@ const focusStack = async (app: App, stack: IBackStack) => {
                     }
                 });
                 focusByOffset(getContenteditableElement(blockElement), stack.position.start, stack.position.end);
-                scrollCenter(stack.protyle, blockElement, true);
+                scrollCenter(stack.protyle);
             }
         });
         return true;

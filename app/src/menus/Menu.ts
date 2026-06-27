@@ -6,8 +6,10 @@ import {Constants} from "../constants";
 
 export class Menu {
     public element: HTMLElement;
+    public data: any;   // 用于记录当前菜单的数据
     public removeCB: () => void;
     private wheelEvent: string;
+    private position: IPosition;
 
     constructor() {
         this.wheelEvent = "onwheel" in document.createElement("div") ? "wheel" : "mousewheel";
@@ -23,7 +25,10 @@ export class Menu {
                     if (lastShowElements.length > 0) {
                         lastShowElements[lastShowElements.length - 1].classList.remove("b3-menu__item--show");
                     } else {
-                        this.remove();
+                        this.element.style.transform = "";
+                        setTimeout(() => {
+                            this.remove();
+                        }, Constants.TIMEOUT_DBLCLICK);
                     }
                     return;
                 }
@@ -38,7 +43,7 @@ export class Menu {
             }
             const subMenuElement = itemElement.querySelector(".b3-menu__submenu") as HTMLElement;
             this.element.querySelectorAll(".b3-menu__item--show").forEach((item) => {
-                if (!item.contains(itemElement) && !item.isSameNode(itemElement) && !itemElement.contains(item)) {
+                if (!item.contains(itemElement) && item !== itemElement && !itemElement.contains(item)) {
                     item.classList.remove("b3-menu__item--show");
                 }
             });
@@ -57,47 +62,90 @@ export class Menu {
     }
 
     public showSubMenu(subMenuElement: HTMLElement) {
+        const itemsMenuElement = subMenuElement.lastElementChild as HTMLElement;
+        if (itemsMenuElement) {
+            itemsMenuElement.style.maxHeight = "";
+        } else {
+            return;
+        }
         const itemRect = subMenuElement.parentElement.getBoundingClientRect();
-        subMenuElement.style.top = (itemRect.top - 8) + "px";
-        subMenuElement.style.left = (itemRect.right + 8) + "px";
-        subMenuElement.style.bottom = "auto";
-        const rect = subMenuElement.getBoundingClientRect();
-        if (rect.right > window.innerWidth) {
-            if (itemRect.left - 8 > rect.width) {
-                subMenuElement.style.left = (itemRect.left - 8 - rect.width) + "px";
+        const subMenuRect = subMenuElement.getBoundingClientRect();
+
+        // 垂直方向位置调整
+        // 减 9px 是为了尽量对齐菜单选项（b3-menu__submenu 的默认 padding-top 加上子菜单首个 b3-menu__item 的默认 margin-top）
+        // 减 1px 是为了避免在特定情况下渲染出不应存在的滚动条而做的兼容处理
+        subMenuElement.style.top = Math.max(Constants.SIZE_TOOLBAR_HEIGHT,
+            Math.min(itemRect.top - 9, window.innerHeight - subMenuRect.height - 1)) + "px";
+
+        // 水平方向位置调整
+        // 多级菜单继承上一级子菜单的方向
+        let isParentDirectionLeft = false;
+        const parentSubMenuElement = hasClosestByClassName(subMenuElement.parentElement.parentElement, "b3-menu__item") as HTMLElement;
+        if (parentSubMenuElement && itemRect.left < parentSubMenuElement.getBoundingClientRect().left) {
+            isParentDirectionLeft = true;
+        }
+
+        // 8px 是 b3-menu__items 的默认 padding-right
+        const spaceRight = window.innerWidth - itemRect.right - 8;
+        const spaceLeft = itemRect.left - 8;
+        if (isParentDirectionLeft) {
+            if (spaceLeft >= subMenuRect.width) {
+                subMenuElement.style.left = (itemRect.left - 8 - subMenuRect.width) + "px";
+            } else if (spaceRight >= subMenuRect.width) {
+                subMenuElement.style.left = (itemRect.right + 8) + "px";
             } else {
-                subMenuElement.style.left = (window.innerWidth - rect.width) + "px";
+                subMenuElement.style.left = Math.max(0, window.innerWidth - subMenuRect.width) + "px";
+            }
+        } else {
+            if (spaceRight >= subMenuRect.width) {
+                subMenuElement.style.left = (itemRect.right + 8) + "px";
+            } else if (spaceLeft >= subMenuRect.width) {
+                subMenuElement.style.left = (itemRect.left - 8 - subMenuRect.width) + "px";
+            } else {
+                subMenuElement.style.left = Math.max(0, window.innerWidth - subMenuRect.width) + "px";
             }
         }
-        if (rect.bottom > window.innerHeight) {
-            subMenuElement.style.top = "auto";
-            subMenuElement.style.bottom = "8px";
-        }
+
+        this.updateMaxHeight(subMenuElement, itemsMenuElement);
+    }
+
+    private updateMaxHeight(menuElement: HTMLElement, itemsMenuElement: HTMLElement) {
+        // 加 1px 是为了避免在特定情况下渲染出不应存在的滚动条而做的兼容处理; 18 为父子块高差
+        itemsMenuElement.style.maxHeight = Math.max(window.innerHeight - menuElement.getBoundingClientRect().top - 18 + 1, 30) + "px";
     }
 
     private preventDefault(event: KeyboardEvent) {
         if (!hasClosestByClassName(event.target as Element, "b3-menu") &&
+            !hasClosestByClassName(event.target as Element, "tooltip") &&
             // 移动端底部键盘菜单
             !hasClosestByClassName(event.target as Element, "keyboard__bar")) {
             event.preventDefault();
         }
     }
 
-    public addSeparator(index?: number) {
-        return this.addItem({type: "separator", index});
-    }
-
     public addItem(option: IMenu) {
         const menuItem = new MenuItem(option);
-        this.append(menuItem.element, option.index);
-        return menuItem.element;
+        if (menuItem) {
+            this.append(menuItem.element, option.index);
+            return menuItem.element;
+        }
     }
 
     public removeScrollEvent() {
         window.removeEventListener(isMobile() ? "touchmove" : this.wheelEvent, this.preventDefault, false);
     }
 
-    public remove() {
+    public remove(isKeyEvent = false) {
+        if (isKeyEvent) {
+            const subElements = window.siyuan.menus.menu.element.querySelectorAll(".b3-menu__item--show");
+            if (subElements.length > 0) {
+                const subElement = subElements[subElements.length - 1];
+                subElement.classList.remove("b3-menu__item--show");
+                subElement.classList.add("b3-menu__item--current");
+                subElement.querySelector(".b3-menu__item--current")?.classList.remove("b3-menu__item--current");
+                return;
+            }
+        }
         if (window.siyuan.menus.menu.removeCB) {
             window.siyuan.menus.menu.removeCB();
             window.siyuan.menus.menu.removeCB = undefined;
@@ -109,8 +157,9 @@ export class Menu {
         this.element.classList.add("fn__none");
         this.element.classList.remove("b3-menu--list", "b3-menu--fullscreen");
         this.element.removeAttribute("style");  // zIndex
-        window.siyuan.menus.menu.element.removeAttribute("data-name");    // 标识再次点击不消失
-        window.siyuan.menus.menu.element.removeAttribute("data-from");    // 标识是否在浮窗内打开
+        this.element.removeAttribute("data-name");    // 标识再次点击不消失
+        this.element.removeAttribute("data-from");    // 标识菜单入口
+        this.data = undefined;    // 移除数据
     }
 
     public append(element?: HTMLElement, index?: number) {
@@ -134,7 +183,21 @@ export class Menu {
         window.addEventListener(isMobile() ? "touchmove" : this.wheelEvent, this.preventDefault, {passive: false});
         this.element.style.zIndex = (++window.siyuan.zIndex).toString();
         this.element.classList.remove("fn__none");
-        setPosition(this.element, options.x - (options.isLeft ? window.siyuan.menus.menu.element.clientWidth : 0), options.y, options.h, options.w);
+        setPosition(this.element, options.x - (options.isLeft ? this.element.clientWidth : 0), options.y, options.h, options.w);
+        this.updateMaxHeight(this.element, this.element.lastElementChild as HTMLElement);
+        this.position = options;
+    }
+
+    public resetPosition() {
+        if (this.element.classList.contains("fn__none")) {
+            return;
+        }
+        setPosition(this.element, this.position.x - (this.position.isLeft ? this.element.clientWidth : 0), this.position.y, this.position.h, this.position.w);
+        this.updateMaxHeight(this.element, this.element.lastElementChild as HTMLElement);
+        this.element.querySelectorAll(".b3-menu__item--show .b3-menu__submenu").forEach((item: HTMLElement) => {
+            // 可能有多层子菜单，都要重新定位
+            this.showSubMenu(item);
+        });
     }
 
     public fullscreen(position: "bottom" | "all" = "all") {
@@ -152,7 +215,7 @@ export class Menu {
                 this.element.style.transform = "translateY(-50vh)";
                 this.element.style.height = "50vh";
             } else {
-                this.element.style.transform = "translateY(-100vh)";
+                this.element.style.transform = "translateY(-100%)";
             }
         });
         this.element.lastElementChild.scrollTop = 0;
@@ -163,6 +226,9 @@ export class MenuItem {
     public element: HTMLElement;
 
     constructor(options: IMenu) {
+        if (options.ignore) {
+            return;
+        }
         if (options.type === "empty") {
             this.element = document.createElement("div");
             this.element.innerHTML = options.label;
@@ -175,6 +241,9 @@ export class MenuItem {
         this.element = document.createElement("button");
         if (options.disabled) {
             this.element.setAttribute("disabled", "disabled");
+        }
+        if (options.id) {
+            this.element.setAttribute("data-id", options.id);
         }
         if (options.type === "separator") {
             this.element.classList.add("b3-menu__separator");
@@ -202,27 +271,30 @@ export class MenuItem {
                 }
             });
         }
-        if (options.id) {
-            this.element.setAttribute("data-id", options.id);
-        }
         if (options.type === "readonly") {
             this.element.classList.add("b3-menu__item--readonly");
+        }
+        if (options.icon === "iconTrashcan" || options.warning) {
+            this.element.classList.add("b3-menu__item--warning");
         }
 
         if (options.element) {
             this.element.append(options.element);
         } else {
-            let html = `<span class="b3-menu__label">${options.label}</span>`;
+            let html = `<span class="b3-menu__label">${options.label || "&nbsp;"}</span>`;
             if (typeof options.iconHTML === "string") {
                 html = options.iconHTML + html;
             } else {
                 html = `<svg class="b3-menu__icon ${options.iconClass || ""}" style="${options.icon === "iconClose" ? "height:10px;" : ""}"><use xlink:href="#${options.icon || ""}"></use></svg>${html}`;
             }
             if (options.accelerator) {
-                html += `<span class="b3-menu__accelerator">${updateHotkeyTip(options.accelerator)}</span>`;
+                html += `<span class="b3-menu__accelerator b3-menu__accelerator--hotkey">${updateHotkeyTip(options.accelerator)}</span>`;
             }
             if (options.action) {
                 html += `<svg class="b3-menu__action${options.action === "iconCloseRound" ? " b3-menu__action--close" : ""}"><use xlink:href="#${options.action}"></use></svg>`;
+            }
+            if (options.checked) {
+                html += '<svg class="b3-menu__checked"><use xlink:href="#iconSelect"></use></svg></span>';
             }
             this.element.innerHTML = html;
         }
@@ -238,7 +310,7 @@ export class MenuItem {
             submenuElement.classList.add("b3-menu__submenu");
             submenuElement.innerHTML = '<div class="b3-menu__items"></div>';
             options.submenu.forEach((item) => {
-                submenuElement.firstElementChild.append(new MenuItem(item).element);
+                submenuElement.firstElementChild.append(new MenuItem(item)?.element || "");
             });
             this.element.insertAdjacentHTML("beforeend", '<svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>');
             this.element.append(submenuElement);
@@ -248,7 +320,12 @@ export class MenuItem {
 
 const getActionMenu = (element: Element, next: boolean) => {
     let actionMenuElement = element;
-    while (actionMenuElement && (actionMenuElement.classList.contains("b3-menu__separator") || actionMenuElement.classList.contains("b3-menu__item--readonly"))) {
+    while (actionMenuElement &&
+        (actionMenuElement.classList.contains("b3-menu__separator") ||
+            actionMenuElement.classList.contains("b3-menu__item--readonly") ||
+            // https://github.com/siyuan-note/siyuan/issues/12518
+            actionMenuElement.getBoundingClientRect().height === 0)
+        ) {
         if (actionMenuElement.querySelector(".b3-text-field")) {
             break;
         }
@@ -295,7 +372,13 @@ export const bindMenuKeydown = (event: KeyboardEvent) => {
             }
         }
         if (actionMenuElement) {
-            actionMenuElement.classList.add("b3-menu__item--current");
+            if (actionMenuElement.classList.contains("b3-menu__item")) {
+                actionMenuElement.classList.add("b3-menu__item--current");
+            }
+            const inputElement = actionMenuElement.querySelector(":scope > .b3-text-field") as HTMLInputElement;
+            if (inputElement) {
+                inputElement.focus();
+            }
             actionMenuElement.classList.remove("b3-menu__item--show");
             const parentRect = actionMenuElement.parentElement.getBoundingClientRect();
             const actionMenuRect = actionMenuElement.getBoundingClientRect();
@@ -339,6 +422,17 @@ export const bindMenuKeydown = (event: KeyboardEvent) => {
         if (!currentElement) {
             return false;
         } else {
+            const subMenuElement = currentElement.querySelector(".b3-menu__submenu") as HTMLElement;
+            if (subMenuElement) {
+                currentElement.classList.remove("b3-menu__item--current");
+                currentElement.classList.add("b3-menu__item--show");
+                const actionMenuElement = getActionMenu(subMenuElement.firstElementChild.firstElementChild, true);
+                if (actionMenuElement) {
+                    actionMenuElement.classList.add("b3-menu__item--current");
+                }
+                window.siyuan.menus.menu.showSubMenu(subMenuElement);
+                return true;
+            }
             const textElement = currentElement.querySelector(".b3-text-field") as HTMLInputElement;
             const checkElement = currentElement.querySelector(".b3-switch") as HTMLInputElement;
             if (textElement) {
@@ -349,7 +443,10 @@ export const bindMenuKeydown = (event: KeyboardEvent) => {
             } else {
                 currentElement.dispatchEvent(new CustomEvent(getEventName()));
             }
-            window.siyuan.menus.menu.remove();
+            if (window.siyuan.menus.menu.element.contains(currentElement)) {
+                // 块标上 AI 会使用新的 menu，不能移除
+                window.siyuan.menus.menu.remove();
+            }
         }
         return true;
     }
@@ -362,11 +459,11 @@ export class subMenu {
         this.menus = [];
     }
 
-    addSeparator(index?: number) {
+    addSeparator(index?: number, id?: string) {
         if (typeof index === "number") {
-            this.menus.splice(index, 0, {type: "separator"});
+            this.menus.splice(index, 0, {type: "separator", id});
         } else {
-            this.menus.push({type: "separator"});
+            this.menus.push({type: "separator", id});
         }
     }
 

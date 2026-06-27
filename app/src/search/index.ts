@@ -4,13 +4,14 @@ import {Protyle} from "../protyle";
 import {genSearch} from "./util";
 import {setPanelFocus} from "../layout/util";
 import {App} from "../index";
+import {clearOBG} from "../layout/dock/util";
 
 export class Search extends Model {
     public element: HTMLElement;
-    public config: ISearchOption;
-    public edit: Protyle;
+    public config: Config.IUILayoutTabSearchConfig;
+    public editors: { edit: Protyle, unRefEdit: Protyle };
 
-    constructor(options: { tab: Tab, config: ISearchOption, app: App }) {
+    constructor(options: { tab: Tab, config: Config.IUILayoutTabSearchConfig, app: App }) {
         super({
             app: options.app,
             id: options.tab.id,
@@ -20,8 +21,9 @@ export class Search extends Model {
         }
         this.element = options.tab.panelElement as HTMLElement;
         this.config = options.config;
-        this.edit = genSearch(options.app, this.config, this.element);
+        this.editors = genSearch(options.app, this.config, this.element);
         this.element.addEventListener("click", () => {
+            clearOBG();
             setPanelFocus(this.element.parentElement.parentElement);
         });
     }

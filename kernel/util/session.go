@@ -20,6 +20,7 @@ import (
 	"github.com/88250/gulu"
 	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/siyuan-note/logging"
 )
 
 var WrongAuthCount int
@@ -38,11 +39,19 @@ type WorkspaceSession struct {
 	Captcha        string
 }
 
+func (sd *SessionData) Clear(c *gin.Context) {
+	session := ginSessions.Default(c)
+	session.Delete("data")
+	if err := session.Save(); err != nil {
+		logging.LogErrorf("clear session failed: %v", err)
+	}
+}
+
 // Save saves the current session of the specified context.
 func (sd *SessionData) Save(c *gin.Context) error {
 	session := ginSessions.Default(c)
 	sessionDataBytes, err := gulu.JSON.MarshalJSON(sd)
-	if nil != err {
+	if err != nil {
 		return err
 	}
 	session.Set("data", string(sessionDataBytes))
@@ -60,7 +69,7 @@ func GetSession(c *gin.Context) *SessionData {
 	}
 
 	err := gulu.JSON.UnmarshalJSON([]byte(sessionDataStr.(string)), ret)
-	if nil != err {
+	if err != nil {
 		return ret
 	}
 

@@ -27,7 +27,7 @@ import (
 func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
 	ret = rootTree
 	rootBlock := &Block{Box: rootTree.Box, ID: rootTree.ID, Path: rootTree.Path, HPath: rootTree.HPath}
-	if err = buildBlockChildren(rootBlock); nil != err {
+	if err = buildBlockChildren(rootBlock); err != nil {
 		return
 	}
 
@@ -46,19 +46,25 @@ func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
 		insertPoint = rootTree.Root.FirstChild
 		if nil == insertPoint {
 			// 如果文档为空，则创建一个空段落作为插入点
-			insertPoint = treenode.NewParagraph()
+			insertPoint = treenode.NewParagraph("")
 			rootTree.Root.AppendChild(insertPoint)
 		}
 	}
 
 	for {
 		i := 0
-		if err = walkBlock(insertPoint, rootBlock, i); nil != err {
+		if err = walkBlock(insertPoint, rootBlock, i); err != nil {
 			return
 		}
 		if nil == rootBlock.Children {
 			break
 		}
+	}
+
+	if ast.NodeParagraph == insertPoint.Type && nil == insertPoint.FirstChild {
+		// 删除空段落
+		// Ignore the last empty paragraph block when exporting merged sub-documents https://github.com/siyuan-note/siyuan/issues/15028
+		insertPoint.Unlink()
 	}
 	return
 }
@@ -67,7 +73,7 @@ func walkBlock(insertPoint *ast.Node, block *Block, level int) (err error) {
 	level++
 	for i := len(block.Children) - 1; i >= 0; i-- {
 		c := block.Children[i]
-		if err = walkBlock(insertPoint, c, level); nil != err {
+		if err = walkBlock(insertPoint, c, level); err != nil {
 			return
 		}
 
@@ -76,8 +82,15 @@ func walkBlock(insertPoint *ast.Node, block *Block, level int) (err error) {
 			return
 		}
 
-		for j := len(nodes) - 1; -1 < j; j-- {
-			insertPoint.InsertAfter(nodes[j])
+		lastIndex := len(nodes) - 1
+		for j := lastIndex; -1 < j; j-- {
+			node := nodes[j]
+			if j == lastIndex && ast.NodeParagraph == node.Type && nil == node.FirstChild {
+				// 跳过最后一个空段落块
+				// Ignore the last empty paragraph block when exporting merged sub-documents https://github.com/siyuan-note/siyuan/issues/15028
+				continue
+			}
+			insertPoint.InsertAfter(node)
 		}
 	}
 	block.Children = nil
@@ -87,7 +100,7 @@ func walkBlock(insertPoint *ast.Node, block *Block, level int) (err error) {
 func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error) {
 	luteEngine := NewLute()
 	tree, err := filesys.LoadTree(box, p, luteEngine)
-	if nil != err {
+	if err != nil {
 		return
 	}
 
@@ -100,11 +113,6 @@ func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error)
 	heading.AppendChild(&ast.Node{Type: ast.NodeText, Tokens: []byte(tree.Root.IALAttr("title"))})
 	tree.Root.PrependChild(heading)
 	for c := tree.Root.FirstChild; nil != c; c = c.Next {
-		if ast.NodeParagraph == c.Type && nil == c.FirstChild {
-			// 剔除空段落
-			continue
-		}
-
 		ret = append(ret, c)
 	}
 	return
@@ -112,7 +120,7 @@ func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error)
 
 func buildBlockChildren(block *Block) (err error) {
 	files, _, err := ListDocTree(block.Box, block.Path, util.SortModeUnassigned, false, false, Conf.FileTree.MaxListCount)
-	if nil != err {
+	if err != nil {
 		return
 	}
 
@@ -122,7 +130,7 @@ func buildBlockChildren(block *Block) (err error) {
 	}
 
 	for _, c := range block.Children {
-		if err = buildBlockChildren(c); nil != err {
+		if err = buildBlockChildren(c); err != nil {
 			return
 		}
 	}

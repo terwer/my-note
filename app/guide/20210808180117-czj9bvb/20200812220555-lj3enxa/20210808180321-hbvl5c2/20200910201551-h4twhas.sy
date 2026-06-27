@@ -1,12 +1,12 @@
 {
 	"ID": "20200910201551-h4twhas",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"id": "20200910201551-h4twhas",
 		"title": "书签和标签",
 		"type": "doc",
-		"updated": "20231205225717"
+		"updated": "20250115151954"
 	},
 	"Children": [
 		{
@@ -14,7 +14,8 @@
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20210104091316-ltmnzg9"
+				"id": "20210104091316-ltmnzg9",
+				"updated": "20250115151951"
 			},
 			"Children": [
 				{
@@ -45,7 +46,8 @@
 			"ID": "20210104091316-5vwheuz",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20210104091316-5vwheuz"
+				"id": "20210104091316-5vwheuz",
+				"updated": "20250115151951"
 			},
 			"Children": [
 				{
@@ -55,20 +57,29 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "Alt 3"
+					"TextMarkTextContent": "Alt"
 				},
 				{
 					"Type": "NodeText",
-					"Data": " / "
+					"Data": "​+"
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "⌘ 3"
+					"TextMarkTextContent": "3"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "）中列出。如果要取消收藏，在该内容块标识下拉菜单中选择删除即可。"
+					"Data": "​ / "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "⌃3"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​）中列出。如果要取消收藏，在该内容块标识下拉菜单中选择删除即可。"
 				}
 			]
 		},
@@ -77,7 +88,8 @@
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20210104091316-zxotarc"
+				"id": "20210104091316-zxotarc",
+				"updated": "20250115151954"
 			},
 			"Children": [
 				{
@@ -156,7 +168,8 @@
 			"ID": "20210104091316-gt0utcz",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20210104091316-gt0utcz"
+				"id": "20210104091316-gt0utcz",
+				"updated": "20250115151954"
 			},
 			"Children": [
 				{
@@ -166,20 +179,29 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "Alt 4"
+					"TextMarkTextContent": "Alt"
 				},
 				{
 					"Type": "NodeText",
-					"Data": " / "
+					"Data": "​+"
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "⌘ 4"
+					"TextMarkTextContent": "4"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "）中列出。如果需要取消标签，在内容块中删掉该标签即可。"
+					"Data": "​ / "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "⌃4"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​）中列出。如果需要取消标签，在内容块中删掉该标签即可。"
 				}
 			]
 		},

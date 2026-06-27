@@ -6,29 +6,34 @@ import {initBlockPopover} from "../block/popover";
 import {addScript, addScriptSync} from "../protyle/util/addScript";
 import {genUUID} from "../util/genID";
 import {fetchGet, fetchPost} from "../util/fetch";
-import {addBaseURL, setNoteBook} from "../util/pathName";
+import {addBaseURL, redirectToCheckAuth, setNoteBook} from "../util/pathName";
 import {openFileById} from "../editor/util";
 import {
-    processSync, progressBackgroundTask,
+    processSync,
+    progressBackgroundTask,
     progressLoading,
-    progressStatus, reloadSync,
+    progressStatus,
+    reloadSync,
+    setDefRefCount,
+    setRefDynamicText,
     setTitle,
     transactionError
 } from "../dialog/processSystem";
 import {initMessage} from "../dialog/message";
 import {getAllTabs} from "../layout/getAll";
 import {getLocalStorage} from "../protyle/util/compatibility";
-import {init} from "../window/init";
-import {loadPlugins} from "../plugin/loader";
+import {init} from "./init";
+import {loadPlugins, reloadPlugin} from "../plugin/loader";
 import {hideAllElements} from "../protyle/ui/hideElements";
+import {reloadEmoji} from "../emoji";
+import {updateAppearance} from "../config/util/updateAppearance";
+import {renderSnippet} from "../config/util/snippets";
 
 class App {
     public plugins: import("../plugin").Plugin[] = [];
     public appId: string;
 
     constructor() {
-        addScriptSync(`${Constants.PROTYLE_CDN}/js/lute/lute.min.js?v=${Constants.SIYUAN_VERSION}`, "protyleLuteScript");
-        addScript(`${Constants.PROTYLE_CDN}/js/protyle-html.js?v=${Constants.SIYUAN_VERSION}`, "protyleWcHtmlScript");
         addBaseURL();
         this.appId = Constants.SIYUAN_APPID;
         window.siyuan = {
@@ -39,6 +44,7 @@ class App {
             layout: {},
             dialogs: [],
             blockPanels: [],
+            closedTabs: [],
             ctrlIsPressed: false,
             altIsPressed: false,
             ws: new Model({
@@ -51,6 +57,31 @@ class App {
                     });
                     if (data) {
                         switch (data.cmd) {
+                            case "logoutAuth":
+                                redirectToCheckAuth();
+                                break;
+                            case "setAppearance":
+                                updateAppearance(data.data);
+                                break;
+                            case "setSnippet":
+                                window.siyuan.config.snippet = data.data;
+                                renderSnippet();
+                                break;
+                            case "setDefRefCount":
+                                setDefRefCount(data.data);
+                                break;
+                            case "setRefDynamicText":
+                                setRefDynamicText(data.data);
+                                break;
+                            case "reloadPlugin":
+                                reloadPlugin(this, data.data);
+                                break;
+                            case "reloadEmojiConf":
+                                reloadEmoji();
+                                break;
+                            case "reloaddoc":
+                                reloadSync(this, {upsertRootIDs: [data.data], removeRootIDs: []}, false, false, true);
+                                break;
                             case "syncMergeResult":
                                 reloadSync(this, data.data);
                                 break;
@@ -80,7 +111,8 @@ class App {
                                     }
                                 });
                                 break;
-                            case "unmount":
+                            case "closeBox":
+                            case "removeBox":
                                 getAllTabs().forEach((tab) => {
                                     if (tab.headElement) {
                                         const initTab = tab.headElement.getAttribute("data-initdata");
@@ -110,7 +142,7 @@ class App {
                                 progressStatus(data);
                                 break;
                             case "txerr":
-                                transactionError();
+                                transactionError(data.msg);
                                 break;
                             case "syncing":
                                 processSync(data, this.plugins);
@@ -134,7 +166,10 @@ class App {
             }),
         };
         fetchPost("/api/system/getConf", {}, async (response) => {
+            addScriptSync(`${Constants.PROTYLE_CDN}/js/lute/lute.min.js?v=${Constants.SIYUAN_VERSION}`, "protyleLuteScript");
+            addScript(`${Constants.PROTYLE_CDN}/js/protyle-html.js?v=${Constants.SIYUAN_VERSION}`, "protyleWcHtmlScript");
             window.siyuan.config = response.data.conf;
+            window.siyuan.isPublish = response.data.isPublish;
             await loadPlugins(this);
             getLocalStorage(() => {
                 fetchGet(`/appearance/langs/${window.siyuan.config.appearance.lang}.json?v=${Constants.SIYUAN_VERSION}`, (lauguages: IObject) => {
@@ -143,7 +178,7 @@ class App {
                     fetchPost("/api/setting/getCloudUser", {}, userResponse => {
                         window.siyuan.user = userResponse.data;
                         init(this);
-                        setTitle(window.siyuan.languages.siyuanNote);
+                        setTitle("", true);
                         initMessage();
                     });
                 });

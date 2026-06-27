@@ -18,6 +18,7 @@ package model
 
 import (
 	"path"
+	"strings"
 
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
@@ -26,8 +27,10 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID, newTargetPath string, err error) {
-	srcTree, _ := loadTreeByBlockID(srcListItemID)
+func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string) (srcRootBlockID, newTargetPath string, err error) {
+	FlushTxQueue()
+
+	srcTree, _ := LoadTreeByBlockID(srcListItemID)
 	if nil == srcTree {
 		err = ErrBlockNotFound
 		return
@@ -48,29 +51,51 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID
 	toHP := path.Join("/", listItemText)
 	toFolder := "/"
 
-	if !moveToRoot {
-		toBlock := treenode.GetBlockTreeRootByPath(targetBoxID, targetPath)
-		if nil == toBlock {
+	if "" != previousPath {
+		previousDoc := treenode.GetBlockTreeRootByPath(targetBoxID, previousPath)
+		if nil == previousDoc {
 			err = ErrBlockNotFound
 			return
 		}
-		toHP = path.Join(toBlock.HPath, listItemText)
-		toFolder = path.Join(path.Dir(targetPath), toBlock.ID)
+		parentPath := path.Dir(previousPath)
+		if "/" != parentPath {
+			parentPath = strings.TrimSuffix(parentPath, "/") + ".sy"
+			parentDoc := treenode.GetBlockTreeRootByPath(targetBoxID, parentPath)
+			if nil == parentDoc {
+				err = ErrBlockNotFound
+				return
+			}
+			toHP = path.Join(parentDoc.HPath, listItemText)
+			toFolder = path.Join(path.Dir(parentPath), parentDoc.ID)
+		}
+	} else {
+		if !moveToRoot {
+			parentDoc := treenode.GetBlockTreeRootByPath(targetBoxID, targetPath)
+			if nil == parentDoc {
+				err = ErrBlockNotFound
+				return
+			}
+			toHP = path.Join(parentDoc.HPath, listItemText)
+			toFolder = path.Join(path.Dir(targetPath), parentDoc.ID)
+		}
 	}
 
 	newTargetPath = path.Join(toFolder, srcListItemID+".sy")
 	if !box.Exist(toFolder) {
-		if err = box.MkdirAll(toFolder); nil != err {
+		if err = box.MkdirAll(toFolder); err != nil {
 			return
 		}
 	}
 
 	var children []*ast.Node
-	for c := listItemNode.FirstChild.Next; nil != c; c = c.Next {
+	for c := listItemNode.FirstChild; nil != c; c = c.Next {
+		if c.IsMarker() {
+			continue
+		}
 		children = append(children, c)
 	}
 	if 1 > len(children) {
-		newNode := treenode.NewParagraph()
+		newNode := treenode.NewParagraph("")
 		children = append(children, newNode)
 	}
 
@@ -86,6 +111,7 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID
 	listItemNode.SetIALAttr("id", srcListItemID)
 	listItemNode.SetIALAttr("title", listItemText)
 	listItemNode.RemoveIALAttr("fold")
+	listItemNode.RemoveIALAttr(DocHiddenAttr)
 	newTree.Root.KramdownIAL = listItemNode.KramdownIAL
 	srcLiParent := listItemNode.Parent
 	listItemNode.Unlink()
@@ -94,22 +120,29 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath string) (srcRootBlockID
 	}
 	srcTree.Root.SetIALAttr("updated", util.CurrentTimeSecondsStr())
 	if nil == srcTree.Root.FirstChild {
-		srcTree.Root.AppendChild(treenode.NewParagraph())
+		srcTree.Root.AppendChild(treenode.NewParagraph(""))
 	}
 	treenode.RemoveBlockTreesByRootID(srcTree.ID)
-	if err = indexWriteJSONQueue(srcTree); nil != err {
+	if err = indexWriteTreeUpsertQueue(srcTree); err != nil {
 		return "", "", err
 	}
 
 	newTree.Box, newTree.Path = targetBoxID, newTargetPath
 	newTree.Root.SetIALAttr("updated", util.CurrentTimeSecondsStr())
-	newTree.Root.Spec = "1"
-	box.addMinSort(path.Dir(newTargetPath), newTree.ID)
-	if err = indexWriteJSONQueue(newTree); nil != err {
+	newTree.Root.Spec = treenode.CurrentSpec
+	if "" != previousPath {
+		box.addSort(previousPath, newTree.ID)
+	} else {
+		box.setSortByConf(path.Dir(newTargetPath), newTree.ID)
+	}
+	if err = indexWriteTreeUpsertQueue(newTree); err != nil {
 		return "", "", err
 	}
 	IncSync()
-	RefreshBacklink(srcTree.ID)
-	RefreshBacklink(newTree.ID)
+	go func() {
+		RefreshBacklink(srcTree.ID)
+		RefreshBacklink(newTree.ID)
+		ResetVirtualBlockRefCache()
+	}()
 	return
 }

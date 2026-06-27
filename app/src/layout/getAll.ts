@@ -1,3 +1,4 @@
+/// #if !MOBILE
 import {Layout} from "./index";
 import {Tab} from "./Tab";
 import {Editor} from "../editor";
@@ -12,20 +13,30 @@ import {Tag} from "./dock/Tag";
 import {Custom} from "./dock/Custom";
 import {Protyle} from "../protyle";
 import {Wnd} from "./Wnd";
+/// #endif
 
 export const getAllEditor = () => {
-    const models = getAllModels();
     const editors: Protyle[] = [];
+    /// #if MOBILE
+    if (window.siyuan.mobile.editor) {
+        editors.push(window.siyuan.mobile.editor);
+    }
+    if (window.siyuan.mobile.popEditor) {
+        editors.push(window.siyuan.mobile.popEditor);
+    }
+    /// #else
+    const models = getAllModels();
     models.editor.forEach(item => {
         editors.push(item.editor);
     });
     models.search.forEach(item => {
-        editors.push(item.edit);
+        editors.push(item.editors.edit);
+        editors.push(item.editors.unRefEdit);
     });
     models.custom.forEach(item => {
-        if (item.data?.editor instanceof Protyle) {
-            editors.push(item.data.editor);
-        }
+        item.editors?.forEach(eItem => {
+            editors.push(eItem);
+        });
     });
     models.backlink.forEach(item => {
         item.editors.forEach(editorItem => {
@@ -33,8 +44,10 @@ export const getAllEditor = () => {
         });
     });
     window.siyuan.dialogs.forEach(item => {
-        if (item.editor) {
-            editors.push(item.editor);
+        if (item.editors) {
+            Object.keys(item.editors).forEach(key => {
+                editors.push(item.editors[key]);
+            });
         }
     });
     window.siyuan.blockPanels.forEach(item => {
@@ -42,9 +55,11 @@ export const getAllEditor = () => {
             editors.push(editorItem);
         });
     });
+    /// #endif
     return editors;
 };
 
+/// #if !MOBILE
 export const getAllModels = () => {
     const models: IModels = {
         editor: [],
@@ -108,15 +123,52 @@ export const getAllWnds = (layout: Layout, wnds: Wnd[]) => {
     }
 };
 
-export const getAllTabs = () => {
+export const getAllTabs = (type?: TTab | string) => {
     const tabs: Tab[] = [];
     const getTabs = (layout: Layout) => {
         for (let i = 0; i < layout.children.length; i++) {
             const item = layout.children[i];
-            if (item instanceof Tab) {
-                tabs.push(item);
-            } else {
+            if (!(item instanceof Tab)) {
                 getTabs(item as Layout);
+                continue;
+            }
+            if (!type) {
+                tabs.push(item);
+                continue;
+            }
+            const model = item.model;
+            if (model) {
+                if (model instanceof Search && type === "Search") {
+                    tabs.push(item);
+                } else if (model instanceof Asset && type === "Asset") {
+                    tabs.push(item);
+                } else if (model instanceof Editor && type === "Editor") {
+                    tabs.push(item);
+                } else if (model instanceof Graph && type === "Graph") {
+                    tabs.push(item);
+                } else if (model instanceof Backlink && type === "Backlink") {
+                    tabs.push(item);
+                } else if (model instanceof Outline && type === "Outline") {
+                    tabs.push(item);
+                } else if (model instanceof Custom && model.type === type) {
+                    tabs.push(item);
+                }
+                continue;
+            }
+            const initData = item.headElement?.getAttribute("data-initdata");
+            if (!initData) {
+                continue;
+            }
+            try {
+                const initObj = JSON.parse(initData) as ILayoutJSON;
+                if (
+                    (initObj.instance === "Custom" && initObj.customModelType === type) ||
+                    initObj.instance === type
+                ) {
+                    tabs.push(item);
+                }
+            } catch (e) {
+                console.log(`getAllTabs(${type}) error:`, e);
             }
         }
     };
@@ -128,21 +180,22 @@ export const getAllTabs = () => {
 };
 
 export const getAllDocks = () => {
-    const docks: IDockTab[] = [];
-    window.siyuan.config.uiLayout.left.data.forEach((item: IDockTab[]) => {
-        item.forEach((dock: IDockTab) => {
+    const docks: Config.IUILayoutDockTab[] = [];
+    window.siyuan.config.uiLayout.left.data.forEach((item) => {
+        item.forEach((dock) => {
             docks.push(dock);
         });
     });
-    window.siyuan.config.uiLayout.right.data.forEach((item: IDockTab[]) => {
-        item.forEach((dock: IDockTab) => {
+    window.siyuan.config.uiLayout.right.data.forEach((item) => {
+        item.forEach((dock) => {
             docks.push(dock);
         });
     });
-    window.siyuan.config.uiLayout.bottom.data.forEach((item: IDockTab[]) => {
-        item.forEach((dock: IDockTab) => {
+    window.siyuan.config.uiLayout.bottom.data.forEach((item) => {
+        item.forEach((dock) => {
             docks.push(dock);
         });
     });
     return docks;
 };
+/// #endif

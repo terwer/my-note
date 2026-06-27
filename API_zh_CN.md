@@ -1,4 +1,6 @@
-[English](https://github.com/siyuan-note/siyuan/blob/master/API.md)
+[English](API.md)
+| **中文**
+| [日本語](API_ja_JP.md)
 
 * [规范](#规范)
     * [参数和返回值](#参数和返回值)
@@ -19,6 +21,7 @@
     * [移动文档](#移动文档)
     * [根据路径获取人类可读路径](#根据路径获取人类可读路径)
     * [根据 ID 获取人类可读路径](#根据-ID-获取人类可读路径)
+    * [根据 ID 获取存储路径](#根据-ID-获取存储路径)
     * [根据人类可读路径获取 IDs](#根据人类可读路径获取-IDs)
 * [资源文件](#资源文件)
     * [上传资源文件](#上传资源文件)
@@ -39,6 +42,7 @@
     * [获取块属性](#获取块属性)
 * [SQL](#SQL)
     * [执行 SQL 查询](#执行-SQL-查询)
+    * [提交事务](#提交事务)
 * [模板](#模板)
     * [渲染模板](#渲染模板)
     * [渲染 Sprig](#渲染-Sprig)
@@ -356,6 +360,31 @@
 
     * `notebook`：笔记本 ID
     * `path`：文档路径
+    * `title`：新标题
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
+  }
+  ```
+
+通过 `id` 重命名文档：
+
+* `/api/filetree/renameDocByID`
+* 参数
+
+  ```json
+  {
+    "id": "20210902210113-0avi12f",
+    "title": "文档新标题"
+  }
+  ```
+
+    * `id`：文档 ID
+    * `title`：新标题
 * 返回值
 
   ```json
@@ -390,6 +419,28 @@
   }
   ```
 
+通过 `id` 删除文档：
+
+* `/api/filetree/removeDocByID`
+* 参数
+
+  ```json
+  {
+    "id": "20210902210113-0avi12f"
+  }
+  ```
+
+    * `id`：文档 ID
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
+  }
+  ```
+
 ### 移动文档
 
 * `/api/filetree/moveDocs`
@@ -406,6 +457,30 @@
     * `fromPaths`：源路径
     * `toNotebook`：目标笔记本 ID
     * `toPath`：目标路径
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
+  }
+  ```
+
+通过 `id` 移动文档：
+
+* `/api/filetree/moveDocsByID`
+* 参数
+
+  ```json
+  {
+    "fromIDs": ["20210917220056-yxtyl7i"],
+    "toID": "20210817205410-2kvfpfn"
+  }
+  ```
+
+    * `fromIDs`：源文档 ID
+    * `toID`：目标父文档 ID 或笔记本 ID
 * 返回值
 
   ```json
@@ -462,6 +537,31 @@
   }
   ```
 
+### 根据 ID 获取存储路径
+
+* `/api/filetree/getPathByID`
+* 参数
+
+  ```json
+  {
+    "id": "20210808180320-fqgskfj"
+  }
+  ```
+
+    * `id`：块 ID
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": {
+    "notebook": "20210808180117-czj9bvb",
+    "path": "/20200812220555-lj3enxa/20210808180320-fqgskfj.sy"
+    }
+  }
+  ```
+
 ### 根据人类可读路径获取 IDs
 
 * `/api/filetree/getIDsByHPath`
@@ -474,8 +574,8 @@
   }
   ```
 
-  * `path`：人类可读路径
-  * `notebook`：笔记本 ID
+    * `path`：人类可读路径
+    * `notebook`：笔记本 ID
 * 返回值
 
   ```json
@@ -789,7 +889,7 @@
   }
   ```
 
-  * `id`：待折叠块的 ID
+    * `id`：待折叠块的 ID
 * 返回值
 
   ```json
@@ -811,7 +911,7 @@
   }
   ```
 
-  * `id`：待展开块的 ID
+    * `id`：待展开块的 ID
 * 返回值
 
   ```json
@@ -900,7 +1000,7 @@
 
     * `fromID`：定义块 ID
     * `toID`：目标块 ID
-    * `refIDs`：指向定义块 ID 的引用所在块 ID，可选，如果不指定，所有指向定义块 ID 的引用块 ID 都会被转移
+    * `refIDs`：指向定义块 ID 的引用所在块 ID，可选，如果不指定，所有指向定义块 ID 的块引用 ID 都会被转移
 * 返回值
 
   ```json
@@ -990,6 +1090,22 @@
     "data": [
       { "列": "值" }
     ]
+  }
+  ```
+  
+注意：为保证数据安全，发布模式下禁止访问该接口。
+
+### 提交事务
+
+* `/api/sqlite/flushTransaction`
+* 不带参
+* 返回值
+
+  ```json
+  {
+    "code": 0,
+    "msg": "",
+    "data": null
   }
   ```
 

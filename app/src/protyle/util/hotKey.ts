@@ -42,6 +42,16 @@ export const matchAuxiliaryHotKey = (hotKey: string, event: KeyboardEvent) => {
     return true;
 };
 
+const replaceDirect = (hotKey: string, keyCode: string) => {
+    const hotKeys = hotKey.replace(keyCode, Constants.ZWSP).split("");
+    hotKeys.forEach((item, index) => {
+        if (item === Constants.ZWSP) {
+            hotKeys[index] = keyCode;
+        }
+    });
+    return hotKeys;
+};
+
 export const matchHotKey = (hotKey: string, event: KeyboardEvent) => {
     if (!hotKey) {
         return false;
@@ -67,7 +77,7 @@ export const matchHotKey = (hotKey: string, event: KeyboardEvent) => {
         return false;
     }
 
-    const hotKeys = hotKey.split("");
+    let hotKeys = hotKey.split("");
     if (hotKey.indexOf("F") > -1) {
         hotKeys.forEach((item, index) => {
             if (item === "F") {
@@ -78,6 +88,14 @@ export const matchHotKey = (hotKey: string, event: KeyboardEvent) => {
                 }
             }
         });
+    } else if (hotKey.indexOf("PageUp") > -1) {
+        hotKeys = replaceDirect(hotKey, "PageUp");
+    } else if (hotKey.indexOf("PageDown") > -1) {
+        hotKeys = replaceDirect(hotKey, "PageDown");
+    } else if (hotKey.indexOf("Home") > -1) {
+        hotKeys = replaceDirect(hotKey, "Home");
+    } else if (hotKey.indexOf("End") > -1) {
+        hotKeys = replaceDirect(hotKey, "End");
     }
 
     // 是否匹配 ⇧[]
@@ -95,7 +113,7 @@ export const matchHotKey = (hotKey: string, event: KeyboardEvent) => {
         }
         const isMatchKey = keyCode === Constants.KEYCODELIST[event.keyCode];
         // 是否匹配 ⌥[] / ⌥⌘[]
-        if (isMatchKey && event.altKey && !event.shiftKey &&
+        if (isMatchKey && event.altKey && !event.shiftKey && hotKeys.length < 4 &&
             (hotKeys.length === 3 ? (isOnlyMeta(event) && hotKey.startsWith("⌥⌘")) : isNotCtrl(event))) {
             return true;
         }
@@ -166,3 +184,35 @@ export const matchHotKey = (hotKey: string, event: KeyboardEvent) => {
     return false;
 };
 
+export const isIncludesHotKey = (hotKey: string) => {
+    let isInclude = false;
+    Object.keys(window.siyuan.config.keymap).find(key => {
+        const item = window.siyuan.config.keymap[key as "editor"];
+        Object.keys(item).find(key2 => {
+            const item2 = item[key2 as "general"];
+            if (typeof item2.custom === "string") {
+                if (item2.custom === hotKey) {
+                    isInclude = true;
+                    return true;
+                }
+            } else {
+                Object.keys(item2).forEach(key3 => {
+                    const item3: Config.IKey = item2[key3];
+                    if (item3.custom === hotKey) {
+                        isInclude = true;
+                        return true;
+                    }
+                });
+                if (isInclude) {
+                    return true;
+                }
+            }
+        });
+
+        if (isInclude) {
+            return true;
+        }
+    });
+
+    return isInclude;
+};

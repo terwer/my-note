@@ -36,7 +36,7 @@ func RemoveSnippet(id string) (ret *conf.Snippet, err error) {
 	defer snippetsLock.Unlock()
 
 	snippets, err := loadSnippets()
-	if nil != err {
+	if err != nil {
 		return
 	}
 
@@ -73,41 +73,59 @@ func loadSnippets() (ret []*conf.Snippet, err error) {
 	}
 
 	data, err := filelock.ReadFile(confPath)
-	if nil != err {
+	if err != nil {
 		logging.LogErrorf("load js snippets failed: %s", err)
 		return
 	}
 
-	if err = gulu.JSON.UnmarshalJSON(data, &ret); nil != err {
+	if err = gulu.JSON.UnmarshalJSON(data, &ret); err != nil {
 		logging.LogErrorf("unmarshal js snippets failed: %s", err)
 		return
 	}
 
 	needRewrite := false
+	var cssTotal, cssEnabled, jsTotal, jsEnabled int
 	for _, snippet := range ret {
 		if "" == snippet.ID {
 			snippet.ID = ast.NewNodeID()
 			needRewrite = true
 		}
+		switch snippet.Type {
+		case "css":
+			cssTotal++
+			if snippet.Enabled {
+				cssEnabled++
+			}
+		case "js":
+			jsTotal++
+			if snippet.Enabled {
+				jsEnabled++
+			}
+		}
 	}
 	if needRewrite {
 		writeSnippetsConf(ret)
 	}
+	logging.LogDebugf("loaded snippets [css %d/%d, js %d/%d]", cssEnabled, cssTotal, jsEnabled, jsTotal)
 	return
 }
 
 func writeSnippetsConf(snippets []*conf.Snippet) (err error) {
 	data, err := gulu.JSON.MarshalIndentJSON(snippets, "", "  ")
-	if nil != err {
+	if err != nil {
 		logging.LogErrorf("marshal snippets failed: %s", err)
 		return
 	}
 
-	if err = os.MkdirAll(util.SnippetsPath, 0755); nil != err {
+	if err = os.MkdirAll(util.SnippetsPath, 0755); err != nil {
 		return
 	}
 
 	confPath := filepath.Join(util.SnippetsPath, "conf.json")
+	oldData, _ := filelock.ReadFile(confPath)
+	if string(oldData) == string(data) {
+		return
+	}
 	err = filelock.WriteFile(confPath, data)
 	return
 }

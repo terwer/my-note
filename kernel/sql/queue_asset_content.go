@@ -33,8 +33,7 @@ import (
 var (
 	assetContentOperationQueue []*assetContentDBQueueOperation
 	assetContentDBQueueLock    = sync.Mutex{}
-
-	assetContentTxLock = sync.Mutex{}
+	assetContentTxLock         = sync.Mutex{}
 )
 
 type assetContentDBQueueOperation struct {
@@ -51,7 +50,8 @@ func FlushAssetContentTxJob() {
 
 func FlushAssetContentQueue() {
 	ops := getAssetContentOperations()
-	if 1 > len(ops) {
+	total := len(ops)
+	if 1 > total {
 		return
 	}
 
@@ -64,7 +64,7 @@ func FlushAssetContentQueue() {
 		groupOpsTotal[op.action]++
 	}
 
-	context := map[string]interface{}{eventbus.CtxPushMsg: eventbus.CtxPushMsgToStatusBar}
+	context := map[string]any{eventbus.CtxPushMsg: eventbus.CtxPushMsgToStatusBar}
 	groupOpsCurrent := map[string]int{}
 	for i, op := range ops {
 		if util.IsExiting.Load() {
@@ -72,7 +72,7 @@ func FlushAssetContentQueue() {
 		}
 
 		tx, err := beginAssetContentTx()
-		if nil != err {
+		if err != nil {
 			return
 		}
 
@@ -80,14 +80,14 @@ func FlushAssetContentQueue() {
 		context["current"] = groupOpsCurrent[op.action]
 		context["total"] = groupOpsTotal[op.action]
 
-		if err = execAssetContentOp(op, tx, context); nil != err {
+		if err = execAssetContentOp(op, tx, context); err != nil {
 			tx.Rollback()
 			logging.LogErrorf("queue operation failed: %s", err)
 			eventbus.Publish(util.EvtSQLAssetContentRebuild)
 			return
 		}
 
-		if err = commitAssetContentTx(tx); nil != err {
+		if err = commitAssetContentTx(tx); err != nil {
 			logging.LogErrorf("commit tx failed: %s", err)
 			return
 		}
@@ -97,22 +97,22 @@ func FlushAssetContentQueue() {
 		}
 	}
 
-	if 128 < len(ops) {
+	if 128 < total {
 		debug.FreeOSMemory()
 	}
 
-	elapsed := time.Now().Sub(start).Milliseconds()
+	elapsed := time.Since(start).Milliseconds()
 	if 7000 < elapsed {
 		logging.LogInfof("database asset content op tx [%dms]", elapsed)
 	}
 }
 
-func execAssetContentOp(op *assetContentDBQueueOperation, tx *sql.Tx, context map[string]interface{}) (err error) {
+func execAssetContentOp(op *assetContentDBQueueOperation, tx *sql.Tx, context map[string]any) (err error) {
 	switch op.action {
 	case "index":
 		err = insertAssetContents(tx, op.assetContents, context)
 	case "deletePath":
-		err = deleteAssetContentsByPath(tx, op.path, context)
+		err = deleteAssetContentsByPath(tx, op.path)
 	default:
 		msg := fmt.Sprintf("unknown asset content operation [%s]", op.action)
 		logging.LogErrorf(msg)
@@ -122,24 +122,24 @@ func execAssetContentOp(op *assetContentDBQueueOperation, tx *sql.Tx, context ma
 }
 
 func DeleteAssetContentsByPathQueue(path string) {
-	assetContentTxLock.Lock()
-	defer assetContentTxLock.Unlock()
+	assetContentDBQueueLock.Lock()
+	defer assetContentDBQueueLock.Unlock()
 
 	newOp := &assetContentDBQueueOperation{inQueueTime: time.Now(), action: "deletePath", path: path}
 	assetContentOperationQueue = append(assetContentOperationQueue, newOp)
 }
 
 func IndexAssetContentsQueue(assetContents []*AssetContent) {
-	assetContentTxLock.Lock()
-	defer assetContentTxLock.Unlock()
+	assetContentDBQueueLock.Lock()
+	defer assetContentDBQueueLock.Unlock()
 
 	newOp := &assetContentDBQueueOperation{inQueueTime: time.Now(), action: "index", assetContents: assetContents}
 	assetContentOperationQueue = append(assetContentOperationQueue, newOp)
 }
 
 func getAssetContentOperations() (ops []*assetContentDBQueueOperation) {
-	assetContentTxLock.Lock()
-	defer assetContentTxLock.Unlock()
+	assetContentDBQueueLock.Lock()
+	defer assetContentDBQueueLock.Unlock()
 
 	ops = assetContentOperationQueue
 	assetContentOperationQueue = nil

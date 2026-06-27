@@ -13,15 +13,20 @@ body {
   text-rendering: optimizeLegibility;
   margin: 0;
   font-family: var(--b3-font-family);
-  font-size: 14px;
   color: var(--b3-theme-on-background);
   background-color: var(--b3-theme-background);
   -webkit-font-smoothing: antialiased;
   -webkit-overflow-scrolling: touch;
+  -webkit-tap-highlight-color: var(--b3-list-hover);
   height: 100%;
   box-sizing: border-box;
   max-height: 100%;
   overflow: hidden;
+
+  // body 使用字号导致显示不全 https://github.com/siyuan-note/siyuan/issues/11670#issuecomment-2282329358
+  & > #dockBottom, & > .fn__flex-1 {
+    font-size: 14px;
+  }
 
   &.body--blur {
     .toolbar {
@@ -38,7 +43,7 @@ body {
       }
 
       &__tab--active {
-        .b3-list--background .b3-list-item--focus:not(.dragover) {
+        .b3-list--background .b3-list-item--focus {
           background-color: var(--b3-list-hover);
         }
 
@@ -94,6 +99,29 @@ body {
     &.body--blur .layout-tab-bar {
       opacity: .38;
     }
+  }
+
+  &.body--fullscreen:not(.body--win32):not(.body--window) .toolbar {
+    padding-left: 5px;
+  }
+
+  &.body--maximize,
+  &.body--fullscreen {
+    #maxWindow {
+      display: none;
+    }
+
+    #restoreWindow {
+      display: flex;
+    }
+  }
+
+  #maxWindow {
+    display: flex;
+  }
+
+  #restoreWindow {
+    display: none;
   }
 }
 
@@ -157,11 +185,11 @@ sup {
 }
 
 sup {
-  top: -0.5em;
+  top: -.5em;
 }
 
 sub {
-  bottom: -0.25em;
+  bottom: -.25em;
 }
 
 img {
@@ -171,7 +199,10 @@ img {
   height: auto;
   -ms-interpolation-mode: bicubic;
   overflow: hidden;
-  font-size: 12px;
+
+  &:not(.emoji):not(.callout-img) {
+    font-size: 12px;
+  }
 }
 
 button,
@@ -196,6 +227,7 @@ input::-moz-focus-inner {
   border: 0;
 }
 
+textarea::placeholder,
 button::placeholder,
 input::placeholder {
   color: var(--b3-empty-color);

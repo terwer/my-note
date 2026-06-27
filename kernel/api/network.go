@@ -23,10 +23,12 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"net/textproto"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/88250/gulu"
@@ -61,7 +63,7 @@ func echo(c *gin.Context) {
 
 	password, passwordSet = c.Request.URL.User.Password()
 
-	if form, err := c.MultipartForm(); nil != err || nil == form {
+	if form, err := c.MultipartForm(); err != nil || nil == form {
 		multipartForm = nil
 	} else {
 		multipartForm = &MultipartForm{
@@ -75,11 +77,11 @@ func echo(c *gin.Context) {
 				files[i].Filename = handler.Filename
 				files[i].Header = handler.Header
 				files[i].Size = handler.Size
-				if file, err := handler.Open(); nil != err {
+				if file, err := handler.Open(); err != nil {
 					logging.LogWarnf("echo open form [%s] file [%s] error: %s", k, handler.Filename, err.Error())
 				} else {
 					content := make([]byte, handler.Size)
-					if _, err := file.Read(content); nil != err {
+					if _, err := file.Read(content); err != nil {
 						logging.LogWarnf("echo read form [%s] file [%s] error: %s", k, handler.Filename, err.Error())
 					} else {
 						files[i].Content = base64.StdEncoding.EncodeToString(content)
@@ -89,7 +91,7 @@ func echo(c *gin.Context) {
 		}
 	}
 
-	if data, err := c.GetRawData(); nil == err {
+	if data, err := c.GetRawData(); err == nil {
 		rawData = base64.StdEncoding.EncodeToString(data)
 	} else {
 		logging.LogWarnf("echo get raw data error: %s", err.Error())
@@ -98,8 +100,8 @@ func echo(c *gin.Context) {
 	c.Request.ParseForm()
 	c.Request.ParseMultipartForm(math.MaxInt64)
 
-	ret.Data = map[string]interface{}{
-		"Context": map[string]interface{}{
+	ret.Data = map[string]any{
+		"Context": map[string]any{
 			"Params":       c.Params,
 			"HandlerNames": c.HandlerNames(),
 			"FullPath":     c.FullPath(),
@@ -109,7 +111,7 @@ func echo(c *gin.Context) {
 			"IsWebsocket":  c.IsWebsocket(),
 			"RawData":      rawData,
 		},
-		"Request": map[string]interface{}{
+		"Request": map[string]any{
 			"Method":           c.Request.Method,
 			"URL":              c.Request.URL,
 			"Proto":            c.Request.Proto,
@@ -130,7 +132,7 @@ func echo(c *gin.Context) {
 			"Cookies":          c.Request.Cookies(),
 			"Referer":          c.Request.Referer(),
 		},
-		"URL": map[string]interface{}{
+		"URL": map[string]any{
 			"EscapedPath":     c.Request.URL.EscapedPath(),
 			"EscapedFragment": c.Request.URL.EscapedFragment(),
 			"String":          c.Request.URL.String(),
@@ -141,7 +143,7 @@ func echo(c *gin.Context) {
 			"Hostname":        c.Request.URL.Hostname(),
 			"Port":            c.Request.URL.Port(),
 		},
-		"User": map[string]interface{}{
+		"User": map[string]any{
 			"Username":    c.Request.URL.User.Username(),
 			"Password":    password,
 			"PasswordSet": passwordSet,
@@ -159,10 +161,20 @@ func forwardProxy(c *gin.Context) {
 		return
 	}
 
-	destURL := arg["url"].(string)
-	if _, e := url.ParseRequestURI(destURL); nil != e {
+	var destURL string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("url", &destURL, true, true)) {
+		return
+	}
+	u, e := url.ParseRequestURI(destURL)
+	if nil != e {
 		ret.Code = -1
 		ret.Msg = "invalid [url]"
+		return
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		ret.Code = -1
+		ret.Msg = "only http/https is allowed"
 		return
 	}
 
@@ -170,21 +182,23 @@ func forwardProxy(c *gin.Context) {
 	if methodArg := arg["method"]; nil != methodArg {
 		method = strings.ToUpper(methodArg.(string))
 	}
-	timeout := 7 * 1000
+	timeout := 7000
 	if timeoutArg := arg["timeout"]; nil != timeoutArg {
 		timeout = int(timeoutArg.(float64))
 		if 1 > timeout {
-			timeout = 7 * 1000
+			timeout = 7000
 		}
 	}
 
-	client := req.C()
-	client.SetTimeout(time.Duration(timeout) * time.Millisecond)
+	client := getSafeClient(time.Duration(timeout) * time.Millisecond)
 	request := client.R()
-	headers := arg["headers"].([]interface{})
-	for _, pair := range headers {
-		for k, v := range pair.(map[string]interface{}) {
-			request.SetHeader(k, fmt.Sprintf("%s", v))
+	if headers, ok := arg["headers"].([]any); ok {
+		for _, pair := range headers {
+			if m, ok := pair.(map[string]any); ok {
+				for k, v := range m {
+					request.SetHeader(k, fmt.Sprintf("%v", v))
+				}
+			}
 		}
 	}
 
@@ -203,7 +217,7 @@ func forwardProxy(c *gin.Context) {
 	case "base64":
 		fallthrough
 	case "base64-std":
-		if payload, err := base64.StdEncoding.DecodeString(arg["payload"].(string)); nil != err {
+		if payload, err := base64.StdEncoding.DecodeString(arg["payload"].(string)); err != nil {
 			ret.Code = -2
 			ret.Msg = "decode base64-std payload failed: " + err.Error()
 			return
@@ -211,7 +225,7 @@ func forwardProxy(c *gin.Context) {
 			request.SetBody(payload)
 		}
 	case "base64-url":
-		if payload, err := base64.URLEncoding.DecodeString(arg["payload"].(string)); nil != err {
+		if payload, err := base64.URLEncoding.DecodeString(arg["payload"].(string)); err != nil {
 			ret.Code = -2
 			ret.Msg = "decode base64-url payload failed: " + err.Error()
 			return
@@ -221,7 +235,7 @@ func forwardProxy(c *gin.Context) {
 	case "base32":
 		fallthrough
 	case "base32-std":
-		if payload, err := base32.StdEncoding.DecodeString(arg["payload"].(string)); nil != err {
+		if payload, err := base32.StdEncoding.DecodeString(arg["payload"].(string)); err != nil {
 			ret.Code = -2
 			ret.Msg = "decode base32-std payload failed: " + err.Error()
 			return
@@ -229,7 +243,7 @@ func forwardProxy(c *gin.Context) {
 			request.SetBody(payload)
 		}
 	case "base32-hex":
-		if payload, err := base32.HexEncoding.DecodeString(arg["payload"].(string)); nil != err {
+		if payload, err := base32.HexEncoding.DecodeString(arg["payload"].(string)); err != nil {
 			ret.Code = -2
 			ret.Msg = "decode base32-hex payload failed: " + err.Error()
 			return
@@ -237,7 +251,7 @@ func forwardProxy(c *gin.Context) {
 			request.SetBody(payload)
 		}
 	case "hex":
-		if payload, err := hex.DecodeString(arg["payload"].(string)); nil != err {
+		if payload, err := hex.DecodeString(arg["payload"].(string)); err != nil {
 			ret.Code = -2
 			ret.Msg = "decode hex payload failed: " + err.Error()
 			return
@@ -251,14 +265,14 @@ func forwardProxy(c *gin.Context) {
 
 	started := time.Now()
 	resp, err := request.Send(method, destURL)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = "forward request failed: " + err.Error()
 		return
 	}
 
 	bodyData, err := io.ReadAll(resp.Body)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = "read response body failed: " + err.Error()
 		return
@@ -294,7 +308,7 @@ func forwardProxy(c *gin.Context) {
 		body = string(bodyData)
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"url":          destURL,
 		"status":       resp.StatusCode,
 		"contentType":  resp.GetHeader("content-type"),
@@ -314,4 +328,34 @@ func forwardProxy(c *gin.Context) {
 	//
 	//logging.LogInfof("elapsed [%.1fs], length [%d], request [url=%s, headers=%s, content-type=%s, body=%s], status [%d], body [%s]",
 	//	elapsed.Seconds(), len(bodyData), data["url"], headers, contentType, arg["payload"], data["status"], shortBody)
+}
+
+// 校验 IP 是否为私有内网地址
+func isPrivateIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsPrivate() || ip.IsUnspecified()
+}
+
+// 创建安全的 HTTP Client，防止 SSRF 和 DNS 重绑定
+func getSafeClient(timeout time.Duration) *req.Client {
+	dialer := &net.Dialer{
+		Timeout: timeout,
+		// Control 函数在解析出 IP 后、建立连接前执行，是防御 DNS Rebinding 的关键
+		Control: func(network, address string, c syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			ip := net.ParseIP(host)
+			if ip != nil && isPrivateIP(ip) {
+				return fmt.Errorf("ip address [%s] is prohibited", host)
+			}
+			return nil
+		},
+	}
+
+	client := req.C()
+	client.SetTimeout(timeout)
+	client.SetDial(dialer.DialContext)
+	client.SetRedirectPolicy(req.MaxRedirectPolicy(3))
+	return client
 }

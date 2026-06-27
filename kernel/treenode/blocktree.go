@@ -17,31 +17,21 @@
 package treenode
 
 import (
-	"os"
-	"path/filepath"
+	"bytes"
+	"database/sql"
+	"errors"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
-	"github.com/dustin/go-humanize"
-	"github.com/panjf2000/ants/v2"
-	util2 "github.com/siyuan-note/dejavu/util"
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/util"
-	"github.com/vmihailenco/msgpack/v5"
 )
-
-var blockTrees = &sync.Map{}
-
-type btSlice struct {
-	data    map[string]*BlockTree
-	changed time.Time
-	m       *sync.Mutex
-}
 
 type BlockTree struct {
 	ID       string // 块 ID
@@ -54,131 +44,228 @@ type BlockTree struct {
 	Type     string // 类型
 }
 
-func GetBlockTreesByType(typ string) (ret []*BlockTree) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.Type == typ {
-				ret = append(ret, b)
-			}
+var (
+	db *sql.DB
+
+	initDatabaseLock = sync.RWMutex{}
+)
+
+func initDatabase(forceRebuild bool) {
+	initDatabaseLock.Lock()
+	defer initDatabaseLock.Unlock()
+
+	initDBConnection()
+
+	if !forceRebuild {
+		if !gulu.File.IsExist(util.BlockTreeDBPath) {
+			forceRebuild = true
 		}
-		slice.m.Unlock()
-		return true
-	})
+	}
+	if !forceRebuild {
+		return
+	}
+
+	initDBTables()
+	vacuum()
+
+	logging.LogInfof("reinitialized database [%s]", util.BlockTreeDBPath)
+}
+
+func initDBTables() {
+	_, err := db.Exec("DROP TABLE IF EXISTS blocktrees")
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "drop table [blocks] failed: %s", err)
+	}
+	_, err = db.Exec("CREATE TABLE blocktrees (id, root_id, parent_id, box_id, path, hpath, updated, type)")
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [blocktrees] failed: %s", err)
+	}
+
+	_, err = db.Exec("CREATE INDEX idx_blocktrees_id ON blocktrees(id)")
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create index [idx_blocktrees_id] failed: %s", err)
+	}
+
+	_, err = db.Exec("CREATE INDEX idx_blocktrees_root_id ON blocktrees(root_id)")
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create index [idx_blocktrees_root_id] failed: %s", err)
+	}
+}
+
+func initDBConnection() {
+	closeDatabase()
+
+	util.LogDatabaseSize(util.BlockTreeDBPath)
+	dsn := util.BlockTreeDBPath + "?_journal_mode=WAL" +
+		"&_synchronous=OFF" +
+		"&_mmap_size=2684354560" +
+		"&_secure_delete=OFF" +
+		"&_cache_size=-20480" +
+		"&_page_size=32768" +
+		"&_busy_timeout=7000" +
+		"&_ignore_check_constraints=ON" +
+		"&_temp_store=MEMORY" +
+		"&_case_sensitive_like=OFF"
+	var err error
+	db, err = sql.Open("sqlite3_extended", dsn)
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create database failed: %s", err)
+	}
+	db.SetMaxIdleConns(7)
+	db.SetMaxOpenConns(7)
+	db.SetConnMaxLifetime(365 * 24 * time.Hour)
+}
+
+func CloseDatabase() {
+	closeDatabase()
+}
+
+func closeDatabase() {
+	if nil == db {
+		return
+	}
+
+	if err := db.Close(); err != nil {
+		logging.LogErrorf("close database failed: %s", err)
+	}
+	debug.FreeOSMemory()
+	db = nil
+	runtime.GC()
+	return
+}
+
+func GetBlockTreesByType(typ string) (ret []*BlockTree) {
+	sqlStmt := "SELECT * FROM blocktrees WHERE type = ?"
+	rows, err := query(sqlStmt, typ)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var block BlockTree
+		if err = rows.Scan(&block.ID, &block.RootID, &block.ParentID, &block.BoxID, &block.Path, &block.HPath, &block.Updated, &block.Type); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
+		}
+		ret = append(ret, &block)
+	}
 	return
 }
 
 func GetBlockTreeByPath(path string) (ret *BlockTree) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.Path == path {
-				ret = b
-				break
-			}
+	ret = &BlockTree{}
+	sqlStmt := "SELECT * FROM blocktrees WHERE path = ?"
+	err := queryRow(sqlStmt, path).Scan(&ret.ID, &ret.RootID, &ret.ParentID, &ret.BoxID, &ret.Path, &ret.HPath, &ret.Updated, &ret.Type)
+	if err != nil {
+		ret = nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return
 		}
-		slice.m.Unlock()
-		return nil == ret
-	})
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
 	return
 }
 
 func CountTrees() (ret int) {
-	roots := map[string]bool{}
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			roots[b.RootID] = true
+	sqlStmt := "SELECT COUNT(*) FROM blocktrees WHERE type = 'd'"
+	err := queryRow(sqlStmt).Scan(&ret)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0
 		}
-		slice.m.Unlock()
-		return true
-	})
-	ret = len(roots)
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+	}
 	return
 }
 
 func CountBlocks() (ret int) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		ret += len(slice.data)
-		slice.m.Unlock()
-		return true
-	})
+	sqlStmt := "SELECT COUNT(*) FROM blocktrees"
+	err := queryRow(sqlStmt).Scan(&ret)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0
+		}
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+	}
 	return
 }
 
 func GetBlockTreeRootByPath(boxID, path string) (ret *BlockTree) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.BoxID == boxID && b.Path == path && b.RootID == b.ID {
-				ret = b
-				break
-			}
+	ret = &BlockTree{}
+	sqlStmt := "SELECT * FROM blocktrees WHERE box_id = ? AND path = ? AND type = 'd'"
+	err := queryRow(sqlStmt, boxID, path).Scan(&ret.ID, &ret.RootID, &ret.ParentID, &ret.BoxID, &ret.Path, &ret.HPath, &ret.Updated, &ret.Type)
+	if err != nil {
+		ret = nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return
 		}
-		slice.m.Unlock()
-		return nil == ret
-	})
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
 	return
 }
 
 func GetBlockTreeRootByHPath(boxID, hPath string) (ret *BlockTree) {
+	ret = &BlockTree{}
 	hPath = gulu.Str.RemoveInvisible(hPath)
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.BoxID == boxID && b.HPath == hPath && b.RootID == b.ID {
-				ret = b
-				break
-			}
+	sqlStmt := "SELECT * FROM blocktrees WHERE box_id = ? AND hpath = ? AND type = 'd'"
+	err := queryRow(sqlStmt, boxID, hPath).Scan(&ret.ID, &ret.RootID, &ret.ParentID, &ret.BoxID, &ret.Path, &ret.HPath, &ret.Updated, &ret.Type)
+	if err != nil {
+		ret = nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return
 		}
-		slice.m.Unlock()
-		return nil == ret
-	})
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
 	return
 }
 
 func GetBlockTreeRootsByHPath(boxID, hPath string) (ret []*BlockTree) {
 	hPath = gulu.Str.RemoveInvisible(hPath)
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.BoxID == boxID && b.HPath == hPath && b.RootID == b.ID {
-				ret = append(ret, b)
-			}
+	sqlStmt := "SELECT * FROM blocktrees WHERE box_id = ? AND hpath = ? AND type = 'd'"
+	rows, err := query(sqlStmt, boxID, hPath)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var block BlockTree
+		if err = rows.Scan(&block.ID, &block.RootID, &block.ParentID, &block.BoxID, &block.Path, &block.HPath, &block.Updated, &block.Type); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
 		}
-		slice.m.Unlock()
-		return true
-	})
+		ret = append(ret, &block)
+	}
 	return
 }
 
-func GetBlockTreeRootByHPathPreferredParentID(boxID, hPath, preferredParentID string) (ret *BlockTree) {
+func GetBlockTreeByHPathPreferredParentID(boxID, hPath, preferredParentID string) (ret *BlockTree) {
 	hPath = gulu.Str.RemoveInvisible(hPath)
 	var roots []*BlockTree
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.BoxID == boxID && b.HPath == hPath && b.RootID == b.ID {
-				if "" == preferredParentID {
-					ret = b
-					break
-				}
-
-				roots = append(roots, b)
-			}
+	sqlStmt := "SELECT * FROM blocktrees WHERE box_id = ? AND hpath = ? AND parent_id = ? LIMIT 1"
+	rows, err := query(sqlStmt, boxID, hPath, preferredParentID)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var block BlockTree
+		if err = rows.Scan(&block.ID, &block.RootID, &block.ParentID, &block.BoxID, &block.Path, &block.HPath, &block.Updated, &block.Type); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
 		}
-		slice.m.Unlock()
-		return nil == ret
-	})
+		if "" == preferredParentID {
+			ret = &block
+			return
+		}
+		roots = append(roots, &block)
+	}
+
 	if 1 > len(roots) {
 		return
 	}
@@ -193,20 +280,102 @@ func GetBlockTreeRootByHPathPreferredParentID(boxID, hPath, preferredParentID st
 	return
 }
 
+func ExistBlockTree(id string) bool {
+	sqlStmt := "SELECT COUNT(*) FROM blocktrees WHERE id = ?"
+	var count int
+	err := queryRow(sqlStmt, id).Scan(&count)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false
+		}
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return false
+	}
+	return 0 < count
+}
+
+func ExistBlockTrees(ids []string) (ret map[string]bool) {
+	ret = map[string]bool{}
+	if 1 > len(ids) {
+		return
+	}
+
+	for _, id := range ids {
+		ret[id] = false
+	}
+
+	sqlStmt := "SELECT id FROM blocktrees WHERE id IN ('" + strings.Join(ids, "','") + "')"
+	rows, err := query(sqlStmt)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
+		}
+		ret[id] = true
+	}
+	return
+}
+
+func GetBlockTrees(ids []string) (ret map[string]*BlockTree) {
+	ret = map[string]*BlockTree{}
+	if 1 > len(ids) {
+		return
+	}
+
+	stmtBuf := bytes.Buffer{}
+	stmtBuf.WriteString("SELECT * FROM blocktrees WHERE id IN (")
+	for i := range ids {
+		stmtBuf.WriteString("?")
+		if i == len(ids)-1 {
+			stmtBuf.WriteString(")")
+		} else {
+			stmtBuf.WriteString(",")
+		}
+	}
+	var args []any
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	stmt := stmtBuf.String()
+	rows, err := query(stmt, args...)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", stmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var block BlockTree
+		if err = rows.Scan(&block.ID, &block.RootID, &block.ParentID, &block.BoxID, &block.Path, &block.HPath, &block.Updated, &block.Type); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
+		}
+		ret[block.ID] = &block
+	}
+	return
+}
+
 func GetBlockTree(id string) (ret *BlockTree) {
 	if "" == id {
 		return
 	}
 
-	hash := btHash(id)
-	val, ok := blockTrees.Load(hash)
-	if !ok {
+	ret = &BlockTree{}
+	sqlStmt := "SELECT * FROM blocktrees WHERE id = ?"
+	err := queryRow(sqlStmt, id).Scan(&ret.ID, &ret.RootID, &ret.ParentID, &ret.BoxID, &ret.Path, &ret.HPath, &ret.Updated, &ret.Type)
+	if err != nil {
+		ret = nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return
+		}
+		logging.LogErrorf("sql query [%s] failed: %v\n\t%s", sqlStmt, err, logging.ShortStack())
 		return
 	}
-	slice := val.(*btSlice)
-	slice.m.Lock()
-	ret = slice.data[id]
-	slice.m.Unlock()
 	return
 }
 
@@ -216,170 +385,188 @@ func SetBlockTreePath(tree *parse.Tree) {
 }
 
 func RemoveBlockTreesByRootID(rootID string) {
-	var ids []string
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.RootID == rootID {
-				ids = append(ids, b.ID)
-			}
-		}
-		slice.m.Unlock()
-		return true
-	})
-
-	ids = gulu.Str.RemoveDuplicatedElem(ids)
-	for _, id := range ids {
-		val, ok := blockTrees.Load(btHash(id))
-		if !ok {
-			continue
-		}
-		slice := val.(*btSlice)
-		slice.m.Lock()
-		delete(slice.data, id)
-		slice.changed = time.Now()
-		slice.m.Unlock()
+	sqlStmt := "DELETE FROM blocktrees WHERE root_id = ?"
+	_, err := exec(sqlStmt, rootID)
+	if err != nil {
+		logging.LogErrorf("sql exec [%s] failed: %s", sqlStmt, err)
+		return
 	}
 }
 
-func GetBlockTreesByPathPrefix(pathPrefix string) (ret []*BlockTree) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if strings.HasPrefix(b.Path, pathPrefix) {
-				ret = append(ret, b)
-			}
+func CountBlockTreesByPathPrefix(pathPrefix string) (ret int) {
+	sqlStmt := "SELECT COUNT(*) FROM blocktrees WHERE path LIKE ?"
+	err := queryRow(sqlStmt, pathPrefix+"%").Scan(&ret)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0
 		}
-		slice.m.Unlock()
-		return true
-	})
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+	}
+	return
+}
+
+func GetBlockTreesByPathPrefix(pathPrefix string) (ret []*BlockTree) {
+	sqlStmt := "SELECT * FROM blocktrees WHERE path LIKE ?"
+	rows, err := query(sqlStmt, pathPrefix+"%")
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var block BlockTree
+		if err = rows.Scan(&block.ID, &block.RootID, &block.ParentID, &block.BoxID, &block.Path, &block.HPath, &block.Updated, &block.Type); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
+		}
+		ret = append(ret, &block)
+	}
 	return
 }
 
 func GetBlockTreesByRootID(rootID string) (ret []*BlockTree) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.RootID == rootID {
-				ret = append(ret, b)
-			}
+	sqlStmt := "SELECT * FROM blocktrees WHERE root_id = ?"
+	rows, err := query(sqlStmt, rootID)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var block BlockTree
+		if err = rows.Scan(&block.ID, &block.RootID, &block.ParentID, &block.BoxID, &block.Path, &block.HPath, &block.Updated, &block.Type); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
 		}
-		slice.m.Unlock()
-		return true
-	})
+		ret = append(ret, &block)
+	}
 	return
 }
 
 func RemoveBlockTreesByPathPrefix(pathPrefix string) {
-	var ids []string
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if strings.HasPrefix(b.Path, pathPrefix) {
-				ids = append(ids, b.ID)
-			}
-		}
-		slice.m.Unlock()
-		return true
-	})
-
-	ids = gulu.Str.RemoveDuplicatedElem(ids)
-	for _, id := range ids {
-		val, ok := blockTrees.Load(btHash(id))
-		if !ok {
-			continue
-		}
-		slice := val.(*btSlice)
-		slice.m.Lock()
-		delete(slice.data, id)
-		slice.changed = time.Now()
-		slice.m.Unlock()
+	sqlStmt := "DELETE FROM blocktrees WHERE path LIKE ?"
+	_, err := exec(sqlStmt, pathPrefix+"%")
+	if err != nil {
+		logging.LogErrorf("sql exec [%s] failed: %s", sqlStmt, err)
+		return
 	}
 }
 
 func GetBlockTreesByBoxID(boxID string) (ret []*BlockTree) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.BoxID == boxID {
-				ret = append(ret, b)
-			}
+	sqlStmt := "SELECT * FROM blocktrees WHERE box_id = ?"
+	rows, err := query(sqlStmt, boxID)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var block BlockTree
+		if err = rows.Scan(&block.ID, &block.RootID, &block.ParentID, &block.BoxID, &block.Path, &block.HPath, &block.Updated, &block.Type); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
 		}
-		slice.m.Unlock()
-		return true
-	})
+		ret = append(ret, &block)
+	}
 	return
 }
 
 func RemoveBlockTreesByBoxID(boxID string) (ids []string) {
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		for _, b := range slice.data {
-			if b.BoxID == boxID {
-				ids = append(ids, b.ID)
-			}
+	sqlStmt := "SELECT id FROM blocktrees WHERE box_id = ?"
+	rows, err := query(sqlStmt, boxID)
+	if err != nil {
+		logging.LogErrorf("sql query [%s] failed: %s", sqlStmt, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			logging.LogErrorf("query scan field failed: %s", err)
+			return
 		}
-		slice.m.Unlock()
-		return true
-	})
+		ids = append(ids, id)
+	}
 
-	ids = gulu.Str.RemoveDuplicatedElem(ids)
-	for _, id := range ids {
-		val, ok := blockTrees.Load(btHash(id))
-		if !ok {
-			continue
-		}
-		slice := val.(*btSlice)
-		slice.m.Lock()
-		delete(slice.data, id)
-		slice.changed = time.Now()
-		slice.m.Unlock()
+	sqlStmt = "DELETE FROM blocktrees WHERE box_id = ?"
+	_, err = exec(sqlStmt, boxID)
+	if err != nil {
+		logging.LogErrorf("sql exec [%s] failed: %s", sqlStmt, err)
+		return
 	}
 	return
 }
 
-func RemoveBlockTree(id string) {
-	val, ok := blockTrees.Load(btHash(id))
-	if !ok {
+func RemoveBlockTreesByIDs(ids []string) {
+	if 1 > len(ids) {
 		return
 	}
-	slice := val.(*btSlice)
-	slice.m.Lock()
-	delete(slice.data, id)
-	slice.changed = time.Now()
-	slice.m.Unlock()
+
+	sqlStmt := "DELETE FROM blocktrees WHERE id IN ('" + strings.Join(ids, "','") + "')"
+	_, err := exec(sqlStmt)
+	if err != nil {
+		logging.LogErrorf("sql exec [%s] failed: %s", sqlStmt, err)
+		return
+	}
 }
+
+func RemoveBlockTree(id string) {
+	sqlStmt := "DELETE FROM blocktrees WHERE id = ?"
+	_, err := exec(sqlStmt, id)
+	if err != nil {
+		logging.LogErrorf("sql exec [%s] failed: %s", sqlStmt, err)
+		return
+	}
+}
+
+var indexBlockTreeLock = sync.Mutex{}
 
 func IndexBlockTree(tree *parse.Tree) {
 	var changedNodes []*ast.Node
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if !entering || !n.IsBlock() {
-			return ast.WalkContinue
-		}
-		if "" == n.ID {
+		if !entering || !n.IsBlock() || "" == n.ID {
 			return ast.WalkContinue
 		}
 
-		hash := btHash(n.ID)
-		val, ok := blockTrees.Load(hash)
-		if !ok {
-			val = &btSlice{data: map[string]*BlockTree{}, changed: time.Time{}, m: &sync.Mutex{}}
-			blockTrees.Store(hash, val)
+		changedNodes = append(changedNodes, n)
+		return ast.WalkContinue
+	})
+
+	if 1 > len(changedNodes) {
+		return
+	}
+
+	indexBlockTreeLock.Lock()
+	defer indexBlockTreeLock.Unlock()
+
+	tx, err := db.Begin()
+	if err != nil {
+		logging.LogErrorf("begin transaction failed: %s", err)
+		return
+	}
+
+	execInsertBlocktrees(tx, tree, changedNodes)
+
+	if err = tx.Commit(); err != nil {
+		logging.LogErrorf("commit transaction failed: %s", err)
+	}
+}
+
+func UpsertBlockTree(tree *parse.Tree) {
+	oldBts := map[string]*BlockTree{}
+	bts := GetBlockTreesByRootID(tree.ID)
+	for _, bt := range bts {
+		oldBts[bt.ID] = bt
+	}
+
+	var changedNodes []*ast.Node
+	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+		if !entering || !n.IsBlock() || "" == n.ID {
+			return ast.WalkContinue
 		}
-		slice := val.(*btSlice)
 
-		slice.m.Lock()
-		bt := slice.data[n.ID]
-		slice.m.Unlock()
-
-		if nil != bt {
-			if bt.Updated != n.IALAttr("updated") || bt.Type != TypeAbbr(n.Type.String()) || bt.Path != tree.Path || bt.BoxID != tree.Box || bt.HPath != tree.HPath {
+		if oldBt, found := oldBts[n.ID]; found {
+			if oldBt.Updated != n.IALAttr("updated") || oldBt.Type != TypeAbbr(n.Type.String()) || oldBt.Path != tree.Path || oldBt.BoxID != tree.Box || oldBt.HPath != tree.HPath {
 				children := ChildBlockNodes(n) // 需要考虑子块，因为一些操作（比如移动块）后需要同时更新子块
 				changedNodes = append(changedNodes, children...)
 			}
@@ -390,167 +577,79 @@ func IndexBlockTree(tree *parse.Tree) {
 		return ast.WalkContinue
 	})
 
+	if 1 > len(changedNodes) {
+		return
+	}
+
+	ids := bytes.Buffer{}
+	for i, n := range changedNodes {
+		ids.WriteString("'")
+		ids.WriteString(n.ID)
+		ids.WriteString("'")
+		if i < len(changedNodes)-1 {
+			ids.WriteString(",")
+		}
+	}
+
+	indexBlockTreeLock.Lock()
+	defer indexBlockTreeLock.Unlock()
+
+	tx, err := db.Begin()
+	if err != nil {
+		logging.LogErrorf("begin transaction failed: %s", err)
+		return
+	}
+
+	sqlStmt := "DELETE FROM blocktrees WHERE id IN (" + ids.String() + ")"
+	_, err = tx.Exec(sqlStmt)
+	if err != nil {
+		tx.Rollback()
+		logging.LogErrorf("sql exec [%s] failed: %s", sqlStmt, err)
+		return
+	}
+
+	execInsertBlocktrees(tx, tree, changedNodes)
+
+	if err = tx.Commit(); err != nil {
+		logging.LogErrorf("commit transaction failed: %s", err)
+	}
+}
+
+func execInsertBlocktrees(tx *sql.Tx, tree *parse.Tree, changedNodes []*ast.Node) {
+	sqlStmt := "INSERT INTO blocktrees (id, root_id, parent_id, box_id, path, hpath, updated, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	stmt, err := tx.Prepare(sqlStmt)
+	if err != nil {
+		tx.Rollback()
+		logging.LogErrorf("exec database stmt [%s] failed: %s\n  %s", sqlStmt, err, logging.ShortStack())
+
+		if strings.Contains(err.Error(), "database disk image is malformed") {
+			initDatabase(true)
+			logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "database disk image [%s] is malformed, please restart SiYuan kernel to rebuild it\n\t%s", util.BlockTreeDBPath, err)
+		}
+		return
+	}
+	defer stmt.Close()
+
 	for _, n := range changedNodes {
-		updateBtSlice(n, tree)
+		var parentID string
+		if nil != n.Parent {
+			parentID = n.Parent.ID
+		}
+		if _, err = tx.Exec(sqlStmt, n.ID, tree.ID, parentID, tree.Box, tree.Path, tree.HPath, n.IALAttr("updated"), TypeAbbr(n.Type.String())); err != nil {
+			tx.Rollback()
+			logging.LogErrorf("exec database stmt [%s] failed: %s\n  %s", sqlStmt, err, logging.ShortStack())
+
+			if strings.Contains(err.Error(), "database disk image is malformed") {
+				initDatabase(true)
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "database disk image [%s] is malformed, please restart SiYuan kernel to rebuild it\n\t%s", util.BlockTreeDBPath, err)
+			}
+			return
+		}
 	}
 }
-
-func updateBtSlice(n *ast.Node, tree *parse.Tree) {
-	var parentID string
-	if nil != n.Parent {
-		parentID = n.Parent.ID
-	}
-
-	hash := btHash(n.ID)
-	val, ok := blockTrees.Load(hash)
-	if !ok {
-		val = &btSlice{data: map[string]*BlockTree{}, changed: time.Time{}, m: &sync.Mutex{}}
-		blockTrees.Store(hash, val)
-	}
-	slice := val.(*btSlice)
-	slice.m.Lock()
-	slice.data[n.ID] = &BlockTree{ID: n.ID, ParentID: parentID, RootID: tree.ID, BoxID: tree.Box, Path: tree.Path, HPath: tree.HPath, Updated: n.IALAttr("updated"), Type: TypeAbbr(n.Type.String())}
-	slice.changed = time.Now()
-	slice.m.Unlock()
-}
-
-var blockTreeLock = sync.Mutex{}
 
 func InitBlockTree(force bool) {
-	blockTreeLock.Lock()
-	defer blockTreeLock.Unlock()
-
-	start := time.Now()
-	if force {
-		err := os.RemoveAll(util.BlockTreePath)
-		if nil != err {
-			logging.LogErrorf("remove block tree file failed: %s", err)
-		}
-		blockTrees = &sync.Map{}
-		return
-	}
-
-	entries, err := os.ReadDir(util.BlockTreePath)
-	if nil != err {
-		logging.LogErrorf("read block tree dir failed: %s", err)
-		os.Exit(logging.ExitCodeFileSysErr)
-		return
-	}
-
-	size := atomic.Int64{}
-	waitGroup := &sync.WaitGroup{}
-	p, _ := ants.NewPoolWithFunc(4, func(arg interface{}) {
-		defer waitGroup.Done()
-
-		entry := arg.(os.DirEntry)
-		p := filepath.Join(util.BlockTreePath, entry.Name())
-
-		f, err := os.OpenFile(p, os.O_RDONLY, 0644)
-		if nil != err {
-			logging.LogErrorf("open block tree failed: %s", err)
-			os.Exit(logging.ExitCodeFileSysErr)
-			return
-		}
-
-		info, err := f.Stat()
-		if nil != err {
-			logging.LogErrorf("stat block tree failed: %s", err)
-			os.Exit(logging.ExitCodeFileSysErr)
-			return
-		}
-		size.Add(info.Size())
-
-		sliceData := map[string]*BlockTree{}
-		if err = msgpack.NewDecoder(f).Decode(&sliceData); nil != err {
-			logging.LogErrorf("unmarshal block tree failed: %s", err)
-			if err = os.RemoveAll(util.BlockTreePath); nil != err {
-				logging.LogErrorf("removed corrupted block tree failed: %s", err)
-			}
-			os.Exit(logging.ExitCodeFileSysErr)
-			return
-		}
-
-		if err = f.Close(); nil != err {
-			logging.LogErrorf("close block tree failed: %s", err)
-			os.Exit(logging.ExitCodeFileSysErr)
-			return
-		}
-
-		name := entry.Name()[0:strings.Index(entry.Name(), ".")]
-		blockTrees.Store(name, &btSlice{data: sliceData, changed: time.Time{}, m: &sync.Mutex{}})
-	})
-	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), ".msgpack") {
-			continue
-		}
-
-		waitGroup.Add(1)
-		p.Invoke(entry)
-	}
-
-	waitGroup.Wait()
-	p.Release()
-
-	elapsed := time.Since(start).Seconds()
-	logging.LogInfof("read block tree [%s] to [%s], elapsed [%.2fs]", humanize.Bytes(uint64(size.Load())), util.BlockTreePath, elapsed)
-	return
-}
-
-func SaveBlockTreeJob() {
-	SaveBlockTree(false)
-}
-
-func SaveBlockTree(force bool) {
-	blockTreeLock.Lock()
-	defer blockTreeLock.Unlock()
-
-	start := time.Now()
-	if err := os.MkdirAll(util.BlockTreePath, 0755); nil != err {
-		logging.LogErrorf("create block tree dir [%s] failed: %s", util.BlockTreePath, err)
-		os.Exit(logging.ExitCodeFileSysErr)
-		return
-	}
-
-	size := uint64(0)
-	var count int
-	blockTrees.Range(func(key, value interface{}) bool {
-		slice := value.(*btSlice)
-		slice.m.Lock()
-		if !force && slice.changed.IsZero() {
-			slice.m.Unlock()
-			return true
-		}
-
-		data, err := msgpack.Marshal(slice.data)
-		if nil != err {
-			logging.LogErrorf("marshal block tree failed: %s", err)
-			os.Exit(logging.ExitCodeFileSysErr)
-			return false
-		}
-		slice.m.Unlock()
-
-		p := filepath.Join(util.BlockTreePath, key.(string)) + ".msgpack"
-		if err = gulu.File.WriteFileSafer(p, data, 0644); nil != err {
-			logging.LogErrorf("write block tree failed: %s", err)
-			os.Exit(logging.ExitCodeFileSysErr)
-			return false
-		}
-
-		slice.m.Lock()
-		slice.changed = time.Time{}
-		slice.m.Unlock()
-		size += uint64(len(data))
-		count++
-		return true
-	})
-	if 0 < count {
-		//logging.LogInfof("wrote block trees [%d]", count)
-	}
-
-	elapsed := time.Since(start).Seconds()
-	if 2 < elapsed {
-		logging.LogWarnf("save block tree [size=%s] to [%s], elapsed [%.2fs]", humanize.Bytes(size), util.BlockTreePath, elapsed)
-	}
+	initDatabase(force)
 }
 
 func CeilTreeCount(count int) int {
@@ -579,6 +678,47 @@ func CeilBlockCount(count int) int {
 	return 10000*100 + 1
 }
 
-func btHash(id string) string {
-	return util2.Hash([]byte(id))[0:2]
+func queryRow(query string, args ...any) *sql.Row {
+	query = strings.TrimSpace(query)
+	if "" == query {
+		logging.LogErrorf("statement is empty")
+		return nil
+	}
+
+	if nil == db {
+		return nil
+	}
+	return db.QueryRow(query, args...)
+}
+
+func query(query string, args ...any) (*sql.Rows, error) {
+	query = strings.TrimSpace(query)
+	if "" == query {
+		return nil, errors.New("statement is empty")
+	}
+
+	if nil == db {
+		return nil, errors.New("database is nil")
+	}
+	return db.Query(query, args...)
+}
+
+func exec(stmt string, args ...any) (sql.Result, error) {
+	stmt = strings.TrimSpace(stmt)
+	if "" == stmt {
+		return nil, errors.New("statement is empty")
+	}
+
+	if nil == db {
+		return nil, errors.New("database is nil")
+	}
+	return db.Exec(stmt, args...)
+}
+
+func vacuum() {
+	if nil != db {
+		if _, err := db.Exec("VACUUM"); nil != err {
+			logging.LogErrorf("vacuum database failed: %s", err)
+		}
+	}
 }

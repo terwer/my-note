@@ -30,7 +30,7 @@ func startFreeTrial(c *gin.Context) {
 	defer c.JSON(http.StatusOK, ret)
 
 	err := model.StartFreeTrial()
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -46,9 +46,12 @@ func useActivationcode(c *gin.Context) {
 		return
 	}
 
-	code := arg["data"].(string)
+	var code string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("data", &code, true, true)) {
+		return
+	}
 	err := model.UseActivationcode(code)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
@@ -64,7 +67,10 @@ func checkActivationcode(c *gin.Context) {
 		return
 	}
 
-	code := arg["data"].(string)
+	var code string
+	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("data", &code, true, true)) {
+		return
+	}
 	ret.Code, ret.Msg = model.CheckActivationcode(code)
 }
 
@@ -73,7 +79,7 @@ func deactivateUser(c *gin.Context) {
 	defer c.JSON(http.StatusOK, ret)
 
 	err := model.DeactivateUser()
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return

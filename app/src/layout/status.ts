@@ -4,13 +4,13 @@ import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {fetchPost} from "../util/fetch";
 import {mountHelp} from "../util/mount";
 /// #if !BROWSER
-import { ipcRenderer } from "electron";
+import {ipcRenderer} from "electron";
 /// #endif
 /// #endif
 import {MenuItem} from "../menus/Menu";
 import {Constants} from "../constants";
 import {toggleDockBar} from "./dock/util";
-import {updateHotkeyTip} from "../protyle/util/compatibility";
+import {isIPad, updateHotkeyTip} from "../protyle/util/compatibility";
 
 export const initStatus = (isWindow = false) => {
     /// #if !MOBILE
@@ -39,16 +39,16 @@ export const initStatus = (isWindow = false) => {
                 break;
             } else if (target.classList.contains("status__backgroundtask")) {
                 if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
-                    window.siyuan.menus.menu.element.getAttribute("data-name") === "statusBackgroundTask") {
+                    window.siyuan.menus.menu.element.getAttribute("data-name") === Constants.MENU_STATUS_BACKGROUND_TASK) {
                     window.siyuan.menus.menu.remove();
                     return;
                 }
                 window.siyuan.menus.menu.remove();
-                window.siyuan.menus.menu.element.setAttribute("data-name", "statusBackgroundTask");
+                window.siyuan.menus.menu.element.setAttribute("data-name", Constants.MENU_STATUS_BACKGROUND_TASK);
                 JSON.parse(target.getAttribute("data-tasks")).forEach((item: { action: string }) => {
                     window.siyuan.menus.menu.append(new MenuItem({
                         type: "readonly",
-                        iconHTML: Constants.ZWSP,
+                        iconHTML: "",
                         label: item.action
                     }).element);
                 });
@@ -58,15 +58,16 @@ export const initStatus = (isWindow = false) => {
                 break;
             } else if (target.id === "statusHelp") {
                 if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
-                    window.siyuan.menus.menu.element.getAttribute("data-name") === "statusHelp") {
+                    window.siyuan.menus.menu.element.getAttribute("data-name") === Constants.MENU_STATUS_HELP) {
                     window.siyuan.menus.menu.remove();
                     return;
                 }
                 window.siyuan.menus.menu.remove();
-                window.siyuan.menus.menu.element.setAttribute("data-name", "statusHelp");
+                window.siyuan.menus.menu.element.setAttribute("data-name", Constants.MENU_STATUS_HELP);
                 window.siyuan.menus.menu.append(new MenuItem({
-                    label: window.siyuan.languages.help,
+                    label: window.siyuan.languages.userGuide,
                     icon: "iconHelp",
+                    ignore: isIPad() || window.siyuan.config.readonly,
                     click: () => {
                         mountHelp();
                     }
@@ -144,13 +145,13 @@ export const countSelectWord = (range: Range, rootID?: string) => {
         const selectText = range.toString();
         if (selectText) {
             fetchPost("/api/block/getContentWordCount", {"content": range.toString()}, (response) => {
-                renderStatusbarCounter(response.data);
+                renderStatusbarCounter(response.data.stat);
             });
             countRootId = "";
         } else if (rootID && rootID !== countRootId) {
             countRootId = rootID;
             fetchPost("/api/block/getTreeStat", {id: rootID}, (response) => {
-                renderStatusbarCounter(response.data);
+                renderStatusbarCounter(response.data.stat);
             });
         }
     }, Constants.TIMEOUT_COUNT);
@@ -162,6 +163,10 @@ export const countBlockWord = (ids: string[], rootID?: string, clearCache = fals
     if (document.getElementById("status").classList.contains("fn__none")) {
         return;
     }
+    if (getSelection().rangeCount > 0 && getSelection().getRangeAt(0).toString() && ids.length === 0) {
+        countSelectWord(getSelection().getRangeAt(0));
+        return;
+    }
     clearTimeout(countTimeout);
     countTimeout = window.setTimeout(() => {
         if (clearCache) {
@@ -169,13 +174,13 @@ export const countBlockWord = (ids: string[], rootID?: string, clearCache = fals
         }
         if (ids.length > 0) {
             fetchPost("/api/block/getBlocksWordCount", {ids}, (response) => {
-                renderStatusbarCounter(response.data);
+                renderStatusbarCounter(response.data.stat);
             });
             countRootId = "";
         } else if (rootID && rootID !== countRootId) {
             countRootId = rootID;
             fetchPost("/api/block/getTreeStat", {id: rootID}, (response) => {
-                renderStatusbarCounter(response.data);
+                renderStatusbarCounter(response.data.stat);
             });
         }
     }, Constants.TIMEOUT_COUNT);
@@ -193,9 +198,10 @@ export const renderStatusbarCounter = (stat: {
     wordCount: number,
     linkCount: number,
     imageCount: number,
-    refCount: number
+    refCount: number,
+    blockCount: number,
 }) => {
-    if(!stat) {
+    if (!stat) {
         return;
     }
     let html = `<span class="ft__on-surface">${window.siyuan.languages.runeCount}</span>&nbsp;${stat.runeCount}<span class="fn__space"></span>
@@ -208,6 +214,9 @@ export const renderStatusbarCounter = (stat: {
     }
     if (0 < stat.refCount) {
         html += `<span class="ft__on-surface">${window.siyuan.languages.refCount}</span>&nbsp;${stat.refCount}<span class="fn__space"></span>`;
+    }
+    if (0 < stat.blockCount) {
+        html += `<span class="ft__on-surface">${window.siyuan.languages.blockCount}</span>&nbsp;${stat.blockCount}<span class="fn__space"></span>`;
     }
     document.querySelector("#status .status__counter").innerHTML = html;
 };

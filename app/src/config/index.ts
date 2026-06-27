@@ -1,3 +1,6 @@
+/// #if MOBILE
+import {popMenu} from "../mobile/menu";
+/// #else
 import {editor} from "./editor";
 import {about} from "./about";
 import {appearance} from "./appearance";
@@ -13,9 +16,12 @@ import {query} from "./query";
 import {Dialog} from "../dialog";
 import {ai} from "./ai";
 import {flashcard} from "./flashcard";
+import {publish} from "./publish";
 import {App} from "../index";
-import {isHuawei} from "../protyle/util/compatibility";
+import {isHuawei, isInHarmony} from "../protyle/util/compatibility";
 import {Constants} from "../constants";
+import {focusByRange} from "../protyle/util/selection";
+/// #endif
 
 export const genItemPanel = (type: string, containerElement: Element, app: App) => {
     switch (type) {
@@ -37,7 +43,7 @@ export const genItemPanel = (type: string, containerElement: Element, app: App) 
         case "image":
             containerElement.innerHTML = image.genHTML();
             image.element = containerElement;
-            image.bindEvent();
+            image.bindEvent(app);
             break;
         case "export":
             containerElement.innerHTML = exportConfig.genHTML();
@@ -79,12 +85,20 @@ export const genItemPanel = (type: string, containerElement: Element, app: App) 
             query.element = containerElement;
             query.bindEvent();
             break;
+        case "publish":
+            containerElement.innerHTML = publish.genHTML();
+            publish.element = containerElement;
+            publish.bindEvent();
+            break;
         default:
             break;
     }
 };
 
 export const openSetting = (app: App) => {
+    /// #if MOBILE
+    popMenu();
+    /// #else
     const exitDialog = window.siyuan.dialogs.find((item) => {
         if (item.element.querySelector(".config__tab-container")) {
             item.destroy();
@@ -93,6 +107,10 @@ export const openSetting = (app: App) => {
     });
     if (exitDialog) {
         return exitDialog;
+    }
+    let range: Range;
+    if (getSelection().rangeCount > 0) {
+        range = getSelection().getRangeAt(0);
     }
     const dialog = new Dialog({
         content: `<div class="fn__flex-1 fn__flex config__panel" style="overflow: hidden;position: relative">
@@ -110,11 +128,12 @@ export const openSetting = (app: App) => {
     <li data-name="image" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.assets}</span></li>
     <li data-name="export" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconUpload"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.export}</span></li>
     <li data-name="appearance" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconTheme"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.appearance}</span></li>
-    <li data-name="bazaar" class="b3-list-item${isHuawei() ? " fn__none" : ""}"><svg class="b3-list-item__graphic"><use xlink:href="#iconBazaar"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.bazaar}</span></li>
+    <li data-name="bazaar" class="b3-list-item${isHuawei() || isInHarmony() ? " fn__none" : ""}"><svg class="b3-list-item__graphic"><use xlink:href="#iconBazaar"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.bazaar}</span></li>
     <li data-name="search" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconSearch"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.search}</span></li>
     <li data-name="keymap" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconKeymap"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.keymap}</span></li>
     <li data-name="account" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconAccount"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.account}</span></li>
     <li data-name="repos" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconCloud"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.cloud}</span></li>
+    <li data-name="publish" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconLanguage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.publish}</span></li>
     <li data-name="about" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconInfo"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.about}</span></li>
   </ul>
   <div class="config__tab-wrap">
@@ -131,12 +150,18 @@ export const openSetting = (app: App) => {
       <div class="config__tab-container fn__none" style="overflow: scroll" data-name="keymap"></div>
       <div class="config__tab-container config__tab-container--full fn__none" data-name="account"></div>
       <div class="config__tab-container fn__none" data-name="repos"></div>
+      <div class="config__tab-container fn__none" data-name="publish"></div>
       <div class="config__tab-container fn__none" data-name="about"></div>
       <div class="fn__hr--b"></div>
   </div>
 </div>`,
         width: "90vw",
         height: "90vh",
+        destroyCallback() {
+            if (range) {
+                focusByRange(range);
+            }
+        },
     });
     dialog.element.setAttribute("data-key", Constants.DIALOG_SETTING);
 
@@ -160,4 +185,5 @@ export const openSetting = (app: App) => {
     editor.element = dialog.element.querySelector('.config__tab-container[data-name="editor"]');
     editor.bindEvent();
     return dialog;
+    /// #endif
 };

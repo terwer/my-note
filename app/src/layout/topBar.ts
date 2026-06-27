@@ -1,5 +1,9 @@
 import {getWorkspaceName} from "../util/noRelyPCFunction";
-import {isHuawei, isInAndroid, isInIOS, setStorageVal, updateHotkeyTip} from "../protyle/util/compatibility";
+import {
+    isInMobileApp,
+    setStorageVal,
+    updateHotkeyTip
+} from "../protyle/util/compatibility";
 import {exitSiYuan, processSync} from "../dialog/processSystem";
 import {goBack, goForward} from "../util/backForward";
 import {syncGuide} from "../sync/syncGuide";
@@ -10,21 +14,21 @@ import {openSetting} from "../config";
 import {openSearch} from "../search/spread";
 import {App} from "../index";
 /// #if !BROWSER
-import {webFrame} from "electron";
+import {ipcRenderer, webFrame} from "electron";
 /// #endif
 import {Constants} from "../constants";
 import {isBrowser, isWindow} from "../util/functions";
-import {Menu} from "../plugin/Menu";
 import {fetchPost} from "../util/fetch";
 import {needSubscribe} from "../util/needSubscribe";
 import * as dayjs from "dayjs";
-import {commandPanel} from "../plugin/commandPanel";
 import {exportLayout} from "./util";
+import {commandPanel} from "../boot/globalEvent/command/panel";
+import {openTopBarMenu} from "../plugin/openTopBarMenu";
 
 export const initBar = (app: App) => {
     const toolbarElement = document.getElementById("toolbar");
     toolbarElement.innerHTML = `
-<div id="barWorkspace" aria-label="${window.siyuan.languages.mainMenu} ${updateHotkeyTip(window.siyuan.config.keymap.general.mainMenu.custom)}" class="ariaLabel toolbar__item toolbar__item--active">
+<div id="barWorkspace" class="ariaLabel toolbar__item toolbar__item--active" aria-label="${window.siyuan.languages.mainMenu} ${updateHotkeyTip(window.siyuan.config.keymap.general.mainMenu.custom)}">
     <span class="toolbar__text">${getWorkspaceName()}</span>
     <svg class="toolbar__svg"><use xlink:href="#iconDown"></use></svg>
 </div>
@@ -42,6 +46,9 @@ export const initBar = (app: App) => {
 <div id="barPlugins" class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages.plugin}">
     <svg><use xlink:href="#iconPlugin"></use></svg>
 </div>
+<div id="barCommand" class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages.commandPanel} ${updateHotkeyTip(window.siyuan.config.keymap.general.commandPanel.custom)}">
+    <svg><use xlink:href="#iconTerminal"></use></svg>
+</div>
 <div id="barSearch" class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages.globalSearch} ${updateHotkeyTip(window.siyuan.config.keymap.general.globalSearch.custom)}">
     <svg><use xlink:href="#iconSearch"></use></svg>
 </div>
@@ -51,7 +58,7 @@ export const initBar = (app: App) => {
 <div id="barMode" class="toolbar__item ariaLabel${window.siyuan.config.readonly ? " fn__none" : ""}" aria-label="${window.siyuan.languages.appearanceMode}">
     <svg><use xlink:href="#icon${window.siyuan.config.appearance.modeOS ? "Mode" : (window.siyuan.config.appearance.mode === 0 ? "Light" : "Dark")}"></use></svg>
 </div>
-<div id="barExit" class="toolbar__item ariaLabel${(isInIOS() || isInAndroid()) ? "" : " fn__none"}" aria-label="${window.siyuan.languages.safeQuit}">
+<div id="barExit" class="ft__error toolbar__item ariaLabel${isInMobileApp() ? "" : " fn__none"}" aria-label="${window.siyuan.languages.safeQuit}">
     <svg><use xlink:href="#iconQuit"></use></svg>
 </div>
 <div id="barMore" class="toolbar__item ariaLabel" aria-label="${window.siyuan.languages.more}">
@@ -72,12 +79,12 @@ export const initBar = (app: App) => {
                 break;
             } else if (targetId === "barMore") {
                 if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
-                    window.siyuan.menus.menu.element.getAttribute("data-name") === "barmore") {
+                    window.siyuan.menus.menu.element.getAttribute("data-name") === Constants.MENU_BAR_MORE) {
                     window.siyuan.menus.menu.remove();
                     return;
                 }
                 window.siyuan.menus.menu.remove();
-                window.siyuan.menus.menu.element.setAttribute("data-name", "barmore");
+                window.siyuan.menus.menu.element.setAttribute("data-name", Constants.MENU_BAR_MORE);
                 (target.getAttribute("data-hideids") || "").split(",").forEach((itemId) => {
                     const hideElement = toolbarElement.querySelector("#" + itemId);
                     const useElement = hideElement.querySelector("use");
@@ -92,7 +99,7 @@ export const initBar = (app: App) => {
                             }
                         }
                     };
-                    if (!useElement) {
+                    if (!useElement && hideElement.querySelector("svg")) {
                         const svgElement = hideElement.querySelector("svg").cloneNode(true) as HTMLElement;
                         svgElement.classList.add("b3-menu__icon");
                         menuOptions.iconHTML = svgElement.outerHTML;
@@ -116,21 +123,22 @@ export const initBar = (app: App) => {
                 event.stopPropagation();
                 break;
             } else if (targetId === "barExit") {
+                event.stopPropagation();
                 exportLayout({
                     errorExit: true,
                     cb: exitSiYuan,
                 });
-                event.stopPropagation();
                 break;
             } else if (targetId === "barMode") {
                 if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
-                    window.siyuan.menus.menu.element.getAttribute("data-name") === "barmode") {
+                    window.siyuan.menus.menu.element.getAttribute("data-name") === Constants.MENU_BAR_MODE) {
                     window.siyuan.menus.menu.remove();
                     return;
                 }
                 window.siyuan.menus.menu.remove();
-                window.siyuan.menus.menu.element.setAttribute("data-name", "barmode");
+                window.siyuan.menus.menu.element.setAttribute("data-name", Constants.MENU_BAR_MODE);
                 window.siyuan.menus.menu.append(new MenuItem({
+                    id: "themeLight",
                     label: window.siyuan.languages.themeLight,
                     icon: "iconLight",
                     current: window.siyuan.config.appearance.mode === 0 && !window.siyuan.config.appearance.modeOS,
@@ -139,6 +147,7 @@ export const initBar = (app: App) => {
                     }
                 }).element);
                 window.siyuan.menus.menu.append(new MenuItem({
+                    id: "themeDark",
                     label: window.siyuan.languages.themeDark,
                     current: window.siyuan.config.appearance.mode === 1 && !window.siyuan.config.appearance.modeOS,
                     icon: "iconDark",
@@ -147,6 +156,7 @@ export const initBar = (app: App) => {
                     }
                 }).element);
                 window.siyuan.menus.menu.append(new MenuItem({
+                    id: "themeOS",
                     label: window.siyuan.languages.themeOS,
                     current: window.siyuan.config.appearance.modeOS,
                     icon: "iconMode",
@@ -176,17 +186,21 @@ export const initBar = (app: App) => {
                 event.stopPropagation();
                 break;
             } else if (targetId === "barPlugins") {
-                openPlugin(app, target);
+                openTopBarMenu(app, target);
+                event.stopPropagation();
+                break;
+            } else if (targetId === "barCommand") {
+                commandPanel(app);
                 event.stopPropagation();
                 break;
             } else if (targetId === "barZoom") {
                 if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
-                    window.siyuan.menus.menu.element.getAttribute("data-name") === "barZoom") {
+                    window.siyuan.menus.menu.element.getAttribute("data-name") === Constants.MENU_BAR_ZOOM) {
                     window.siyuan.menus.menu.remove();
                     return;
                 }
                 window.siyuan.menus.menu.remove();
-                window.siyuan.menus.menu.element.setAttribute("data-name", "barZoom");
+                window.siyuan.menus.menu.element.setAttribute("data-name", Constants.MENU_BAR_ZOOM);
                 window.siyuan.menus.menu.append(new MenuItem({
                     label: window.siyuan.languages.zoomIn,
                     icon: "iconZoomIn",
@@ -255,131 +269,43 @@ export const initBar = (app: App) => {
 
 export const setZoom = (type: "zoomIn" | "zoomOut" | "restore") => {
     /// #if !BROWSER
-    const isTabWindow = isWindow();
     let zoom = 1;
     if (type === "zoomIn") {
         Constants.SIZE_ZOOM.find((item, index) => {
-            if (item === window.siyuan.storage[Constants.LOCAL_ZOOM]) {
-                zoom = Constants.SIZE_ZOOM[index + 1] || 3;
+            if (item.zoom === window.siyuan.storage[Constants.LOCAL_ZOOM]) {
+                zoom = Constants.SIZE_ZOOM[index + 1]?.zoom || 3;
                 return true;
             }
         });
     } else if (type === "zoomOut") {
         Constants.SIZE_ZOOM.find((item, index) => {
-            if (item === window.siyuan.storage[Constants.LOCAL_ZOOM]) {
-                zoom = Constants.SIZE_ZOOM[index - 1] || 0.25;
+            if (item.zoom === window.siyuan.storage[Constants.LOCAL_ZOOM]) {
+                zoom = Constants.SIZE_ZOOM[index - 1]?.zoom || 0.67;
                 return true;
             }
         });
     }
 
     webFrame.setZoomFactor(zoom);
+    ipcRenderer.send(Constants.SIYUAN_CMD, {
+        cmd: "setTrafficLightPosition",
+        zoom,
+        position: Constants.SIZE_ZOOM.find((item) => item.zoom === zoom).position
+    });
     window.siyuan.storage[Constants.LOCAL_ZOOM] = zoom;
-    if (!isTabWindow) {
-        setStorageVal(Constants.LOCAL_ZOOM, zoom);
-    }
-    const barZoomElement = document.getElementById("barZoom");
-    if (zoom === 1) {
-        barZoomElement.classList.add("fn__none");
-    } else {
-        if (zoom > 1) {
-            barZoomElement.querySelector("use").setAttribute("xlink:href", "#iconZoomIn");
+    setStorageVal(Constants.LOCAL_ZOOM, zoom);
+    if (!isWindow()) {
+        const barZoomElement = document.getElementById("barZoom");
+        if (zoom === 1) {
+            barZoomElement.classList.add("fn__none");
         } else {
-            barZoomElement.querySelector("use").setAttribute("xlink:href", "#iconZoomOut");
+            if (zoom > 1) {
+                barZoomElement.querySelector("use").setAttribute("xlink:href", "#iconZoomIn");
+            } else {
+                barZoomElement.querySelector("use").setAttribute("xlink:href", "#iconZoomOut");
+            }
+            barZoomElement.classList.remove("fn__none");
         }
-        barZoomElement.classList.remove("fn__none");
     }
     /// #endif
-};
-
-const openPlugin = (app: App, target: Element) => {
-    const menu = new Menu("topBarPlugin");
-    if (!isHuawei()) {
-        menu.addItem({
-            icon: "iconSettings",
-            label: window.siyuan.languages.manage,
-            click() {
-                openSetting(app).element.querySelector('.b3-tab-bar [data-name="bazaar"]').dispatchEvent(new CustomEvent("click"));
-            }
-        });
-    }
-    menu.addItem({
-        icon: "iconLayoutBottom",
-        accelerator: window.siyuan.config.keymap.general.commandPanel.custom,
-        label: window.siyuan.languages.commandPanel,
-        click() {
-            commandPanel(app);
-        }
-    });
-    menu.addSeparator();
-    let hasPlugin = false;
-    app.plugins.forEach((plugin) => {
-        // @ts-ignore
-        const hasSetting = plugin.setting || plugin.__proto__.hasOwnProperty("openSetting");
-        let hasTopBar = false;
-        plugin.topBarIcons.forEach(item => {
-            const hasUnpin = window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN].includes(item.id);
-            const submenu = [{
-                icon: hasUnpin ? "iconPin" : "iconUnpin",
-                label: hasUnpin ? window.siyuan.languages.pin : window.siyuan.languages.unpin,
-                click() {
-                    if (hasUnpin) {
-                        window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN].splice(window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN].indexOf(item.id), 1);
-                        item.classList.remove("fn__none");
-                    } else {
-                        window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN].push(item.id);
-                        window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN] = Array.from(new Set(window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN]));
-                        item.classList.add("fn__none");
-                    }
-                    setStorageVal(Constants.LOCAL_PLUGINTOPUNPIN, window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN]);
-                }
-            }];
-            if (hasSetting) {
-                submenu.push({
-                    icon: "iconSettings",
-                    label: window.siyuan.languages.config,
-                    click() {
-                        plugin.openSetting();
-                    },
-                });
-            }
-            const menuOption: IMenu = {
-                icon: "iconInfo",
-                label: item.getAttribute("aria-label"),
-                click() {
-                    item.dispatchEvent(new CustomEvent("click"));
-                },
-                type: "submenu",
-                submenu
-            };
-            if (item.querySelector("use")) {
-                menuOption.icon = item.querySelector("use").getAttribute("xlink:href").replace("#", "");
-            } else {
-                const svgElement = item.querySelector("svg").cloneNode(true) as HTMLElement;
-                svgElement.classList.add("b3-menu__icon");
-                menuOption.iconHTML = svgElement.outerHTML;
-            }
-            menu.addItem(menuOption);
-            hasPlugin = true;
-            hasTopBar = true;
-        });
-        if (!hasTopBar && hasSetting) {
-            hasPlugin = true;
-            menu.addItem({
-                icon: "iconSettings",
-                label: plugin.displayName,
-                click() {
-                    plugin.openSetting();
-                }
-            });
-        }
-    });
-    if (!hasPlugin) {
-        window.siyuan.menus.menu.element.querySelector(".b3-menu__separator").remove();
-    }
-    let rect = target.getBoundingClientRect();
-    if (rect.width === 0) {
-        rect = document.querySelector("#barMore").getBoundingClientRect();
-    }
-    menu.open({x: rect.right, y: rect.bottom, isLeft: true});
 };

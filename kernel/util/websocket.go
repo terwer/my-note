@@ -17,23 +17,69 @@
 package util
 
 import (
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/88250/gulu"
 	"github.com/olahol/melody"
 	"github.com/siyuan-note/eventbus"
+	"github.com/siyuan-note/logging"
 )
 
 var (
-	WebSocketServer = melody.New()
+	WebSocketServer *melody.Melody
 
 	// map[string]map[string]*melody.Session{}
-	sessions = sync.Map{} // {appId, {sessionId, session}}
+	sessions     = sync.Map{} // {appId, {sessionId, session}}
+	authSessions = sync.Map{}
 )
 
+func BroadcastByTypeAndExcludeApp(excludeApp, typ, cmd string, code int, msg string, data any) {
+	sessions.Range(func(key, value any) bool {
+		appSessions := value.(*sync.Map)
+		if key == excludeApp {
+			return true
+		}
+
+		appSessions.Range(func(key, value any) bool {
+			session := value.(*melody.Session)
+			if t, ok := session.Get("type"); ok && typ == t {
+				event := NewResult()
+				event.Cmd = cmd
+				event.Code = code
+				event.Msg = msg
+				event.Data = data
+				session.Write(event.Bytes())
+			}
+			return true
+		})
+		return true
+	})
+}
+
+func BroadcastByTypeAndApp(typ, app, cmd string, code int, msg string, data any) {
+	appSessions, ok := sessions.Load(app)
+	if !ok {
+		return
+	}
+
+	appSessions.(*sync.Map).Range(func(key, value any) bool {
+		session := value.(*melody.Session)
+		if t, ok := session.Get("type"); ok && typ == t {
+			event := NewResult()
+			event.Cmd = cmd
+			event.Code = code
+			event.Msg = msg
+			event.Data = data
+			session.Write(event.Bytes())
+		}
+		return true
+	})
+}
+
 // BroadcastByType 广播所有实例上 typ 类型的会话。
-func BroadcastByType(typ, cmd string, code int, msg string, data interface{}) {
+func BroadcastByType(typ, cmd string, code int, msg string, data any) {
 	typeSessions := SessionsByType(typ)
 	for _, sess := range typeSessions {
 		event := NewResult()
@@ -48,9 +94,9 @@ func BroadcastByType(typ, cmd string, code int, msg string, data interface{}) {
 func SessionsByType(typ string) (ret []*melody.Session) {
 	ret = []*melody.Session{}
 
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			if t, ok := session.Get("type"); ok && typ == t {
 				ret = append(ret, session)
@@ -63,20 +109,54 @@ func SessionsByType(typ string) (ret []*melody.Session) {
 }
 
 func AddPushChan(session *melody.Session) {
-	appID := session.Request.URL.Query().Get("app")
+	appID := strings.TrimSpace(session.Request.URL.Query().Get("app"))
+	if "" == appID {
+		logging.LogErrorf("app id is required")
+		return
+	}
 	session.Set("app", appID)
-	id := session.Request.URL.Query().Get("id")
+
+	id := strings.TrimSpace(session.Request.URL.Query().Get("id"))
+	if "" == id {
+		logging.LogErrorf("id is required")
+		return
+	}
 	session.Set("id", id)
-	typ := session.Request.URL.Query().Get("type")
+
+	typ := strings.TrimSpace(session.Request.URL.Query().Get("type"))
+	if "" == typ {
+		logging.LogErrorf("type is required")
+		return
+	}
 	session.Set("type", typ)
 
-	if appSessions, ok := sessions.Load(appID); !ok {
-		appSess := &sync.Map{}
-		appSess.Store(id, session)
-		sessions.Store(appID, appSess)
+	if IsAuthSession(session) {
+		if appSessions, ok := authSessions.Load(appID); !ok {
+			appSess := &sync.Map{}
+			appSess.Store(id, session)
+			authSessions.Store(appID, appSess)
+		} else {
+			(appSessions.(*sync.Map)).Store(id, session)
+		}
 	} else {
-		(appSessions.(*sync.Map)).Store(id, session)
+		if appSessions, ok := sessions.Load(appID); !ok {
+			appSess := &sync.Map{}
+			appSess.Store(id, session)
+			sessions.Store(appID, appSess)
+		} else {
+			(appSessions.(*sync.Map)).Store(id, session)
+		}
 	}
+}
+
+func IsAuthSession(session *melody.Session) bool {
+	id, _ := session.Get("id")
+	if "auth" == id {
+		return true
+	}
+
+	id = session.Request.URL.Query().Get("id")
+	return "auth" == id
 }
 
 func RemovePushChan(session *melody.Session) {
@@ -87,18 +167,29 @@ func RemovePushChan(session *melody.Session) {
 		return
 	}
 
-	appSess, _ := sessions.Load(app)
-	if nil != appSess {
-		appSessions := appSess.(*sync.Map)
-		appSessions.Delete(id)
-		if 1 > lenOfSyncMap(appSessions) {
-			sessions.Delete(app)
+	if IsAuthSession(session) {
+		appSess, _ := authSessions.Load(app)
+		if nil != appSess {
+			appSessions := appSess.(*sync.Map)
+			appSessions.Delete(id)
+			if 1 > lenOfSyncMap(appSessions) {
+				authSessions.Delete(app)
+			}
+		}
+	} else {
+		appSess, _ := sessions.Load(app)
+		if nil != appSess {
+			appSessions := appSess.(*sync.Map)
+			appSessions.Delete(id)
+			if 1 > lenOfSyncMap(appSessions) {
+				sessions.Delete(app)
+			}
 		}
 	}
 }
 
 func lenOfSyncMap(m *sync.Map) (ret int) {
-	m.Range(func(key, value interface{}) bool {
+	m.Range(func(key, value any) bool {
 		ret++
 		return true
 	})
@@ -106,9 +197,9 @@ func lenOfSyncMap(m *sync.Map) (ret int) {
 }
 
 func ClosePushChan(id string) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			if sid, _ := session.Get("id"); sid == id {
 				session.CloseWithMsg([]byte("  close websocket"))
@@ -121,31 +212,40 @@ func ClosePushChan(id string) {
 }
 
 func ReloadUIResetScroll() {
-	BroadcastByType("main", "reloadui", 0, "", map[string]interface{}{"resetScroll": true})
+	BroadcastByType("main", "reloadui", 0, "", map[string]any{"resetScroll": true})
 }
 
 func ReloadUI() {
 	BroadcastByType("main", "reloadui", 0, "", nil)
 }
 
-func PushTxErr(msg string, code int, data interface{}) {
+func PushTxErr(msg string, code int, data any) {
 	BroadcastByType("main", "txerr", code, msg, data)
 }
 
 func PushUpdateMsg(msgId string, msg string, timeout int) {
-	BroadcastByType("main", "msg", 0, msg, map[string]interface{}{"id": msgId, "closeTimeout": timeout})
-	return
+	BroadcastByType("main", "msg", 0, msg, map[string]any{"id": msgId, "closeTimeout": timeout})
 }
 
 func PushMsg(msg string, timeout int) (msgId string) {
 	msgId = gulu.Rand.String(7)
-	BroadcastByType("main", "msg", 0, msg, map[string]interface{}{"id": msgId, "closeTimeout": timeout})
+	BroadcastByType("main", "msg", 0, msg, map[string]any{"id": msgId, "closeTimeout": timeout})
+	return
+}
+
+func PushMsgWithApp(app, msg string, timeout int) (msgId string) {
+	msgId = gulu.Rand.String(7)
+	if "" == app {
+		BroadcastByType("main", "msg", 0, msg, map[string]any{"id": msgId, "closeTimeout": timeout})
+		return
+	}
+	BroadcastByTypeAndApp("main", app, "msg", 0, msg, map[string]any{"id": msgId, "closeTimeout": timeout})
 	return
 }
 
 func PushErrMsg(msg string, timeout int) (msgId string) {
 	msgId = gulu.Rand.String(7)
-	BroadcastByType("main", "msg", -1, msg, map[string]interface{}{"id": msgId, "closeTimeout": timeout})
+	BroadcastByType("main", "msg", -1, msg, map[string]any{"id": msgId, "closeTimeout": timeout})
 	return
 }
 
@@ -154,8 +254,16 @@ func PushStatusBar(msg string) {
 	BroadcastByType("main", "statusbar", 0, msg, nil)
 }
 
-func PushBackgroundTask(data map[string]interface{}) {
+func PushBackgroundTask(data map[string]any) {
 	BroadcastByType("main", "backgroundtask", 0, "", data)
+}
+
+func PushReloadFiletree() {
+	BroadcastByType("filetree", "reloadFiletree", 0, "", nil)
+}
+
+func PushReloadTag() {
+	BroadcastByType("main", "reloadTag", 0, "", nil)
 }
 
 type BlockStatResult struct {
@@ -164,9 +272,10 @@ type BlockStatResult struct {
 	LinkCount  int `json:"linkCount"`
 	ImageCount int `json:"imageCount"`
 	RefCount   int `json:"refCount"`
+	BlockCount int `json:"blockCount"`
 }
 
-func ContextPushMsg(context map[string]interface{}, msg string) {
+func ContextPushMsg(context map[string]any, msg string) {
 	switch context[eventbus.CtxPushMsg].(int) {
 	case eventbus.CtxPushMsgToNone:
 		break
@@ -200,7 +309,7 @@ func PushEndlessProgress(msg string) {
 }
 
 func PushProgress(code, current, total int, msg string) {
-	BroadcastByType("main", "progress", code, msg, map[string]interface{}{
+	BroadcastByType("main", "progress", code, msg, map[string]any{
 		"current": current,
 		"total":   total,
 	})
@@ -208,7 +317,7 @@ func PushProgress(code, current, total int, msg string) {
 
 // PushClearMsg 会清空指定消息。
 func PushClearMsg(msgId string) {
-	BroadcastByType("main", "cmsg", 0, "", map[string]interface{}{"id": msgId})
+	BroadcastByType("main", "cmsg", 0, "", map[string]any{"id": msgId})
 }
 
 // PushClearProgress 取消进度遮罩。
@@ -216,17 +325,55 @@ func PushClearProgress() {
 	BroadcastByType("main", "cprogress", 0, "", nil)
 }
 
-func PushProtyleReload(rootID string) {
+func PushUpdateIDs(ids map[string]string) {
+	BroadcastByType("main", "updateids", 0, "", ids)
+}
+
+func PushReloadDoc(rootID string) {
+	BroadcastByType("main", "reloaddoc", 0, "", rootID)
+}
+
+func PushSaveDoc(rootID, typ string, sources any) {
+	evt := NewCmdResult("savedoc", 0, PushModeBroadcast)
+	evt.Data = map[string]any{
+		"rootID":  rootID,
+		"type":    typ,
+		"sources": sources,
+	}
+	PushEvent(evt)
+}
+
+func PushReloadDocInfo(docInfo map[string]any) {
+	BroadcastByType("filetree", "reloadDocInfo", 0, "", docInfo)
+}
+
+func PushReloadProtyle(rootID string) {
 	BroadcastByType("protyle", "reload", 0, "", rootID)
+}
+
+func PushSetRefDynamicText(rootID, blockID, defBlockID, refText string) {
+	BroadcastByType("main", "setRefDynamicText", 0, "", map[string]any{"rootID": rootID, "blockID": blockID, "defBlockID": defBlockID, "refText": refText})
+}
+
+func PushSetDefRefCount(rootID, blockID string, defIDs []string, refCount, rootRefCount int) {
+	BroadcastByType("main", "setDefRefCount", 0, "", map[string]any{"rootID": rootID, "blockID": blockID, "refCount": refCount, "rootRefCount": rootRefCount, "defIDs": defIDs})
+}
+
+func PushLocalShorthandCount(count int) {
+	BroadcastByType("main", "setLocalShorthandCount", 0, "", map[string]any{"count": count})
 }
 
 func PushProtyleLoading(rootID, msg string) {
 	BroadcastByType("protyle", "addLoading", 0, msg, rootID)
 }
 
+func PushReloadEmojiConf() {
+	BroadcastByType("main", "reloadEmojiConf", 0, "", nil)
+}
+
 func PushDownloadProgress(id string, percent float32) {
 	evt := NewCmdResult("downloadProgress", 0, PushModeBroadcast)
-	evt.Data = map[string]interface{}{
+	evt.Data = map[string]any{
 		"id":      id,
 		"percent": percent,
 	}
@@ -253,13 +400,13 @@ func PushEvent(event *Result) {
 }
 
 func single(msg []byte, appId, sid string) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
 		if key != appId {
 			return true
 		}
 
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			if id, _ := session.Get("id"); id == sid {
 				session.Write(msg)
@@ -271,9 +418,9 @@ func single(msg []byte, appId, sid string) {
 }
 
 func Broadcast(msg []byte) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			session.Write(msg)
 			return true
@@ -283,9 +430,9 @@ func Broadcast(msg []byte) {
 }
 
 func broadcastOtherApps(msg []byte, excludeApp string) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			if app, _ := session.Get("app"); app == excludeApp {
 				return true
@@ -298,9 +445,9 @@ func broadcastOtherApps(msg []byte, excludeApp string) {
 }
 
 func broadcastOtherAppMains(msg []byte, excludeApp string) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			if app, _ := session.Get("app"); app == excludeApp {
 				return true
@@ -318,9 +465,9 @@ func broadcastOtherAppMains(msg []byte, excludeApp string) {
 }
 
 func broadcastApp(msg []byte, app string) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			if sessionApp, _ := session.Get("app"); sessionApp != app {
 				return true
@@ -333,9 +480,9 @@ func broadcastApp(msg []byte, app string) {
 }
 
 func broadcastOthers(msg []byte, excludeSID string) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
 		appSessions := value.(*sync.Map)
-		appSessions.Range(func(key, value interface{}) bool {
+		appSessions.Range(func(key, value any) bool {
 			session := value.(*melody.Session)
 			if id, _ := session.Get("id"); id == excludeSID {
 				return true
@@ -348,9 +495,56 @@ func broadcastOthers(msg []byte, excludeSID string) {
 }
 
 func CountSessions() (ret int) {
-	sessions.Range(func(key, value interface{}) bool {
+	sessions.Range(func(key, value any) bool {
+		ret++
+		return true
+	})
+	authSessions.Range(func(key, value any) bool {
 		ret++
 		return true
 	})
 	return
+}
+
+// ClosePublishServiceSessions 关闭所有发布服务的 WebSocket 连接
+func ClosePublishServiceSessions() {
+	if WebSocketServer == nil {
+		return
+	}
+
+	// 收集所有发布服务的会话
+	var publishSessions []*melody.Session
+	sessions.Range(func(key, value any) bool {
+		appSessions := value.(*sync.Map)
+		appSessions.Range(func(key, value any) bool {
+			session := value.(*melody.Session)
+			if isPublish, ok := session.Get("isPublish"); ok && isPublish == true {
+				publishSessions = append(publishSessions, session)
+			}
+			return true
+		})
+		return true
+	})
+
+	// 发送消息通知客户端关闭页面
+	for _, session := range publishSessions {
+		event := NewResult()
+		event.Cmd = "closepublishpage"
+		event.Code = 0
+		event.Msg = "SiYuan publish service closed"
+		event.Data = map[string]any{
+			"reason": "publish service closed",
+		}
+		session.Write(event.Bytes())
+	}
+
+	// 等待一小段时间让消息发送完成、客户端刷新页面之后显示消息
+	time.Sleep(500 * time.Millisecond)
+
+	// 关闭所有发布服务的 WebSocket 连接
+	for _, session := range publishSessions {
+		// 使用 "close websocket" 作为关闭消息，客户端检测到后会停止重连
+		session.CloseWithMsg([]byte("  close websocket: publish service closed"))
+		RemovePushChan(session)
+	}
 }

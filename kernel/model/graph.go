@@ -18,7 +18,6 @@ package model
 
 import (
 	"bytes"
-	"github.com/siyuan-note/siyuan/kernel/util"
 	"math"
 	"strings"
 	"unicode/utf8"
@@ -30,6 +29,7 @@ import (
 	"github.com/siyuan-note/logging"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
+	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 type GraphNode struct {
@@ -63,8 +63,8 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 	nodes = []*GraphNode{}
 	links = []*GraphLink{}
 
-	tree, err := loadTreeByBlockID(id)
-	if nil != err {
+	tree, err := LoadTreeByBlockID(id)
+	if err != nil {
 		return
 	}
 	node := treenode.GetNodeInTree(tree, id)
@@ -84,10 +84,10 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 	var sqlBlocks []*sql.Block
 	var rootID string
 	if ast.NodeDocument == node.Type {
-		sqlBlocks = sql.GetAllChildBlocks([]string{block.ID}, stmt)
+		sqlBlocks = sql.GetAllChildBlocks([]string{block.ID}, stmt, Conf.Graph.MaxBlocks)
 		rootID = block.ID
 	} else {
-		sqlBlocks = sql.GetChildBlocks(block.ID, stmt)
+		sqlBlocks = sql.GetChildBlocks(block.ID, stmt, Conf.Graph.MaxBlocks)
 	}
 	blocks := fromSQLBlocks(&sqlBlocks, "", 0)
 	if "" != rootID {
@@ -126,17 +126,17 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 				refBlocks := fromSQLBlocks(&sqlRefBs, "", 0)
 
 				if 0 < len(dailyNotesPaths) {
-					filterDailyNote := false
+					isDailyNote := false
 					var tmp []*Block
 					for _, refBlock := range refBlocks {
 						for _, dailyNotePath := range dailyNotesPaths {
 							if strings.HasPrefix(refBlock.HPath, dailyNotePath) {
-								filterDailyNote = true
+								isDailyNote = true
 								break
 							}
 						}
 
-						if !filterDailyNote {
+						if !isDailyNote {
 							tmp = append(tmp, refBlock)
 						}
 					}
@@ -149,6 +149,7 @@ func BuildTreeGraph(id, query string) (boxID string, nodes []*GraphNode, links [
 		}
 	}
 
+	blocks = filterDailyNote(blocks, true)
 	genTreeNodes(blocks, &nodes, &links, true)
 	growTreeGraph(&forwardlinks, &backlinks, &nodes)
 	blocks = append(blocks, forwardlinks...)
@@ -185,8 +186,9 @@ func BuildGraph(query string) (boxID string, nodes []*GraphNode, links []*GraphL
 	}
 	rootIDs = gulu.Str.RemoveDuplicatedElem(rootIDs)
 
-	sqlBlocks := sql.GetAllChildBlocks(rootIDs, stmt)
+	sqlBlocks := sql.GetAllChildBlocks(rootIDs, stmt, Conf.Graph.MaxBlocks)
 	treeBlocks := fromSQLBlocks(&sqlBlocks, "", 0)
+	treeBlocks = filterDailyNote(treeBlocks, false)
 	genTreeNodes(treeBlocks, &nodes, &links, false)
 	blocks = append(blocks, treeBlocks...)
 
@@ -512,9 +514,6 @@ func nodeContentByBlock(block *Block) (ret string) {
 	if ret = block.Name; "" != ret {
 		return
 	}
-	if ret = block.Memo; "" != ret {
-		return
-	}
 	ret = block.Content
 	if maxLen := 48; maxLen < utf8.RuneCountInString(ret) {
 		ret = gulu.Str.SubStr(ret, maxLen) + "..."
@@ -597,8 +596,44 @@ func graphTypeFilter(local bool) string {
 		inList = append(inList, "'s'")
 	}
 
+	callout := Conf.Graph.Local.Callout
+	if !local {
+		callout = Conf.Graph.Global.Callout
+	}
+	if callout {
+		inList = append(inList, "'callout'")
+	}
+
 	inList = append(inList, "'d'")
 	return " AND ref.type IN (" + strings.Join(inList, ",") + ")"
+}
+
+func filterDailyNote(blocks []*Block, local bool) (ret []*Block) {
+	// Graph dailynote filtering not working https://github.com/siyuan-note/siyuan/issues/16463
+
+	dailyNote := Conf.Graph.Local.DailyNote
+	if !local {
+		dailyNote = Conf.Graph.Global.DailyNote
+	}
+
+	if dailyNote {
+		ret = blocks
+		return
+	}
+
+	for _, block := range blocks {
+		isDailyNote := false
+		for k := range block.IAL {
+			isDailyNote = strings.HasPrefix(k, DailyNoteAttrPrefix)
+			if isDailyNote {
+				break
+			}
+		}
+		if !isDailyNote {
+			ret = append(ret, block)
+		}
+	}
+	return
 }
 
 func graphDailyNoteFilter(local bool) string {

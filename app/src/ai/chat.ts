@@ -5,7 +5,7 @@ import {fillContent} from "./actions";
 
 export const AIChat = (protyle: IProtyle, element: Element) => {
     const dialog = new Dialog({
-        title: "AI Chat",
+        title: "✨ " + window.siyuan.languages.aiWriting,
         content: `<div class="b3-dialog__content"><textarea class="b3-text-field fn__block"></textarea></div>
 <div class="b3-dialog__action">
     <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
@@ -23,15 +23,19 @@ export const AIChat = (protyle: IProtyle, element: Element) => {
         dialog.destroy();
     });
     btnsElement[1].addEventListener("click", () => {
+        let inputValue = inputElement.value;
         fetchPost("/api/ai/chatGPT", {
-            msg: inputElement.value,
+            msg: inputValue,
         }, (response) => {
             dialog.destroy();
             let respContent = "";
             if (response.data && "" !== response.data) {
                 respContent = "\n\n" + response.data;
             }
-            fillContent(protyle, `${inputElement.value}${respContent}`, [element]);
+            if (inputValue === "Clear context") {
+                inputValue = "";
+            }
+            fillContent(protyle, `${inputValue}${respContent}`, [element]);
         });
     });
 };

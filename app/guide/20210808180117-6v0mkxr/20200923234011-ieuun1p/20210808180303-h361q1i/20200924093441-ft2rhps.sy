@@ -1,6 +1,6 @@
 {
 	"ID": "20200924093441-ft2rhps",
-	"Spec": "1",
+	"Spec": "2",
 	"Type": "NodeDocument",
 	"Properties": {
 		"icon": "1f4f0",
@@ -8,7 +8,7 @@
 		"title": "Formatting elements",
 		"title-img": "background-color:#269;background-image: linear-gradient(white 2px, transparent 2px),linear-gradient(90deg, white 2px, transparent 2px),linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px);background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;background-position:-2px -2px, -2px -2px, -1px -1px, -1px -1px;",
 		"type": "doc",
-		"updated": "20230820185102"
+		"updated": "20251211094305"
 	},
 	"Children": [
 		{
@@ -17,7 +17,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210104091509-sg4pt12",
-				"updated": "20210604224332"
+				"updated": "20240702222031"
 			},
 			"Children": [
 				{
@@ -32,7 +32,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20210104091509-8csaq4j",
-				"updated": "20220918174924"
+				"updated": "20240702222031"
 			},
 			"Children": [
 				{
@@ -44,7 +44,7 @@
 					},
 					"Properties": {
 						"id": "20210604224351-furcz4d",
-						"updated": "20211205000335"
+						"updated": "20240416114218"
 					},
 					"Children": [
 						{
@@ -52,7 +52,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20210604224351-arkd1t6",
-								"updated": "20211205000335"
+								"updated": "20240416114218"
 							},
 							"Children": [
 								{
@@ -60,7 +60,7 @@
 									"TextMarkType": "block-ref",
 									"TextMarkBlockRefID": "20200923234011-ieuun1p",
 									"TextMarkBlockRefSubtype": "s",
-									"TextMarkTextContent": "Please Start Here"
+									"TextMarkTextContent": "Block Ref"
 								}
 							]
 						}
@@ -75,7 +75,7 @@
 					},
 					"Properties": {
 						"id": "20210206215048-zg5vnou",
-						"updated": "20220115193512"
+						"updated": "20240506230853"
 					},
 					"Children": [
 						{
@@ -83,13 +83,13 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20210206215048-elufsn1",
-								"updated": "20220115193512"
+								"updated": "20240506230853"
 							},
 							"Children": [
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "a",
-									"TextMarkAHref": "https://ld246.com",
+									"TextMarkAHref": "https://liuyun.io",
 									"TextMarkTextContent": "Hyperlink"
 								}
 							]
@@ -105,7 +105,7 @@
 					},
 					"Properties": {
 						"id": "20220916200111-8pnrqr2",
-						"updated": "20220916200115"
+						"updated": "20240702222031"
 					},
 					"Children": [
 						{
@@ -140,15 +140,17 @@
 							"ID": "20220916200115-rstez65",
 							"Type": "NodeParagraph",
 							"Properties": {
-								"id": "20220916200115-rstez65"
+								"id": "20220916200115-rstez65",
+								"updated": "20240702222031"
 							},
 							"Children": [
 								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
 									"Type": "NodeImage",
 									"Data": "span",
-									"Properties": {
-										"style": "display: block;"
-									},
 									"Children": [
 										{
 											"Type": "NodeBang"
@@ -173,14 +175,6 @@
 											"Type": "NodeCloseParen"
 										}
 									]
-								},
-								{
-									"Type": "NodeKramdownSpanIAL",
-									"Data": "{: style=\"display: block;\"}"
-								},
-								{
-									"Type": "NodeText",
-									"Data": "\n"
 								}
 							]
 						}
@@ -499,8 +493,7 @@
 									"TextMarkInlineMathContent": "a^2 + b^2 = \\color{red}c^2"
 								},
 								{
-									"Type": "NodeText",
-									"Data": "\n"
+									"Type": "NodeText"
 								}
 							]
 						}
@@ -1827,7 +1820,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210604230145-zsjeri5",
-				"updated": "20210604230152"
+				"updated": "20251209212851"
 			},
 			"Children": [
 				{
@@ -1841,7 +1834,7 @@
 			"Type": "NodeBlockquote",
 			"Properties": {
 				"id": "20210604230152-vpxtzjj",
-				"updated": "20210604230216"
+				"updated": "20251209212850"
 			},
 			"Children": [
 				{
@@ -1859,6 +1852,156 @@
 						{
 							"Type": "NodeText",
 							"Data": "Note that it is not a content block ref, but a block quote (Blockquote)."
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251209212851-yo274kb",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20251209212851-yo274kb",
+				"updated": "20251211094305"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Callout block"
+				}
+			]
+		},
+		{
+			"ID": "20251211094305-py67twd",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211094305-py67twd",
+				"updated": "20251211094305"
+			},
+			"CalloutType": "NOTE",
+			"CalloutTitle": "Note",
+			"CalloutIcon": "✏️",
+			"Children": [
+				{
+					"ID": "20251211094305-ow2t21o",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211094305-ow2t21o",
+						"updated": "20251211094305"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "Highlights information that users should take into account, even when skimming."
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211094305-7j529td",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211094305-7j529td",
+				"updated": "20251211094305"
+			},
+			"CalloutType": "TIP",
+			"CalloutTitle": "Tip",
+			"CalloutIcon": "💡",
+			"Children": [
+				{
+					"ID": "20251211094305-49y1j3r",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211094305-49y1j3r",
+						"updated": "20251211094305"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "Optional information to help a user be more successful."
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211094305-6tapwrt",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211094305-6tapwrt",
+				"updated": "20251211094305"
+			},
+			"CalloutType": "IMPORTANT",
+			"CalloutTitle": "Important",
+			"CalloutIcon": "❗",
+			"Children": [
+				{
+					"ID": "20251211094305-pmwapsh",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211094305-pmwapsh",
+						"updated": "20251211094305"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "Crucial information necessary for users to succeed."
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211094305-kq893ph",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211094305-kq893ph",
+				"updated": "20251211094305"
+			},
+			"CalloutType": "WARNING",
+			"CalloutTitle": "Warning",
+			"CalloutIcon": "⚠️",
+			"Children": [
+				{
+					"ID": "20251211094305-2622twh",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211094305-2622twh",
+						"updated": "20251211094305"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "Critical content demanding immediate user attention due to potential risks."
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20251211094305-bmbbwkp",
+			"Type": "NodeCallout",
+			"Properties": {
+				"id": "20251211094305-bmbbwkp",
+				"updated": "20251211094305"
+			},
+			"CalloutType": "CAUTION",
+			"CalloutTitle": "Caution",
+			"CalloutIcon": "🚨",
+			"Children": [
+				{
+					"ID": "20251211094305-tmokbr0",
+					"Type": "NodeParagraph",
+					"Properties": {
+						"id": "20251211094305-tmokbr0",
+						"updated": "20251211094305"
+					},
+					"Children": [
+						{
+							"Type": "NodeText",
+							"Data": "Negative potential consequences of an action."
 						}
 					]
 				}
@@ -2289,93 +2432,23 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220312122714-jgaetrv",
-				"updated": "20220828102557"
+				"updated": "20240427231204"
 			},
 			"Children": [
 				{
+					"Type": "NodeText",
+					"Data": "Please refer to "
+				},
+				{
 					"Type": "NodeTextMark",
-					"TextMarkType": "tag",
-					"TextMarkTextContent": "Note"
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20240427231112-lcwev4m",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "HTML Block Notes"
 				},
 				{
 					"Type": "NodeText",
-					"Data": ": "
-				}
-			]
-		},
-		{
-			"ID": "20220828102558-h9c9bwe",
-			"Type": "NodeList",
-			"ListData": {},
-			"Properties": {
-				"id": "20220828102558-h9c9bwe",
-				"updated": "20220828102558"
-			},
-			"Children": [
-				{
-					"ID": "20220828102558-8ibvw54",
-					"Type": "NodeListItem",
-					"ListData": {
-						"BulletChar": 42,
-						"Marker": "Kg=="
-					},
-					"Properties": {
-						"id": "20220828102558-8ibvw54",
-						"updated": "20220828102558"
-					},
-					"Children": [
-						{
-							"ID": "20220828102558-zt2eu0w",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20220828102558-zt2eu0w",
-								"updated": "20220828102558"
-							},
-							"Children": [
-								{
-									"Type": "NodeText",
-									"Data": "When using the HTML block, the code in it will not be security filtered, please confirm the code is safe before using it to avoid cross-site scripting attack (XSS)"
-								}
-							]
-						}
-					]
-				},
-				{
-					"ID": "20220828102558-r1v2xmr",
-					"Type": "NodeListItem",
-					"ListData": {
-						"BulletChar": 42,
-						"Marker": "Kg=="
-					},
-					"Properties": {
-						"id": "20220828102558-r1v2xmr",
-						"updated": "20220828102558"
-					},
-					"Children": [
-						{
-							"ID": "20220828102558-1cg51k8",
-							"Type": "NodeParagraph",
-							"Properties": {
-								"id": "20220828102558-1cg51k8",
-								"updated": "20220828102558"
-							},
-							"Children": [
-								{
-									"Type": "NodeText",
-									"Data": "Because the Markdown specification is more complicated for HTML block parsing rules, it is recommended to use "
-								},
-								{
-									"Type": "NodeTextMark",
-									"TextMarkType": "code",
-									"TextMarkTextContent": "\u0026lt;div\u0026gt;\u0026lt;/div\u0026gt;"
-								},
-								{
-									"Type": "NodeText",
-									"Data": " to wrap HTML code and remove blank lines"
-								}
-							]
-						}
-					]
+					"Data": " for more details."
 				}
 			]
 		},
@@ -3348,36 +3421,67 @@
 			"ID": "20210104091509-d5oimqr",
 			"Type": "NodeCodeBlock",
 			"IsFencedCodeBlock": true,
-			"CodeBlockFenceChar": 96,
-			"CodeBlockFenceLen": 3,
-			"CodeBlockOpenFence": "YGBg",
-			"CodeBlockInfo": "YWJj",
-			"CodeBlockCloseFence": "YGBg",
 			"Properties": {
-				"id": "20210104091509-d5oimqr"
+				"id": "20210104091509-d5oimqr",
+				"updated": "20240429100032"
 			},
 			"Children": [
 				{
 					"Type": "NodeCodeBlockFenceOpenMarker",
-					"Data": "```",
-					"CodeBlockFenceLen": 3
+					"Data": "```"
 				},
 				{
 					"Type": "NodeCodeBlockFenceInfoMarker",
 					"CodeBlockInfo": "YWJj"
 				},
 				{
-					"ID": "20220307092214-4r6ipxo",
 					"Type": "NodeCodeBlockCode",
-					"Data": "X: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:\"Em\"EEE E2G|\"C7\"_B2A G2F|\"Em\"EEE E2G|\\\n\"C7\"_B2A \"B7\"=B3|\"Em\"EEE E2G|\n\"C7\"_B2A G2F|\"Em\"GFE \"D (Bm7)\"F2D|\\\n1\"Em\"E3-E3:|2\"Em\"E3-E2B|:\"Em\"e2e gfe|\n\"G\"g2ab3|\"Em\"gfeg2e|\"D\"fedB2A|\"Em\"e2e gfe|\\\n\"G\"g2ab3|\"Em\"gfe\"D\"f2d|\"Em\"e3-e3:|\n",
-					"Properties": {
-						"id": "20220307092214-4r6ipxo"
-					}
+					"Data": "%%params {tablature: [{instrument: \u0026quot;violin\u0026quot;}]}\nX: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:\u0026quot;Em\u0026quot;EEE E2G|\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;EEE E2G|\\\n\u0026quot;C7\u0026quot;_B2A \u0026quot;B7\u0026quot;=B3|\u0026quot;Em\u0026quot;EEE E2G|\n\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;GFE \u0026quot;D (Bm7)\u0026quot;F2D|\\\n1\u0026quot;Em\u0026quot;E3-E3:|2\u0026quot;Em\u0026quot;E3-E2B|:\u0026quot;Em\u0026quot;e2e gfe|\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfeg2e|\u0026quot;D\u0026quot;fedB2A|\u0026quot;Em\u0026quot;e2e gfe|\\\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfe\u0026quot;D\u0026quot;f2d|\u0026quot;Em\u0026quot;e3-e3:|"
 				},
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
-					"Data": "```",
-					"CodeBlockFenceLen": 3
+					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20240429100035-0ggzlxi",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20240429100035-0ggzlxi",
+				"updated": "20240429100058"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "You can add "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "%%params JSON"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ in the first line to use "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "JSON"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ as a parameter of "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "renderAbc options"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​."
 				}
 			]
 		},
@@ -3471,7 +3575,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210104091509-3e348ea",
-				"updated": "20210415201010"
+				"updated": "20251203220553"
 			},
 			"Children": [
 				{
@@ -3522,7 +3626,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211213122144-gdl5u9e",
-				"updated": "20211213122317"
+				"updated": "20251203220553"
 			},
 			"Children": [
 				{
@@ -3532,7 +3636,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://mermaid.js.org/",
+					"TextMarkAHref": "https://flowchart.js.org/",
 					"TextMarkTextContent": "flowchart.js"
 				},
 				{

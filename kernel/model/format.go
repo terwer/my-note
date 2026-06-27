@@ -17,38 +17,42 @@
 package model
 
 import (
-	"os"
-	"path/filepath"
+	"bytes"
 
-	"github.com/88250/gulu"
 	"github.com/88250/lute/ast"
-	"github.com/88250/lute/parse"
+	"github.com/88250/lute/editor"
 	"github.com/88250/lute/render"
-	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 func AutoSpace(rootID string) (err error) {
-	tree, err := loadTreeByBlockID(rootID)
-	if nil != err {
+	tree, err := LoadTreeByBlockID(rootID)
+	if err != nil {
 		return
 	}
 
+	logging.LogInfof("formatting tree [%s]...", rootID)
 	util.PushProtyleLoading(rootID, Conf.Language(116))
-	defer util.PushProtyleReload(rootID)
+	defer ReloadProtyle(rootID)
 
-	WaitForWritingFiles()
+	FlushTxQueue()
 
-	generateFormatHistory(tree)
+	generateOpTypeHistory(tree, HistoryOpFormat)
 	luteEngine := NewLute()
-	// 合并相邻的同类行级节点
 	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if entering {
-			switch n.Type {
-			case ast.NodeTextMark:
-				luteEngine.MergeSameTextMark(n)
-			}
+		if !entering {
+			return ast.WalkContinue
+		}
+
+		switch n.Type {
+		case ast.NodeTextMark:
+			luteEngine.MergeSameTextMark(n) // 合并相邻的同类行级节点
+		case ast.NodeCodeBlockCode:
+			// 代码块中包含 ``` 时 `优化排版` 异常 `Optimize typography` exception when code block contains ``` https://github.com/siyuan-note/siyuan/issues/15843
+			n.Tokens = bytes.ReplaceAll(n.Tokens, []byte(editor.Zwj+"```"), []byte("```"))
+			n.Tokens = bytes.ReplaceAll(n.Tokens, []byte("```"), []byte(editor.Zwj+"```"))
 		}
 		return ast.WalkContinue
 	})
@@ -57,53 +61,27 @@ func AutoSpace(rootID string) (err error) {
 	addBlockIALNodes(tree, false)
 
 	// 第一次格式化为了合并相邻的文本节点
-	formatRenderer := render.NewFormatRenderer(tree, luteEngine.RenderOptions)
+	formatRenderer := render.NewFormatRenderer(tree, luteEngine.RenderOptions, luteEngine.ParseOptions)
 	md := formatRenderer.Render()
 	newTree := parseKTree(md)
-	newTree.Root.Spec = "1"
+	newTree.Root.Spec = treenode.CurrentSpec
 	// 第二次格式化启用自动空格
 	luteEngine.SetAutoSpace(true)
-	formatRenderer = render.NewFormatRenderer(newTree, luteEngine.RenderOptions)
+	formatRenderer = render.NewFormatRenderer(newTree, luteEngine.RenderOptions, luteEngine.ParseOptions)
 	md = formatRenderer.Render()
 	newTree = parseKTree(md)
-	newTree.Root.Spec = "1"
+	newTree.Root.Spec = treenode.CurrentSpec
 	newTree.Root.ID = tree.ID
 	newTree.Root.KramdownIAL = rootIAL
 	newTree.ID = tree.ID
 	newTree.Path = tree.Path
 	newTree.HPath = tree.HPath
 	newTree.Box = tree.Box
-	err = writeJSONQueue(newTree)
-	if nil != err {
+	err = writeTreeUpsertQueue(newTree)
+	if err != nil {
 		return
 	}
+	logging.LogInfof("formatted tree [%s]", rootID)
 	util.RandomSleep(500, 700)
 	return
-}
-
-func generateFormatHistory(tree *parse.Tree) {
-	historyDir, err := GetHistoryDir(HistoryOpFormat)
-	if nil != err {
-		logging.LogErrorf("get history dir failed: %s", err)
-		return
-	}
-
-	historyPath := filepath.Join(historyDir, tree.Box, tree.Path)
-	if err = os.MkdirAll(filepath.Dir(historyPath), 0755); nil != err {
-		logging.LogErrorf("generate history failed: %s", err)
-		return
-	}
-
-	var data []byte
-	if data, err = filelock.ReadFile(filepath.Join(util.DataDir, tree.Box, tree.Path)); err != nil {
-		logging.LogErrorf("generate history failed: %s", err)
-		return
-	}
-
-	if err = gulu.File.WriteFileSafer(historyPath, data, 0644); err != nil {
-		logging.LogErrorf("generate history failed: %s", err)
-		return
-	}
-
-	indexHistoryDir(filepath.Base(historyDir), util.NewLute())
 }

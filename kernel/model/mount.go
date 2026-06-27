@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -29,27 +30,47 @@ import (
 	"github.com/88250/lute/ast"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
-	"github.com/siyuan-note/siyuan/kernel/treenode"
+	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+func GetBoxByName(name string) (ret *Box) {
+	for _, box := range Conf.GetOpenedBoxes() {
+		if box.Name == name {
+			ret = box
+			return
+		}
+	}
+	return
+}
+
 func CreateBox(name string) (id string, err error) {
-	name = gulu.Str.RemoveInvisible(name)
+	name = util.RemoveInvalid(name)
 	if 512 < utf8.RuneCountInString(name) {
 		// 限制笔记本名和文档名最大长度为 `512` https://github.com/siyuan-note/siyuan/issues/6299
 		err = errors.New(Conf.Language(106))
 		return
 	}
+	if "" == name {
+		name = Conf.language(105)
+	}
 
-	WaitForWritingFiles()
+	FlushTxQueue()
 
 	createDocLock.Lock()
 	defer createDocLock.Unlock()
 
+	boxes, _ := ListNotebooks()
+	for i, b := range boxes {
+		c := b.GetConf()
+		c.Sort = i + 1
+		b.SaveConf(c)
+	}
+
 	id = ast.NewNodeID()
 	boxLocalPath := filepath.Join(util.DataDir, id)
 	err = os.MkdirAll(boxLocalPath, 0755)
-	if nil != err {
+	if err != nil {
 		return
 	}
 
@@ -58,6 +79,7 @@ func CreateBox(name string) (id string, err error) {
 	boxConf.Name = name
 	box.SaveConf(boxConf)
 	IncSync()
+	logging.LogInfof("created box [%s]", id)
 	return
 }
 
@@ -67,21 +89,42 @@ func RenameBox(boxID, name string) (err error) {
 		return errors.New(Conf.Language(0))
 	}
 
+	if 512 < utf8.RuneCountInString(name) {
+		// 限制笔记本名和文档名最大长度为 `512` https://github.com/siyuan-note/siyuan/issues/6299
+		err = errors.New(Conf.Language(106))
+		return
+	}
+
+	if "" == name {
+		name = Conf.language(105)
+	}
+
 	boxConf := box.GetConf()
 	boxConf.Name = name
 	box.Name = name
 	box.SaveConf(boxConf)
 	IncSync()
+	logging.LogInfof("renamed box [%s] to [%s]", boxID, name)
 	return
 }
 
+var boxLock = sync.Map{}
+
 func RemoveBox(boxID string) (err error) {
-	if util.IsReservedFilename(boxID) {
-		return errors.New(fmt.Sprintf("can not remove [%s] caused by it is a reserved file", boxID))
+	if _, ok := boxLock.Load(boxID); ok {
+		err = fmt.Errorf(Conf.language(239))
+		return
 	}
 
-	WaitForWritingFiles()
+	boxLock.Store(boxID, true)
+	defer boxLock.Delete(boxID)
 
+	if util.IsReservedFilename(boxID) {
+		return fmt.Errorf("can not remove [%s] caused by it is a reserved file", boxID)
+	}
+
+	FlushTxQueue()
+	isUserGuide := IsUserGuide(boxID)
 	createDocLock.Lock()
 	defer createDocLock.Unlock()
 
@@ -90,19 +133,19 @@ func RemoveBox(boxID string) (err error) {
 		return
 	}
 	if !gulu.File.IsDir(localPath) {
-		return errors.New(fmt.Sprintf("can not remove [%s] caused by it is not a dir", boxID))
+		return fmt.Errorf("can not remove [%s] caused by it is not a dir", boxID)
 	}
 
-	if !IsUserGuide(boxID) {
+	if !isUserGuide {
 		var historyDir string
-		historyDir, err = GetHistoryDir(HistoryOpDelete)
-		if nil != err {
+		historyDir, err = getHistoryDir(HistoryOpDelete)
+		if err != nil {
 			logging.LogErrorf("get history dir failed: %s", err)
 			return
 		}
 		p := strings.TrimPrefix(localPath, util.DataDir)
 		historyPath := filepath.Join(historyDir, p)
-		if err = filelock.Copy(localPath, historyPath); nil != err {
+		if err = filelock.Copy(localPath, historyPath); err != nil {
 			logging.LogErrorf("gen sync history failed: %s", err)
 			return
 		}
@@ -111,19 +154,44 @@ func RemoveBox(boxID string) (err error) {
 	}
 
 	unmount0(boxID)
-	if err = filelock.Remove(localPath); nil != err {
+	if err = filelock.Remove(localPath); err != nil {
 		return
 	}
+
+	if isUserGuide {
+		if avFiles, readAvErr := getUserGuideAVJSONFiles(boxID); nil == readAvErr {
+			for _, avName := range avFiles {
+				avFilePath := filepath.Join(util.DataDir, "storage", "av", avName)
+				if removeErr := filelock.Remove(avFilePath); nil != removeErr {
+					logging.LogErrorf("remove av file [%s] failed: %s", avFilePath, removeErr)
+				} else {
+					logging.LogDebugf("removed av file [%s]", avFilePath)
+				}
+			}
+		}
+	}
+
 	IncSync()
+
+	logging.LogInfof("removed box [%s]", boxID)
 	return
 }
 
 func Unmount(boxID string) {
-	WaitForWritingFiles()
+	FlushTxQueue()
 
 	unmount0(boxID)
-	evt := util.NewCmdResult("unmount", 0, util.PushModeBroadcast)
-	evt.Data = map[string]interface{}{
+
+	cmdName := "closeBox"
+	if IsUserGuide(boxID) {
+		if err := RemoveBox(boxID); err == nil {
+			cmdName = "removeBox"
+		} else {
+			logging.LogErrorf("close user guide box [%s] failed, fallback to unmount: %s", boxID, err)
+		}
+	}
+	evt := util.NewCmdResult(cmdName, 0, util.PushModeBroadcast)
+	evt.Data = map[string]any{
 		"box": boxID,
 	}
 	util.PushEvent(evt)
@@ -142,11 +210,20 @@ func unmount0(boxID string) {
 }
 
 func Mount(boxID string) (alreadyMount bool, err error) {
-	WaitForWritingFiles()
+	if _, ok := boxLock.Load(boxID); ok {
+		err = fmt.Errorf(Conf.language(239))
+		return
+	}
+
+	boxLock.Store(boxID, true)
+	defer boxLock.Delete(boxID)
+
+	FlushTxQueue()
+	isUserGuide := IsUserGuide(boxID)
 
 	localPath := filepath.Join(util.DataDir, boxID)
 	var reMountGuide bool
-	if IsUserGuide(boxID) {
+	if isUserGuide {
 		// 重新挂载帮助文档
 
 		guideBox := Conf.Box(boxID)
@@ -155,18 +232,32 @@ func Mount(boxID string) (alreadyMount bool, err error) {
 			reMountGuide = true
 		}
 
-		if err = filelock.Remove(localPath); nil != err {
+		if err = filelock.Remove(localPath); err != nil {
 			return
 		}
 
+		boxes, _ := ListNotebooks()
+		var sort int
+		if len(boxes) > 0 {
+			sort = boxes[0].Sort - 1
+		}
+
 		p := filepath.Join(util.WorkingDir, "guide", boxID)
-		if err = filelock.Copy(p, localPath); nil != err {
+		if err = filelock.Copy(p, localPath); err != nil {
 			return
+		}
+
+		avDirPath := filepath.Join(util.WorkingDir, "guide", boxID, "storage", "av")
+		if filelock.IsExist(avDirPath) {
+			if err = filelock.Copy(avDirPath, filepath.Join(util.DataDir, "storage", "av")); err != nil {
+				return
+			}
 		}
 
 		if box := Conf.Box(boxID); nil != box {
 			boxConf := box.GetConf()
 			boxConf.Closed = true
+			boxConf.Sort = sort
 			box.SaveConf(boxConf)
 		}
 
@@ -175,10 +266,8 @@ func Mount(boxID string) (alreadyMount bool, err error) {
 			Conf.Save()
 		}
 
+		task.AppendAsyncTaskWithDelay(task.PushMsg, 3*time.Second, util.PushErrMsg, Conf.Language(52), 7000)
 		go func() {
-			time.Sleep(time.Second * 3)
-			util.PushErrMsg(Conf.Language(52), 7000)
-
 			// 每次打开帮助文档时自动检查版本更新并提醒 https://github.com/siyuan-note/siyuan/issues/5057
 			time.Sleep(time.Second * 10)
 			CheckUpdate(true)
@@ -200,32 +289,10 @@ func Mount(boxID string) (alreadyMount bool, err error) {
 	boxConf.Closed = false
 	box.SaveConf(boxConf)
 
-	box.Index()
 	// 缓存根一级的文档树展开
-	ListDocTree(box.ID, "/", util.SortModeUnassigned, false, false, Conf.FileTree.MaxListCount)
-	treenode.SaveBlockTree(false)
-	util.ClearPushProgress(100)
-
-	if IsUserGuide(boxID) {
-		go func() {
-			var startID string
-			i := 0
-			for ; i < 70; i++ {
-				time.Sleep(100 * time.Millisecond)
-				guideStartID := map[string]string{
-					"20210808180117-czj9bvb": "20200812220555-lj3enxa",
-					"20211226090932-5lcq56f": "20211226115423-d5z1joq",
-					"20210808180117-6v0mkxr": "20200923234011-ieuun1p",
-				}
-				startID = guideStartID[boxID]
-				if nil != treenode.GetBlockTree(startID) {
-					util.BroadcastByType("main", "openFileById", 0, "", map[string]interface{}{
-						"id": startID,
-					})
-					break
-				}
-			}
-		}()
+	files, _, _ := ListDocTree(box.ID, "/", util.SortModeUnassigned, false, false, Conf.FileTree.MaxListCount)
+	if 0 < len(files) {
+		box.Index()
 	}
 
 	if reMountGuide {
@@ -235,5 +302,50 @@ func Mount(boxID string) (alreadyMount bool, err error) {
 }
 
 func IsUserGuide(boxID string) bool {
-	return "20210808180117-czj9bvb" == boxID || "20210808180117-6v0mkxr" == boxID || "20211226090932-5lcq56f" == boxID
+	return "20210808180117-czj9bvb" == boxID || "20210808180117-6v0mkxr" == boxID || "20211226090932-5lcq56f" == boxID || "20240530133126-axarxgx" == boxID
+}
+
+func getUserGuideAVJSONFiles(boxID string) (ret []string, err error) {
+	guideAVDirPath := filepath.Join(util.WorkingDir, "guide", boxID, "storage", "av")
+	if !filelock.IsExist(guideAVDirPath) {
+		logging.LogErrorf("guide av dir [%s] not exist", guideAVDirPath)
+		return
+	}
+
+	avEntries, err := os.ReadDir(guideAVDirPath)
+	if nil != err {
+		logging.LogErrorf("read guide av dir [%s] failed: %s", guideAVDirPath, err)
+		return
+	}
+
+	for _, avEntry := range avEntries {
+		avName := avEntry.Name()
+		if avEntry.IsDir() || !strings.HasSuffix(avName, ".json") || !ast.IsNodeIDPattern(strings.TrimSuffix(avName, ".json")) {
+			continue
+		}
+		ret = append(ret, avName)
+	}
+	return
+}
+
+func getAllUserGuideAVJSONFiles() (ret []string) {
+	guideDirPath := filepath.Join(util.WorkingDir, "guide")
+	guideEntries, err := os.ReadDir(guideDirPath)
+	if nil != err {
+		return
+	}
+
+	for _, guideEntry := range guideEntries {
+		boxID := guideEntry.Name()
+		if !guideEntry.IsDir() || !IsUserGuide(boxID) {
+			continue
+		}
+
+		avFiles, err := getUserGuideAVJSONFiles(boxID)
+		if nil != err {
+			continue
+		}
+		ret = append(ret, avFiles...)
+	}
+	return
 }

@@ -33,27 +33,34 @@ func pandoc(c *gin.Context) {
 		return
 	}
 
-	dir := gulu.Rand.String(7)
-	dirArg := arg["dir"]
-	if nil != dirArg {
-		dir = dirArg.(string)
+	var dirStr string
+	var pandocArgs []any
+	if !util.ParseJsonArgs(arg, ret,
+		util.BindJsonArg("dir", &dirStr, false, false),
+		util.BindJsonArg("args", &pandocArgs, true, false),
+	) {
+		return
 	}
 
-	pandocArgs := arg["args"].([]interface{})
+	var dir string
+	if dirStr != "" {
+		dir = dirStr
+	} else {
+		dir = gulu.Rand.String(7)
+	}
 	var args []string
 	for _, v := range pandocArgs {
 		args = append(args, v.(string))
 	}
 
 	path, err := util.ConvertPandoc(dir, args...)
-	if nil != err {
+	if err != nil {
 		ret.Code = -1
 		ret.Msg = err.Error()
 		return
 	}
 
-	ret.Data = map[string]interface{}{
+	ret.Data = map[string]any{
 		"path": path,
 	}
-	return
 }

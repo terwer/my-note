@@ -11,7 +11,7 @@ import {Constants} from "../constants";
 
 export const openBookmarkMenu = (element: HTMLElement, event: MouseEvent, bookmarkObj: Bookmark | MobileBookmarks) => {
     if (!window.siyuan.menus.menu.element.classList.contains("fn__none") &&
-        window.siyuan.menus.menu.element.getAttribute("data-name") === "bookmarkMenu") {
+        window.siyuan.menus.menu.element.getAttribute("data-name") === Constants.MENU_BOOKMARK) {
         window.siyuan.menus.menu.remove();
         return;
     }
@@ -19,6 +19,7 @@ export const openBookmarkMenu = (element: HTMLElement, event: MouseEvent, bookma
     const id = element.getAttribute("data-node-id");
     if (!id && !window.siyuan.config.readonly) {
         window.siyuan.menus.menu.append(new MenuItem({
+            id: "rename",
             icon: "iconEdit",
             label: window.siyuan.languages.rename,
             click: () => {
@@ -57,15 +58,17 @@ export const openBookmarkMenu = (element: HTMLElement, event: MouseEvent, bookma
     }
     if (id) {
         window.siyuan.menus.menu.append(new MenuItem({
+            id: "copy",
             label: window.siyuan.languages.copy,
             type: "submenu",
             icon: "iconCopy",
-            submenu: copySubMenu(element.getAttribute("data-node-id"), false)
+            submenu: copySubMenu([element.getAttribute("data-node-id")], false)
         }).element);
     }
 
     if (!window.siyuan.config.readonly) {
         window.siyuan.menus.menu.append(new MenuItem({
+            id: "remove",
             icon: "iconTrashcan",
             label: window.siyuan.languages.remove,
             click: () => {
@@ -85,10 +88,10 @@ export const openBookmarkMenu = (element: HTMLElement, event: MouseEvent, bookma
                     } else {
                         fetchPost("/api/bookmark/removeBookmark", {bookmark: bookmarkText});
                     }
-                });
+                }, undefined, true);
             }
         }).element);
     }
-    window.siyuan.menus.menu.element.setAttribute("data-name", "bookmarkMenu");
+    window.siyuan.menus.menu.element.setAttribute("data-name", Constants.MENU_BOOKMARK);
     window.siyuan.menus.menu.popup({x: event.clientX - 11, y: event.clientY + 11, h: 22, w: 12});
 };
