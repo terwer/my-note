@@ -17,6 +17,7 @@ ADD app/ .
 RUN <<EORUN
 #!/bin/bash -e
 pnpm run build
+node scripts/trimChangelogs.js
 mkdir /artifacts
 mv appearance stage guide changelogs /artifacts/
 EORUN
@@ -37,7 +38,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/g
 
 ADD kernel/ .
 RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg \
-    go build -tags fts5 -v -ldflags "-s -w"
+    go build -tags fts5 -ldflags "-s -w"
 
 FROM alpine:latest
 LABEL maintainer="Liang Ding<845765@qq.com>"
@@ -45,13 +46,15 @@ LABEL maintainer="Liang Ding<845765@qq.com>"
 RUN apk add --no-cache ca-certificates tzdata su-exec
 
 ENV TZ=Asia/Shanghai
-ENV HOME=/home/my-note
+ENV HOME=/home/siyuan
 ENV RUN_IN_CONTAINER=true
 EXPOSE 6806
 
-WORKDIR /opt/my-note/
+WORKDIR /opt/siyuan/
 COPY --from=go-build --chmod=755 /kernel/kernel /kernel/entrypoint.sh .
 COPY --from=node-build /artifacts .
 
-ENTRYPOINT ["/opt/my-note/entrypoint.sh"]
-CMD ["/opt/my-note/kernel"]
+ENTRYPOINT ["/opt/siyuan/entrypoint.sh"]
+# 默认启动伺服。若通过 `docker run` / `command:` 传额外参数，需自行带上 `serve` 子命令，
+# 否则用户参数会整体覆盖 CMD。
+CMD ["/opt/siyuan/kernel", "serve"]

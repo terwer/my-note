@@ -4,9 +4,9 @@ set -e
 # Default values
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
-USER_NAME=${USER_NAME:-mynote}
-GROUP_NAME=${GROUP_NAME:-mynote}
-WORKSPACE_DIR="/my-note/workspace"
+USER_NAME=${USER_NAME:-siyuan}
+GROUP_NAME=${GROUP_NAME:-siyuan}
+WORKSPACE_DIR="/siyuan/workspace"
 
 # Get or create group
 group_name="${GROUP_NAME}"
@@ -30,8 +30,8 @@ fi
 
 # Parse command line arguments for --workspace option or SIYUAN_WORKSPACE_PATH env variable
 # Store other arguments in ARGS for later use
-if [[ -n "${MYNOTE_WORKSPACE_PATH}" ]]; then
-    WORKSPACE_DIR="${MYNOTE_WORKSPACE_PATH}"
+if [[ -n "${SIYUAN_WORKSPACE_PATH}" ]]; then
+    WORKSPACE_DIR="${SIYUAN_WORKSPACE_PATH}"
 fi
 ARGS=""
 while [[ "$#" -gt 0 ]]; do
@@ -42,11 +42,11 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Change ownership of relevant directories, including the workspace directory
-echo "Adjusting ownership of /opt/my-note, /home/my-note/, and ${WORKSPACE_DIR}"
-chown -R "${PUID}:${PGID}" /opt/my-note
-chown -R "${PUID}:${PGID}" /home/my-note/
+echo "Adjusting ownership of /opt/siyuan, /home/siyuan/, and ${WORKSPACE_DIR}"
+chown -R "${PUID}:${PGID}" /opt/siyuan
+chown -R "${PUID}:${PGID}" /home/siyuan/
 chown -R "${PUID}:${PGID}" "${WORKSPACE_DIR}"
 
 # Switch to the newly created user and start the main process with all arguments
-echo "Starting MyNote with UID:${PUID} and GID:${PGID} in workspace ${WORKSPACE_DIR}"
-exec su-exec "${PUID}:${PGID}" /opt/my-note/kernel --workspace="${WORKSPACE_DIR}" ${ARGS}
+echo "Starting SiYuan with UID:${PUID} and GID:${PGID} in workspace ${WORKSPACE_DIR}"
+exec su-exec "${PUID}:${PGID}" /opt/siyuan/kernel --workspace="${WORKSPACE_DIR}" ${ARGS}

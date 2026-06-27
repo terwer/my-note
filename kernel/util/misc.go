@@ -18,8 +18,10 @@ package util
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,6 +31,41 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/siyuan-note/logging"
 )
+
+// Optional is a generic type that represents an optional value, which can be in one of three states:
+//   - not set (Exists=false)
+//   - set to a non-null value (Exists=true, IsNull=false)
+//   - explicitly set to null (Exists=true, IsNull=true).
+//
+// This allows distinguishing between "not provided" and "explicitly null" when unmarshaling JSON.
+type Optional[T any] struct {
+	Value  T
+	Exists bool
+	IsNull bool
+}
+
+func (o Optional[T]) IsZero() bool { return !o.Exists }
+
+func (o Optional[T]) IsNullValue() bool { return o.Exists && o.IsNull }
+
+func (o Optional[T]) HasValue() bool { return o.Exists && !o.IsNull }
+
+func (o *Optional[T]) UnmarshalJSON(data []byte) error {
+	o.Exists = true
+	if string(data) == "null" {
+		o.IsNull = true
+		return nil
+	}
+	o.IsNull = false
+	return json.Unmarshal(data, &o.Value)
+}
+
+func (o Optional[T]) MarshalJSON() ([]byte, error) {
+	if !o.Exists || o.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(o.Value)
+}
 
 func GetDuplicateName(master string) (ret string) {
 	if "" == master {
@@ -194,6 +231,68 @@ func Convert2Float(s string) (float64, bool) {
 	return ret, true
 }
 
+// CountIf 统计数字列表中满足指定比较条件的元素个数。
+// op 为比较操作符："gt"/"lt"/"eq"/"ge"/"le"，threshold 为比较阈值。
+// 例如 CountIf(values, "gt", 0) 统计大于 0 的个数。非数字元素按 0 处理。
+func CountIf(list any, op string, threshold any) int {
+	thresholdF, ok := ToFloat64(threshold)
+	if !ok {
+		return 0
+	}
+	count := 0
+	v := reflect.ValueOf(list)
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
+		return 0
+	}
+	for i := 0; i < v.Len(); i++ {
+		elem, ok := ToFloat64(v.Index(i).Interface())
+		if !ok {
+			continue
+		}
+		switch op {
+		case "gt":
+			if elem > thresholdF {
+				count++
+			}
+		case "lt":
+			if elem < thresholdF {
+				count++
+			}
+		case "eq":
+			if elem == thresholdF {
+				count++
+			}
+		case "ge":
+			if elem >= thresholdF {
+				count++
+			}
+		case "le":
+			if elem <= thresholdF {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// ToFloat64 将常用数值/字符串类型转换为 float64。
+func ToFloat64(v any) (float64, bool) {
+	switch x := v.(type) {
+	case float64:
+		return x, true
+	case float32:
+		return float64(x), true
+	case int:
+		return float64(x), true
+	case int64:
+		return float64(x), true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(x), 64)
+		return f, err == nil
+	}
+	return 0, false
+}
+
 func ContainsSubStr(s string, subStrs []string) bool {
 	for _, v := range subStrs {
 		if strings.Contains(s, v) {
@@ -332,4 +431,11 @@ func extractSVG(fullHTML string) string {
 		return fullHTML
 	}
 	return fullHTML[start : end+6]
+}
+
+var nonAlphanumericRegexp = regexp.MustCompile(`[^0-9a-zA-Z]`)
+
+// SanitizeName replaces all non-alphanumeric characters in the input string with underscores.
+func SanitizeName(name string) string {
+	return nonAlphanumericRegexp.ReplaceAllString(name, "_")
 }

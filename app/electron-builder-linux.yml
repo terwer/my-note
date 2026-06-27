@@ -1,9 +1,9 @@
-productName: "MyNote"
-appId: "com.terwer.mynote"
+productName: "SiYuan"
+appId: "org.b3log.siyuan"
 asar: false
 compression: "normal"
 copyright: "© 2020-present Yunnan Liandi Technology Co., Ltd."
-artifactName: "my-note-${version}-${os}.${ext}"
+artifactName: "siyuan-${version}-${os}.${ext}"
 extraMetadata:
   main: "electron/main.js"
 directories:
@@ -16,12 +16,13 @@ extraFiles:
     to: "LICENSE"
 
 linux:
-  icon: "src/assets/icon.icns"
+  icon: "src/assets/icon/"
   category: "Utility"
-  executableName: "my-note"
+  syncDesktopName: true
+  executableName: "siyuan"
   desktop: {
     entry: {
-      Name: "MyNote",
+      Name: "SiYuan",
       Comment: "Refactor your thinking",
       Type: "Application",
       Categories: "Utility;"
@@ -34,6 +35,7 @@ linux:
     - target: "tar.gz"
     - target: "AppImage"
     - target: "deb"
+    - target: "rpm"
 
 extraResources:
   - from: "changelogs"
