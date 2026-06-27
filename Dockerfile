@@ -45,13 +45,13 @@ LABEL maintainer="Liang Ding<845765@qq.com>"
 RUN apk add --no-cache ca-certificates tzdata su-exec
 
 ENV TZ=Asia/Shanghai
-ENV HOME=/home/siyuan
+ENV HOME=/home/my-note
 ENV RUN_IN_CONTAINER=true
 EXPOSE 6806
 
-WORKDIR /opt/siyuan/
+WORKDIR /opt/my-note/
 COPY --from=go-build --chmod=755 /kernel/kernel /kernel/entrypoint.sh .
 COPY --from=node-build /artifacts .
 
-ENTRYPOINT ["/opt/siyuan/entrypoint.sh"]
-CMD ["/opt/siyuan/kernel"]
+ENTRYPOINT ["/opt/my-note/entrypoint.sh"]
+CMD ["/opt/my-note/kernel"]
