@@ -10,7 +10,10 @@ Build Your Eternal Digital Garden
 </p>
 
 <p align="center">
-<a href="README_zh_CN.md">中文</a>
+<b>English</b>
+| <a href="README_zh_CN.md">中文</a>
+| <a href="README_ja_JP.md">日本語</a>
+| <a href="README_tr_TR.md">Türkçe</a>
 </p>
 
 ## 💡 Introduction
@@ -61,15 +64,26 @@ Then, setup file is under `build` forder
 
 ### kernel
 
+**Linux / macOS**
+
 ```bash
 cd kernel
 go env -w GO111MODULE=on
-# go env -w GOPROXY=https://goproxy.cn,direct
-go env -w GOPROXY=https://proxy.golang.com.cn
-# go env -w GOPROXY=https://goproxy.cn
-go build --tags "fts5" -o "../app/kernel/SiYuan-Kernel"
+go env -w GOPROXY=https://goproxy.cn
+go build --tags "fts5" -o "../app/kernel/my-note-kernel"
 cd ../app/kernel
-./SiYuan-Kernel --wd=.. --mode=dev
+./my-note-kernel --wd=.. --mode=dev
+```
+
+**Windows**
+
+```bash
+cd kernel
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn
+go build --tags "fts5" -o "../app/kernel/my-note-kernel.exe"
+cd ../app/kernel
+./my-note-kernel.exe --wd=.. --mode=dev
 ```
 
 ### app

@@ -11,6 +11,9 @@
 
 <p align="center">
 <a href="README.md">English</a>
+| <b>中文</b>
+| <a href="README_ja_JP.md">日本語</a>
+| <a href="README_tr_TR.md">Türkçe</a>
 </p>
 
 ## 💡 简介
@@ -61,17 +64,26 @@ python3 scripts/build.py linux
 
 ### kernel
 
+**Linux / macOS**
+
 ```bash
 cd kernel
 go env -w GO111MODULE=on
-# go env -w GOPROXY=https://goproxy.cn,direct
-go env -w GOPROXY=https://proxy.golang.com.cn
-# go env -w GOPROXY=https://goproxy.cn
-# go build --tags "fts5" -o "../app/kernel/SiYuan-Kernel.exe"
-go build --tags "fts5" -o "../app/kernel/SiYuan-Kernel"
+go env -w GOPROXY=https://goproxy.cn
+go build --tags "fts5" -o "../app/kernel/my-note-kernel"
 cd ../app/kernel
-# ./SiYuan-Kernel.exe --wd=.. --mode=dev
-./SiYuan-Kernel --wd=.. --mode=dev
+./my-note-kernel --wd=.. --mode=dev
+```
+
+**Windows**
+
+```bash
+cd kernel
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn
+go build --tags "fts5" -o "../app/kernel/my-note-kernel.exe"
+cd ../app/kernel
+./my-note-kernel.exe --wd=.. --mode=dev
 ```
 
 ### app
