@@ -11,9 +11,9 @@ Build Your Eternal Digital Garden
 
 <p align="center">
 <b>English</b>
-| <a href="README_zh_CN.md">中文</a>
-| <a href="README_ja_JP.md">日本語</a>
-| <a href="README_tr_TR.md">Türkçe</a>
+| <a href="README.zh-CN.md">中文</a>
+| <a href="README.ja.md">日本語</a>
+| <a href="README.tr.md">Türkçe</a>
 </p>
 
 ## 💡 Introduction
@@ -64,36 +64,25 @@ Then, setup file is under `build` forder
 
 ### kernel
 
-**Linux / macOS**
+内核二进制名 `SiYuan-Kernel` 由运行时代码硬编码，不可改名。
 
 ```bash
-cd kernel
-go env -w GO111MODULE=on
-go env -w GOPROXY=https://goproxy.cn
-go build --tags "fts5" -o "../app/kernel/my-note-kernel"
-cd ../app/kernel
-./my-note-kernel --wd=.. --mode=dev
-```
+# Linux / macOS
+./dev.sh
 
-**Windows**
-
-```bash
-cd kernel
-go env -w GO111MODULE=on
-go env -w GOPROXY=https://goproxy.cn
-go build --tags "fts5" -o "../app/kernel/my-note-kernel.exe"
-cd ../app/kernel
-./my-note-kernel.exe --wd=.. --mode=dev
+# Windows (PowerShell)
+.\dev.ps1
 ```
 
 ### app
 
 ```bash
-cd app
-npm install -g pnpm
-pnpm config set registry https://registry.npmmirror.com/
+# Linux / macOS
+./devApp.sh
 
-pnpm install
-pnpm run dev
-pnpm run start
+# Windows (PowerShell)
+.\devApp.ps1
 ```
+
+注意：app 脚本使用 webpack production 模式构建并通过国内镜像下载 Electron，
+构建完成后自动启动。

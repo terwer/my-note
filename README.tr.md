@@ -11,8 +11,8 @@ Sonsuz Dijital Bahçeni İnşa Et
 
 <p align="center">
 <a href="README.md">English</a>
-| <a href="README_zh_CN.md">中文</a>
-| <a href="README_ja_JP.md">日本語</a>
+| <a href="README.zh-CN.md">中文</a>
+| <a href="README.ja.md">日本語</a>
 | <b>Türkçe</b>
 </p>
 
@@ -64,36 +64,20 @@ Derlemeden sonra kurulum dosyası `build` klasöründedir.
 
 ### kernel
 
-**Linux / macOS**
-
 ```bash
-cd kernel
-go env -w GO111MODULE=on
-go env -w GOPROXY=https://goproxy.cn
-go build --tags "fts5" -o "../app/kernel/my-note-kernel"
-cd ../app/kernel
-./my-note-kernel --wd=.. --mode=dev
-```
+# Linux / macOS
+./dev.sh
 
-**Windows**
-
-```bash
-cd kernel
-go env -w GO111MODULE=on
-go env -w GOPROXY=https://goproxy.cn
-go build --tags "fts5" -o "../app/kernel/my-note-kernel.exe"
-cd ../app/kernel
-./my-note-kernel.exe --wd=.. --mode=dev
+# Windows (PowerShell)
+.\dev.ps1
 ```
 
 ### app
 
 ```bash
-cd app
-npm install -g pnpm
-pnpm config set registry https://registry.npmmirror.com/
+# Linux / macOS
+./devApp.sh
 
-pnpm install
-pnpm run dev
-pnpm run start
+# Windows (PowerShell)
+.\devApp.ps1
 ```
