@@ -12,4 +12,5 @@ esac
 
 go build --tags "fts5" -o "../app/kernel/$BIN"
 cd ../app/kernel
-./$BIN serve --workspace=..
+# ./$BIN serve --workspace=..
+./$BIN serve --workspace=/Volumes/workspace/mydocs/SiYuanWorkspace/dev
